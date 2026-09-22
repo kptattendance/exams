@@ -1,0 +1,11 @@
+.env*
+.env
+node_modules
+*.pem
+node_modules/
+.env
+.env.local
+.next/
+dist/
+build/
+*.log
