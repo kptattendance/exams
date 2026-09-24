@@ -3,6 +3,10 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { clerkMiddleware } from "@clerk/express";
 
+
+import userRoutes from "./routes/userRoutes.js";
+import subjectRoutes from "./routes/subjectRoutes.js";
+
 import connectDB from "./config/db.js";
 
 dotenv.config();
@@ -55,6 +59,10 @@ app.get("/", (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
+
+
+app.use("/api/users", userRoutes);
+app.use("/api/subjects", subjectRoutes);
 
 connectDB().then(() => {
   if (process.env.NODE_ENV !== "production") {
