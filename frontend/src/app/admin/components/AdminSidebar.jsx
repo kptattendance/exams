@@ -44,23 +44,23 @@ const menuItems = [
     ),
   },
   {
-  name: "Users",
-  href: "/admin/users",
-  icon: (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      className="h-5 w-5"
-    >
-      <path d="M12 2 3 6l9 4 9-4-9-4Z" />
-      <path d="M5 10v5c0 2 3.1 4 7 4s7-2 7-4v-5" />
-      <path d="M21 6v6" />
-    </svg>
-  ),
-},
+    name: "Users",
+    href: "/admin/users",
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        className="h-5 w-5"
+      >
+        <path d="M12 2 3 6l9 4 9-4-9-4Z" />
+        <path d="M5 10v5c0 2 3.1 4 7 4s7-2 7-4v-5" />
+        <path d="M21 6v6" />
+      </svg>
+    ),
+  },
   {
     name: "Subjects",
     href: "/admin/subjects",
@@ -97,8 +97,6 @@ const menuItems = [
       </svg>
     ),
   },
-  
- 
   {
     name: "Clerk Users",
     href: "/admin/clerk-users",
@@ -136,13 +134,13 @@ export default function AdminSidebar() {
   const email = user?.primaryEmailAddress?.emailAddress || "";
 
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-72 flex-col border-r border-slate-200 bg-white">
+    <aside className="fixed left-0 top-0 z-40 flex h-screen w-72 flex-col border-r border-amber-200 bg-white">
 
       {/* Brand */}
-      <div className="flex h-20 items-center border-b border-slate-100 px-6">
+      <div className="flex h-20 items-center border-b border-amber-100 bg-white px-6">
         <Link href="/admin" className="flex items-center gap-3">
 
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 text-sm font-bold text-white shadow-sm">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500 text-sm font-bold text-white shadow-sm">
             K
           </div>
 
@@ -151,7 +149,7 @@ export default function AdminSidebar() {
               KPT EXAMINATIONS
             </div>
 
-            <div className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
+            <div className="text-[11px] font-medium uppercase tracking-wider text-amber-600">
               Administration
             </div>
           </div>
@@ -160,9 +158,9 @@ export default function AdminSidebar() {
       </div>
 
       {/* Navigation */}
-      <div className="flex-1 overflow-y-auto px-4 py-6">
+      <div className="flex-1 overflow-y-auto bg-white px-4 py-6">
 
-        <div className="mb-3 px-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+        <div className="mb-3 px-3 text-[11px] font-semibold uppercase tracking-widest text-amber-600">
           Main Menu
         </div>
 
@@ -178,18 +176,18 @@ export default function AdminSidebar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-200 ${
+                className={`group flex items-center gap-3 rounded-xl border px-3 py-3 text-sm font-medium transition-all duration-200 ${
                   isActive
-                    ? "bg-slate-950 text-white shadow-sm"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+                    ? "border-amber-500 bg-amber-500 text-white shadow-sm"
+                    : "border-transparent text-slate-600 hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700"
                 }`}
               >
 
                 <span
                   className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
                     isActive
-                      ? "bg-white/10 text-white"
-                      : "text-slate-400 group-hover:text-slate-700"
+                      ? "bg-white/15 text-white"
+                      : "text-slate-400 group-hover:bg-amber-100 group-hover:text-amber-600"
                   }`}
                 >
                   {item.icon}
@@ -211,11 +209,11 @@ export default function AdminSidebar() {
       </div>
 
       {/* User Section */}
-      <div className="border-t border-slate-100 p-4">
+      <div className="border-t border-amber-100 bg-white p-4">
 
-        <div className="mb-3 flex items-center gap-3 rounded-xl bg-slate-50 p-3">
+        <div className="mb-3 flex items-center gap-3 rounded-xl border border-amber-100 bg-amber-50 p-3">
 
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-900 text-sm font-semibold text-white">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-amber-500 text-sm font-semibold text-white">
 
             {user?.imageUrl ? (
               <img
@@ -239,16 +237,20 @@ export default function AdminSidebar() {
               {email}
             </p>
 
+            <span className="mt-1 inline-flex rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+              Administrator
+            </span>
+
           </div>
 
         </div>
 
         <button
           onClick={() => signOut({ redirectUrl: "/" })}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-600 transition hover:bg-red-50 hover:text-red-600"
+          className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-3 text-sm font-medium text-slate-600 transition hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-1"
         >
 
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition group-hover:text-amber-600">
 
             <svg
               xmlns="http://www.w3.org/2000/svg"

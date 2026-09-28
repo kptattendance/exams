@@ -101,11 +101,13 @@ const uploadGoogleDrivePhoto = async (driveUrl) => {
   };
 };
 
+
 // =====================================================
 // BULK UPLOAD STUDENTS
 // =====================================================
 // Excel columns:
 //
+// RollNumber
 // RegisterNumber
 // Name
 // FatherName
@@ -296,6 +298,13 @@ export const bulkUploadStudents = async (
       // READ VALUES
       // =================================================
 
+      const rollNumber =
+        String(
+          row.RollNumber ||
+            row.rollNumber ||
+            ""
+        ).trim();
+
       const registerNumber =
         String(
           row.RegisterNumber ||
@@ -464,6 +473,18 @@ export const bulkUploadStudents = async (
       // =================================================
       // VALIDATION
       // =================================================
+
+      if (!rollNumber) {
+        results.failed++;
+
+        results.errors.push({
+          row: excelRow,
+          message:
+            "Roll number is required.",
+        });
+
+        continue;
+      }
 
       if (!registerNumber) {
         results.failed++;
@@ -875,6 +896,8 @@ export const bulkUploadStudents = async (
             clerkId:
               clerkUser.id,
 
+            rollNumber,
+
             registerNumber,
 
             name,
@@ -934,6 +957,7 @@ export const bulkUploadStudents = async (
 
         results.createdStudents.push({
           row: excelRow,
+          rollNumber,
           registerNumber,
           name,
           email,
@@ -988,6 +1012,7 @@ export const bulkUploadStudents = async (
 
         results.errors.push({
           row: excelRow,
+          rollNumber,
           registerNumber,
           name,
           email,
@@ -1027,6 +1052,8 @@ export const bulkUploadStudents = async (
     });
   }
 };
+
+
 // =====================================================
 // CREATE STUDENT
 // =====================================================
@@ -1064,6 +1091,7 @@ export const createStudent = async (req, res) => {
     // -------------------------------------------------
 
     const {
+      rollNumber,
       registerNumber,
       name,
       fatherName,
@@ -1095,6 +1123,7 @@ export const createStudent = async (req, res) => {
     // -------------------------------------------------
 
     const requiredFields = [
+      ["rollNumber", rollNumber],
       ["registerNumber", registerNumber],
       ["name", name],
       ["fatherName", fatherName],
@@ -1126,6 +1155,10 @@ export const createStudent = async (req, res) => {
     // -------------------------------------------------
     // NORMALIZE VALUES
     // -------------------------------------------------
+
+    const normalizedRollNumber =
+      String(rollNumber)
+        .trim();
 
     const normalizedRegisterNumber =
       String(registerNumber)
@@ -1358,6 +1391,9 @@ export const createStudent = async (req, res) => {
     const student = new Student({
       clerkId: clerkUser.id,
 
+      rollNumber:
+        normalizedRollNumber,
+
       registerNumber:
         normalizedRegisterNumber,
 
@@ -1495,9 +1531,17 @@ export const createStudent = async (req, res) => {
 
 
 // =====================================================
-// GET ALL STUDENTS
+// GET STUDENTS
 // GET /api/students
+//
+// ADMIN / PRINCIPAL / COE / EXAM OFFICER
+// → can filter any department
+//
+// HOD
+// → department is automatically restricted to
+//   req.user.department
 // =====================================================
+
 export const getStudents = async (req, res) => {
   try {
     const {
@@ -1509,11 +1553,16 @@ export const getStudents = async (req, res) => {
       status,
     } = req.query;
 
+    const requesterRole = (
+      req.user?.role || ""
+    ).toLowerCase();
+
     const filter = {};
 
-    // -----------------------------------------
-    // Search
-    // -----------------------------------------
+    // -------------------------------------------------
+    // SEARCH
+    // -------------------------------------------------
+
     if (search?.trim()) {
       const regex = new RegExp(
         search.trim(),
@@ -1529,50 +1578,103 @@ export const getStudents = async (req, res) => {
       ];
     }
 
-    // -----------------------------------------
-    // Filters
-    // -----------------------------------------
-    if (department) {
-      filter.department =
-        department.toLowerCase();
+    // -------------------------------------------------
+    // HOD DEPARTMENT RESTRICTION
+    // -------------------------------------------------
+
+    if (requesterRole === "hod") {
+      const hodDepartment = String(
+        req.user?.department || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      if (!hodDepartment) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "HOD department is not assigned.",
+        });
+      }
+
+      // IMPORTANT:
+      // Ignore any department sent from frontend.
+      // HOD can only access own department.
+
+      filter.department = hodDepartment;
     }
+
+    // -------------------------------------------------
+    // OTHER ROLES
+    // -------------------------------------------------
+
+    else if (department?.trim()) {
+      filter.department =
+        department.trim().toLowerCase();
+    }
+
+    // -------------------------------------------------
+    // SEMESTER
+    // -------------------------------------------------
 
     if (semester) {
       filter.semester = Number(semester);
     }
 
+    // -------------------------------------------------
+    // BATCH
+    // -------------------------------------------------
+
     if (batch) {
       filter.batch = batch;
     }
+
+    // -------------------------------------------------
+    // ADMISSION YEAR
+    // -------------------------------------------------
 
     if (admissionYear) {
       filter.admissionYear =
         Number(admissionYear);
     }
 
+    // -------------------------------------------------
+    // STATUS
+    // -------------------------------------------------
+
     if (status) {
       filter.status = status;
     }
 
-    const students = await Student.find(filter)
-      .sort({
-        department: 1,
-        semester: 1,
-        registerNumber: 1,
-      })
-      .lean();
+    // -------------------------------------------------
+    // FETCH
+    // -------------------------------------------------
+
+    const students =
+      await Student.find(filter)
+        .sort({
+          semester: 1,
+          registerNumber: 1,
+          name: 1,
+        })
+        .lean();
 
     return res.status(200).json({
       success: true,
       count: students.length,
       data: students,
     });
+
   } catch (error) {
-    console.error("Get students error:", error);
+    console.error(
+      "Get students error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
-      message: "Server error while fetching students.",
+      message:
+        "Server error while fetching students.",
       error: error.message,
     });
   }
@@ -1601,6 +1703,7 @@ export const getStudentById = async (req, res) => {
       success: true,
       data: student,
     });
+
   } catch (error) {
     console.error(
       "Get student by ID error:",
@@ -1640,6 +1743,7 @@ export const updateStudent = async (req, res) => {
     // ONLY THESE FIELDS CAN BE EDITED
     // -----------------------------------------
     const allowedFields = [
+      "rollNumber",
       "name",
       "fatherName",
       "motherName",
@@ -1732,6 +1836,7 @@ export const updateStudent = async (req, res) => {
           },
         }
       );
+
     } catch (clerkError) {
       console.error(
         "Clerk update warning:",
@@ -1744,6 +1849,7 @@ export const updateStudent = async (req, res) => {
       message: "Student updated successfully.",
       data: student,
     });
+
   } catch (error) {
     console.error(
       "Update student error:",
@@ -1819,6 +1925,7 @@ export const deleteStudent = async (req, res) => {
       success: true,
       message: "Student deleted successfully.",
     });
+
   } catch (error) {
     console.error(
       "Delete student error:",
@@ -1884,6 +1991,7 @@ export const updateStudentStatus = async (
       message: "Student status updated successfully.",
       data: student,
     });
+
   } catch (error) {
     console.error(
       "Update status error:",
@@ -1944,6 +2052,7 @@ export const deleteMultipleStudents = async (
       message: `${students.length} student(s) deleted successfully.`,
       deletedCount: students.length,
     });
+
   } catch (error) {
     console.error(
       "Bulk delete students error:",

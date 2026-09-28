@@ -3,6 +3,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -39,6 +40,7 @@ const statuses = [
 ];
 
 const emptyForm = {
+  rollNumber: "",
   registerNumber: "",
   name: "",
   fatherName: "",
@@ -124,6 +126,63 @@ export default function StudentTable({
   const [deletingSelected, setDeletingSelected] =
     useState(false);
 
+  // =====================================================
+  // TABLE DRAG SCROLL
+  // =====================================================
+
+  const tableScrollRef = useRef(null);
+  const isDraggingTable = useRef(false);
+  const dragStartX = useRef(0);
+  const dragStartScrollLeft = useRef(0);
+
+  const handleTableMouseDown = (e) => {
+    if (e.button !== 0) return;
+
+    const target = e.target;
+
+    // Do not start table dragging when interacting with controls.
+    if (
+      target.closest(
+        "button, input, select, textarea, option, a, label"
+      )
+    ) {
+      return;
+    }
+
+    const container = tableScrollRef.current;
+    if (!container) return;
+
+    isDraggingTable.current = true;
+    dragStartX.current = e.clientX;
+    dragStartScrollLeft.current = container.scrollLeft;
+
+    container.style.cursor = "grabbing";
+    container.style.userSelect = "none";
+  };
+
+  const handleTableMouseMove = (e) => {
+    if (!isDraggingTable.current) return;
+
+    const container = tableScrollRef.current;
+    if (!container) return;
+
+    const distance = e.clientX - dragStartX.current;
+    container.scrollLeft =
+      dragStartScrollLeft.current - distance;
+  };
+
+  const stopTableDragging = () => {
+    if (!isDraggingTable.current) return;
+
+    isDraggingTable.current = false;
+
+    const container = tableScrollRef.current;
+    if (container) {
+      container.style.cursor = "grab";
+      container.style.userSelect = "";
+    }
+  };
+
   // Messages
   const [message, setMessage] = useState("");
   const [actionError, setActionError] =
@@ -137,6 +196,7 @@ const downloadStudentsExcel = () => {
 
   const excelData = filteredStudents.map((student, index) => ({
     "Sl. No.": index + 1,
+    "Roll Number": student.rollNumber || "",
     "Register Number": student.registerNumber || "",
     "Name": student.name || "",
     "Father Name": student.fatherName || "",
@@ -248,6 +308,9 @@ const downloadStudentsExcel = () => {
       const matchesSearch =
         !text ||
         student.name
+          ?.toLowerCase()
+          .includes(text) ||
+        student.rollNumber
           ?.toLowerCase()
           .includes(text) ||
         student.registerNumber
@@ -402,6 +465,7 @@ const downloadStudentsExcel = () => {
       setEditingStudent(data);
 
       setEditForm({
+        rollNumber: data.rollNumber || "",
         registerNumber:
           data.registerNumber || "",
 
@@ -488,6 +552,7 @@ const downloadStudentsExcel = () => {
       // NOT sent because they cannot be edited.
 
       const payload = {
+        rollNumber: editForm.rollNumber.trim(),
         name: editForm.name.trim(),
 
         fatherName:
@@ -684,9 +749,9 @@ const downloadStudentsExcel = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-[350px] items-center justify-center rounded-2xl border border-slate-200 bg-white">
+      <div className="flex min-h-[350px] items-center justify-center rounded-2xl border border-amber-200 bg-white">
         <div className="text-center">
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-slate-900" />
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-amber-200 border-t-amber-500" />
 
           <p className="mt-3 text-sm text-slate-500">
             Loading students...
@@ -713,7 +778,7 @@ const downloadStudentsExcel = () => {
 
         <button
           onClick={fetchStudents}
-          className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+          className="mt-4 rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600"
         >
           Try Again
         </button>
@@ -723,6 +788,11 @@ const downloadStudentsExcel = () => {
 
   return (
     <div className="space-y-4">
+      <style jsx>{`
+        .student-table-scroll::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
 
       {/* =================================================
           MESSAGES
@@ -744,7 +814,7 @@ const downloadStudentsExcel = () => {
           FILTER BAR
       ================================================= */}
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="rounded-2xl border border-amber-200 bg-white p-4 shadow-sm">
 
         <div className="grid gap-3 xl:grid-cols-5">
 
@@ -754,7 +824,7 @@ const downloadStudentsExcel = () => {
               setSearch(e.target.value)
             }
             placeholder="Search student..."
-            className="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-slate-400 focus:bg-white"
+            className="h-10 rounded-xl border border-amber-200 bg-amber-50 px-3 text-sm outline-none focus:border-amber-500 focus:bg-white"
           />
 
           <select
@@ -764,7 +834,7 @@ const downloadStudentsExcel = () => {
                 e.target.value
               )
             }
-            className="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-slate-400 focus:bg-white"
+            className="h-10 rounded-xl border border-amber-200 bg-amber-50 px-3 text-sm outline-none focus:border-amber-500 focus:bg-white"
           >
             <option value="">
               All Departments
@@ -787,7 +857,7 @@ const downloadStudentsExcel = () => {
                 e.target.value
               )
             }
-            className="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-slate-400 focus:bg-white"
+            className="h-10 rounded-xl border border-amber-200 bg-amber-50 px-3 text-sm outline-none focus:border-amber-500 focus:bg-white"
           >
             <option value="">
               All Semesters
@@ -810,7 +880,7 @@ const downloadStudentsExcel = () => {
             onChange={(e) =>
               setBatchFilter(e.target.value)
             }
-            className="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-slate-400 focus:bg-white"
+            className="h-10 rounded-xl border border-amber-200 bg-amber-50 px-3 text-sm outline-none focus:border-amber-500 focus:bg-white"
           >
             <option value="">
               All Batches
@@ -831,7 +901,7 @@ const downloadStudentsExcel = () => {
             onChange={(e) =>
               setStatusFilter(e.target.value)
             }
-            className="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-slate-400 focus:bg-white"
+            className="h-10 rounded-xl border border-amber-200 bg-amber-50 px-3 text-sm outline-none focus:border-amber-500 focus:bg-white"
           >
             <option value="">
               All Status
@@ -879,320 +949,603 @@ const downloadStudentsExcel = () => {
         </div>
       </div>
 
-      {/* =================================================
-          TABLE
-      ================================================= */}
+   {/* =================================================
+    TABLE
+================================================= */}
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+<div className="overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-sm">
 
-        <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+  {/* TABLE HEADER */}
+  <div className="flex flex-col gap-3 border-b border-amber-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
 
-          <div>
-            <h2 className="text-base font-bold text-slate-900">
-              Students
-            </h2>
+    <div>
+      <h2 className="text-base font-bold text-slate-900">
+        Students
+      </h2>
 
-            <p className="mt-0.5 text-xs text-slate-400">
-              {filteredStudents.length} student
-              {filteredStudents.length !== 1
-                ? "s"
-                : ""}
-            </p>
-          </div>
+      <p className="mt-0.5 text-xs text-slate-400">
+        {filteredStudents.length} student
+        {filteredStudents.length !== 1 ? "s" : ""}
+      </p>
+    </div>
 
-          <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-2">
 
-            {selectedStudents.length > 0 && (
-              <button
-                onClick={handleBulkDelete}
-                disabled={deletingSelected}
-                className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-100 disabled:opacity-50"
-              >
-                {deletingSelected
-                  ? "Deleting..."
-                  : `Delete ${selectedStudents.length}`}
-              </button>
-            )}
+      {selectedStudents.length > 0 && (
+        <button
+          onClick={handleBulkDelete}
+          disabled={deletingSelected}
+          className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100 disabled:opacity-50"
+        >
+          {deletingSelected
+            ? "Deleting..."
+            : `Delete ${selectedStudents.length}`}
+        </button>
+      )}
 
-            <button
-              onClick={onBulkUpload}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              Bulk Upload
-            </button>
+      <button
+        onClick={onBulkUpload}
+        className="rounded-lg border border-amber-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:border-amber-400 hover:bg-amber-50"
+      >
+        Bulk Upload
+      </button>
 
-            <button
-              onClick={onAddStudent}
-              className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-            >
-              + Add Student
-            </button>
-<button
-  type="button"
-  onClick={downloadStudentsExcel}
-  className="inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100"
->
-  ↓ Download Excel
-</button>
-          </div>
+      <button
+        onClick={onAddStudent}
+        className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-600"
+      >
+        + Add Student
+      </button>
+
+      <button
+        type="button"
+        onClick={downloadStudentsExcel}
+        className="inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+      >
+        ↓ Download Excel
+      </button>
+
+    </div>
+  </div>
+
+  {filteredStudents.length === 0 ? (
+
+    <div className="flex min-h-[280px] items-center justify-center text-center">
+      <div>
+
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-xl">
+          👤
         </div>
 
-        {filteredStudents.length === 0 ? (
-          <div className="flex min-h-[300px] items-center justify-center text-center">
-            <div>
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-xl">
-                👤
-              </div>
+        <h3 className="mt-4 font-semibold text-slate-900">
+          No students found
+        </h3>
 
-              <h3 className="mt-4 font-semibold text-slate-900">
-                No students found
-              </h3>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Try changing the filters.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-
-            <table className="w-full min-w-[1200px]">
-
-              <thead className="bg-slate-50">
-                <tr className="border-b border-slate-100">
-
-                  <th className="w-12 px-3 py-3 text-center">
-                    <input
-                      type="checkbox"
-                      checked={allSelected}
-                      onChange={toggleAll}
-                      className="h-4 w-4 accent-slate-900"
-                    />
-                  </th>
-
-                  <th className="w-12 px-3 py-3 text-center text-[11px] font-semibold uppercase text-slate-500">
-                    #
-                  </th>
-
-                  <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase text-slate-500">
-                    Student
-                  </th>
-
-                  <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase text-slate-500">
-                    Register No.
-                  </th>
-
-                  <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase text-slate-500">
-                    Department
-                  </th>
-
-                  <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase text-slate-500">
-                    Sem
-                  </th>
-
-                  <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase text-slate-500">
-                    Batch
-                  </th>
-
-                  <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase text-slate-500">
-                    Status
-                  </th>
-
-                  <th className="px-3 py-3 text-right text-[11px] font-semibold uppercase text-slate-500">
-                    Actions
-                  </th>
-
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-slate-100">
-
-                {filteredStudents.map(
-                  (student, index) => {
-
-                    const selected =
-                      selectedStudents.includes(
-                        student._id
-                      );
-
-                    return (
-                      <tr
-                        key={student._id}
-                        className={
-                          selected
-                            ? "bg-slate-50"
-                            : "hover:bg-slate-50"
-                        }
-                      >
-
-                        <td className="px-3 py-3 text-center">
-                          <input
-                            type="checkbox"
-                            checked={selected}
-                            onChange={() =>
-                              toggleStudent(
-                                student._id
-                              )
-                            }
-                            className="h-4 w-4 accent-slate-900"
-                          />
-                        </td>
-
-                        <td className="px-3 py-3 text-center text-sm text-slate-400">
-                          {index + 1}
-                        </td>
-
-                        <td className="px-3 py-3">
-
-                          <div className="flex items-center gap-3">
-
-                            {student.imageUrl ? (
-                              <img
-                                src={
-                                  student.imageUrl
-                                }
-                                alt={
-                                  student.name
-                                }
-                                className="h-9 w-9 rounded-lg object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900 text-xs font-bold text-white">
-                                {student.name
-                                  ?.charAt(0)
-                                  ?.toUpperCase() ||
-                                  "S"}
-                              </div>
-                            )}
-
-                            <div className="min-w-0">
-
-                              <p className="max-w-[180px] truncate text-sm font-semibold text-slate-900">
-                                {student.name ||
-                                  "—"}
-                              </p>
-
-                              <p className="max-w-[180px] truncate text-xs text-slate-400">
-                                {student.email ||
-                                  "—"}
-                              </p>
-
-                            </div>
-
-                          </div>
-
-                        </td>
-
-                        <td className="px-3 py-3">
-                          <span className="rounded-lg bg-slate-100 px-2.5 py-1.5 font-mono text-xs font-semibold text-slate-700">
-                            {student.registerNumber ||
-                              "—"}
-                          </span>
-                        </td>
-
-                        <td className="px-3 py-3 text-sm text-slate-600">
-                          {getDepartmentName(
-                            student.department
-                          )}
-                        </td>
-
-                        <td className="px-3 py-3">
-                          <span className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
-                            Sem{" "}
-                            {student.semester ||
-                              "—"}
-                          </span>
-                        </td>
-
-                        <td className="px-3 py-3 text-sm text-slate-600">
-                          {student.batch ||
-                            "—"}
-                        </td>
-
-                        <td className="px-3 py-3">
-                          <span
-                            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                              student.status ===
-                              "active"
-                                ? "bg-green-50 text-green-700"
-                                : "bg-slate-100 text-slate-600"
-                            }`}
-                          >
-                            {getStatusName(
-                              student.status
-                            )}
-                          </span>
-                        </td>
-
-                        {/* ACTIONS DIRECTLY IN TABLE */}
-                        <td className="px-3 py-3">
-
-                          <div className="flex justify-end gap-1.5">
-
-                            <button
-                              onClick={() =>
-                                handleView(
-                                  student
-                                )
-                              }
-                              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-                            >
-                              View
-                            </button>
-
-                            <button
-                              onClick={() =>
-                                handleEdit(
-                                  student
-                                )
-                              }
-                              className="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-100"
-                            >
-                              Edit
-                            </button>
-
-                            <button
-                              onClick={() =>
-                                handleDelete(
-                                  student
-                                )
-                              }
-                              disabled={
-                                deletingId ===
-                                student._id
-                              }
-                              className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100 disabled:opacity-50"
-                            >
-                              {deletingId ===
-                              student._id
-                                ? "..."
-                                : "Delete"}
-                            </button>
-
-                          </div>
-
-                        </td>
-
-                      </tr>
-                    );
-                  }
-                )}
-
-              </tbody>
-
-            </table>
-
-          </div>
-        )}
+        <p className="mt-1 text-sm text-slate-500">
+          Try changing the filters.
+        </p>
 
       </div>
+    </div>
 
+  ) : (
+
+    /*
+      IMPORTANT:
+
+      The table is intentionally very wide.
+
+      Fixed columns:
+        1. Checkbox
+        2. #
+        3. Student
+
+      Scrollable columns:
+        All remaining student information
+
+      Fixed right column:
+        Actions
+    */
+    <div
+      ref={tableScrollRef}
+      className="student-table-scroll overflow-x-auto"
+      onMouseDown={handleTableMouseDown}
+      onMouseMove={handleTableMouseMove}
+      onMouseUp={stopTableDragging}
+      onMouseLeave={stopTableDragging}
+      style={{
+        scrollbarWidth: "none",
+        msOverflowStyle: "none",
+        cursor: "grab",
+      }}
+    >
+
+      <table className="min-w-[2700px] border-separate border-spacing-0 text-sm">
+
+        {/* =================================================
+            TABLE HEADER
+        ================================================= */}
+
+        <thead>
+
+          <tr className="bg-amber-500">
+
+            {/* FIXED CHECKBOX */}
+            <th
+              className="sticky left-0 z-40 w-[48px] min-w-[48px] border-b border-amber-600 bg-amber-500 px-2 py-3 text-center"
+            >
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={toggleAll}
+                onMouseDown={(e) => e.stopPropagation()}
+                className="h-4 w-4 cursor-pointer accent-amber-700"
+              />
+            </th>
+
+            {/* FIXED SERIAL NUMBER */}
+            <th
+              className="sticky left-[48px] z-40 w-[48px] min-w-[48px] border-b border-amber-600 bg-amber-500 px-2 py-3 text-center text-[11px] font-bold uppercase text-white"
+            >
+              #
+            </th>
+
+            {/* FIXED STUDENT */}
+            <th
+              className="sticky left-[96px] z-40 w-[250px] min-w-[250px] border-b border-amber-600 bg-amber-500 px-3 py-3 text-left text-[11px] font-bold uppercase text-white"
+            >
+              Student
+            </th>
+
+            {/* SCROLLABLE COLUMNS */}
+
+            <th className="w-[115px] min-w-[115px] border-b border-amber-600 bg-amber-500 px-3 py-3 text-left text-[11px] font-bold uppercase text-white">
+              Roll No.
+            </th>
+
+            <th className="w-[135px] min-w-[135px] border-b border-amber-600 bg-amber-500 px-3 py-3 text-left text-[11px] font-bold uppercase text-white">
+              Register No.
+            </th>
+
+            <th className="w-[190px] min-w-[190px] border-b border-amber-600 bg-amber-500 px-3 py-3 text-left text-[11px] font-bold uppercase text-white">
+              Father Name
+            </th>
+
+            <th className="w-[190px] min-w-[190px] border-b border-amber-600 bg-amber-500 px-3 py-3 text-left text-[11px] font-bold uppercase text-white">
+              Mother Name
+            </th>
+
+            <th className="w-[105px] min-w-[105px] border-b border-amber-600 bg-amber-500 px-3 py-3 text-left text-[11px] font-bold uppercase text-white">
+              DOB
+            </th>
+
+            <th className="w-[85px] min-w-[85px] border-b border-amber-600 bg-amber-500 px-3 py-3 text-left text-[11px] font-bold uppercase text-white">
+              Gender
+            </th>
+
+            <th className="w-[220px] min-w-[220px] border-b border-amber-600 bg-amber-500 px-3 py-3 text-left text-[11px] font-bold uppercase text-white">
+              Email
+            </th>
+
+            <th className="w-[125px] min-w-[125px] border-b border-amber-600 bg-amber-500 px-3 py-3 text-left text-[11px] font-bold uppercase text-white">
+              Phone
+            </th>
+
+            <th className="w-[125px] min-w-[125px] border-b border-amber-600 bg-amber-500 px-3 py-3 text-left text-[11px] font-bold uppercase text-white">
+              Parent Phone
+            </th>
+
+            <th className="w-[120px] min-w-[120px] border-b border-amber-600 bg-amber-500 px-3 py-3 text-left text-[11px] font-bold uppercase text-white">
+              Caste
+            </th>
+
+            <th className="w-[120px] min-w-[120px] border-b border-amber-600 bg-amber-500 px-3 py-3 text-left text-[11px] font-bold uppercase text-white">
+              Category
+            </th>
+
+            <th className="w-[150px] min-w-[150px] border-b border-amber-600 bg-amber-500 px-3 py-3 text-left text-[11px] font-bold uppercase text-white">
+              Aadhaar
+            </th>
+
+            <th className="w-[130px] min-w-[130px] border-b border-amber-600 bg-amber-500 px-3 py-3 text-left text-[11px] font-bold uppercase text-white">
+              SATS No.
+            </th>
+
+            <th className="w-[190px] min-w-[190px] border-b border-amber-600 bg-amber-500 px-3 py-3 text-left text-[11px] font-bold uppercase text-white">
+              Department
+            </th>
+
+            <th className="w-[120px] min-w-[120px] border-b border-amber-600 bg-amber-500 px-3 py-3 text-left text-[11px] font-bold uppercase text-white">
+              Admission Year
+            </th>
+
+            <th className="w-[120px] min-w-[120px] border-b border-amber-600 bg-amber-500 px-3 py-3 text-left text-[11px] font-bold uppercase text-white">
+              Batch
+            </th>
+
+            <th className="w-[100px] min-w-[100px] border-b border-amber-600 bg-amber-500 px-3 py-3 text-center text-[11px] font-bold uppercase text-white">
+              Batch No.
+            </th>
+
+            <th className="w-[90px] min-w-[90px] border-b border-amber-600 bg-amber-500 px-3 py-3 text-center text-[11px] font-bold uppercase text-white">
+              Sem
+            </th>
+
+            <th className="w-[115px] min-w-[115px] border-b border-amber-600 bg-amber-500 px-3 py-3 text-left text-[11px] font-bold uppercase text-white">
+              Status
+            </th>
+
+            {/* FIXED ACTIONS */}
+            <th
+              className="sticky right-0 z-40 w-[220px] min-w-[220px] border-b border-amber-600 bg-amber-500 px-3 py-3 text-center text-[11px] font-bold uppercase text-white"
+            >
+              Actions
+            </th>
+
+          </tr>
+
+        </thead>
+
+        {/* =================================================
+            TABLE BODY
+        ================================================= */}
+
+        <tbody>
+
+          {filteredStudents.map((student, index) => {
+
+            const selected =
+              selectedStudents.includes(student._id);
+
+            const rowBackground =
+              selected
+                ? "bg-amber-50"
+                : "bg-white";
+
+            return (
+
+              <tr
+                key={student._id}
+                className={`group border-b border-amber-100 ${rowBackground} hover:bg-amber-50`}
+              >
+
+                {/* =================================================
+                    FIXED CHECKBOX
+                ================================================= */}
+
+                <td
+                  className={`sticky left-0 z-30 w-[48px] min-w-[48px] border-b border-amber-100 px-2 py-2.5 text-center ${rowBackground} group-hover:bg-amber-50`}
+                >
+
+                  <input
+                    type="checkbox"
+                    checked={selected}
+                    onChange={() =>
+                      toggleStudent(student._id)
+                    }
+                    onMouseDown={(e) =>
+                      e.stopPropagation()
+                    }
+                    className="h-4 w-4 cursor-pointer accent-amber-600"
+                  />
+
+                </td>
+
+                {/* =================================================
+                    FIXED #
+                ================================================= */}
+
+                <td
+                  className={`sticky left-[48px] z-30 w-[48px] min-w-[48px] border-b border-amber-100 px-2 py-2.5 text-center text-xs text-slate-400 ${rowBackground} group-hover:bg-amber-50`}
+                >
+                  {index + 1}
+                </td>
+
+                {/* =================================================
+                    FIXED STUDENT NAME
+                ================================================= */}
+
+                <td
+                  className={`sticky left-[96px] z-30 w-[250px] min-w-[250px] border-b border-amber-100 px-3 py-2.5 ${rowBackground} group-hover:bg-amber-50`}
+                >
+
+                  <div className="flex items-center gap-2.5">
+
+                    {student.imageUrl ? (
+
+                      <img
+                        src={student.imageUrl}
+                        alt={student.name || "Student"}
+                        className="h-9 w-9 shrink-0 rounded-lg border border-amber-200 object-cover"
+                        draggable={false}
+                      />
+
+                    ) : (
+
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-xs font-bold text-amber-700">
+                        {student.name
+                          ?.charAt(0)
+                          ?.toUpperCase() || "S"}
+                      </div>
+
+                    )}
+
+                    <div className="min-w-0">
+
+                      <p className="truncate text-sm font-semibold text-slate-900">
+                        {student.name || "—"}
+                      </p>
+
+                      <p className="truncate text-[11px] text-slate-400">
+                        {student.email || "—"}
+                      </p>
+
+                    </div>
+
+                  </div>
+
+                </td>
+
+                {/* =================================================
+                    ROLL NUMBER
+                ================================================= */}
+
+                <td className="border-b border-amber-100 px-3 py-2.5">
+
+                  <span className="inline-flex rounded-lg bg-amber-50 px-2.5 py-1.5 font-mono text-xs font-semibold text-amber-700">
+                    {student.rollNumber || "—"}
+                  </span>
+
+                </td>
+
+                {/* =================================================
+                    REGISTER NUMBER
+                ================================================= */}
+
+                <td className="border-b border-amber-100 px-3 py-2.5">
+
+                  <span className="inline-flex rounded-lg border border-amber-200 bg-white px-2.5 py-1.5 font-mono text-xs font-semibold text-amber-700">
+                    {student.registerNumber || "—"}
+                  </span>
+
+                </td>
+
+                {/* =================================================
+                    FATHER
+                ================================================= */}
+
+                <td className="border-b border-amber-100 px-3 py-2.5 text-sm text-slate-600">
+                  {student.fatherName || "—"}
+                </td>
+
+                {/* =================================================
+                    MOTHER
+                ================================================= */}
+
+                <td className="border-b border-amber-100 px-3 py-2.5 text-sm text-slate-600">
+                  {student.motherName || "—"}
+                </td>
+
+                {/* =================================================
+                    DOB
+                ================================================= */}
+
+                <td className="border-b border-amber-100 px-3 py-2.5 text-sm whitespace-nowrap text-slate-600">
+                  {student.dob
+                    ? new Date(
+                        student.dob
+                      ).toLocaleDateString("en-IN")
+                    : "—"}
+                </td>
+
+                {/* =================================================
+                    GENDER
+                ================================================= */}
+
+                <td className="border-b border-amber-100 px-3 py-2.5 text-sm capitalize text-slate-600">
+                  {student.gender || "—"}
+                </td>
+
+                {/* =================================================
+                    EMAIL
+                ================================================= */}
+
+                <td className="border-b border-amber-100 px-3 py-2.5 text-sm text-slate-600">
+                  <span className="block max-w-[210px] truncate">
+                    {student.email || "—"}
+                  </span>
+                </td>
+
+                {/* =================================================
+                    PHONE
+                ================================================= */}
+
+                <td className="border-b border-amber-100 px-3 py-2.5 text-sm text-slate-600">
+                  {student.phone || "—"}
+                </td>
+
+                {/* =================================================
+                    PARENT PHONE
+                ================================================= */}
+
+                <td className="border-b border-amber-100 px-3 py-2.5 text-sm text-slate-600">
+                  {student.parentPhone || "—"}
+                </td>
+
+                {/* =================================================
+                    CASTE
+                ================================================= */}
+
+                <td className="border-b border-amber-100 px-3 py-2.5 text-sm text-slate-600">
+                  {student.caste || "—"}
+                </td>
+
+                {/* =================================================
+                    CATEGORY
+                ================================================= */}
+
+                <td className="border-b border-amber-100 px-3 py-2.5 text-sm text-slate-600">
+                  {student.category || "—"}
+                </td>
+
+                {/* =================================================
+                    AADHAAR
+                ================================================= */}
+
+                <td className="border-b border-amber-100 px-3 py-2.5 font-mono text-sm text-slate-600">
+                  {student.aadhaarNumber || "—"}
+                </td>
+
+                {/* =================================================
+                    SATS
+                ================================================= */}
+
+                <td className="border-b border-amber-100 px-3 py-2.5 font-mono text-sm text-slate-600">
+                  {student.satsNumber || "—"}
+                </td>
+
+                {/* =================================================
+                    DEPARTMENT
+                ================================================= */}
+
+                <td className="border-b border-amber-100 px-3 py-2.5 text-sm text-slate-600">
+                  {getDepartmentName(student.department)}
+                </td>
+
+                {/* =================================================
+                    ADMISSION YEAR
+                ================================================= */}
+
+                <td className="border-b border-amber-100 px-3 py-2.5 text-sm text-slate-600">
+                  {student.admissionYear || "—"}
+                </td>
+
+                {/* =================================================
+                    BATCH
+                ================================================= */}
+
+                <td className="border-b border-amber-100 px-3 py-2.5 text-sm text-slate-600">
+                  {student.batch || "—"}
+                </td>
+
+                {/* =================================================
+                    BATCH NUMBER
+                ================================================= */}
+
+                <td className="border-b border-amber-100 px-3 py-2.5 text-center">
+
+                  <span className="inline-flex rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                    {student.batchNumber || "—"}
+                  </span>
+
+                </td>
+
+                {/* =================================================
+                    SEMESTER
+                ================================================= */}
+
+                <td className="border-b border-amber-100 px-3 py-2.5 text-center">
+
+                  <span className="inline-flex rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                    {student.semester
+                      ? `Sem ${student.semester}`
+                      : "—"}
+                  </span>
+
+                </td>
+
+                {/* =================================================
+                    STATUS
+                ================================================= */}
+
+                <td className="border-b border-amber-100 px-3 py-2.5">
+
+                  <span
+                    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                      student.status === "active"
+                        ? "bg-green-50 text-green-700"
+                        : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    {getStatusName(student.status)}
+                  </span>
+
+                </td>
+
+                {/* =================================================
+                    FIXED ACTIONS
+                ================================================= */}
+
+                <td
+                  className={`sticky right-0 z-30 w-[220px] min-w-[220px] border-b border-amber-100 px-3 py-2.5 ${rowBackground} group-hover:bg-amber-50`}
+                >
+
+                  <div
+                    className="flex items-center justify-center gap-1.5"
+                    onMouseDown={(e) =>
+                      e.stopPropagation()
+                    }
+                  >
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleView(student)
+                      }
+                      className="rounded-lg border border-amber-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-50"
+                    >
+                      View
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleEdit(student)
+                      }
+                      className="rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100"
+                    >
+                      Edit
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleDelete(student)
+                      }
+                      disabled={
+                        deletingId === student._id
+                      }
+                      className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100 disabled:opacity-50"
+                    >
+                      {deletingId === student._id
+                        ? "..."
+                        : "Delete"}
+                    </button>
+
+                  </div>
+
+                </td>
+
+              </tr>
+
+            );
+          })}
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+  )}
+
+</div>
       {/* =================================================
           VIEW MODAL
       ================================================= */}
 
       {viewStudent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-amber-500/50 p-4 backdrop-blur-sm">
 
           <div
             className="absolute inset-0"
@@ -1203,7 +1556,7 @@ const downloadStudentsExcel = () => {
 
           <div className="relative max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
 
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white px-6 py-4">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-amber-100 bg-white px-6 py-4">
 
               <div className="flex items-center gap-3">
 
@@ -1216,7 +1569,7 @@ const downloadStudentsExcel = () => {
                     className="h-12 w-12 rounded-xl object-cover"
                   />
                 ) : (
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900 font-bold text-white">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500 font-bold text-white">
                     {viewStudent.name
                       ?.charAt(0)
                       ?.toUpperCase() ||
@@ -1242,7 +1595,7 @@ const downloadStudentsExcel = () => {
                 onClick={() =>
                   setViewStudent(null)
                 }
-                className="rounded-lg px-3 py-2 text-slate-400 hover:bg-slate-100 hover:text-slate-900"
+                className="rounded-lg px-3 py-2 text-slate-400 hover:bg-amber-50 hover:text-slate-900"
               >
                 ✕
               </button>
@@ -1336,6 +1689,11 @@ const downloadStudentsExcel = () => {
               <DetailSection title="Academic Information">
 
                 <Detail
+                  label="Roll Number"
+                  value={viewStudent.rollNumber}
+                />
+
+                <Detail
                   label="Register Number"
                   value={
                     viewStudent.registerNumber
@@ -1415,7 +1773,7 @@ const downloadStudentsExcel = () => {
       ================================================= */}
 
       {editingStudent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-amber-500/50 p-4 backdrop-blur-sm">
 
           <div
             className="absolute inset-0"
@@ -1427,7 +1785,7 @@ const downloadStudentsExcel = () => {
 
           <div className="relative max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
 
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white px-6 py-4">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-amber-100 bg-white px-6 py-4">
 
               <div>
                 <h2 className="text-lg font-bold text-slate-900">
@@ -1435,7 +1793,7 @@ const downloadStudentsExcel = () => {
                 </h2>
 
                 <p className="mt-0.5 text-xs text-slate-400">
-                  Register number and email cannot be changed.
+                  Register number and email cannot be changed. Roll number can be edited.
                 </p>
               </div>
 
@@ -1445,7 +1803,7 @@ const downloadStudentsExcel = () => {
                 onClick={() =>
                   setEditingStudent(null)
                 }
-                className="rounded-lg px-3 py-2 text-slate-400 hover:bg-slate-100"
+                className="rounded-lg px-3 py-2 text-slate-400 hover:bg-amber-50"
               >
                 ✕
               </button>
@@ -1473,6 +1831,17 @@ const downloadStudentsExcel = () => {
                 />
 
               </div>
+
+              {/* ROLL NUMBER */}
+              <EditSection title="Academic Identification">
+                <Input
+                  label="Roll Number"
+                  name="rollNumber"
+                  value={editForm.rollNumber}
+                  onChange={handleEditChange}
+                  required
+                />
+              </EditSection>
 
               {/* PERSONAL */}
               <EditSection title="Personal Information">
@@ -1696,7 +2065,7 @@ const downloadStudentsExcel = () => {
               </EditSection>
 
               {/* FOOTER */}
-              <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+              <div className="flex justify-end gap-2 border-t border-amber-100 pt-4">
 
                 <button
                   type="button"
@@ -1704,7 +2073,7 @@ const downloadStudentsExcel = () => {
                   onClick={() =>
                     setEditingStudent(null)
                   }
-                  className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+                  className="rounded-xl border border-amber-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-amber-50"
                 >
                   Cancel
                 </button>
@@ -1712,7 +2081,7 @@ const downloadStudentsExcel = () => {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                  className="rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-50"
                 >
                   {saving
                     ? "Saving..."
@@ -1745,7 +2114,7 @@ function DetailSection({
         {title}
       </h3>
 
-      <div className="grid overflow-hidden rounded-xl border border-slate-200 sm:grid-cols-2">
+      <div className="grid overflow-hidden rounded-xl border border-amber-200 sm:grid-cols-2">
         {children}
       </div>
     </section>
@@ -1757,7 +2126,7 @@ function Detail({
   value,
 }) {
   return (
-    <div className="border-b border-slate-100 px-4 py-3">
+    <div className="border-b border-amber-100 px-4 py-3">
       <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
         {label}
       </p>
@@ -1799,7 +2168,7 @@ function ReadOnlyField({
       <input
         value={value}
         disabled
-        className="h-11 w-full rounded-xl border border-slate-200 bg-slate-100 px-3.5 text-sm text-slate-500"
+        className="h-11 w-full rounded-xl border border-amber-200 bg-amber-50 px-3.5 text-sm text-slate-500"
       />
     </div>
   );
@@ -1831,7 +2200,7 @@ function Input({
         value={value}
         onChange={onChange}
         required={required}
-        className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm outline-none focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100"
+        className="h-11 w-full rounded-xl border border-amber-200 bg-amber-50 px-3.5 text-sm outline-none focus:border-amber-500 focus:bg-white focus:ring-4 focus:ring-amber-100"
       />
     </div>
   );
@@ -1855,7 +2224,7 @@ function Select({
         value={value}
         onChange={onChange}
         required
-        className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm outline-none focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100"
+        className="h-11 w-full rounded-xl border border-amber-200 bg-amber-50 px-3.5 text-sm outline-none focus:border-amber-500 focus:bg-white focus:ring-4 focus:ring-amber-100"
       >
         <option value="">
           Select {label}

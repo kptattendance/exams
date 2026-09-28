@@ -1206,28 +1206,86 @@ export const createUser = async (
 
 /*
 |--------------------------------------------------------------------------
-| GET ALL MONGODB USERS
+| GET ALL USERS / FACULTY
 |--------------------------------------------------------------------------
 */
 
-export const getUsers = async (
-  req,
-  res
-) => {
+export const getUsers = async (req, res) => {
   try {
-    const users =
-      await User.find()
-        .sort({
-          createdAt: -1,
+    const requesterRole = (
+      req.user?.role || ""
+    ).toLowerCase();
+
+    const requesterDepartment = String(
+      req.user?.department || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    const { department, role } = req.query;
+
+    const filter = {};
+
+    // =====================================================
+    // HOD
+    // =====================================================
+    // HOD can ONLY see staff belonging to his department.
+    // Department supplied from frontend is ignored.
+    // =====================================================
+
+    if (requesterRole === "hod") {
+      if (!requesterDepartment) {
+        return res.status(403).json({
+          success: false,
+          message: "HOD department is not assigned.",
         });
+      }
 
-    return res.json(users);
+      filter.department = requesterDepartment;
 
+      // HOD faculty page should show only staff
+      filter.role = "staff";
+    }
+
+    // =====================================================
+    // OTHER ADMINISTRATIVE ROLES
+    // =====================================================
+
+    else {
+      // Optional role filter
+      if (role?.trim()) {
+        filter.role = role.trim().toLowerCase();
+      }
+
+      // Optional department filter
+      if (department?.trim()) {
+        filter.department = department
+          .trim()
+          .toLowerCase();
+      }
+    }
+
+    // =====================================================
+    // FETCH USERS
+    // =====================================================
+
+    const users = await User.find(filter)
+      .select(
+        "name email phone department role imageUrl imagePublicId createdAt"
+      )
+      .sort({
+        department: 1,
+        name: 1,
+      })
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      count: users.length,
+      data: users,
+    });
   } catch (err) {
-    console.error(
-      "Get Users Error:",
-      err
-    );
+    console.error("Get Users Error:", err);
 
     return res.status(500).json({
       success: false,

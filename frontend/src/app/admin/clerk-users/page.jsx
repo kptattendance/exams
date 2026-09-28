@@ -254,7 +254,7 @@ const filteredUsers = users.filter((user) => {
   // ==========================================================
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 lg:p-8">
+    <div className="min-h-screen bg-amber-50/30 p-6 lg:p-8">
 
       {/* HEADER */}
       <div className="mb-8">
@@ -262,7 +262,7 @@ const filteredUsers = users.filter((user) => {
           User Management
         </p>
 
-        <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">
+        <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">
           Clerk Users
         </h1>
 
@@ -272,7 +272,7 @@ const filteredUsers = users.filter((user) => {
       </div>
 
       {/* FILTER CARD */}
-      <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="mb-6 rounded-2xl border border-amber-100 bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
 
           {/* FILTERS */}
@@ -284,14 +284,14 @@ const filteredUsers = users.filter((user) => {
     value={searchText}
     onChange={(e) => setSearchText(e.target.value)}
     placeholder="Search by name or email..."
-    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 pr-10 text-sm text-slate-700 outline-none transition focus:border-slate-400 focus:bg-white"
+    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 pr-10 text-sm text-slate-700 outline-none transition focus:border-amber-400 focus:bg-white focus:ring-4 focus:ring-amber-50"
   />
 
   {searchText && (
     <button
       type="button"
       onClick={() => setSearchText("")}
-      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-amber-700"
       aria-label="Clear search"
     >
       ✕
@@ -302,7 +302,7 @@ const filteredUsers = users.filter((user) => {
           <select
   value={roleFilter}
   onChange={(e) => setRoleFilter(e.target.value)}
-  className="min-w-44 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-700 outline-none focus:border-slate-400 focus:bg-white"
+  className="min-w-44 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-700 outline-none focus:border-amber-400 focus:bg-white focus:ring-4 focus:ring-amber-50"
 >
   <option value="">All Roles</option>
 
@@ -327,7 +327,7 @@ const filteredUsers = users.filter((user) => {
               onChange={(e) =>
                 setDepartmentFilter(e.target.value)
               }
-              className="min-w-56 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-700 outline-none focus:border-slate-400 focus:bg-white"
+              className="min-w-56 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-700 outline-none focus:border-amber-400 focus:bg-white focus:ring-4 focus:ring-amber-50"
             >
               <option value="">
                 All Departments
@@ -347,7 +347,7 @@ const filteredUsers = users.filter((user) => {
      {(searchText || roleFilter || departmentFilter) && (
               <button
                 onClick={clearFilters}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+                className="rounded-xl border border-amber-200 bg-white px-4 py-2.5 text-sm font-semibold text-amber-700 hover:bg-amber-50"
               >
                 Clear Filters
               </button>
@@ -358,7 +358,7 @@ const filteredUsers = users.filter((user) => {
           <button
             onClick={handleDeleteSelected}
             disabled={selectedUsers.length === 0 || loading}
-            className="rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-xl bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Delete Selected
             {selectedUsers.length > 0 &&
@@ -382,22 +382,22 @@ const filteredUsers = users.filter((user) => {
         </p>
 
         {selectedUsers.length > 0 && (
-          <p className="text-sm font-medium text-red-600">
+          <p className="text-sm font-medium text-amber-600">
             {selectedUsers.length} selected
           </p>
         )}
       </div>
 
       {/* CONTENT */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-2xl border border-amber-100 bg-white shadow-sm">
 
         {loading ? (
           <div className="flex h-64 items-center justify-center">
-            <div className="h-7 w-7 animate-spin rounded-full border-2 border-slate-200 border-t-slate-900" />
+            <div className="h-7 w-7 animate-spin rounded-full border-2 border-amber-100 border-t-amber-600" />
           </div>
         ) : filteredUsers.length === 0 ? (
           <div className="flex h-64 flex-col items-center justify-center text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-xl">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-50 text-xl">
               👤
             </div>
 
@@ -416,7 +416,7 @@ const filteredUsers = users.filter((user) => {
 
               {/* TABLE HEADER */}
               <thead>
-                <tr className="border-b border-slate-100 bg-slate-50 text-left">
+                <tr className="border-b border-amber-100 bg-amber-50 text-left">
 
                   {/* SELECT ALL */}
                   <th className="w-14 px-6 py-4">
@@ -431,30 +431,30 @@ const filteredUsers = users.filter((user) => {
                         )
                       }
                       onChange={toggleSelectAll}
-                      className="h-4 w-4 cursor-pointer"
+                      className="h-4 w-4 cursor-pointer accent-amber-600"
                     />
                   </th>
-                      <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-amber-700">
                     Sl. No.
                   </th>
 
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-amber-700">
                     User
                   </th>
 
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-amber-700">
                     Email
                   </th>
 
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-amber-700">
                     Role
                   </th>
 
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-amber-700">
                     Department
                   </th>
 
-                  <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wide text-amber-700">
                     Action
                   </th>
 
@@ -467,11 +467,11 @@ const filteredUsers = users.filter((user) => {
                 {filteredUsers.map((user,index) => (
                   <tr
                     key={user.clerkId}
-                    className={`border-b border-slate-100 last:border-0 transition hover:bg-slate-50 ${
+                    className={`border-b border-amber-50 last:border-0 transition hover:bg-amber-50/30 ${
                       selectedUsers.includes(
                         user.clerkId
                       )
-                        ? "bg-red-50/40"
+                        ? "bg-amber-50/60"
                         : ""
                     }`}
                   >
@@ -488,7 +488,7 @@ const filteredUsers = users.filter((user) => {
                             user.clerkId
                           )
                         }
-                        className="h-4 w-4 cursor-pointer"
+                        className="h-4 w-4 cursor-pointer accent-amber-600"
                       />
                     </td>
  <td className="px-6 py-4 text-sm text-slate-600">
@@ -505,7 +505,7 @@ const filteredUsers = users.filter((user) => {
                             className="h-10 w-10 rounded-full object-cover"
                           />
                         ) : (
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-600">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-50 text-sm font-bold text-amber-700">
                             {user.name
                               ?.charAt(0)
                               ?.toUpperCase() || "?"}
@@ -532,7 +532,7 @@ const filteredUsers = users.filter((user) => {
 
                     {/* ROLE */}
                     <td className="px-6 py-4">
-                      <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold capitalize text-blue-700">
+                      <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold capitalize text-amber-700">
                         {user.role || "Not assigned"}
                       </span>
                     </td>
@@ -554,7 +554,7 @@ const filteredUsers = users.filter((user) => {
                               user.clerkId
                             )
                           }
-                          className="rounded-lg border border-red-100 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                          className="rounded-lg border border-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-600 transition hover:bg-amber-50 hover:text-amber-700"
                         >
                           Delete
                         </button>

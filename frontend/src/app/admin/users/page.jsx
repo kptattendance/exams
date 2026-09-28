@@ -4,10 +4,9 @@ import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-
 import * as XLSX from "xlsx";
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL;
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const departments = [
   {
@@ -78,8 +77,7 @@ const roles = [
 const getDepartmentName = (value) => {
   return (
     departments.find(
-      (department) =>
-        department.value === value
+      (department) => department.value === value
     )?.label ||
     value ||
     "-"
@@ -107,25 +105,7 @@ const getRoleName = (role) => {
 };
 
 const getRoleBadgeClass = (role) => {
-  switch (role) {
-    case "admin":
-      return "bg-indigo-50 text-indigo-700 border-indigo-200";
-
-    case "principal":
-      return "bg-blue-50 text-blue-700 border-blue-200";
-
-    case "coe":
-      return "bg-cyan-50 text-cyan-700 border-cyan-200";
-
-    case "exam_officer":
-      return "bg-violet-50 text-violet-700 border-violet-200";
-
-    case "hod":
-      return "bg-sky-50 text-sky-700 border-sky-200";
-
-    default:
-      return "bg-slate-50 text-slate-600 border-slate-200";
-  }
+  return "bg-amber-50 text-amber-700 border-amber-200";
 };
 
 export default function UsersPage() {
@@ -372,7 +352,6 @@ export default function UsersPage() {
               id !== clerkId
           )
       );
-
     } catch (error) {
       console.error(
         "Delete user error:",
@@ -476,6 +455,7 @@ export default function UsersPage() {
           user.clerkId
         )
     );
+
   /*
   |--------------------------------------------------------------------------
   | DOWNLOAD USERS TO EXCEL
@@ -538,57 +518,53 @@ export default function UsersPage() {
   */
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-white p-4 sm:p-6 lg:p-8">
 
       {/* HEADER */}
-   {/* HEADER */}
-<div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
 
-  <div>
-    <p className="text-sm font-semibold text-blue-600">
-      Examination Management
-    </p>
+        <div>
+          <p className="text-sm font-semibold text-amber-600">
+            Examination Management
+          </p>
 
-    <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">
-      User Management
-    </h1>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">
+            User Management
+          </h1>
 
-    <p className="mt-2 text-sm text-slate-500">
-      Manage administrative and examination system users.
-    </p>
-  </div>
+          <p className="mt-2 text-sm text-slate-500">
+            Manage administrative and examination system users.
+          </p>
+        </div>
 
+        <div className="flex items-center gap-3">
 
-  <div className="flex items-center gap-3">
+          {/* TOTAL USERS */}
+          <div className="hidden rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 sm:block">
+            <p className="text-xs font-medium text-amber-600">
+              Total Users =
+              <span className="ml-1 text-xl font-bold text-amber-700">
+                {users.length}
+              </span>
+            </p>
+          </div>
 
-    {/* TOTAL USERS */}
-    <div className="hidden rounded-xl border border-blue-100 bg-blue-50 px-4 py-2.5 sm:block">
-      <p className="text-xs font-medium text-blue-500">
-        Total Users = 
-      <span className="text-xl font-bold text-blue-700">
-        { users.length}
-      </span>
-      </p>
+          {/* ADD USER */}
+          <Link
+            href="/admin/users/new"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600"
+          >
+            <span className="text-xl leading-none">
+              +
+            </span>
+            Add New User
+          </Link>
 
-    </div>
-
-
-    {/* ADD USER */}
-   <Link
-  href="/admin/users/new"
-  className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
->
-  <span className="text-xl leading-none">+</span>
-  Add New User
-</Link>
-
-  </div>
-
-</div>
-
+        </div>
+      </div>
 
       {/* FILTER CARD */}
-      <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="mb-6 rounded-2xl border border-amber-200 bg-white p-4 shadow-sm">
 
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
 
@@ -604,7 +580,7 @@ export default function UsersPage() {
                 )
               }
               placeholder="Search by name or email..."
-              className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 pr-10 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-50"
+              className="h-11 w-full rounded-xl border border-amber-200 bg-white px-4 pr-10 text-sm text-slate-700 outline-none transition focus:border-amber-500 focus:bg-white focus:ring-4 focus:ring-amber-100"
             />
 
             {searchText && (
@@ -613,14 +589,13 @@ export default function UsersPage() {
                 onClick={() =>
                   setSearchText("")
                 }
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-amber-600"
               >
                 ✕
               </button>
             )}
 
           </div>
-
 
           {/* ROLE */}
           <select
@@ -630,7 +605,7 @@ export default function UsersPage() {
                 e.target.value
               )
             }
-            className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-50"
+            className="h-11 rounded-xl border border-amber-200 bg-white px-4 text-sm text-slate-700 outline-none focus:border-amber-500 focus:bg-white focus:ring-4 focus:ring-amber-100"
           >
             <option value="">
               All Roles
@@ -646,7 +621,6 @@ export default function UsersPage() {
             ))}
           </select>
 
-
           {/* DEPARTMENT */}
           <select
             value={departmentFilter}
@@ -655,7 +629,7 @@ export default function UsersPage() {
                 e.target.value
               )
             }
-            className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 outline-none focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-50"
+            className="h-11 rounded-xl border border-amber-200 bg-white px-4 text-sm text-slate-700 outline-none focus:border-amber-500 focus:bg-white focus:ring-4 focus:ring-amber-100"
           >
             <option value="">
               All Departments
@@ -675,19 +649,17 @@ export default function UsersPage() {
             )}
           </select>
 
-
           {/* CLEAR */}
           {(searchText ||
             roleFilter ||
             departmentFilter) && (
             <button
               onClick={clearFilters}
-              className="h-11 rounded-xl border border-blue-100 bg-blue-50 px-4 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+              className="h-11 rounded-xl border border-amber-200 bg-amber-50 px-4 text-sm font-semibold text-amber-700 transition hover:bg-amber-100"
             >
               Clear Filters
             </button>
           )}
-
 
           {/* DELETE */}
           <button
@@ -698,7 +670,7 @@ export default function UsersPage() {
               selectedUsers.length ===
                 0 || loading
             }
-            className="h-11 rounded-xl bg-red-500 px-5 text-sm font-semibold text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-40"
+            className="h-11 rounded-xl bg-amber-500 px-5 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Delete Selected
 
@@ -708,7 +680,6 @@ export default function UsersPage() {
           </button>
 
         </div>
-
       </div>
 
       {/* COUNT + EXCEL DOWNLOAD */}
@@ -729,7 +700,7 @@ export default function UsersPage() {
           </p>
 
           {selectedUsers.length > 0 && (
-            <p className="text-sm font-semibold text-blue-600">
+            <p className="text-sm font-semibold text-amber-600">
               {selectedUsers.length} selected
             </p>
           )}
@@ -740,7 +711,7 @@ export default function UsersPage() {
           type="button"
           onClick={downloadUsersExcel}
           disabled={filteredUsers.length === 0}
-          className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:self-auto"
+          className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-amber-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-amber-300 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50 sm:self-auto"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -761,19 +732,19 @@ export default function UsersPage() {
       </div>
 
       {/* TABLE */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-sm">
 
         {loading ? (
           <div className="flex min-h-72 items-center justify-center">
 
-            <div className="h-9 w-9 animate-spin rounded-full border-2 border-blue-100 border-t-blue-600" />
+            <div className="h-9 w-9 animate-spin rounded-full border-2 border-amber-100 border-t-amber-500" />
 
           </div>
         ) : filteredUsers.length ===
           0 ? (
           <div className="flex min-h-72 flex-col items-center justify-center px-6 text-center">
 
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-500">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-500">
 
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -811,7 +782,7 @@ export default function UsersPage() {
             <table className="w-full min-w-[900px]">
 
               <thead>
-                <tr className="border-b border-slate-200 bg-blue-50/50">
+                <tr className="border-b border-amber-400 bg-amber-500">
 
                   {/* CHECKBOX */}
                   <th className="w-12 px-3 py-3 text-center">
@@ -824,46 +795,45 @@ export default function UsersPage() {
                       onChange={
                         toggleSelectAll
                       }
-                      className="h-4 w-4 cursor-pointer accent-blue-600"
+                      className="h-4 w-4 cursor-pointer accent-amber-600"
                     />
 
                   </th>
 
                   {/* SL NO */}
-                  <th className="w-14 px-2 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                  <th className="w-14 px-2 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-white">
                     #
                   </th>
 
                   {/* USER */}
-                  <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                  <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-white">
                     User
                   </th>
 
                   {/* EMAIL */}
-                  <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                  <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-white">
                     Email
                   </th>
 
                   {/* ROLE */}
-                  <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                  <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-white">
                     Role
                   </th>
 
                   {/* DEPARTMENT */}
-                  <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                  <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-white">
                     Department
                   </th>
 
                   {/* ACTION */}
-                  <th className="w-24 px-3 py-3 text-right text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                  <th className="w-24 px-3 py-3 text-right text-[11px] font-bold uppercase tracking-wide text-white">
                     Action
                   </th>
 
                 </tr>
               </thead>
 
-
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-amber-100">
 
                 {filteredUsers.map(
                   (user, index) => {
@@ -880,8 +850,8 @@ export default function UsersPage() {
                         }
                         className={`transition ${
                           selected
-                            ? "bg-blue-50/60"
-                            : "hover:bg-slate-50"
+                            ? "bg-amber-50"
+                            : "hover:bg-amber-50/50"
                         }`}
                       >
 
@@ -898,24 +868,22 @@ export default function UsersPage() {
                                 user.clerkId
                               )
                             }
-                            className="h-4 w-4 cursor-pointer accent-blue-600"
+                            className="h-4 w-4 cursor-pointer accent-amber-600"
                           />
 
                         </td>
-
 
                         {/* SL NO */}
                         <td className="px-2 py-3 text-sm font-medium text-slate-400">
                           {index + 1}
                         </td>
 
-
                         {/* USER */}
                         <td className="px-3 py-3">
 
                           <div className="flex items-center gap-3">
 
-                            <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-blue-50 ring-1 ring-blue-100">
+                            <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-amber-50 ring-1 ring-amber-200">
 
                               <img
                                 src={
@@ -948,7 +916,6 @@ export default function UsersPage() {
 
                         </td>
 
-
                         {/* EMAIL */}
                         <td className="px-3 py-3">
 
@@ -958,7 +925,6 @@ export default function UsersPage() {
                           </p>
 
                         </td>
-
 
                         {/* ROLE */}
                         <td className="px-3 py-3">
@@ -975,18 +941,16 @@ export default function UsersPage() {
 
                         </td>
 
-
                         {/* DEPARTMENT */}
                         <td className="px-3 py-3">
 
-                          <span className="text-sm text-slate-600">
+                          <span className="inline-flex rounded-lg border border-amber-100 bg-amber-50 px-2.5 py-1.5 text-sm font-medium text-amber-700">
                             {getDepartmentName(
                               user.department
                             )}
                           </span>
 
                         </td>
-
 
                         {/* DELETE */}
                         <td className="px-3 py-3">
@@ -1000,7 +964,7 @@ export default function UsersPage() {
                                 )
                               }
                               title="Delete User"
-                              className="flex h-8 w-8 items-center justify-center rounded-lg border border-red-100 text-red-400 transition hover:bg-red-50 hover:text-red-600"
+                              className="flex h-8 w-8 items-center justify-center rounded-lg border border-amber-200 text-amber-500 transition hover:bg-amber-50 hover:text-amber-700"
                             >
 
                               <svg
@@ -1038,13 +1002,12 @@ export default function UsersPage() {
 
       </div>
 
-
       {/* SELECTED INFORMATION */}
       {selectedUsers.length >
         0 && (
         <div className="mt-3 flex items-center justify-between px-1">
 
-          <p className="text-xs font-medium text-blue-600">
+          <p className="text-xs font-medium text-amber-600">
             {selectedUsers.length} user
             {selectedUsers.length !==
             1
@@ -1057,7 +1020,7 @@ export default function UsersPage() {
             onClick={() =>
               setSelectedUsers([])
             }
-            className="text-xs font-semibold text-slate-500 transition hover:text-blue-600"
+            className="text-xs font-semibold text-slate-500 transition hover:text-amber-600"
           >
             Clear Selection
           </button>

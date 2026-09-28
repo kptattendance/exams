@@ -26,6 +26,13 @@ const studentSchema = new mongoose.Schema(
       index: true,
     },
 
+    // Roll Number
+    rollNumber: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
     name: {
       type: String,
       required: true,

@@ -68,7 +68,7 @@ const InputField = ({
         placeholder={placeholder}
         required={required}
         maxLength={maxLength}
-        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+        className="w-full rounded-xl border border-amber-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
       />
     </div>
   );
@@ -97,7 +97,7 @@ const SelectField = ({
         value={value}
         onChange={onChange}
         required={required}
-        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+        className="w-full rounded-xl border border-amber-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
       >
         <option value="">{placeholder}</option>
 
@@ -117,7 +117,7 @@ const SelectField = ({
 const SectionHeader = ({ number, title, description }) => {
   return (
     <div className="mb-5 flex items-start gap-3">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-sm font-semibold text-indigo-600">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-sm font-semibold text-amber-600">
         {number}
       </div>
 
@@ -143,6 +143,7 @@ export default function AddStudent({
   const { getToken } = useAuth();
 
   const [form, setForm] = useState({
+    rollNumber: "",
     registerNumber: "",
     name: "",
     fatherName: "",
@@ -239,6 +240,7 @@ export default function AddStudent({
     // ---------------------------------------------------
 
     const requiredFields = [
+      ["rollNumber", "Roll number"],
       ["registerNumber", "Register number"],
       ["name", "Student name"],
       ["fatherName", "Father name"],
@@ -353,6 +355,11 @@ export default function AddStudent({
       // =================================================
       // BASIC DETAILS
       // =================================================
+
+      formData.append(
+        "rollNumber",
+        form.rollNumber.trim()
+      );
 
       formData.append(
         "registerNumber",
@@ -498,6 +505,7 @@ export default function AddStudent({
 
         // Reset form
         setForm({
+          rollNumber: "",
           registerNumber: "",
           name: "",
           fatherName: "",
@@ -562,13 +570,13 @@ export default function AddStudent({
   return (
     <form
       onSubmit={handleSubmit}
-      className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+      className="overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-sm"
     >
       {/* =================================================
           HEADER
       ================================================= */}
 
-      <div className="border-b border-slate-200 bg-gradient-to-r from-indigo-50 to-white px-6 py-5">
+      <div className="border-b border-amber-200 bg-gradient-to-r from-amber-50 to-white px-6 py-5">
         <div className="flex items-center justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold text-slate-900">
@@ -613,7 +621,7 @@ export default function AddStudent({
                   className="h-28 w-28 rounded-2xl object-cover ring-1 ring-slate-200"
                 />
               ) : (
-                <div className="flex h-28 w-28 items-center justify-center rounded-2xl bg-slate-100 ring-1 ring-slate-200">
+                <div className="flex h-28 w-28 items-center justify-center rounded-2xl bg-amber-50 ring-1 ring-slate-200">
                   <svg
                     className="h-10 w-10 text-slate-400"
                     fill="none"
@@ -632,7 +640,7 @@ export default function AddStudent({
             </div>
 
             <div>
-              <label className="inline-flex cursor-pointer items-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
+              <label className="inline-flex cursor-pointer items-center rounded-xl border border-amber-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-amber-50">
                 Choose Photo
 
                 <input
@@ -672,6 +680,15 @@ export default function AddStudent({
           />
 
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+
+            <InputField
+              label="Roll Number"
+              name="rollNumber"
+              value={form.rollNumber}
+              onChange={handleChange}
+              placeholder="Enter roll number"
+              required
+            />
 
             <InputField
               label="Register Number"
@@ -976,14 +993,14 @@ export default function AddStudent({
           FOOTER
       ================================================= */}
 
-      <div className="flex flex-col-reverse gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4 sm:flex-row sm:items-center sm:justify-end">
+      <div className="flex flex-col-reverse gap-3 border-t border-amber-200 bg-amber-50 px-6 py-4 sm:flex-row sm:items-center sm:justify-end">
 
         {onCancel && (
           <button
             type="button"
             onClick={onCancel}
             disabled={saving}
-            className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-xl border border-amber-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Cancel
           </button>
@@ -992,7 +1009,7 @@ export default function AddStudent({
         <button
           type="submit"
           disabled={saving}
-          className="rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-xl bg-amber-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {saving
             ? "Creating Student..."

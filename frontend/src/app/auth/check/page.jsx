@@ -78,7 +78,7 @@ switch (user.role) {
     break;
 
 case "exam_officer":
-    router.replace("/exam_officer");
+    router.replace("/exam-officer");
     break;
 
   case "staff":

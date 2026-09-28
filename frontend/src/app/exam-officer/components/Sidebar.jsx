@@ -44,6 +44,22 @@ const menuSections = [
     ],
   },
 
+{
+  title: "Internal Assessment",
+  items: [
+    {
+      label: "Final IA",
+      href: "/exam-officer/final-ia",
+      icon: "ia",
+    },
+    {
+      label: "Final Attendance",
+      href: "/exam-officer/final-attendance",
+      icon: "attendance",
+    },
+  ],
+},
+
   // =====================================================
   // EXAMINATION
   // =====================================================
@@ -70,6 +86,36 @@ const menuSections = [
         label: "Hall Tickets",
         href: "/exam-officer/hall-tickets",
         icon: "ticket",
+      },
+    ],
+  },
+
+  // =====================================================
+  // RESULTS
+  // =====================================================
+
+  {
+    title: "Results",
+    items: [
+      {
+        label: "IA Results",
+        href: "/exam-officer/results/ia",
+        icon: "result",
+      },
+      {
+        label: "Examination Results",
+        href: "/exam-officer/results/examination",
+        icon: "result",
+      },
+      {
+        label: "Result Processing",
+        href: "/exam-officer/results/processing",
+        icon: "processing",
+      },
+      {
+        label: "Result Reports",
+        href: "/exam-officer/results/reports",
+        icon: "report",
       },
     ],
   },
@@ -127,13 +173,17 @@ export default function Sidebar({
   const pathname = usePathname();
 
   const isActive = (href) => {
+    // Handle dashboard separately
     if (href === "/exam-officer") {
       return pathname === "/exam-officer";
     }
 
+    // Remove query string for active checking
+    const cleanHref = href.split("?")[0];
+
     return (
-      pathname === href ||
-      pathname.startsWith(`${href}/`)
+      pathname === cleanHref ||
+      pathname.startsWith(`${cleanHref}/`)
     );
   };
 
@@ -151,6 +201,7 @@ export default function Sidebar({
 
       <div className="flex h-[76px] shrink-0 items-center border-b border-slate-100 px-5">
         <div className="flex items-center gap-3">
+
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-950 text-white shadow-sm">
             <svg
               width="22"
@@ -202,6 +253,7 @@ export default function Sidebar({
 
       <div className="mx-4 mt-4 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3">
         <div className="flex items-center gap-3">
+
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white">
             EO
           </div>
@@ -212,9 +264,10 @@ export default function Sidebar({
             </p>
 
             <p className="mt-0.5 text-[10px] text-slate-500">
-              Candidate & Eligibility Management
+              Examination & Result Management
             </p>
           </div>
+
         </div>
       </div>
 
@@ -223,17 +276,21 @@ export default function Sidebar({
       ====================================================== */}
 
       <nav className="flex-1 overflow-y-auto px-3 py-5">
+
         {menuSections.map((section) => (
           <div
             key={section.title}
             className="mb-6"
           >
+
             <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
               {section.title}
             </p>
 
             <div className="space-y-1">
+
               {section.items.map((item) => {
+
                 const active = isActive(item.href);
 
                 return (
@@ -247,6 +304,7 @@ export default function Sidebar({
                         : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
                     }`}
                   >
+
                     <MenuIcon
                       type={item.icon}
                       active={active}
@@ -259,12 +317,15 @@ export default function Sidebar({
                     {active && (
                       <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
                     )}
+
                   </Link>
                 );
               })}
+
             </div>
           </div>
         ))}
+
       </nav>
 
       {/* =====================================================
@@ -272,12 +333,15 @@ export default function Sidebar({
       ====================================================== */}
 
       <div className="shrink-0 border-t border-slate-100 p-3">
+
         <div className="flex items-center gap-3 rounded-xl px-3 py-3 hover:bg-slate-50">
+
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">
             EO
           </div>
 
           <div className="min-w-0 flex-1">
+
             <p className="truncate text-xs font-bold text-slate-900">
               Examination Officer
             </p>
@@ -285,6 +349,7 @@ export default function Sidebar({
             <p className="truncate text-[10px] text-slate-400">
               Examination Office
             </p>
+
           </div>
 
           <button
@@ -294,11 +359,14 @@ export default function Sidebar({
           >
             ⋮
           </button>
+
         </div>
+
       </div>
     </aside>
   );
 }
+
 
 /* =========================================================
    MENU ICONS
@@ -324,6 +392,7 @@ function MenuIcon({
   };
 
   switch (type) {
+
     // -----------------------------------------------------
     // DASHBOARD
     // -----------------------------------------------------
@@ -338,6 +407,7 @@ function MenuIcon({
             height="7"
             rx="1"
           />
+
           <rect
             x="14"
             y="3"
@@ -345,6 +415,7 @@ function MenuIcon({
             height="7"
             rx="1"
           />
+
           <rect
             x="3"
             y="14"
@@ -352,6 +423,7 @@ function MenuIcon({
             height="7"
             rx="1"
           />
+
           <rect
             x="14"
             y="14"
@@ -432,6 +504,29 @@ function MenuIcon({
       );
 
     // -----------------------------------------------------
+    // IA
+    // -----------------------------------------------------
+
+    case "ia":
+      return (
+        <svg {...common}>
+          <rect
+            x="3"
+            y="4"
+            width="18"
+            height="16"
+            rx="2"
+          />
+
+          <path d="M7 8h10" />
+          <path d="M7 12h4" />
+          <path d="M7 16h3" />
+
+          <path d="m15 14 2 2 3-4" />
+        </svg>
+      );
+
+    // -----------------------------------------------------
     // EXAMINATION
     // -----------------------------------------------------
 
@@ -491,8 +586,51 @@ function MenuIcon({
     case "ticket":
       return (
         <svg {...common}>
-          <path d="M4 7a2 2 0 0 0 0 4v2a2 2 0 0 0 0 4v3h16v-3a2 2 0 0 0 0-4v-2a2 2 0 0 0 0-4V4H4z" />
+          <path d="M4 7a2 2 0 0 0 0 4v2a2 2 0 0 0 0 4v3h16v-3a2 2 0 0 0-4-4v-2a2 2 0 0 0 4 0V4H4z" />
           <path d="M12 7v10" />
+        </svg>
+      );
+
+    // -----------------------------------------------------
+    // RESULT
+    // -----------------------------------------------------
+
+    case "result":
+      return (
+        <svg {...common}>
+          <rect
+            x="4"
+            y="3"
+            width="16"
+            height="18"
+            rx="2"
+          />
+
+          <path d="M8 8h8" />
+          <path d="M8 12h3" />
+          <path d="M8 16h3" />
+
+          <path d="m14 14 2 2 4-5" />
+        </svg>
+      );
+
+    // -----------------------------------------------------
+    // RESULT PROCESSING
+    // -----------------------------------------------------
+
+    case "processing":
+      return (
+        <svg {...common}>
+          <circle
+            cx="12"
+            cy="12"
+            r="8"
+          />
+
+          <path d="M12 8v4l3 2" />
+
+          <path d="M5 5 3 3" />
+          <path d="M19 5l2-2" />
         </svg>
       );
 

@@ -4,6 +4,7 @@ import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
 import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
+
 const departments = [
   { value: "", label: "Select department" },
   { value: "at", label: "Automobile Engineering" },
@@ -54,46 +55,55 @@ export default function FacultyPage() {
   });
 
   const [imagePreview, setImagePreview] = useState(null);
+const loadFaculty = async () => {
+  try {
+    setLoading(true);
 
-  // --------------------------------------------------
-  // LOAD FACULTY
-  // --------------------------------------------------
+    const token = await getToken();
 
-  const loadFaculty = async () => {
-    try {
-      setLoading(true);
+    const response = await axios.get(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/users/getusers`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
-      const token = await getToken();
+    // Handle API response whether it is:
+    // 1. An array directly
+    // 2. { users: [...] }
+    // 3. { data: [...] }
+    // 4. { data: { users: [...] } }
 
-      const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/users/getusers`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+    const users = Array.isArray(response.data)
+      ? response.data
+      : Array.isArray(response.data?.users)
+      ? response.data.users
+      : Array.isArray(response.data?.data)
+      ? response.data.data
+      : Array.isArray(response.data?.data?.users)
+      ? response.data.data.users
+      : [];
 
-      const users = response.data || [];
+    const facultyUsers = users.filter(
+      (user) => user.role?.toLowerCase() === "staff"
+    );
 
-      const facultyUsers = users.filter(
-        (user) => user.role?.toLowerCase() === "staff"
-      );
+    setFaculty(facultyUsers);
+    setSelectedFaculty([]);
+  } catch (error) {
+    console.error("Failed to load faculty:", error);
 
-      setFaculty(facultyUsers);
-      setSelectedFaculty([]);
-    } catch (error) {
-      console.error("Failed to load faculty:", error);
-
-      alert(
-        error.response?.data?.message ||
-          error.response?.data?.error ||
-          "Failed to load faculty."
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+    alert(
+      error.response?.data?.message ||
+        error.response?.data?.error ||
+        "Failed to load faculty."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     loadFaculty();
@@ -401,303 +411,279 @@ export default function FacultyPage() {
   // BULK UPLOAD
   // --------------------------------------------------
 
-const openBulkUpload = () => {
-  setBulkFile(null);
-  setBulkResult(null);
-  setShowBulkUpload(true);
-};
-
-const closeBulkUpload = () => {
-  if (bulkUploading) return;
-
-  setShowBulkUpload(false);
-  setBulkFile(null);
-  setBulkResult(null);
-};
-
-const handleBulkFileChange = (e) => {
-  const file = e.target.files?.[0] || null;
-
-  if (!file) {
+  const openBulkUpload = () => {
     setBulkFile(null);
-    return;
-  }
-
-  const validExtensions = [
-    ".xlsx",
-    ".xls",
-    ".csv",
-  ];
-
-  const fileName = file.name.toLowerCase();
-
-  const valid = validExtensions.some(
-    (extension) =>
-      fileName.endsWith(extension)
-  );
-
-  if (!valid) {
-    alert(
-      "Please select an Excel (.xlsx/.xls) or CSV file."
-    );
-
-    e.target.value = "";
-    setBulkFile(null);
-
-    return;
-  }
-
-  // Maximum Excel/CSV size = 10 MB
-  if (file.size > 10 * 1024 * 1024) {
-    alert(
-      "File size must be 10 MB or less."
-    );
-
-    e.target.value = "";
-    setBulkFile(null);
-
-    return;
-  }
-
-  setBulkFile(file);
-  setBulkResult(null);
-};
-
-
-const downloadBulkTemplate = () => {
-  const data = [
-    [
-      "Name",
-      "Email",
-      "Phone",
-      "Department",
-      "Photo",
-    ],
-
-    [
-      "Ravi Kumar",
-      "ravi@example.com",
-      "9876543210",
-      "cs",
-      "https://drive.google.com/file/d/FILE_ID_1/view?usp=sharing",
-    ],
-
-    [
-      "Anitha Rao",
-      "anitha@example.com",
-      "9876543211",
-      "ec",
-      "https://drive.google.com/file/d/FILE_ID_2/view?usp=sharing",
-    ],
-
-    [
-      "Kumar P",
-      "kumar@example.com",
-      "9876543212",
-      "ot",
-      "https://drive.google.com/file/d/FILE_ID_3/view?usp=sharing",
-    ],
-  ];
-
-  // Create worksheet
-  const worksheet = XLSX.utils.aoa_to_sheet(data);
-
-  // Set column widths
-  worksheet["!cols"] = [
-    { wch: 25 }, // Name
-    { wch: 32 }, // Email
-    { wch: 18 }, // Phone
-    { wch: 18 }, // Department
-    { wch: 70 }, // Photo
-  ];
-
-  // Make Phone column text
-  for (let row = 2; row <= data.length; row++) {
-    const phoneCell = worksheet[`C${row}`];
-
-    if (phoneCell) {
-      phoneCell.t = "s";
-      phoneCell.v = String(phoneCell.v);
-      phoneCell.z = "@";
-    }
-  }
-
-  // Create workbook
-  const workbook = XLSX.utils.book_new();
-
-  XLSX.utils.book_append_sheet(
-    workbook,
-    worksheet,
-    "Faculty"
-  );
-
-  // Generate XLSX file
-  const excelBuffer = XLSX.write(workbook, {
-    bookType: "xlsx",
-    type: "array",
-  });
-
-  // Create Excel blob
-  const blob = new Blob(
-    [excelBuffer],
-    {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    }
-  );
-
-  // Download
-  const url = window.URL.createObjectURL(blob);
-
-  const link = document.createElement("a");
-
-  link.href = url;
-  link.download = "faculty_bulk_upload_template.xlsx";
-
-  document.body.appendChild(link);
-
-  link.click();
-
-  document.body.removeChild(link);
-
-  window.URL.revokeObjectURL(url);
-};
-
-const handleBulkUpload = async () => {
-  if (!bulkFile) {
-    alert(
-      "Please select an Excel or CSV file first."
-    );
-
-    return;
-  }
-
-  try {
-    setBulkUploading(true);
     setBulkResult(null);
+    setShowBulkUpload(true);
+  };
 
-    const token =
-      await getToken();
+  const closeBulkUpload = () => {
+    if (bulkUploading) return;
 
-    const formData =
-      new FormData();
+    setShowBulkUpload(false);
+    setBulkFile(null);
+    setBulkResult(null);
+  };
 
-    /*
-    --------------------------------------------------
-    Excel / CSV file
-    --------------------------------------------------
-    */
+  const handleBulkFileChange = (e) => {
+    const file = e.target.files?.[0] || null;
 
-    formData.append(
-      "file",
-      bulkFile
+    if (!file) {
+      setBulkFile(null);
+      return;
+    }
+
+    const validExtensions = [
+      ".xlsx",
+      ".xls",
+      ".csv",
+    ];
+
+    const fileName = file.name.toLowerCase();
+
+    const valid = validExtensions.some(
+      (extension) =>
+        fileName.endsWith(extension)
     );
 
-    /*
-    --------------------------------------------------
-    Send to backend
-    --------------------------------------------------
-    */
-
-    const response =
-      await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/users/bulk-upload-faculty`,
-        formData,
-        {
-          headers: {
-            Authorization:
-              `Bearer ${token}`,
-          },
-        }
+    if (!valid) {
+      alert(
+        "Please select an Excel (.xlsx/.xls) or CSV file."
       );
 
-    /*
-    --------------------------------------------------
-    Backend response
-    --------------------------------------------------
-    */
+      e.target.value = "";
+      setBulkFile(null);
 
-    const result =
-      response.data?.data ||
-      {};
+      return;
+    }
 
-    setBulkResult({
-      success:
-        response.data?.success !== false,
+    // Maximum Excel/CSV size = 10 MB
+    if (file.size > 10 * 1024 * 1024) {
+      alert(
+        "File size must be 10 MB or less."
+      );
 
-      message:
-        response.data?.message ||
-        "Bulk upload completed.",
+      e.target.value = "";
+      setBulkFile(null);
 
-      total:
-        result.total || 0,
+      return;
+    }
 
-      created:
-        result.created || 0,
+    setBulkFile(file);
+    setBulkResult(null);
+  };
 
-      failed:
-        result.failed || 0,
+  const downloadBulkTemplate = () => {
+    const data = [
+      [
+        "Name",
+        "Email",
+        "Phone",
+        "Department",
+        "Photo",
+      ],
 
-      errors:
-        result.errors || [],
-    });
+      [
+        "Ravi Kumar",
+        "ravi@example.com",
+        "9876543210",
+        "cs",
+        "https://drive.google.com/file/d/FILE_ID_1/view?usp=sharing",
+      ],
 
-    /*
-    --------------------------------------------------
-    Refresh faculty list
-    --------------------------------------------------
-    */
+      [
+        "Anitha Rao",
+        "anitha@example.com",
+        "9876543211",
+        "ec",
+        "https://drive.google.com/file/d/FILE_ID_2/view?usp=sharing",
+      ],
 
-    await loadFaculty();
-  } catch (error) {
-    console.error(
-      "Bulk faculty upload error:",
-      error
+      [
+        "Kumar P",
+        "kumar@example.com",
+        "9876543212",
+        "ot",
+        "https://drive.google.com/file/d/FILE_ID_3/view?usp=sharing",
+      ],
+    ];
+
+    // Create worksheet
+    const worksheet = XLSX.utils.aoa_to_sheet(data);
+
+    // Set column widths
+    worksheet["!cols"] = [
+      { wch: 25 },
+      { wch: 32 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 70 },
+    ];
+
+    // Make Phone column text
+    for (let row = 2; row <= data.length; row++) {
+      const phoneCell = worksheet[`C${row}`];
+
+      if (phoneCell) {
+        phoneCell.t = "s";
+        phoneCell.v = String(phoneCell.v);
+        phoneCell.z = "@";
+      }
+    }
+
+    // Create workbook
+    const workbook = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      worksheet,
+      "Faculty"
     );
 
-    const serverData =
-      error.response?.data;
-
-    const serverResult =
-      serverData?.data || {};
-
-    setBulkResult({
-      success: false,
-
-      message:
-        serverData?.message ||
-        serverData?.error ||
-        "Bulk upload failed.",
-
-      total:
-        serverResult.total ||
-        0,
-
-      created:
-        serverResult.created ||
-        0,
-
-      failed:
-        serverResult.failed ||
-        0,
-
-      errors:
-        serverResult.errors ||
-        [],
+    // Generate XLSX file
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: "xlsx",
+      type: "array",
     });
-  } finally {
-    setBulkUploading(false);
-  }
-};
+
+    // Create Excel blob
+    const blob = new Blob(
+      [excelBuffer],
+      {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }
+    );
+
+    // Download
+    const url = window.URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = "faculty_bulk_upload_template.xlsx";
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    document.body.removeChild(link);
+
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleBulkUpload = async () => {
+    if (!bulkFile) {
+      alert(
+        "Please select an Excel or CSV file first."
+      );
+
+      return;
+    }
+
+    try {
+      setBulkUploading(true);
+      setBulkResult(null);
+
+      const token =
+        await getToken();
+
+      const formData =
+        new FormData();
+
+      formData.append(
+        "file",
+        bulkFile
+      );
+
+      const response =
+        await axios.post(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/users/bulk-upload-faculty`,
+          formData,
+          {
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+          }
+        );
+
+      const result =
+        response.data?.data ||
+        {};
+
+      setBulkResult({
+        success:
+          response.data?.success !== false,
+
+        message:
+          response.data?.message ||
+          "Bulk upload completed.",
+
+        total:
+          result.total || 0,
+
+        created:
+          result.created || 0,
+
+        failed:
+          result.failed || 0,
+
+        errors:
+          result.errors || [],
+      });
+
+      await loadFaculty();
+    } catch (error) {
+      console.error(
+        "Bulk faculty upload error:",
+        error
+      );
+
+      const serverData =
+        error.response?.data;
+
+      const serverResult =
+        serverData?.data || {};
+
+      setBulkResult({
+        success: false,
+
+        message:
+          serverData?.message ||
+          serverData?.error ||
+          "Bulk upload failed.",
+
+        total:
+          serverResult.total ||
+          0,
+
+        created:
+          serverResult.created ||
+          0,
+
+        failed:
+          serverResult.failed ||
+          0,
+
+        errors:
+          serverResult.errors ||
+          [],
+      });
+    } finally {
+      setBulkUploading(false);
+    }
+  };
 
   // --------------------------------------------------
   // UI
   // --------------------------------------------------
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-5 sm:px-6 lg:px-7">
+    <div className="min-h-screen bg-white px-4 py-5 sm:px-6 lg:px-7">
 
       {/* HEADER */}
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-950">
             Faculty
@@ -710,39 +696,54 @@ const handleBulkUpload = async () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+
           <button
             onClick={openBulkUpload}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-200 bg-white px-4 py-2.5 text-sm font-semibold text-amber-700 shadow-sm transition hover:border-amber-300 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2"
           >
-            <span className="text-base leading-none">↑</span>
+            <span className="text-base leading-none">
+              ↑
+            </span>
+
             Bulk Upload
           </button>
 
           <button
             onClick={openAddModal}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2"
           >
-            <span className="text-lg leading-none">+</span>
+            <span className="text-lg leading-none">
+              +
+            </span>
+
             Add Faculty
           </button>
+
         </div>
       </div>
 
       {/* TOOLBAR */}
-      <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+      <div className="mb-4 rounded-2xl border border-amber-200 bg-white p-3 shadow-sm">
+
         <div className="flex flex-col gap-3 lg:flex-row">
 
           {/* SEARCH */}
           <div className="relative min-w-0 flex-1">
+
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
               strokeWidth="1.8"
-              className="pointer-events-none absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-slate-400"
+              className="pointer-events-none absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-amber-500"
             >
-              <circle cx="11" cy="11" r="7" />
+              <circle
+                cx="11"
+                cy="11"
+                r="7"
+              />
+
               <path d="m20 20-4-4" />
             </svg>
 
@@ -750,9 +751,12 @@ const handleBulkUpload = async () => {
               type="text"
               placeholder="Search name, email or phone..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100"
+              onChange={(e) =>
+                setSearch(e.target.value)
+              }
+              className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:bg-white focus:ring-4 focus:ring-amber-100"
             />
+
           </div>
 
           {/* DEPARTMENT */}
@@ -761,8 +765,9 @@ const handleBulkUpload = async () => {
             onChange={(e) =>
               setDepartmentFilter(e.target.value)
             }
-            className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100 sm:w-64"
+            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-amber-500 focus:bg-white focus:ring-4 focus:ring-amber-100 sm:w-64"
           >
+
             {departments.map((department) => (
               <option
                 key={department.value}
@@ -773,6 +778,7 @@ const handleBulkUpload = async () => {
                   : "All Departments"}
               </option>
             ))}
+
           </select>
 
           {/* DELETE SELECTED */}
@@ -780,8 +786,9 @@ const handleBulkUpload = async () => {
             <button
               onClick={handleDeleteSelected}
               disabled={deletingSelected}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 text-sm font-semibold text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
             >
+
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
@@ -800,21 +807,29 @@ const handleBulkUpload = async () => {
               {deletingSelected
                 ? "Deleting..."
                 : `Delete ${selectedFaculty.length}`}
+
             </button>
           )}
+
         </div>
       </div>
 
       {/* TABLE */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-sm">
 
         {loading ? (
           <div className="flex min-h-60 items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-slate-900" />
+
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-amber-100 border-t-amber-500" />
+
           </div>
+
         ) : filteredFaculty.length === 0 ? (
+
           <div className="flex min-h-60 flex-col items-center justify-center px-6 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-400">
+
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-50 text-amber-500">
+
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
@@ -824,10 +839,18 @@ const handleBulkUpload = async () => {
                 className="h-6 w-6"
               >
                 <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
+
+                <circle
+                  cx="9"
+                  cy="7"
+                  r="4"
+                />
+
                 <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+
                 <path d="M16 3.13a4 4 0 0 1 0 7.75" />
               </svg>
+
             </div>
 
             <h3 className="mt-3 text-sm font-semibold text-slate-900">
@@ -839,78 +862,93 @@ const handleBulkUpload = async () => {
                 ? "Try changing your search or filter."
                 : "Add your first faculty member to get started."}
             </p>
+
           </div>
+
         ) : (
+
           <div className="overflow-x-auto">
+
             <table className="w-full min-w-[760px]">
 
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50">
+
+                <tr className="border-b border-amber-600 bg-amber-500">
 
                   {/* SELECT */}
                   <th className="w-12 px-3 py-3 text-center">
+
                     <input
                       type="checkbox"
                       checked={isAllSelected}
                       onChange={toggleSelectAll}
-                      className="h-4 w-4 cursor-pointer rounded border-slate-300 accent-slate-900"
+                      className="h-4 w-4 cursor-pointer rounded border-white accent-amber-700"
                     />
+
                   </th>
 
                   {/* SL NO */}
-                  <th className="w-12 px-2 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                  <th className="w-12 px-2 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-white">
                     #
                   </th>
 
                   {/* FACULTY */}
-                  <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                  <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-white">
                     Faculty
                   </th>
 
                   {/* CONTACT */}
-                  <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                  <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-white">
                     Contact
                   </th>
 
                   {/* DEPARTMENT */}
-                  <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                  <th className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-white">
                     Department
                   </th>
 
                   {/* ACTION */}
-                  <th className="w-28 px-3 py-3 text-right text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                  <th className="w-28 px-3 py-3 text-right text-[11px] font-bold uppercase tracking-wide text-white">
                     Action
                   </th>
+
                 </tr>
+
               </thead>
 
               <tbody className="divide-y divide-slate-100">
 
                 {filteredFaculty.map((user, index) => {
-                  const selected = selectedFaculty.includes(
-                    user._id
-                  );
+
+                  const selected =
+                    selectedFaculty.includes(
+                      user._id
+                    );
 
                   return (
                     <tr
                       key={user._id}
                       className={`transition ${
                         selected
-                          ? "bg-slate-50"
-                          : "hover:bg-slate-50/70"
+                          ? "bg-amber-50"
+                          : "hover:bg-amber-50/50"
                       }`}
                     >
 
                       {/* CHECKBOX */}
                       <td className="px-3 py-3 text-center">
+
                         <input
                           type="checkbox"
                           checked={selected}
                           onChange={() =>
-                            toggleSelectFaculty(user._id)
+                            toggleSelectFaculty(
+                              user._id
+                            )
                           }
-                          className="h-4 w-4 cursor-pointer rounded border-slate-300 accent-slate-900"
+                          className="h-4 w-4 cursor-pointer rounded border-amber-300 accent-amber-500"
                         />
+
                       </td>
 
                       {/* SL NO */}
@@ -920,39 +958,50 @@ const handleBulkUpload = async () => {
 
                       {/* FACULTY */}
                       <td className="px-3 py-3">
+
                         <div className="flex items-center gap-3">
 
-                          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200">
+                          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-amber-50 ring-1 ring-amber-200">
+
                             <img
                               src={
                                 user.imageUrl ||
                                 "/default-avatar.png"
                               }
-                              alt={user.name || "Faculty"}
+                              alt={
+                                user.name ||
+                                "Faculty"
+                              }
                               className="h-full w-full object-cover"
                               onError={(e) => {
                                 e.currentTarget.style.display =
                                   "none";
                               }}
                             />
+
                           </div>
 
                           <div className="min-w-0">
+
                             <p className="truncate text-sm font-semibold text-slate-900">
                               {user.name}
                             </p>
 
-                            <p className="mt-0.5 truncate text-xs text-slate-400">
+                            <p className="mt-0.5 truncate text-xs text-amber-600">
                               Faculty · Staff
                             </p>
+
                           </div>
 
                         </div>
+
                       </td>
 
                       {/* CONTACT */}
                       <td className="px-3 py-3">
+
                         <div className="max-w-[230px]">
+
                           <p className="truncate text-sm text-slate-600">
                             {user.email}
                           </p>
@@ -966,20 +1015,25 @@ const handleBulkUpload = async () => {
                               No phone
                             </p>
                           )}
+
                         </div>
+
                       </td>
 
                       {/* DEPARTMENT */}
                       <td className="px-3 py-3">
-                        <span className="inline-flex max-w-[190px] truncate rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-600">
+
+                        <span className="inline-flex max-w-[190px] truncate rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-700">
                           {getDepartmentName(
                             user.department
                           )}
                         </span>
+
                       </td>
 
                       {/* ACTIONS */}
                       <td className="px-3 py-3">
+
                         <div className="flex justify-end gap-1.5">
 
                           {/* EDIT */}
@@ -988,8 +1042,9 @@ const handleBulkUpload = async () => {
                               openEditModal(user)
                             }
                             title="Edit"
-                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900"
+                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-amber-200 text-amber-600 transition hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
                           >
+
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
                               viewBox="0 0 24 24"
@@ -1001,6 +1056,7 @@ const handleBulkUpload = async () => {
                               <path d="M12 20h9" />
                               <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z" />
                             </svg>
+
                           </button>
 
                           {/* DELETE */}
@@ -1011,6 +1067,7 @@ const handleBulkUpload = async () => {
                             title="Delete"
                             className="flex h-8 w-8 items-center justify-center rounded-lg border border-red-100 text-red-400 transition hover:bg-red-50 hover:text-red-600"
                           >
+
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
                               viewBox="0 0 24 24"
@@ -1025,9 +1082,11 @@ const handleBulkUpload = async () => {
                               <path d="M10 11v5" />
                               <path d="M14 11v5" />
                             </svg>
+
                           </button>
 
                         </div>
+
                       </td>
 
                     </tr>
@@ -1035,53 +1094,67 @@ const handleBulkUpload = async () => {
                 })}
 
               </tbody>
+
             </table>
+
           </div>
         )}
+
       </div>
 
       {/* SELECTION FOOTER */}
       {selectedFaculty.length > 0 && (
-        <div className="mt-3 flex items-center justify-between px-1">
-          <p className="text-xs font-medium text-slate-500">
+        <div className="mt-3 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+
+          <p className="text-xs font-medium text-amber-700">
             {selectedFaculty.length} faculty member
             {selectedFaculty.length !== 1 ? "s" : ""} selected
           </p>
 
           <button
-            onClick={() => setSelectedFaculty([])}
-            className="text-xs font-semibold text-slate-500 transition hover:text-slate-900"
+            onClick={() =>
+              setSelectedFaculty([])
+            }
+            className="text-xs font-semibold text-amber-700 transition hover:text-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-400"
           >
             Clear selection
           </button>
+
         </div>
       )}
 
       {/* BULK UPLOAD MODAL */}
       {showBulkUpload && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+
           <div
             className="absolute inset-0"
             onClick={closeBulkUpload}
           />
 
-          <div className="relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+          <div className="relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-amber-200 bg-white shadow-2xl">
+
+            <div className="flex items-center justify-between border-b border-amber-100 px-5 py-4">
+
               <div>
+
                 <h2 className="text-lg font-bold text-slate-950">
                   Bulk Upload Faculty.............
                 </h2>
+
                 <p className="mt-0.5 text-xs text-slate-400">
                   Upload multiple faculty accounts using Excel or CSV.
                 </p>
+
               </div>
 
               <button
                 type="button"
                 onClick={closeBulkUpload}
                 disabled={bulkUploading}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-900 disabled:opacity-50"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-amber-50 hover:text-amber-700 disabled:opacity-50"
               >
+
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 24 24"
@@ -1093,55 +1166,69 @@ const handleBulkUpload = async () => {
                   <path d="M18 6 6 18" />
                   <path d="m6 6 12 12" />
                 </svg>
+
               </button>
+
             </div>
 
             <div className="space-y-5 p-5">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
                   <div>
-                    <p className="text-sm font-semibold text-slate-800">
+
+                    <p className="text-sm font-semibold text-amber-900">
                       Step 1 — Download template
                     </p>
-                    <p className="mt-1 text-xs text-slate-500">
+
+                    <p className="mt-1 text-xs text-amber-700">
                       Required columns: Name, Email, Phone, Department.
                     </p>
+
                   </div>
 
                   <button
                     type="button"
                     onClick={downloadBulkTemplate}
-                    className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100"
+                    className="rounded-xl border border-amber-300 bg-white px-4 py-2.5 text-xs font-semibold text-amber-700 shadow-sm transition hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-400"
                   >
                     Download Template
                   </button>
+
                 </div>
+
               </div>
 
               <div>
+
                 <p className="mb-1.5 text-sm font-semibold text-slate-800">
                   Step 2 — Select file
                 </p>
 
-                <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-center transition hover:border-slate-400 hover:bg-slate-100">
+                <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-amber-300 bg-amber-50 px-4 py-5 text-center transition hover:border-amber-500 hover:bg-amber-100">
+
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="1.7"
-                    className="mb-2 h-7 w-7 text-slate-400"
+                    className="mb-2 h-7 w-7 text-amber-500"
                   >
                     <path d="M12 3v12" />
                     <path d="m7 8 5-5 5 5" />
                     <path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" />
                   </svg>
 
-                  <span className="text-sm font-semibold text-slate-600">
-                    {bulkFile ? bulkFile.name : "Choose Excel or CSV file"}
+                  <span className="text-sm font-semibold text-amber-700">
+                    {bulkFile
+                      ? bulkFile.name
+                      : "Choose Excel or CSV file"}
                   </span>
 
-                  <span className="mt-1 text-xs text-slate-400">
+                  <span className="mt-1 text-xs text-amber-600">
                     .xlsx, .xls or .csv · Maximum 10 MB
                   </span>
 
@@ -1151,93 +1238,131 @@ const handleBulkUpload = async () => {
                     onChange={handleBulkFileChange}
                     className="hidden"
                   />
+
                 </label>
+
               </div>
 
-              <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-                <p className="text-xs font-semibold text-blue-800">
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+
+                <p className="text-xs font-semibold text-amber-800">
                   Department values
                 </p>
-                <p className="mt-1 text-xs leading-5 text-blue-700">
+
+                <p className="mt-1 text-xs leading-5 text-amber-700">
                   Use: at, ch, ce, cs, ec, ee, me, ps or sc.
                 </p>
-                <p className="mt-1 text-xs leading-5 text-blue-700">
+
+                <p className="mt-1 text-xs leading-5 text-amber-700">
                   All uploaded accounts will automatically get the role
                   <strong> staff</strong>.
                 </p>
+
               </div>
 
               {bulkResult && (
                 <div
                   className={`rounded-xl border p-4 ${
                     bulkResult.success
-                      ? "border-emerald-200 bg-emerald-50"
+                      ? "border-amber-200 bg-amber-50"
                       : "border-red-200 bg-red-50"
                   }`}
                 >
+
                   <p
                     className={`text-sm font-semibold ${
                       bulkResult.success
-                        ? "text-emerald-800"
+                        ? "text-amber-800"
                         : "text-red-800"
                     }`}
                   >
-                    {bulkResult.message || "Upload completed."}
+                    {bulkResult.message ||
+                      "Upload completed."}
                   </p>
 
                   <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    <div className="rounded-lg bg-white/70 p-3">
-                      <p className="text-[11px] text-slate-400">Created</p>
-                      <p className="mt-1 text-lg font-bold text-emerald-700">
+
+                    <div className="rounded-lg bg-white p-3 border border-amber-100">
+
+                      <p className="text-[11px] text-slate-400">
+                        Created
+                      </p>
+
+                      <p className="mt-1 text-lg font-bold text-amber-600">
                         {bulkResult.created || 0}
                       </p>
+
                     </div>
 
-                    <div className="rounded-lg bg-white/70 p-3">
-                      <p className="text-[11px] text-slate-400">Failed</p>
+                    <div className="rounded-lg bg-white p-3 border border-red-100">
+
+                      <p className="text-[11px] text-slate-400">
+                        Failed
+                      </p>
+
                       <p className="mt-1 text-lg font-bold text-red-600">
                         {bulkResult.failed || 0}
                       </p>
+
                     </div>
 
-                    <div className="rounded-lg bg-white/70 p-3">
-                      <p className="text-[11px] text-slate-400">Total</p>
+                    <div className="rounded-lg bg-white p-3 border border-slate-100">
+
+                      <p className="text-[11px] text-slate-400">
+                        Total
+                      </p>
+
                       <p className="mt-1 text-lg font-bold text-slate-800">
                         {(bulkResult.created || 0) +
                           (bulkResult.failed || 0)}
                       </p>
+
                     </div>
+
                   </div>
 
                   {Array.isArray(bulkResult.errors) &&
                     bulkResult.errors.length > 0 && (
                       <div className="mt-4 max-h-48 overflow-y-auto rounded-lg border border-red-100 bg-white">
+
                         <div className="divide-y divide-slate-100">
-                          {bulkResult.errors.map((item, index) => (
-                            <div
-                              key={index}
-                              className="px-3 py-2 text-xs text-red-700"
-                            >
-                              <strong>
-                                {item.row
-                                  ? `Row ${item.row}: `
-                                  : ""}
-                              </strong>
-                              {item.message || item.error || "Invalid row"}
-                            </div>
-                          ))}
+
+                          {bulkResult.errors.map(
+                            (item, index) => (
+                              <div
+                                key={index}
+                                className="px-3 py-2 text-xs text-red-700"
+                              >
+
+                                <strong>
+                                  {item.row
+                                    ? `Row ${item.row}: `
+                                    : ""}
+                                </strong>
+
+                                {item.message ||
+                                  item.error ||
+                                  "Invalid row"}
+
+                              </div>
+                            )
+                          )}
+
                         </div>
+
                       </div>
                     )}
+
                 </div>
               )}
 
-              <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+              <div className="flex justify-end gap-2 border-t border-amber-100 pt-4">
+
                 <button
                   type="button"
                   onClick={closeBulkUpload}
                   disabled={bulkUploading}
-                  className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700 disabled:opacity-50"
                 >
                   Close
                 </button>
@@ -1246,17 +1371,23 @@ const handleBulkUpload = async () => {
                   type="button"
                   onClick={handleBulkUpload}
                   disabled={bulkUploading || !bulkFile}
-                  className="rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {bulkUploading ? "Uploading..." : "Upload Faculty"}
+                  {bulkUploading
+                    ? "Uploading..."
+                    : "Upload Faculty"}
                 </button>
+
               </div>
+
             </div>
+
           </div>
+
         </div>
       )}
 
-      {/* MODAL */}
+      {/* ADD / EDIT MODAL */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
 
@@ -1265,12 +1396,13 @@ const handleBulkUpload = async () => {
             onClick={closeModal}
           />
 
-          <div className="relative max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl">
+          <div className="relative max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-amber-200 bg-white shadow-2xl">
 
             {/* MODAL HEADER */}
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+            <div className="flex items-center justify-between border-b border-amber-100 px-5 py-4">
 
               <div>
+
                 <h2 className="text-lg font-bold text-slate-950">
                   {editingFaculty
                     ? "Edit Faculty"
@@ -1282,13 +1414,15 @@ const handleBulkUpload = async () => {
                     ? "Update account information."
                     : "Create a new faculty account."}
                 </p>
+
               </div>
 
               <button
                 type="button"
                 onClick={closeModal}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-900"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-amber-50 hover:text-amber-700"
               >
+
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 24 24"
@@ -1300,6 +1434,7 @@ const handleBulkUpload = async () => {
                   <path d="M18 6 6 18" />
                   <path d="m6 6 12 12" />
                 </svg>
+
               </button>
 
             </div>
@@ -1312,6 +1447,7 @@ const handleBulkUpload = async () => {
 
               {/* NAME */}
               <div>
+
                 <label className="mb-1.5 block text-xs font-semibold text-slate-600">
                   Full Name
                 </label>
@@ -1323,12 +1459,14 @@ const handleBulkUpload = async () => {
                   value={form.name}
                   onChange={handleChange}
                   required
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100"
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:bg-white focus:ring-4 focus:ring-amber-100"
                 />
+
               </div>
 
               {/* EMAIL */}
               <div>
+
                 <label className="mb-1.5 block text-xs font-semibold text-slate-600">
                   Email Address
                 </label>
@@ -1341,7 +1479,7 @@ const handleBulkUpload = async () => {
                   onChange={handleChange}
                   required
                   disabled={!!editingFaculty}
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:bg-white focus:ring-4 focus:ring-amber-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                 />
 
                 {editingFaculty && (
@@ -1349,12 +1487,14 @@ const handleBulkUpload = async () => {
                     Email cannot be changed.
                   </p>
                 )}
+
               </div>
 
               {/* PHONE + DEPARTMENT */}
               <div className="grid gap-4 sm:grid-cols-2">
 
                 <div>
+
                   <label className="mb-1.5 block text-xs font-semibold text-slate-600">
                     Phone
                   </label>
@@ -1365,11 +1505,13 @@ const handleBulkUpload = async () => {
                     placeholder="Phone number"
                     value={form.phone}
                     onChange={handleChange}
-                    className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100"
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:bg-white focus:ring-4 focus:ring-amber-100"
                   />
+
                 </div>
 
                 <div>
+
                   <label className="mb-1.5 block text-xs font-semibold text-slate-600">
                     Department
                   </label>
@@ -1379,30 +1521,37 @@ const handleBulkUpload = async () => {
                     value={form.department}
                     onChange={handleChange}
                     required
-                    className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-700 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100"
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-700 outline-none transition focus:border-amber-500 focus:bg-white focus:ring-4 focus:ring-amber-100"
                   >
-                    {departments.map((department) => (
-                      <option
-                        key={department.value}
-                        value={department.value}
-                      >
-                        {department.label}
-                      </option>
-                    ))}
+
+                    {departments.map(
+                      (department) => (
+                        <option
+                          key={department.value}
+                          value={department.value}
+                        >
+                          {department.label}
+                        </option>
+                      )
+                    )}
+
                   </select>
+
                 </div>
 
               </div>
 
               {/* IMAGE */}
               <div>
+
                 <label className="mb-1.5 block text-xs font-semibold text-slate-600">
                   Profile Photo
                 </label>
 
                 <div className="flex items-center gap-3">
 
-                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200">
+                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-amber-50 ring-1 ring-amber-200">
+
                     {imagePreview ? (
                       <img
                         src={imagePreview}
@@ -1410,7 +1559,8 @@ const handleBulkUpload = async () => {
                         className="h-full w-full object-cover"
                       />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center text-slate-400">
+                      <div className="flex h-full w-full items-center justify-center text-amber-500">
+
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
                           viewBox="0 0 24 24"
@@ -1424,13 +1574,18 @@ const handleBulkUpload = async () => {
                             cy="8"
                             r="3"
                           />
+
                           <path d="M5 21a7 7 0 0 1 14 0" />
+
                         </svg>
+
                       </div>
                     )}
+
                   </div>
 
-                  <label className="flex h-11 min-w-0 flex-1 cursor-pointer items-center rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3.5 text-sm text-slate-500 transition hover:border-slate-400 hover:bg-slate-100">
+                  <label className="flex h-11 min-w-0 flex-1 cursor-pointer items-center rounded-xl border border-dashed border-amber-300 bg-amber-50 px-3.5 text-sm text-amber-700 transition hover:border-amber-500 hover:bg-amber-100">
+
                     <span className="truncate">
                       {form.image
                         ? form.image.name
@@ -1443,19 +1598,21 @@ const handleBulkUpload = async () => {
                       onChange={handleImageChange}
                       className="hidden"
                     />
+
                   </label>
 
                 </div>
+
               </div>
 
               {/* BUTTONS */}
-              <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+              <div className="flex justify-end gap-2 border-t border-amber-100 pt-4">
 
                 <button
                   type="button"
                   onClick={closeModal}
                   disabled={saving}
-                  className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -1463,7 +1620,7 @@ const handleBulkUpload = async () => {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {saving
                     ? "Saving..."
@@ -1475,9 +1632,12 @@ const handleBulkUpload = async () => {
               </div>
 
             </form>
+
           </div>
+
         </div>
       )}
+
     </div>
   );
 }

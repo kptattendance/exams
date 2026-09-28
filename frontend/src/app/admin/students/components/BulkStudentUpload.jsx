@@ -155,6 +155,7 @@ export default function StudentBulkUploadPage() {
   const downloadTemplate = () => {
     const data = [
       {
+        RollNumber: "1",
         RegisterNumber: "25CS001",
         Name: "Student Name",
         FatherName: "Father Name",
@@ -200,26 +201,26 @@ export default function StudentBulkUploadPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-amber-50 p-6">
       <div className="mx-auto max-w-6xl">
 
         {/* ================================================= */}
         {/* INSTRUCTIONS */}
         {/* ================================================= */}
 
-        <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-5">
+        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-5">
 
-          <h2 className="mb-3 font-semibold text-blue-900">
+          <h2 className="mb-3 font-semibold text-amber-900">
             Excel Upload Instructions
           </h2>
 
-          <ul className="space-y-1 text-sm text-blue-800">
+          <ul className="space-y-1 text-sm text-amber-800">
             <li>
               • Use the provided Excel template.
             </li>
 
             <li>
-              • Register number and email must
+              • Roll number, register number and email must
               be unique.
             </li>
 
@@ -261,11 +262,11 @@ export default function StudentBulkUploadPage() {
           <div className="flex flex-wrap items-center justify-between gap-4">
 
             <div>
-              <h2 className="font-semibold text-gray-900">
+              <h2 className="font-semibold text-slate-900">
                 Step 1 — Download Template
               </h2>
 
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-slate-500">
                 Use the correct column names.
               </p>
             </div>
@@ -275,7 +276,7 @@ export default function StudentBulkUploadPage() {
               onClick={
                 downloadTemplate
               }
-              className="rounded-lg bg-green-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-green-700"
+              className="rounded-lg bg-amber-500 px-5 py-2.5 text-sm font-medium text-white hover:bg-amber-600"
             >
               Download Excel Template
             </button>
@@ -289,7 +290,7 @@ export default function StudentBulkUploadPage() {
 
         <div className="rounded-lg border bg-white p-5 shadow-sm">
 
-          <h2 className="mb-4 font-semibold text-gray-900">
+          <h2 className="mb-4 font-semibold text-slate-900">
             Step 2 — Upload Student Excel
           </h2>
 
@@ -300,11 +301,11 @@ export default function StudentBulkUploadPage() {
             onChange={
               handleFileChange
             }
-            className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-3 text-sm"
+            className="block w-full rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm"
           />
 
           {file && (
-            <div className="mt-3 rounded-lg bg-gray-50 p-3 text-sm">
+            <div className="mt-3 rounded-lg bg-amber-50 p-3 text-sm">
               <span className="font-medium">
                 Selected file:
               </span>{" "}
@@ -327,7 +328,7 @@ export default function StudentBulkUploadPage() {
               !file ||
               uploading
             }
-            className="mt-5 rounded-lg bg-blue-600 px-6 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-400"
+            className="mt-5 rounded-lg bg-amber-500 px-6 py-3 text-sm font-medium text-white hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-gray-400"
           >
             {uploading
               ? "Uploading Students..."
@@ -343,7 +344,7 @@ export default function StudentBulkUploadPage() {
         {result && (
           <div className="mt-6 rounded-lg border bg-white p-5 shadow-sm">
 
-            <h2 className="mb-5 text-lg font-semibold text-gray-900">
+            <h2 className="mb-5 text-lg font-semibold text-slate-900">
               Upload Result
             </h2>
 
@@ -351,22 +352,22 @@ export default function StudentBulkUploadPage() {
 
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
 
-              <div className="rounded-lg bg-gray-50 p-4">
-                <p className="text-xs text-gray-500">
+              <div className="rounded-lg bg-amber-50 p-4">
+                <p className="text-xs text-slate-500">
                   Total
                 </p>
 
-                <p className="mt-1 text-2xl font-bold text-gray-900">
+                <p className="mt-1 text-2xl font-bold text-slate-900">
                   {result.total}
                 </p>
               </div>
 
-              <div className="rounded-lg bg-green-50 p-4">
-                <p className="text-xs text-green-700">
+              <div className="rounded-lg bg-amber-50 p-4">
+                <p className="text-xs text-amber-700">
                   Created
                 </p>
 
-                <p className="mt-1 text-2xl font-bold text-green-700">
+                <p className="mt-1 text-2xl font-bold text-amber-700">
                   {result.created}
                 </p>
               </div>
@@ -381,12 +382,12 @@ export default function StudentBulkUploadPage() {
                 </p>
               </div>
 
-              <div className="rounded-lg bg-blue-50 p-4">
-                <p className="text-xs text-blue-700">
+              <div className="rounded-lg bg-amber-50 p-4">
+                <p className="text-xs text-amber-700">
                   Success Rate
                 </p>
 
-                <p className="mt-1 text-2xl font-bold text-blue-700">
+                <p className="mt-1 text-2xl font-bold text-amber-700">
                   {result.total
                     ? Math.round(
                         (result.created /
@@ -413,7 +414,7 @@ export default function StudentBulkUploadPage() {
 
                   <table className="min-w-full text-sm">
 
-                    <thead className="bg-gray-100">
+                    <thead className="bg-amber-500 text-white">
                       <tr>
                         <th className="px-4 py-3 text-left">
                           Excel Row
