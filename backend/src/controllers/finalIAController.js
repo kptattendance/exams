@@ -97,20 +97,33 @@ export const prepareFinalIA = async (req, res) => {
     // FETCH STUDENTS
     // -------------------------------------------------
 
-    const students = await Student.find({
-      department: normalizedDepartment,
-      semester: semesterNumber,
-      batch: normalizedBatch,
-      status: "active",
-    })
-      .select(
-        "_id registerNumber name fatherName phone imageUrl batch batchNumber semester department"
-      )
-      .sort({
-        name: 1,
-        fatherName: 1,
-      })
-      .lean();
+const students = await Student.find({
+  department: normalizedDepartment,
+
+  semester: semesterNumber,
+
+  // Exact batch match, ignoring accidental
+  // leading/trailing spaces and case.
+  batch: new RegExp(
+    `^${normalizedBatch.replace(
+      /[.*+?^${}()|[\]\\]/g,
+      "\\$&"
+    )}$`,
+    "i"
+  ),
+
+  // Existing records may have different casing.
+  status: /^active$/i,
+})
+  .select(
+    "_id rollNumber registerNumber name fatherName motherName phone imageUrl batch batchNumber semester department status"
+  )
+  .sort({
+    rollNumber: 1,
+    registerNumber: 1,
+    name: 1,
+  })
+  .lean();
 
     // -------------------------------------------------
     // FETCH SUBJECTS
@@ -118,18 +131,23 @@ export const prepareFinalIA = async (req, res) => {
     // IMPORTANT:
     // Semester + HOD Department
     // -------------------------------------------------
-
-    const subjects = await Subject.find({
-      semester: semesterNumber,
-      department: normalizedDepartment,
-    })
-      .select(
-        "_id code name semester department"
-      )
-      .sort({
-        code: 1,
-      })
-      .lean();
+const subjects = await Subject.find({
+  department: new RegExp(
+    `^${normalizedDepartment.replace(
+      /[.*+?^${}()|[\]\\]/g,
+      "\\$&"
+    )}$`,
+    "i"
+  ),
+  semester: semesterNumber,
+})
+  .select(
+    "_id code name semester department sequence iaMax iaMin"
+  )
+  .sort({
+    sequence: 1,
+  })
+  .lean();
 
     // -------------------------------------------------
     // FIND EXISTING RECORD
@@ -149,93 +167,108 @@ export const prepareFinalIA = async (req, res) => {
         batch:
           normalizedBatch,
       }).lean();
+const responseSubjects = subjects.map((subject) => {
+  const existingSubject =
+    existing?.subjects?.find(
+      (item) =>
+        String(item.subjectId) ===
+        String(subject._id)
+    );
 
-    // -------------------------------------------------
-    // SUBJECT RESPONSE
-    // -------------------------------------------------
+  return {
+    subjectId: subject._id,
+    code: subject.code,
+    name: subject.name,
+    sequence: subject.sequence,
+    department: subject.department,
 
-    const responseSubjects =
-      subjects.map((subject) => {
-        const existingSubject =
-          existing?.subjects?.find(
+    iaMax: subject.iaMax ?? null,
+    iaMin: subject.iaMin ?? null,
+
+    maxMarks:
+      subject.iaMax ??
+      existingSubject?.maxMarks ??
+      null,
+  };
+});
+
+ // -------------------------------------------------
+// CREATE STUDENT RESPONSE
+// -------------------------------------------------
+
+const responseStudents = students.map(
+  (student) => {
+    const existingStudent =
+      existing?.students?.find(
+        (item) =>
+          String(item.studentId) ===
+          String(student._id)
+      );
+
+    const marks = responseSubjects.map(
+      (subject) => {
+        const existingMark =
+          existingStudent?.marks?.find(
             (item) =>
               String(item.subjectId) ===
-              String(subject._id)
+              String(subject.subjectId)
           );
 
         return {
-          subjectId: subject._id,
-          code: subject.code,
-          name: subject.name,
-          department: subject.department,
+          subjectId:
+            subject.subjectId,
 
-          maxMarks:
-            existingSubject?.maxMarks ??
+          marks:
+            existingMark?.marks ??
             null,
         };
-      });
+      }
+    );
 
-    // -------------------------------------------------
-    // STUDENT RESPONSE
-    // -------------------------------------------------
+    return {
+      studentId: student._id,
 
-    const responseStudents =
-      students.map((student) => {
-        const existingStudent =
-          existing?.students?.find(
-            (item) =>
-              String(item.studentId) ===
-              String(student._id)
-          );
+      // IMPORTANT
+      rollNumber:
+        student.rollNumber || "",
 
-        const marks =
-          responseSubjects.map(
-            (subject) => {
-              const existingMark =
-                existingStudent?.marks?.find(
-                  (item) =>
-                    String(
-                      item.subjectId
-                    ) ===
-                    String(
-                      subject.subjectId
-                    )
-                );
+      registerNumber:
+        student.registerNumber || "",
 
-              return {
-                subjectId:
-                  subject.subjectId,
+      studentName:
+        student.name || "",
 
-                marks:
-                  existingMark?.marks ??
-                  null,
-              };
-            }
-          );
+      fatherName:
+        student.fatherName || "",
 
-        return {
-          studentId:
-            student._id,
+      motherName:
+        student.motherName || "",
 
-          registerNumber:
-            student.registerNumber,
+      phone:
+        student.phone || "",
 
-          studentName:
-            student.name,
+      imageUrl:
+        student.imageUrl || "",
 
-          fatherName:
-            student.fatherName,
+      batch:
+        student.batch || "",
 
-          phone:
-            student.phone || "",
+      batchNumber:
+        student.batchNumber || "",
 
-          imageUrl:
-            student.imageUrl || "",
+      semester:
+        student.semester || "",
 
-          marks,
-        };
-      });
+      department:
+        student.department || "",
 
+      status:
+        student.status || "active",
+
+      marks,
+    };
+  }
+);
     // -------------------------------------------------
     // RESPONSE
     // -------------------------------------------------

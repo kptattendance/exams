@@ -144,15 +144,80 @@ export default function AttendancePage() {
       );
 
       const sortedStudents = [...(data.students || [])].sort(
-        (a, b) =>
-          String(a.rollNumber ?? "").localeCompare(
-            String(b.rollNumber ?? ""),
+        (a, b) => {
+          const rollCompare =
+            String(a.rollNumber ?? "").localeCompare(
+              String(b.rollNumber ?? ""),
+              undefined,
+              {
+                numeric: true,
+                sensitivity: "base",
+              }
+            );
+
+          if (rollCompare !== 0) {
+            return rollCompare;
+          }
+
+          const registerCompare =
+            String(a.registerNumber ?? "").localeCompare(
+              String(b.registerNumber ?? ""),
+              undefined,
+              {
+                numeric: true,
+                sensitivity: "base",
+              }
+            );
+
+          if (registerCompare !== 0) {
+            return registerCompare;
+          }
+
+          return String(
+            a.studentName ?? ""
+          ).localeCompare(
+            String(b.studentName ?? ""),
             undefined,
-            { numeric: true, sensitivity: "base" }
-          )
+            {
+              sensitivity: "base",
+            }
+          );
+        }
+      );
+
+      const sortedSubjects = [
+        ...(data.subjects || []),
+      ].sort(
+        (a, b) => {
+          const sequenceCompare =
+            String(a.sequence ?? "").localeCompare(
+              String(b.sequence ?? ""),
+              undefined,
+              {
+                numeric: true,
+                sensitivity: "base",
+              }
+            );
+
+          if (sequenceCompare !== 0) {
+            return sequenceCompare;
+          }
+
+          return String(
+            a.code ?? ""
+          ).localeCompare(
+            String(b.code ?? ""),
+            undefined,
+            {
+              numeric: true,
+              sensitivity: "base",
+            }
+          );
+        }
       );
 
       setStudents(sortedStudents);
+      setSubjects(sortedSubjects);
 
       setStatus(
         data.status || "draft"
@@ -168,8 +233,8 @@ export default function AttendancePage() {
 
       setError(
         err?.response?.data?.message ||
-          err?.message ||
-          "Failed to load attendance data."
+        err?.message ||
+        "Failed to load attendance data."
       );
     } finally {
       setLoading(false);
@@ -207,15 +272,15 @@ export default function AttendancePage() {
             String(
               subject.subjectId
             ) ===
-            String(subjectId)
+              String(subjectId)
               ? {
-                  ...subject,
+                ...subject,
 
-                  maxClasses:
-                    value === ""
-                      ? ""
-                      : Number(value),
-                }
+                maxClasses:
+                  value === ""
+                    ? ""
+                    : Number(value),
+              }
               : subject
         )
     );
@@ -259,17 +324,17 @@ export default function AttendancePage() {
                     String(
                       item.subjectId
                     ) ===
-                    String(subjectId)
+                      String(subjectId)
                       ? {
-                          ...item,
+                        ...item,
 
-                          classesAttended:
-                            value === ""
-                              ? ""
-                              : Number(
-                                  value
-                                ),
-                        }
+                        classesAttended:
+                          value === ""
+                            ? ""
+                            : Number(
+                              value
+                            ),
+                      }
                       : item
                 ),
             };
@@ -300,9 +365,9 @@ export default function AttendancePage() {
 
     if (
       item?.classesAttended ===
-        null ||
+      null ||
       item?.classesAttended ===
-        undefined
+      undefined
     ) {
       return "";
     }
@@ -383,11 +448,11 @@ export default function AttendancePage() {
       ) {
         if (
           subject.maxClasses ===
-            "" ||
+          "" ||
           subject.maxClasses ===
-            null ||
+          null ||
           subject.maxClasses ===
-            undefined ||
+          undefined ||
           !Number.isFinite(
             Number(
               subject.maxClasses
@@ -571,12 +636,12 @@ export default function AttendancePage() {
         setStatus(
           response.data?.data
             ?.status ||
-            "draft"
+          "draft"
         );
 
         setMessage(
           response.data?.message ||
-            "Attendance saved successfully."
+          "Attendance saved successfully."
         );
       } catch (err) {
         console.error(
@@ -586,7 +651,7 @@ export default function AttendancePage() {
 
         setError(
           err?.response?.data?.message ||
-            "Failed to save attendance."
+          "Failed to save attendance."
         );
       } finally {
         setSaving(false);
@@ -682,7 +747,7 @@ export default function AttendancePage() {
 
         setMessage(
           response.data?.message ||
-            "Attendance submitted successfully."
+          "Attendance submitted successfully."
         );
       } catch (err) {
         console.error(
@@ -692,7 +757,7 @@ export default function AttendancePage() {
 
         setError(
           err?.response?.data?.message ||
-            "Failed to submit attendance."
+          "Failed to submit attendance."
         );
       } finally {
         setSubmitting(false);
@@ -765,31 +830,31 @@ export default function AttendancePage() {
               student,
               index
             ) => [
-              index + 1,
+                index + 1,
 
-              student.registerNumber,
+                student.registerNumber,
 
-              student.studentName,
+                student.studentName,
 
-              student.phone || "",
+                student.phone || "",
 
-              student.imageUrl || "",
+                student.imageUrl || "",
 
-              ...subjects.map(
-                (subject) => {
-                  const attended =
-                    getAttendanceValue(
-                      student,
-                      subject.subjectId
-                    );
+                ...subjects.map(
+                  (subject) => {
+                    const attended =
+                      getAttendanceValue(
+                        student,
+                        subject.subjectId
+                      );
 
-                  return attended ===
-                    ""
-                    ? ""
-                    : attended;
-                }
-              ),
-            ]
+                    return attended ===
+                      ""
+                      ? ""
+                      : attended;
+                  }
+                ),
+              ]
           );
 
         const data = [
@@ -924,7 +989,7 @@ export default function AttendancePage() {
 
         const worksheet =
           workbook.Sheets[
-            sheetName
+          sheetName
           ];
 
         const rows =
@@ -1014,7 +1079,7 @@ export default function AttendancePage() {
           subjects.filter(
             (subject) =>
               subjectColumnMap[
-                subject.subjectId
+              subject.subjectId
               ] === undefined
           );
 
@@ -1040,17 +1105,17 @@ export default function AttendancePage() {
             (subject) => {
               const columnIndex =
                 subjectColumnMap[
-                  subject.subjectId
+                subject.subjectId
                 ];
 
               const excelMax =
                 maxRow?.[
-                  columnIndex
+                columnIndex
                 ];
 
               if (
                 excelMax !==
-                  undefined &&
+                undefined &&
                 excelMax !== ""
               ) {
                 const numericMax =
@@ -1145,7 +1210,7 @@ export default function AttendancePage() {
           const registerNumber =
             String(
               row[
-                registerIndex
+              registerIndex
               ] || ""
             )
               .trim()
@@ -1157,7 +1222,7 @@ export default function AttendancePage() {
 
           const student =
             studentMap[
-              registerNumber
+            registerNumber
             ];
 
           if (!student) {
@@ -1193,17 +1258,17 @@ export default function AttendancePage() {
             (subject) => {
               const columnIndex =
                 subjectColumnMap[
-                  subject.subjectId
+                subject.subjectId
                 ];
 
               const value =
                 row[
-                  columnIndex
+                columnIndex
                 ];
 
               if (
                 value ===
-                  undefined ||
+                undefined ||
                 value === ""
               ) {
                 return;
@@ -1244,7 +1309,7 @@ export default function AttendancePage() {
                   attendanceIndex
                 ] = {
                   ...attendance[
-                    attendanceIndex
+                  attendanceIndex
                   ],
 
                   classesAttended:
@@ -1279,10 +1344,9 @@ export default function AttendancePage() {
         );
 
         setMessage(
-          `Excel imported successfully. ${importedCount} student(s) updated${
-            skippedCount > 0
-              ? `, ${skippedCount} row(s) skipped`
-              : ""
+          `Excel imported successfully. ${importedCount} student(s) updated${skippedCount > 0
+            ? `, ${skippedCount} row(s) skipped`
+            : ""
           }.`
         );
       } catch (err) {
@@ -1293,7 +1357,7 @@ export default function AttendancePage() {
 
         setError(
           err?.message ||
-            "Failed to import Excel file."
+          "Failed to import Excel file."
         );
       } finally {
         setExcelLoading(false);
@@ -1338,6 +1402,24 @@ export default function AttendancePage() {
 
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-white p-3 md:p-5">
+
+
+<style jsx>{`
+  /* Hide number input spinner - Chrome / Edge / Safari */
+  input.no-spinner::-webkit-outer-spin-button,
+  input.no-spinner::-webkit-inner-spin-button {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    display: none !important;
+    margin: 0 !important;
+  }
+
+  /* Hide number input spinner - Firefox */
+  input.no-spinner {
+    -moz-appearance: textfield !important;
+    appearance: textfield !important;
+  }
+`}</style>
 
       {/* ======================================================
           HEADER
@@ -1767,7 +1849,7 @@ export default function AttendancePage() {
                               status !==
                               "draft"
                             }
-                            className="h-8 w-full rounded-md border border-amber-300 bg-white px-1 text-center text-sm font-bold text-gray-800 outline-none focus:border-amber-500 disabled:bg-gray-100"
+                            className="no-spinner h-8 w-full rounded-md border border-amber-300 bg-white px-1 text-center text-sm font-bold text-gray-800 outline-none focus:border-amber-500 disabled:bg-gray-100"
                             placeholder="Max"
                           />
 
@@ -1890,7 +1972,7 @@ export default function AttendancePage() {
 
                             const invalid =
                               attended !==
-                                "" &&
+                              "" &&
                               max > 0 &&
                               Number(
                                 attended
@@ -1901,7 +1983,11 @@ export default function AttendancePage() {
                                 key={
                                   subject.subjectId
                                 }
-                                className="w-[115px] min-w-[115px] border-r border-b border-amber-200 px-1.5 py-1.5"
+                                className={`w-[115px] min-w-[115px] border-r border-b border-amber-200 px-1.5 py-1.5 ${percentage !== null &&
+                                    percentage < 75
+                                    ? "bg-red-50"
+                                    : ""
+                                  }`}
                               >
 
                                 <input
@@ -1914,9 +2000,7 @@ export default function AttendancePage() {
                                   value={
                                     attended
                                   }
-                                  onChange={(
-                                    e
-                                  ) =>
+                                  onChange={(e) =>
                                     handleAttendanceChange(
                                       student.studentId,
                                       subject.subjectId,
@@ -1927,32 +2011,29 @@ export default function AttendancePage() {
                                     status !==
                                     "draft"
                                   }
-                                  className={`h-8 w-full rounded-md border px-1 text-center text-sm outline-none ${
-                                    invalid
-                                      ? "border-red-500 bg-red-50 text-red-700"
+                                  className={`no-spinner h-8 w-full rounded-md border px-1 text-center text-sm outline-none ${invalid ||
+                                      (percentage !== null &&
+                                        percentage < 75)
+                                      ? "border-red-500 bg-red-100 text-red-700 font-semibold focus:border-red-500"
                                       : "border-amber-200 bg-white focus:border-amber-500"
-                                  } disabled:bg-gray-100`}
+                                    } disabled:bg-gray-100`}
                                   placeholder="0"
                                 />
 
                                 {/* PERCENTAGE */}
 
-                                <div
-                                  className={`mt-1 text-center text-[10px] font-semibold ${
-                                    percentage ===
-                                      null
-                                      ? "text-gray-400"
-                                      : percentage <
-                                        75
-                                      ? "text-red-600"
-                                      : "text-green-600"
-                                  }`}
-                                >
-                                  {percentage ===
-                                  null
-                                    ? "--"
-                                    : `${percentage}%`}
-                                </div>
+                             
+{percentage !== null && (
+  <div
+    className={`mt-1 text-center text-[10px] font-semibold ${
+      percentage < 75
+        ? "rounded bg-red-100 px-1 py-0.5 text-red-700"
+        : "text-green-600"
+    }`}
+  >
+    {percentage}%
+  </div>
+)}
 
                               </td>
                             );

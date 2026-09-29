@@ -114,7 +114,7 @@ export default function FinalIAPage() {
 
       const data =
         response.data?.data;
-
+      console.log(response.data)
       if (!data) {
         throw new Error(
           "Invalid response received from server."
@@ -143,8 +143,8 @@ export default function FinalIAPage() {
 
       setError(
         err?.response?.data?.message ||
-          err?.message ||
-          "Failed to load Final IA data."
+        err?.message ||
+        "Failed to load Final IA data."
       );
     } finally {
       setLoading(false);
@@ -183,12 +183,12 @@ export default function FinalIAPage() {
               subject.subjectId
             ) === String(subjectId)
               ? {
-                  ...subject,
-                  maxMarks:
-                    value === ""
-                      ? ""
-                      : Number(value),
-                }
+                ...subject,
+                maxMarks:
+                  value === ""
+                    ? ""
+                    : Number(value),
+              }
               : subject
         )
     );
@@ -232,16 +232,16 @@ export default function FinalIAPage() {
                     String(
                       mark.subjectId
                     ) ===
-                    String(subjectId)
+                      String(subjectId)
                       ? {
-                          ...mark,
-                          marks:
-                            value === ""
-                              ? ""
-                              : Number(
-                                  value
-                                ),
-                        }
+                        ...mark,
+                        marks:
+                          value === ""
+                            ? ""
+                            : Number(
+                              value
+                            ),
+                      }
                       : mark
                 ),
             };
@@ -304,11 +304,11 @@ export default function FinalIAPage() {
       ) {
         if (
           subject.maxMarks ===
-            "" ||
+          "" ||
           subject.maxMarks ===
-            null ||
+          null ||
           subject.maxMarks ===
-            undefined ||
+          undefined ||
           !Number.isFinite(
             Number(
               subject.maxMarks
@@ -481,12 +481,12 @@ export default function FinalIAPage() {
       setStatus(
         response.data?.data
           ?.status ||
-          "draft"
+        "draft"
       );
 
       setMessage(
         response.data?.message ||
-          "Final IA saved successfully."
+        "Final IA saved successfully."
       );
     } catch (err) {
       console.error(
@@ -496,7 +496,7 @@ export default function FinalIAPage() {
 
       setError(
         err?.response?.data?.message ||
-          "Failed to save Final IA."
+        "Failed to save Final IA."
       );
     } finally {
       setSaving(false);
@@ -579,7 +579,7 @@ export default function FinalIAPage() {
 
       setMessage(
         response.data?.message ||
-          "Final IA submitted successfully."
+        "Final IA submitted successfully."
       );
     } catch (err) {
       console.error(
@@ -589,7 +589,7 @@ export default function FinalIAPage() {
 
       setError(
         err?.response?.data?.message ||
-          "Failed to submit Final IA."
+        "Failed to submit Final IA."
       );
     } finally {
       setSubmitting(false);
@@ -647,30 +647,30 @@ export default function FinalIAPage() {
               student,
               index
             ) => [
-              index + 1,
+                index + 1,
 
-              student.registerNumber,
+                student.registerNumber,
 
-              student.studentName,
+                student.studentName,
 
-              student.phone || "",
+                student.phone || "",
 
-              student.imageUrl || "",
+                student.imageUrl || "",
 
-              ...subjects.map(
-                (subject) => {
-                  const mark =
-                    getStudentMark(
-                      student,
-                      subject.subjectId
-                    );
+                ...subjects.map(
+                  (subject) => {
+                    const mark =
+                      getStudentMark(
+                        student,
+                        subject.subjectId
+                      );
 
-                  return mark === ""
-                    ? ""
-                    : mark;
-                }
-              ),
-            ]
+                    return mark === ""
+                      ? ""
+                      : mark;
+                  }
+                ),
+              ]
           );
 
         const data = [
@@ -781,7 +781,7 @@ export default function FinalIAPage() {
 
         const worksheet =
           workbook.Sheets[
-            sheetName
+          sheetName
           ];
 
         const rows =
@@ -857,7 +857,7 @@ export default function FinalIAPage() {
           subjects.filter(
             (subject) =>
               subjectColumnMap[
-                subject.subjectId
+              subject.subjectId
               ] === undefined
           );
 
@@ -881,17 +881,17 @@ export default function FinalIAPage() {
             (subject) => {
               const columnIndex =
                 subjectColumnMap[
-                  subject.subjectId
+                subject.subjectId
                 ];
 
               const excelMax =
                 maxRow?.[
-                  columnIndex
+                columnIndex
                 ];
 
               if (
                 excelMax !==
-                  undefined &&
+                undefined &&
                 excelMax !== ""
               ) {
                 const numericMax =
@@ -973,7 +973,7 @@ export default function FinalIAPage() {
           const registerNumber =
             String(
               row[
-                registerIndex
+              registerIndex
               ] || ""
             )
               .trim()
@@ -985,7 +985,7 @@ export default function FinalIAPage() {
 
           const student =
             studentMap[
-              registerNumber
+            registerNumber
             ];
 
           if (!student) {
@@ -1015,17 +1015,17 @@ export default function FinalIAPage() {
             (subject) => {
               const columnIndex =
                 subjectColumnMap[
-                  subject.subjectId
+                subject.subjectId
                 ];
 
               const value =
                 row[
-                  columnIndex
+                columnIndex
                 ];
 
               if (
                 value ===
-                  undefined ||
+                undefined ||
                 value === ""
               ) {
                 return;
@@ -1065,7 +1065,7 @@ export default function FinalIAPage() {
                   markIndex
                 ] = {
                   ...marks[
-                    markIndex
+                  markIndex
                   ],
                   marks:
                     numericMark,
@@ -1098,10 +1098,9 @@ export default function FinalIAPage() {
         );
 
         setMessage(
-          `Excel imported successfully. ${importedCount} student(s) updated${
-            skippedCount > 0
-              ? `, ${skippedCount} row(s) skipped`
-              : ""
+          `Excel imported successfully. ${importedCount} student(s) updated${skippedCount > 0
+            ? `, ${skippedCount} row(s) skipped`
+            : ""
           }.`
         );
       } catch (err) {
@@ -1112,7 +1111,7 @@ export default function FinalIAPage() {
 
         setError(
           err?.message ||
-            "Failed to import Excel file."
+          "Failed to import Excel file."
         );
       } finally {
         setExcelLoading(false);
@@ -1122,27 +1121,53 @@ export default function FinalIAPage() {
 
   // ============================================================
   // SORT STUDENTS
-  // First by Register Number, then by Roll Number
+  // Roll Number first
+  // Register Number as secondary sorting
   // ============================================================
 
-  const sortedStudents = [...students].sort((a, b) => {
-    const registerCompare = String(a.registerNumber || "").localeCompare(
-      String(b.registerNumber || ""),
-      undefined,
-      { numeric: true, sensitivity: "base" }
-    );
+  const sortedStudents = [...students].sort(
+    (a, b) => {
+      const rollCompare = String(
+        a.rollNumber ?? ""
+      ).localeCompare(
+        String(b.rollNumber ?? ""),
+        undefined,
+        {
+          numeric: true,
+          sensitivity: "base",
+        }
+      );
 
-    if (registerCompare !== 0) {
-      return registerCompare;
+      if (rollCompare !== 0) {
+        return rollCompare;
+      }
+
+      const registerCompare = String(
+        a.registerNumber ?? ""
+      ).localeCompare(
+        String(b.registerNumber ?? ""),
+        undefined,
+        {
+          numeric: true,
+          sensitivity: "base",
+        }
+      );
+
+      if (registerCompare !== 0) {
+        return registerCompare;
+      }
+
+      return String(
+        a.studentName ?? ""
+      ).localeCompare(
+        String(b.studentName ?? ""),
+        undefined,
+        {
+          sensitivity: "base",
+        }
+      );
     }
-
-    return String(a.rollNumber ?? "").localeCompare(
-      String(b.rollNumber ?? ""),
-      undefined,
-      { numeric: true, sensitivity: "base" }
-    );
-  });
-
+  );
   // ============================================================
   // AUTOMATIC LOAD
   // ============================================================
@@ -1180,6 +1205,18 @@ export default function FinalIAPage() {
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-gray-50 p-3 md:p-5">
 
+<style jsx>{`
+  .no-spinner::-webkit-outer-spin-button,
+  .no-spinner::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .no-spinner {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+`}</style>
       {/* ======================================================
           HEADER
       ====================================================== */}
@@ -1583,42 +1620,23 @@ export default function FinalIAPage() {
                     <th
                       className="sticky left-[45px] z-30 border-r border-amber-200 bg-amber-50 px-3 py-2 text-right text-xs font-bold text-gray-700"
                     >
-                      Maximum IA Marks
+                      IA Marks
                     </th>
 
-                    {subjects.map(
-                      (subject) => (
-                        <th
-                          key={
-                            subject.subjectId
-                          }
-                          className="w-[115px] min-w-[115px] border-r border-amber-200 bg-amber-50 px-1.5 py-1.5"
-                        >
+                    {subjects.map((subject) => (
+                      <th
+                        key={subject.subjectId}
+                        className="w-[115px] min-w-[115px] border-r border-amber-200 bg-amber-50 px-1.5 py-1.5 text-center"
+                      >
+                        <div className="text-xs font-bold text-gray-800">
+                          {subject.iaMin ?? "-"} – {subject.iaMax ?? "-"}
+                        </div>
 
-                          <input
-                            type="number"
-                            min="1"
-                            value={
-                              subject.maxMarks ??
-                              ""
-                            }
-                            onChange={(e) =>
-                              handleMaxMarksChange(
-                                subject.subjectId,
-                                e.target.value
-                              )
-                            }
-                            disabled={
-                              status !==
-                              "draft"
-                            }
-                            className="h-8 w-full rounded-md border border-amber-300 bg-white px-1 text-center text-sm font-bold text-gray-800 outline-none focus:border-blue-500 disabled:bg-gray-100"
-                            placeholder="Max"
-                          />
-
-                        </th>
-                      )
-                    )}
+                        <div className="text-[9px] font-medium text-gray-500">
+                          Min – Max
+                        </div>
+                      </th>
+                    ))}
 
                   </tr>
 
@@ -1696,15 +1714,14 @@ export default function FinalIAPage() {
                                 }
                               </div>
 
-                              <div className="mt-0.5 truncate text-[10px] text-gray-500">
-                                {
-                                  student.registerNumber
-                                }
+
+
+                              <div className="truncate text-[10px] text-gray-500">
+                                Reg No: {student.registerNumber || "-"}
                               </div>
 
                               <div className="truncate text-[10px] text-gray-400">
-                                {student.phone ||
-                                  "No phone"}
+                                {student.phone || "No phone"}
                               </div>
 
                             </div>
@@ -1719,30 +1736,37 @@ export default function FinalIAPage() {
 
                         {subjects.map(
                           (subject) => {
-
                             const mark =
                               getStudentMark(
                                 student,
                                 subject.subjectId
                               );
 
-                            const max =
-                              Number(
-                                subject.maxMarks
-                              ) || 0;
+                            const min =
+                              Number(subject.iaMin) || 0;
 
+                            const max =
+                              Number(subject.iaMax) || 0;
+
+                            const numericMark =
+                              mark === ""
+                                ? null
+                                : Number(mark);
+
+                            // Highlight if mark is below minimum
+                            // OR above maximum
                             const invalid =
                               mark !== "" &&
-                              max > 0 &&
-                              Number(
-                                mark
-                              ) > max;
+                              (
+                                (min > 0 &&
+                                  numericMark < min) ||
+                                (max > 0 &&
+                                  numericMark > max)
+                              );
 
                             return (
                               <td
-                                key={
-                                  subject.subjectId
-                                }
+                                key={subject.subjectId}
                                 className="w-[115px] min-w-[115px] border-r border-b border-gray-200 px-1.5 py-1.5"
                               >
 
@@ -1753,28 +1777,23 @@ export default function FinalIAPage() {
                                     max ||
                                     undefined
                                   }
-                                  value={
-                                    mark
-                                  }
-                                  onChange={(
-                                    e
-                                  ) =>
+                                  value={mark}
+                                  onChange={(e) =>
                                     handleMarkChange(
                                       student.studentId,
                                       subject.subjectId,
-                                      e.target
-                                        .value
+                                      e.target.value
                                     )
                                   }
                                   disabled={
-                                    status !==
-                                    "draft"
+                                    status !== "draft"
                                   }
-                                  className={`h-8 w-full rounded-md border px-1 text-center text-sm outline-none ${
-                                    invalid
-                                      ? "border-red-500 bg-red-50 text-red-700"
-                                      : "border-gray-200 bg-white focus:border-blue-500"
-                                  } disabled:bg-gray-100`}
+
+                                  className={`no-spinner h-8 w-full rounded-md border px-1 text-center text-sm outline-none ${invalid
+                                      ? "border-red-500 bg-red-100 text-red-700 font-bold focus:border-red-600"
+                                      : "border-gray-200 bg-white text-gray-800 focus:border-amber-500"
+                                    } disabled:bg-gray-100`}
+
                                 />
 
                               </td>

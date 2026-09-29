@@ -28,10 +28,11 @@ const getUserClerkId = (req) => {
 // PREPARE ATTENDANCE
 // =====================================================
 
-export const prepareAttendance = async (
-  req,
-  res
-) => {
+// =====================================================
+// PREPARE ATTENDANCE
+// =====================================================
+
+export const prepareAttendance = async (req, res) => {
   try {
     const {
       academicYear,
@@ -122,36 +123,40 @@ export const prepareAttendance = async (
           "active",
       })
         .select(
-          "_id registerNumber name fatherName phone imageUrl department semester batch"
+          "_id rollNumber registerNumber name fatherName phone imageUrl department semester batch"
         )
         .sort({
+          rollNumber: 1,
+          registerNumber: 1,
           name: 1,
-          fatherName: 1,
         })
         .lean();
 
     // =================================================
     // SUBJECTS
     //
-    // IMPORTANT:
     // HOD DEPARTMENT + SEMESTER
+    // SORTED BY SEQUENCE NUMBER
     // =================================================
+const subjects =
+  await Subject.find({
+    department: hodDepartment,
 
-    const subjects =
-      await Subject.find({
-        department:
-          hodDepartment,
+    semester: semesterNumber,
 
-        semester:
-          semesterNumber,
-      })
-        .select(
-          "_id code name department semester"
-        )
-        .sort({
-          code: 1,
-        })
-        .lean();
+    // Bridge courses do not have attendance
+    subjectCategory: {
+      $not: /^bridge$/i,
+    },
+  })
+    .select(
+      "_id code name department semester sequence subjectCategory"
+    )
+    .sort({
+      sequence: 1,
+      code: 1,
+    })
+    .lean();
 
     // =================================================
     // EXISTING RECORD
@@ -202,6 +207,9 @@ export const prepareAttendance = async (
 
             department:
               subject.department,
+
+            sequence:
+              subject.sequence,
 
             maxClasses:
               existingSubject
@@ -258,6 +266,10 @@ export const prepareAttendance = async (
           return {
             studentId:
               student._id,
+
+            rollNumber:
+              student.rollNumber ||
+              "",
 
             registerNumber:
               student.registerNumber,
@@ -329,11 +341,11 @@ export const prepareAttendance = async (
       success: false,
       message:
         "Failed to prepare attendance.",
-      error: error.message,
+      error:
+        error.message,
     });
   }
 };
-
 // =====================================================
 // SAVE ATTENDANCE
 // =====================================================
@@ -482,22 +494,21 @@ export const saveAttendance = async (
           subject.subjectId
       );
 
-    const dbSubjects =
-      await Subject.find({
-        _id: {
-          $in: subjectIds,
-        },
+  const dbSubjects =
+  await Subject.find({
+    _id: {
+      $in: subjectIds,
+    },
 
-        department:
-          hodDepartment,
+    department: hodDepartment,
 
-        semester:
-          semesterNumber,
-      })
-        .select(
-          "_id code name department semester"
-        )
-        .lean();
+    semester: semesterNumber,
+
+    // Bridge courses do not have attendance
+    subjectCategory: {
+      $not: /^bridge$/i,
+    },
+  })
 
     if (
       dbSubjects.length !==
