@@ -2,34 +2,35 @@ import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 
 export const metadata = {
-  metadataBase: new URL("https://exam.kptmangaluru.in"),
+  metadataBase: new URL("https://exams.kptmangaluru.in"),
 
   title: {
-    default: "KPT Examination ERP",
-    template: "%s | KPT Examination ERP",
+    default: "KPT Examination Management System",
+    template: "%s | KPT Examinations",
   },
 
   description:
-    "KPT Examination ERP for Karnataka Government Polytechnic Mangaluru. Manage students, subjects, attendance, internal assessment, examinations and academic records.",
+    "KPT Mangaluru Examination Management System for managing students, departments, subjects, examinations, internal assessment marks, examination records and results.",
 
-  applicationName: "KPT Examination ERP",
+  applicationName: "KPT Examination Management System",
 
   keywords: [
-    "KPT Examination ERP",
-    "KPT Mangaluru Examination",
+    "KPT Examinations",
+    "KPT Examination Management System",
+    "KPT Mangaluru Examinations",
     "Karnataka Government Polytechnic Mangaluru",
     "KPT Mangaluru",
     "Polytechnic Examination",
     "Diploma Examination",
     "Karnataka Polytechnic Examination",
-    "Student Examination Management",
+    "Examination Management System",
     "Internal Assessment",
     "IA Marks",
-    "Student Attendance",
+    "Student Examination Management",
     "Polytechnic Students",
     "Diploma Students",
-    "Examination ERP",
-    "College Examination Management",
+    "Examination Results",
+    "Student Results",
   ],
 
   authors: [
@@ -45,13 +46,12 @@ export const metadata = {
   category: "Education",
 
   alternates: {
-    canonical: "https://exam.kptmangaluru.in",
+    canonical: "https://exams.kptmangaluru.in/",
   },
 
   robots: {
     index: true,
     follow: true,
-    nocache: false,
 
     googleBot: {
       index: true,
@@ -66,30 +66,18 @@ export const metadata = {
   openGraph: {
     type: "website",
     locale: "en_IN",
-    url: "https://exam.kptmangaluru.in",
-    siteName: "KPT Examination ERP",
-
-    title: "KPT Examination ERP",
-
+    url: "https://exams.kptmangaluru.in/",
+    siteName: "KPT Examinations",
+    title: "KPT Examination Management System",
     description:
-      "Examination and academic management system of Karnataka Government Polytechnic Mangaluru.",
-
-    images: [
-      {
-        url: "/og-image.jpg",
-        width: 1200,
-        height: 630,
-        alt: "KPT Examination ERP",
-      },
-    ],
+      "Examination management system of Karnataka Government Polytechnic Mangaluru.",
   },
 
   twitter: {
     card: "summary_large_image",
-    title: "KPT Examination ERP",
+    title: "KPT Examination Management System",
     description:
-      "Examination and academic management system of Karnataka Government Polytechnic Mangaluru.",
-    images: ["/og-image.jpg"],
+      "Examination management system of Karnataka Government Polytechnic Mangaluru.",
   },
 
   verification: {
