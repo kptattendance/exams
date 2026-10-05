@@ -77,12 +77,7 @@ export const metadata = {
     card: "summary_large_image",
     title: "KPT Examination Management System",
     description:
-      "Examination management system of Karnataka Government Polytechnic Mangaluru.",
-  },
-
-  verification: {
-    google: "O67tWHY9xLUtBxSrAxCliKSiLNqr1KiTwmd_uKb_iVA",
-
+      "KPT Examination Management System of Karnataka Government Polytechnic Mangaluru.",
   },
 };
 
@@ -90,6 +85,13 @@ export default function RootLayout({ children }) {
   return (
     <ClerkProvider>
       <html lang="en-IN">
+        <head>
+          <meta
+            name="google-site-verification"
+            content="O67tWHY9xLUtBxSrAxCliKSiLNqr1KiTwmd_uKb_iVA"
+          />
+        </head>
+
         <body>{children}</body>
       </html>
     </ClerkProvider>
