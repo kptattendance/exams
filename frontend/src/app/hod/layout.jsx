@@ -1,99 +1,63 @@
-import { ClerkProvider } from "@clerk/nextjs";
-import "./globals.css";
+"use client";
 
-export const metadata = {
-  metadataBase: new URL("https://exams.kptmangaluru.in"),
+import { useState } from "react";
+import Sidebar from "./components/Sidebar";
 
-  title: {
-    default: "KPT Examination Management System",
-    template: "%s | KPT Examinations",
-  },
+export default function HODLayout({ children }) {
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  description:
-    "KPT Mangaluru Examination Management System for managing students, departments, subjects, examinations, internal assessment marks, examination records and results.",
-
-  applicationName: "KPT Examination Management System",
-
-  keywords: [
-    "KPT Examinations",
-    "KPT Examination Management System",
-    "KPT Mangaluru Examinations",
-    "Karnataka Government Polytechnic Mangaluru",
-    "KPT Mangaluru",
-    "Polytechnic Examination",
-    "Diploma Examination",
-    "Karnataka Polytechnic Examination",
-    "Examination Management System",
-    "Internal Assessment",
-    "IA Marks",
-    "Student Examination Management",
-    "Polytechnic Students",
-    "Diploma Students",
-    "Examination Results",
-    "Student Results",
-  ],
-
-  authors: [
-    {
-      name: "Karnataka Government Polytechnic Mangaluru",
-    },
-  ],
-
-  creator: "Karnataka Government Polytechnic Mangaluru",
-
-  publisher: "Karnataka Government Polytechnic Mangaluru",
-
-  category: "Education",
-
-  alternates: {
-    canonical: "https://exams.kptmangaluru.in/",
-  },
-
-  robots: {
-    index: true,
-    follow: true,
-
-    googleBot: {
-      index: true,
-      follow: true,
-      noimageindex: false,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
-    },
-  },
-
-  openGraph: {
-    type: "website",
-    locale: "en_IN",
-    url: "https://exams.kptmangaluru.in/",
-    siteName: "KPT Examinations",
-    title: "KPT Examination Management System",
-    description:
-      "Examination management system of Karnataka Government Polytechnic Mangaluru.",
-  },
-
-  twitter: {
-    card: "summary_large_image",
-    title: "KPT Examination Management System",
-    description:
-      "KPT Examination Management System of Karnataka Government Polytechnic Mangaluru.",
-  },
-};
-
-export default function RootLayout({ children }) {
   return (
-    <ClerkProvider>
-      <html lang="en-IN">
-        <head>
-          <meta
-            name="google-site-verification"
-            content="O67tWHY9xLUtBxSrAxCliKSiLNqr1KiTwmd_uKb_iVA"
-          />
-        </head>
+    <div className="min-h-screen bg-slate-50">
 
-        <body>{children}</body>
-      </html>
-    </ClerkProvider>
+      <Sidebar
+        mobileOpen={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+      />
+
+      <div className="lg:pl-[270px]">
+
+        {/* Mobile Header */}
+        <div className="sticky top-0 z-40 flex h-16 items-center border-b border-slate-200 bg-white px-4 lg:hidden">
+
+          <button
+            type="button"
+            onClick={() => setMobileOpen(true)}
+            className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-700"
+          >
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="4" y1="6" x2="20" y2="6" />
+              <line x1="4" y1="12" x2="20" y2="12" />
+              <line x1="4" y1="18" x2="20" y2="18" />
+            </svg>
+          </button>
+
+          <div className="ml-3">
+            <p className="text-sm font-bold text-slate-950">
+              KPT Examination ERP
+            </p>
+
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-blue-600">
+              HOD Portal
+            </p>
+          </div>
+
+        </div>
+
+        <main className="min-h-screen">
+          {children}
+        </main>
+
+      </div>
+
+    </div>
   );
 }
