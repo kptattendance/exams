@@ -1,5 +1,5 @@
 export default function robots() {
-  const baseUrl = "https://exam.kptmangaluru.in";
+  const baseUrl = "https://exams.kptmangaluru.in";
 
   return {
     rules: [
