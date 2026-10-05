@@ -1,63 +1,108 @@
-"use client";
+import { ClerkProvider } from "@clerk/nextjs";
+import "./globals.css";
 
-import { useState } from "react";
-import Sidebar from "./components/Sidebar";
+export const metadata = {
+  metadataBase: new URL("https://exam.kptmangaluru.in"),
 
-export default function HODLayout({ children }) {
-  const [mobileOpen, setMobileOpen] = useState(false);
+  title: {
+    default: "KPT Examination ERP",
+    template: "%s | KPT Examination ERP",
+  },
 
+  description:
+    "KPT Examination ERP for Karnataka Government Polytechnic Mangaluru. Manage students, subjects, attendance, internal assessment, examinations and academic records.",
+
+  applicationName: "KPT Examination ERP",
+
+  keywords: [
+    "KPT Examination ERP",
+    "KPT Mangaluru Examination",
+    "Karnataka Government Polytechnic Mangaluru",
+    "KPT Mangaluru",
+    "Polytechnic Examination",
+    "Diploma Examination",
+    "Karnataka Polytechnic Examination",
+    "Student Examination Management",
+    "Internal Assessment",
+    "IA Marks",
+    "Student Attendance",
+    "Polytechnic Students",
+    "Diploma Students",
+    "Examination ERP",
+    "College Examination Management",
+  ],
+
+  authors: [
+    {
+      name: "Karnataka Government Polytechnic Mangaluru",
+    },
+  ],
+
+  creator: "Karnataka Government Polytechnic Mangaluru",
+
+  publisher: "Karnataka Government Polytechnic Mangaluru",
+
+  category: "Education",
+
+  alternates: {
+    canonical: "https://exam.kptmangaluru.in",
+  },
+
+  robots: {
+    index: true,
+    follow: true,
+    nocache: false,
+
+    googleBot: {
+      index: true,
+      follow: true,
+      noimageindex: false,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+
+  openGraph: {
+    type: "website",
+    locale: "en_IN",
+    url: "https://exam.kptmangaluru.in",
+    siteName: "KPT Examination ERP",
+
+    title: "KPT Examination ERP",
+
+    description:
+      "Examination and academic management system of Karnataka Government Polytechnic Mangaluru.",
+
+    images: [
+      {
+        url: "/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "KPT Examination ERP",
+      },
+    ],
+  },
+
+  twitter: {
+    card: "summary_large_image",
+    title: "KPT Examination ERP",
+    description:
+      "Examination and academic management system of Karnataka Government Polytechnic Mangaluru.",
+    images: ["/og-image.jpg"],
+  },
+
+  verification: {
+    google: "O67tWHY9xLUtBxSrAxCliKSiLNqr1KiTwmd_uKb_iVA",
+  },
+};
+
+export default function RootLayout({ children }) {
   return (
-    <div className="min-h-screen bg-slate-50">
-
-      <Sidebar
-        mobileOpen={mobileOpen}
-        onClose={() => setMobileOpen(false)}
-      />
-
-      <div className="lg:pl-[270px]">
-
-        {/* Mobile Header */}
-        <div className="sticky top-0 z-40 flex h-16 items-center border-b border-slate-200 bg-white px-4 lg:hidden">
-
-          <button
-            type="button"
-            onClick={() => setMobileOpen(true)}
-            className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-700"
-          >
-            <svg
-              width="22"
-              height="22"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <line x1="4" y1="6" x2="20" y2="6" />
-              <line x1="4" y1="12" x2="20" y2="12" />
-              <line x1="4" y1="18" x2="20" y2="18" />
-            </svg>
-          </button>
-
-          <div className="ml-3">
-            <p className="text-sm font-bold text-slate-950">
-              KPT Examination ERP
-            </p>
-
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-blue-600">
-              HOD Portal
-            </p>
-          </div>
-
-        </div>
-
-        <main className="min-h-screen">
-          {children}
-        </main>
-
-      </div>
-
-    </div>
+    <ClerkProvider>
+      <html lang="en-IN">
+        <body>{children}</body>
+      </html>
+    </ClerkProvider>
   );
 }
