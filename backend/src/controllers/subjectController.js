@@ -1,5 +1,6 @@
 import Subject from "../models/Subject.js";
 import { parse } from "csv-parse/sync";
+import { normalizeAdmissionTypes } from "../services/exams/rules.js";
 
 // =====================================================
 // VALID DEPARTMENTS
@@ -161,6 +162,18 @@ const validateSubjectCategory = (
 };
 
 // =====================================================
+// BRIDGE COURSE: WHICH LATERAL TYPES TAKE IT
+// Accepts "PUC", "ITI", "ITI-CROSS" (separated by ; or ,) or an array.
+// Returns undefined when the field was not sent (so updates keep the old value).
+// =====================================================
+
+const readAdmissionTypes = (value, category) => {
+  if (value === undefined) return undefined;
+  if (category !== "BRIDGE") return [];
+  return normalizeAdmissionTypes(value);
+};
+
+// =====================================================
 // CREATE SUBJECT
 // =====================================================
 
@@ -175,6 +188,7 @@ export const createSubject = async (req, res) => {
       department,
       subjectCategory,
       electiveGroup,
+      forAdmissionTypes,
       subjectType,
       board,
       iaMax,
@@ -341,7 +355,15 @@ export const createSubject = async (req, res) => {
     // CREATE
     // -----------------------------------------------
 
+    let admissionTypes;
+    try {
+      admissionTypes = readAdmissionTypes(forAdmissionTypes, normalizedSubjectCategory) || [];
+    } catch (e) {
+      return res.status(400).json({ message: e.message });
+    }
+
     const subject = await Subject.create({
+      forAdmissionTypes: admissionTypes,
       code: normalizedCode,
       subjectId: normalizedSubjectId,
       name: normalizedName,
@@ -547,6 +569,7 @@ export const updateSubject = async (
       department,
       subjectCategory,
       electiveGroup,
+      forAdmissionTypes,
       subjectType,
       board,
       iaMax,
@@ -678,7 +701,17 @@ export const updateSubject = async (
     // UPDATE
     // -----------------------------------------------
 
+    let admissionTypes;
+    try {
+      admissionTypes = readAdmissionTypes(forAdmissionTypes, normalizedCategory);
+    } catch (e) {
+      return res.status(400).json({ message: e.message });
+    }
+
     const updateData = {
+      ...(admissionTypes !== undefined || normalizedCategory !== "BRIDGE"
+        ? { forAdmissionTypes: normalizedCategory === "BRIDGE" ? admissionTypes : [] }
+        : {}),
       code: normalizedCode,
       subjectId: normalizedSubjectId,
       name: normalizedName,
@@ -1046,7 +1079,13 @@ uniqueSubjectKeys.add(subjectKey);
         // PUSH
         // -------------------------------------------
 
+        const forAdmissionTypes =
+          subjectCategory === "BRIDGE"
+            ? normalizeAdmissionTypes(row.forAdmissionTypes)
+            : [];
+
         subjects.push({
+          forAdmissionTypes,
           code,
           subjectId,
           name,

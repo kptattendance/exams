@@ -187,6 +187,52 @@ const PATHS = {
   ),
   arrowRight: <path d="M5 12h14m-5-5 5 5-5 5" />,
   check: <path d="m5 12.5 4.5 4.5L19 7.5" />,
+  plus: <path d="M12 5v14M5 12h14" />,
+  search: (
+    <>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m20 20-4.2-4.2" />
+    </>
+  ),
+  download: (
+    <>
+      <path d="M12 4v11m-4.5-4.5L12 15l4.5-4.5" />
+      <path d="M4.5 19.5h15" />
+    </>
+  ),
+  refresh: (
+    <>
+      <path d="M20 11.5A8 8 0 0 0 5.6 7M4 4v4h4" />
+      <path d="M4 12.5A8 8 0 0 0 18.4 17M20 20v-4h-4" />
+    </>
+  ),
+  alert: (
+    <>
+      <path d="M12 3.5 2.5 20h19L12 3.5Z" />
+      <path d="M12 10v4.5M12 17.2v.3" />
+    </>
+  ),
+  chevronRight: <path d="m9 5 7 7-7 7" />,
+  chevronLeft: <path d="m15 5-7 7 7 7" />,
+  trash: (
+    <>
+      <path d="M4 7h16M10 11v6m4-6v6" />
+      <path d="M6 7l1 13h10l1-13M9 7V4h6v3" />
+    </>
+  ),
+  edit: (
+    <>
+      <path d="M4 20h4L19 9l-4-4L4 16v4Z" />
+      <path d="m13.5 6.5 4 4" />
+    </>
+  ),
+  bridge: (
+    <>
+      <path d="M3 17h18M3 10h18" />
+      <path d="M5 10v7M19 10v7M12 10v7" />
+      <path d="M3 10c3-4 15-4 18 0" />
+    </>
+  ),
 };
 
 export default function Icon({ name, className = "h-5 w-5", strokeWidth = 1.75 }) {

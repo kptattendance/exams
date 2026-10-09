@@ -95,6 +95,29 @@ const subjectSchema = new mongoose.Schema(
     },
 
     // =====================================================
+    // WHO TAKES A BRIDGE COURSE
+    //
+    // Only used when subjectCategory = BRIDGE.
+    // Lists the lateral admission types that must study it, e.g.
+    //   ["lateral-puc"]                       PUC laterals only
+    //   ["lateral-iti", "lateral-iti-cross"]  both ITI types
+    // Empty = not decided yet (exam registration then gives it to every
+    // lateral student and shows a warning to the COE).
+    // A branch-changed student automatically gets the bridge courses of
+    // his new department, because the department is read from the student.
+    // =====================================================
+
+    forAdmissionTypes: {
+      type: [
+        {
+          type: String,
+          enum: ["lateral-puc", "lateral-iti", "lateral-iti-cross"],
+        },
+      ],
+      default: [],
+    },
+
+    // =====================================================
     // SUBJECT TYPE / BOARD
     // =====================================================
 

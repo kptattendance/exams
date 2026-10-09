@@ -45,12 +45,14 @@ export const MENUS = {
           { label: "Import 1st-year students", href: "/coe/students/import", icon: "userPlus" },
           { label: "Staff / Faculty", href: "/coe/faculty", icon: "faculty" },
           { label: "Subjects", href: "/coe/subjects", icon: "subjects" },
+          { label: "Bridge courses", href: "/coe/bridge-courses", icon: "bridge" },
         ],
       },
       {
         title: "Examination",
         items: [
-          { label: "Register numbers", href: "/coe/register-numbers", icon: "register", pinned: true },
+          { label: "Examinations", href: "/coe/exams", icon: "paper", pinned: true },
+          { label: "Register numbers", href: "/coe/register-numbers", icon: "register" },
           { label: "Paper setting", href: "/coe/paper-setting", icon: "lock", pinned: true },
           { label: "Time table", href: "/coe/timetable", icon: "calendar", soon: true },
           { label: "Hall tickets", href: "/coe/hall-tickets", icon: "ticket", soon: true },
@@ -94,6 +96,7 @@ export const MENUS = {
           { label: "Faculty", href: "/hod/faculty", icon: "faculty" },
           { label: "Subjects", href: "/hod/subjects", icon: "subjects" },
           { label: "Students", href: "/hod/students", icon: "students", pinned: true },
+          { label: "Electives", href: "/hod/electives", icon: "layers" },
         ],
       },
       {
@@ -142,7 +145,7 @@ export const MENUS = {
       {
         title: "Examination",
         items: [
-          { label: "Examinations", href: "/exam-officer/examinations", icon: "paper", soon: true },
+          { label: "Examinations", href: "/exam-officer/examinations", icon: "paper" },
           { label: "Subject-wise candidates", href: "/exam-officer/subjects", icon: "subjects", soon: true },
           { label: "Back paper candidates", href: "/exam-officer/back-papers", icon: "layers", soon: true },
           { label: "Hall tickets", href: "/exam-officer/hall-tickets", icon: "ticket", soon: true },
