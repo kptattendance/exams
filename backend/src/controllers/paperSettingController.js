@@ -13,7 +13,7 @@
 
 import mongoose from "mongoose";
 import mammoth from "mammoth";
-import sanitizeHtml from "sanitize-html";
+import { cleanHtml } from "../services/cleanHtml.js";
 
 import PaperSetting from "../models/PaperSetting.js";
 import Subject from "../models/Subject.js";
@@ -511,12 +511,7 @@ async function buildPreview(buffer) {
     throw new DocxError("Word file could not be read. Open it in Word, save again as .docx and retry.");
   }
 
-  const html = sanitizeHtml(result.value, {
-    allowedTags: sanitizeHtml.defaults.allowedTags.concat(["img", "sub", "sup", "u", "s"]),
-    allowedAttributes: { img: ["src", "alt"], td: ["colspan", "rowspan"], th: ["colspan", "rowspan"] },
-    allowedSchemes: [],
-    allowedSchemesByTag: { img: ["data"] },
-  });
+   const html = cleanHtml(result.value);
 
   const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   const warnings = [];
