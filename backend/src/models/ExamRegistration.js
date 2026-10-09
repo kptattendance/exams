@@ -53,6 +53,14 @@ const regSubjectSchema = new mongoose.Schema(
 
     // Back papers are paid for one by one (used by fee verification)
     fee: { type: feeSchema, default: () => ({}) },
+
+    // Semester-end exam result, filled when the COE decodes the paper
+    see: {
+      attendance: { type: String, enum: ["PRESENT", "ABSENT", "MALPRACTICE", null], default: null },
+      raw: { type: Number, default: null }, // out of the paper's raw maximum (100)
+      marks: { type: Number, default: null }, // reduced to the subject's theory maximum
+      decodedAt: { type: Date, default: null },
+    },
   },
   { _id: false }
 );

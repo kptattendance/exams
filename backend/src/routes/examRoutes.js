@@ -22,6 +22,23 @@ import {
 import { listFees, recordFee, feeTemplate, importFees, exportFees } from "../controllers/feeController.js";
 import { getTimetable, saveTimetable, suggest, publishTimetable } from "../controllers/timetableController.js";
 import { listHallTickets } from "../controllers/hallTicketController.js";
+import {
+  listPapers,
+  getPaperDetail,
+  updatePaper,
+  saveAttendance,
+  codePaper,
+  undoCoding,
+  codingSheet,
+  packetSlips,
+  setValuer,
+  reopenPacket,
+  sendSecondValuation,
+  createThirdValuation,
+  decodePaper,
+  paperMarks,
+  updateValuationSettings,
+} from "../controllers/valuationController.js";
 
 const router = express.Router();
 
@@ -76,5 +93,25 @@ router.post("/:id/timetable/publish", MANAGE, publishTimetable);
 
 // Hall tickets
 router.get("/:id/hall-tickets", VIEW, listHallTickets);
+
+// Valuation (hard copy): COE runs it, Exam Officer helps with attendance and packets.
+// The coding sheet (register number ↔ dummy number) is for COE / Admin only.
+const VALUE = requireRole("coe", "admin", "exam_officer");
+const SECRET = requireRole("coe", "admin");
+router.get("/:id/valuation", VALUE, listPapers);
+router.patch("/:id/valuation-settings", MANAGE, updateValuationSettings);
+router.patch("/:id/valuation/packets/:packetId", VALUE, setValuer);
+router.post("/:id/valuation/packets/:packetId/reopen", MANAGE, reopenPacket);
+router.get("/:id/valuation/:code", VALUE, getPaperDetail);
+router.patch("/:id/valuation/:code", MANAGE, updatePaper);
+router.post("/:id/valuation/:code/attendance", VALUE, saveAttendance);
+router.post("/:id/valuation/:code/coding", MANAGE, codePaper);
+router.post("/:id/valuation/:code/coding/undo", MANAGE, undoCoding);
+router.get("/:id/valuation/:code/coding-sheet", SECRET, codingSheet);
+router.get("/:id/valuation/:code/slips", requireRole("coe", "admin", "exam_officer", "exam_clerk"), packetSlips);
+router.post("/:id/valuation/:code/second", MANAGE, sendSecondValuation);
+router.post("/:id/valuation/:code/third", MANAGE, createThirdValuation);
+router.post("/:id/valuation/:code/decode", SECRET, decodePaper);
+router.get("/:id/valuation/:code/marks", SECRET, paperMarks);
 
 export default router;

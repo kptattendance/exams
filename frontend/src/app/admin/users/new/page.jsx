@@ -81,6 +81,10 @@ const roles = [
     label: "Office (fee verification)",
   },
   {
+    value: "exam_clerk",
+    label: "Exam clerk (marks entry)",
+  },
+  {
     value: "hod",
     label: "HOD",
   },

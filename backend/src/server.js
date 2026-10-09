@@ -15,6 +15,7 @@ import examRoutes from "./routes/examRoutes.js";
 import electiveRoutes from "./routes/electiveRoutes.js";
 import sheetReviewRoutes from "./routes/sheetReviewRoutes.js";
 import settingsRoutes from "./routes/settingsRoutes.js";
+import marksEntryRoutes from "./routes/marksEntryRoutes.js";
 
 
 
@@ -104,6 +105,7 @@ app.use("/api/exams", examRoutes);
 app.use("/api/electives", electiveRoutes);
 app.use("/api/sheet-review", sheetReviewRoutes);
 app.use("/api/settings", settingsRoutes);
+app.use("/api/marks-entry", marksEntryRoutes);
 
 
 

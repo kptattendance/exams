@@ -78,6 +78,12 @@ const examSchema = new mongoose.Schema(
       updatedBy: { type: String, default: "" },
     },
 
+    // Valuation rules
+    valuation: {
+      doubleEntry: { type: Boolean, default: true }, // award lists typed twice
+      thirdValuationPercent: { type: Number, default: 15 }, // > this gap between 1st and 2nd → 3rd valuation
+    },
+
     createdBy: { type: String, required: true },
     createdByEmail: { type: String, default: "" },
   },

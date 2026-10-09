@@ -11,6 +11,7 @@ const DASHBOARD_BY_ROLE = {
   coe: "/coe",
   exam_officer: "/exam-officer",
   office: "/office",
+  exam_clerk: "/clerk",
   hod: "/hod",
   staff: "/faculty",
   student: "/student",

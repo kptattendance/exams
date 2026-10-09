@@ -68,7 +68,8 @@ export const MENUS = {
         items: [
           { label: "IA marks", href: "/coe/ia-marks", icon: "marks", soon: true },
           { label: "Practical exam marks", href: "/coe/pactical-exam-marks", icon: "paper", soon: true },
-          { label: "Valuation", href: "/coe/valuation", icon: "valuation", soon: true },
+          { label: "Valuation", href: "/coe/valuation", icon: "valuation" },
+          { label: "Marks entry", href: "/coe/marks-entry", icon: "marks" },
           { label: "Results", href: "/coe/results", icon: "results", soon: true },
         ],
       },
@@ -155,6 +156,7 @@ export const MENUS = {
           { label: "Subject-wise candidates", href: "/exam-officer/subjects", icon: "subjects", soon: true },
           { label: "Back paper candidates", href: "/exam-officer/back-papers", icon: "layers", soon: true },
           { label: "Hall tickets", href: "/exam-officer/hall-tickets", icon: "ticket" },
+          { label: "Valuation", href: "/exam-officer/valuation", icon: "valuation" },
         ],
       },
       {
@@ -185,6 +187,17 @@ export const MENUS = {
       {
         title: "Examination",
         items: [{ label: "Fee verification", href: "/office", icon: "money", pinned: true }],
+      },
+    ],
+  },
+
+  clerk: {
+    role: "Exam clerk",
+    home: "/clerk",
+    sections: [
+      {
+        title: "Valuation",
+        items: [{ label: "Marks entry", href: "/clerk", icon: "marks", pinned: true }],
       },
     ],
   },

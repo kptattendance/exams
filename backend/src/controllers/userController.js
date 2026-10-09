@@ -109,6 +109,7 @@ const ALL_ROLES = [
   "coe",
   "exam_officer",
   "office", // office staff: exam fee verification
+  "exam_clerk", // types valuation marks (sees dummy numbers only)
   "hod",
   "staff",
   "student",
@@ -155,6 +156,7 @@ const rolePermissions = {
     "coe",
     "exam_officer",
     "office",
+    "exam_clerk",
     "hod",
     "staff",
     "student",
@@ -163,6 +165,7 @@ const rolePermissions = {
   principal: [
     "exam_officer",
     "office",
+    "exam_clerk",
     "hod",
     "staff",
     "student",
@@ -171,6 +174,7 @@ const rolePermissions = {
   coe: [
     "exam_officer",
     "office",
+    "exam_clerk",
     "hod",
     "staff",
     "student",
@@ -188,6 +192,8 @@ const rolePermissions = {
   ],
 
   office: [],
+
+  exam_clerk: [],
 
   staff: [],
 
