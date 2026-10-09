@@ -207,6 +207,7 @@ function previewPayload(fileName, rows, groups) {
         alreadyUsed: (g.holders || []).length,
         holders: (g.holders || []).slice(0, 10),
         reservedOnly: g.reservedOnly || 0,
+        key: g.key,
       })),
     },
     // Only what the preview needs – no Aadhaar, phone or parent details
@@ -669,4 +670,51 @@ export const undoImport = async (req, res) => {
   await logAction(req, "STUDENT_IMPORT_UNDONE", doc._id, { removed: total, released, fileName: doc.fileName });
   await StudentImport.deleteOne({ _id: doc._id });
   res.json({ done: true, removed, total, numbersReleased: released.length === (doc.reserved || []).length });
+};
+
+// ====================================================================
+// Repair numbering: set each register-number counter back to the highest
+// number that is really in use (existing students, or an import that is
+// still open). Frees numbers left behind by deleted or undone students.
+// ====================================================================
+
+// POST /api/student-import/numbering/repair   { keys?: ["regno:AT:26:regular", ...] }
+export const repairNumbering = async (req, res) => {
+  try {
+    const filter = Array.isArray(req.body?.keys) && req.body.keys.length ? { _id: { $in: req.body.keys } } : { _id: /^regno:/ };
+    const counters = await Counter.find(filter).lean();
+    const openImports = await StudentImport.find({ status: { $ne: "UNDOING" } }).select("rows.registerNumber rows.state").lean();
+
+    const changes = [];
+    for (const c of counters) {
+      const [, dept, yy, type] = c._id.split(":");
+      const range = ADMISSION_TYPES[type];
+      if (!range) continue;
+      const prefix = formatRegisterNumber(dept.toLowerCase(), Number(yy), 0).slice(0, -3);
+
+      const inUse = await existingNumbers([prefix]);
+      for (const imp of openImports) {
+        for (const r of imp.rows || []) if (r.state !== "UNDONE" && r.registerNumber) inUse.push(r.registerNumber);
+      }
+      const highest = Math.max(range.start - 1, highestExistingSerial(inUse, dept.toLowerCase(), Number(yy), type));
+
+      if (highest !== c.seq) {
+        // Only change it if nobody issued a number in the meantime
+        const out = await Counter.updateOne({ _id: c._id, seq: c.seq }, { $set: { seq: highest } });
+        if (out.modifiedCount) {
+          changes.push({
+            series: `${dept} ${range.label} 20${yy}`,
+            from: c.seq <= range.start - 1 ? "none" : formatRegisterNumber(dept.toLowerCase(), Number(yy), c.seq),
+            nextNumber: formatRegisterNumber(dept.toLowerCase(), Number(yy), highest + 1),
+          });
+        }
+      }
+    }
+
+    await logAction(req, "REGISTER_NUMBERING_REPAIRED", undefined, { changes });
+    res.json({ changes });
+  } catch (e) {
+    console.error("[studentImport] repair:", e);
+    fail(res, 500, "Could not recalculate the numbering. Please try again.");
+  }
 };

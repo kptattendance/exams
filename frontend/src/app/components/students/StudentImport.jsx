@@ -381,7 +381,13 @@ function ImportTab({ openImportId, onOpened, onOpen, onShowHistory, undo, onChan
       )}
 
       {(stage === "preview" || stage === "starting") && preview && (
-        <Preview preview={preview} starting={stage === "starting"} onStart={start} onReset={reset} />
+        <Preview
+          preview={preview}
+          starting={stage === "starting"}
+          onStart={start}
+          onReset={reset}
+          onRecheck={() => check(file)}
+        />
       )}
 
       {stage === "running" && importDoc && (
@@ -523,7 +529,30 @@ function Dropzone({ busy, fileName, onFile }) {
   );
 }
 
-function Preview({ preview, starting, onStart, onReset }) {
+function Preview({ preview, starting, onStart, onReset, onRecheck }) {
+  const api = useApi();
+  const toast = useToast();
+  const [repairing, setRepairing] = useState(false);
+
+  const freeNumbers = async (keys) => {
+    setRepairing(true);
+    try {
+      const r = await api("post", "/numbering/repair", { keys });
+      const ch = r.data.changes || [];
+      toast.success(
+        ch.length
+          ? `Unused numbers freed. ${ch.map((c) => `${c.series}: next number is ${c.nextNumber}`).join("; ")}.`
+          : "Nothing to free – these numbers belong to real students or an open import.",
+        7000
+      );
+      await onRecheck();
+    } catch (e) {
+      toast.error(errMsg(e, "Could not free the numbers."));
+    } finally {
+      setRepairing(false);
+    }
+  };
+
   const { summary, rows } = preview;
   const [filter, setFilter] = useState(summary.errors ? "errors" : "all");
 
@@ -649,16 +678,26 @@ function Preview({ preview, starting, onStart, onReset }) {
                 </>
               )}
               {x.reservedOnly > 0 && (
-                <p className="mt-1">
-                  {x.reservedOnly} number{x.reservedOnly === 1 ? " was" : "s were"} reserved by an earlier import. Undo
-                  that import in “Import history” to free {x.reservedOnly === 1 ? "it" : "them"}.
+                <div className="mt-2 flex flex-col gap-3 rounded-xl bg-white/70 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p>
+                    {x.reservedOnly} number{x.reservedOnly === 1 ? " is" : "s are"} held back without a student – usually
+                    left over from a deleted or undone import.
+                  </p>
+                  <button
+                    onClick={() => freeNumbers([x.key])}
+                    disabled={repairing}
+                    className="shrink-0 rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-700 disabled:opacity-50"
+                  >
+                    {repairing ? "Freeing…" : "Free unused numbers"}
+                  </button>
+                </div>
+              )}
+              {x.alreadyUsed > 0 && (
+                <p className="mt-2 text-orange-800">
+                  If {x.alreadyUsed === 1 ? "that is a test record, delete it" : "those are test records, delete them"} in
+                  Students first, then click “Free unused numbers” or choose this file again. Otherwise you can import as shown.
                 </p>
               )}
-              <p className="mt-2 text-orange-800">
-                If {x.alreadyUsed + x.reservedOnly === 1 ? "that is a test record" : "those are test records"}, delete
-                {x.alreadyUsed + x.reservedOnly === 1 ? " it" : " them"} first and choose this file again. Otherwise you can import as
-                shown.
-              </p>
             </div>
           ))}
 

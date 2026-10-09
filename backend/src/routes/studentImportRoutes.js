@@ -9,6 +9,7 @@ import {
   processImport,
   retryFailed,
   undoImport,
+  repairNumbering,
   listImports,
   getImport,
   exportImport,
@@ -46,6 +47,7 @@ router.use(authenticateUser, requireRole("admin", "coe"));
 
 router.post("/preview", handleUpload(excel), previewImport);
 router.post("/photo", handleUpload(photo), uploadStudentPhoto);
+router.post("/numbering/repair", repairNumbering);
 router.get("/", listImports);
 router.post("/", handleUpload(excel), startImport);
 router.get("/:id", getImport);
