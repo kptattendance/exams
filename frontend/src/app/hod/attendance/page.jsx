@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { useAuth } from "@clerk/nextjs";
-import { batchFor, currentAcademicYear } from "../../components/academicYear";
+import { batchFor, useAcademicYear } from "../../components/academicYear";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -21,8 +21,8 @@ export default function AttendancePage() {
   // FILTERS
   // ============================================================
 
-  const [academicYear, setAcademicYear] =
-    useState(currentAcademicYear);
+  // Running academic year – set by the Admin, not chosen here
+  const academicYear = useAcademicYear();
 
   const [semester, setSemester] =
     useState("");
@@ -1483,37 +1483,19 @@ export default function AttendancePage() {
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
 
-          {/* Academic Year */}
+          {/* Academic Year (fixed – set by the Admin) */}
 
           <div>
             <label className="mb-1 block text-xs font-semibold text-gray-600">
               Academic Year
             </label>
 
-            <select
-              value={academicYear}
-              onChange={(e) => {
-                setAcademicYear(
-                  e.target.value
-                );
-                if (semester) setBatch(batchFor(e.target.value, semester));
-
-                clearTable();
-              }}
-              className="w-full rounded-lg border border-amber-300 px-3 py-2 text-sm outline-none focus:border-amber-500"
+            <div
+              className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-800"
+              title="The running academic year is set by the Admin"
             >
-              <option value="2025-26">
-                2025-26
-              </option>
-
-              <option value="2026-27">
-                2026-27
-              </option>
-
-              <option value="2027-28">
-                2027-28
-              </option>
-            </select>
+              {academicYear}
+            </div>
           </div>
 
           {/* Semester */}

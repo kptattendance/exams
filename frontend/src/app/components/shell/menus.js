@@ -27,6 +27,10 @@ export const MENUS = {
         title: "Academics",
         items: [{ label: "Subjects", href: "/admin/subjects", icon: "subjects", pinned: true }],
       },
+      {
+        title: "Administration",
+        items: [{ label: "Settings", href: "/admin/settings", icon: "settings" }],
+      },
     ],
   },
 

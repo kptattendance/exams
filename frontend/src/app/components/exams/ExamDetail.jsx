@@ -263,8 +263,8 @@ export default function ExamDetail({ id, basePath, canManage = false, bridgeHref
                     .join(", ")}`
               )
               .join(" · ")}
-            . This exam uses {exam.academicYear}: the HOD should open the sheet with academic year {exam.academicYear}, or edit this
-            exam’s academic year if that is wrong.
+            . This exam uses {exam.academicYear}. The Admin can move these sheets to the running year in Admin → Settings (one
+            click each).
           </Banner>
         )}
         {registered && relevantNotReady.length > 0 && (

@@ -15,3 +15,49 @@ export function batchFor(academicYear, semester) {
   const start = y - (Math.ceil(sem / 2) - 1);
   return `${start}-${start + 3}`;
 }
+
+// ------------------------------------------------------------------
+// The running academic year, set by the Admin (Settings page).
+// Everyone else only sees it.
+//
+//   const academicYear = useAcademicYear();   // "2026-27"
+// ------------------------------------------------------------------
+import { useEffect, useState } from "react";
+import { useAuth } from "@clerk/nextjs";
+import axios from "axios";
+
+let cached = null;
+let pending = null;
+
+export function clearAcademicYearCache() {
+  cached = null;
+  pending = null;
+}
+
+export function useAcademicYear() {
+  const { getToken, isLoaded, isSignedIn } = useAuth();
+  const [year, setYear] = useState(cached || currentAcademicYear());
+
+  useEffect(() => {
+    if (cached) return setYear(cached);
+    if (!isLoaded || !isSignedIn) return;
+    pending ||= (async () => {
+      const token = await getToken();
+      const r = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/settings/academic-year`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      cached = r.data?.data?.academicYear || currentAcademicYear();
+      return cached;
+    })().catch(() => {
+      pending = null;
+      return currentAcademicYear();
+    });
+    let alive = true;
+    pending.then((y) => alive && setYear(y));
+    return () => {
+      alive = false;
+    };
+  }, [getToken, isLoaded, isSignedIn]);
+
+  return year;
+}

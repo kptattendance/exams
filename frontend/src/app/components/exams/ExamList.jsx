@@ -10,7 +10,8 @@ import { useRouter } from "next/navigation";
 import Icon from "../shell/Icon";
 import Modal, { btn, field } from "../ui/Modal";
 import { useToast } from "../ui/Feedback";
-import { ACADEMIC_YEARS, errMsg, useApi } from "./shared";
+import { errMsg, useApi } from "./shared";
+import { useAcademicYear } from "../academicYear";
 
 const fmt = (d) => (d ? new Date(d).toLocaleDateString("en-IN", { dateStyle: "medium" }) : "");
 
@@ -150,7 +151,6 @@ export function ExamForm({ value, onChange }) {
   const set = (k, v) => onChange({ ...value, [k]: v });
   const toggleSem = (s) =>
     set("semesters", value.semesters.includes(s) ? value.semesters.filter((x) => x !== s) : [...value.semesters, s].sort());
-  const years = [...new Set([...ACADEMIC_YEARS, value.academicYear])].sort();
 
   return (
     <div className="space-y-5">
@@ -159,15 +159,13 @@ export function ExamForm({ value, onChange }) {
         <input value={value.name} onChange={(e) => set("name", e.target.value)} className={`${field} mt-1.5`} />
       </label>
 
-      <label className="block">
+      <div>
         <span className="text-sm font-semibold text-slate-800">Academic year</span>
-        <span className="block text-xs text-slate-500">IA and attendance of this year are used.</span>
-        <select value={value.academicYear} onChange={(e) => set("academicYear", e.target.value)} className={`${field} mt-1.5`}>
-          {years.map((y) => (
-            <option key={y}>{y}</option>
-          ))}
-        </select>
-      </label>
+        <p className="mt-1.5 flex h-11 items-center rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-800">
+          {value.academicYear}
+        </p>
+        <span className="mt-1 block text-xs text-slate-500">The running academic year, set by the Admin. IA and attendance of this year are used.</span>
+      </div>
 
       <div>
         <span className="text-sm font-semibold text-slate-800">Semesters writing this exam</span>
@@ -248,13 +246,17 @@ function CreateExam({ open, onClose, basePath }) {
   const toast = useToast();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const runningYear = useAcademicYear();
   const [form, setForm] = useState(() => ({
     name: suggestName(),
-    academicYear: currentAcademicYear(),
+    academicYear: runningYear,
     semesters: new Date().getMonth() >= 5 ? [1, 3, 5] : [2, 4, 6],
     backPapers: "SAME_PARITY",
     minAttendance: 75,
   }));
+
+  // the running year may arrive from the server after the form opened
+  useEffect(() => setForm((f) => ({ ...f, academicYear: runningYear })), [runningYear]);
 
   const save = async () => {
     setBusy(true);

@@ -25,6 +25,7 @@ import FinalAttendance from "../models/FinalAttendance.js";
 import StudentElective from "../models/StudentElective.js";
 import CourseResult from "../models/CourseResult.js";
 import AuditLog from "../models/AuditLog.js";
+import { getAcademicYear } from "../services/academicYear.js";
 import {
   ADMISSION_LABEL,
   normalizeAdmissionTypes,
@@ -148,7 +149,10 @@ export const listExams = async (req, res) => {
 
 // POST /api/exams
 export const createExam = async (req, res) => {
-  const { out, errors } = readExamBody(req.body || {});
+  // Only the Admin may pick another academic year; everyone else uses the running one
+  const body = { ...(req.body || {}) };
+  if (req.user?.role !== "admin") body.academicYear = await getAcademicYear();
+  const { out, errors } = readExamBody(body);
   if (errors.length) return fail(res, 400, errors[0], { errors });
   const { "settings.minAttendance": minAttendance, ...rest } = out;
   try {
@@ -169,7 +173,9 @@ export const createExam = async (req, res) => {
 // PATCH /api/exams/:id
 export const updateExam = async (req, res) => {
   if (!isId(req.params.id)) return fail(res, 400, "Invalid exam id.");
-  const { out, errors } = readExamBody(req.body || {}, { partial: true });
+  const body = { ...(req.body || {}) };
+  if (req.user?.role !== "admin") delete body.academicYear; // fixed for everyone but Admin
+  const { out, errors } = readExamBody(body, { partial: true });
   if (errors.length) return fail(res, 400, errors[0], { errors });
   try {
     const exam = await Exam.findByIdAndUpdate(req.params.id, { $set: out }, { returnDocument: "after", runValidators: true });

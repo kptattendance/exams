@@ -9,6 +9,7 @@ import {
 } from "../controllers/finalIAController.js";
 
 import {authenticateUser} from "../middlewares/authMiddleware.js";
+import { forceAcademicYear } from "../services/academicYear.js";
 
 const router = express.Router();
 
@@ -20,6 +21,7 @@ const router = express.Router();
 router.get(
   "/prepare",
   authenticateUser,
+  forceAcademicYear, // running academic year, set by Admin
   prepareFinalIA
 );
 
@@ -27,6 +29,7 @@ router.get(
 router.get(
   "/get",
   authenticateUser,
+  forceAcademicYear, // running academic year, set by Admin
   getFinalIA
 );
 
@@ -34,6 +37,7 @@ router.get(
 router.post(
   "/save",
   authenticateUser,
+  forceAcademicYear, // running academic year, set by Admin
   saveFinalIA
 );
 
@@ -41,11 +45,13 @@ router.post(
 router.post(
   "/submit",
   authenticateUser,
+  forceAcademicYear, // running academic year, set by Admin
   submitFinalIA
 );
 router.post(
   "/confirm",
   authenticateUser,
+  forceAcademicYear, // running academic year, set by Admin
   confirmFinalIA
 );
 
