@@ -38,11 +38,7 @@ const menuSections = [
   {
     title: "Examination",
     items: [
-      {
-        label: "Register Numbers",
-        href: "/coe/register-numbers",
-        icon: "register",
-      },
+     
       {
         label: "Paper Setting",
         href: "/coe/paper-setting",

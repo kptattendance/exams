@@ -3,7 +3,7 @@
 // 1st-year student import (used by both Admin and COE pages).
 //   Import Excel  : upload -> preview with problems -> import -> progress
 //   Upload photos : photos named by roll / register number
-//   Past imports  : reopen, resume, download register numbers
+//   Import history: continue, download register numbers, undo
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
@@ -11,6 +11,7 @@ import axios from "axios";
 import * as XLSX from "xlsx";
 
 import Icon from "../shell/Icon";
+import { useConfirm, useToast } from "../ui/Feedback";
 
 const API = `${process.env.NEXT_PUBLIC_API_URL}/api/student-import`;
 
@@ -39,6 +40,14 @@ const errMsg = (e, fallback) => e?.response?.data?.error || fallback;
 export default function StudentImport() {
   const [tab, setTab] = useState("import");
   const [openImportId, setOpenImportId] = useState(null);
+  const [historyKey, setHistoryKey] = useState(0); // bump to reload lists
+  const undo = useUndoFlow();
+
+  const open = (id) => {
+    setOpenImportId(id);
+    setTab("import");
+  };
+  const refreshLists = () => setHistoryKey((k) => k + 1);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-7">
@@ -55,85 +64,245 @@ export default function StudentImport() {
 
       <div className="no-scrollbar mb-5 flex gap-1 overflow-x-auto border-b border-slate-200">
         {[
-          ["import", "Import Excel", "students"],
-          ["photos", "Upload photos", "profile"],
-          ["history", "Past imports", "list"],
-        ].map(([key, label, icon]) => (
+          ["import", "New import", "New", "students"],
+          ["photos", "Upload photos", "Photos", "profile"],
+          ["history", "Import history", "History", "list"],
+        ].map(([key, label, short, icon]) => (
           <button
             key={key}
             onClick={() => setTab(key)}
-            className={`-mb-px flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
+            className={`-mb-px flex flex-1 items-center justify-center gap-2 whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-semibold transition sm:flex-none sm:justify-start sm:px-4 ${
               tab === key ? "border-blue-600 text-blue-700" : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
             <Icon name={icon} className="h-4 w-4" />
-            {label}
+            <span className="sm:hidden">{short}</span>
+            <span className="hidden sm:inline">{label}</span>
           </button>
         ))}
       </div>
 
-      {tab === "import" && <ImportTab openImportId={openImportId} onOpened={() => setOpenImportId(null)} />}
-      {tab === "photos" && <PhotosTab />}
-      {tab === "history" && (
-        <HistoryTab
-          onOpen={(id) => {
-            setOpenImportId(id);
-            setTab("import");
-          }}
+      {tab === "import" && (
+        <ImportTab
+          key={historyKey}
+          openImportId={openImportId}
+          onOpened={() => setOpenImportId(null)}
+          onOpen={open}
+          onShowHistory={() => setTab("history")}
+          undo={undo}
+          onChanged={refreshLists}
         />
       )}
+      {tab === "photos" && <PhotosTab />}
+      {tab === "history" && <HistoryTab key={historyKey} onOpen={open} undo={undo} onChanged={refreshLists} />}
+
+      {undo.modal}
     </div>
   );
 }
 
-// ---------------------------------------------------------------- template
+// ------------------------------------------------------- shared helpers
 
-function TemplateButton() {
-  const download = () => {
-    const headers = [
-      "Roll Number", "Student Name", "Father Name", "Mother Name", "DOB", "Gender", "Email id",
-      "Phone Number", "Parent Phone", "Caste", "Category", "Aadhaar Number", "Course", "AdmissionYear",
-      "Batch", "Batch Number", "Semester", "Status", "Student Photo", "Admission Type", "SATS Number",
-    ];
-    const example = [
-      "AT26001", "STUDENT NAME", "FATHER NAME", "MOTHER NAME", "24-12-2009", "male", "student@gmail.com",
-      "9876543210", "9876543211", "", "GM", "234567890123", "at", "2026", "2026-2027", "1", "1", "active",
-      "https://drive.google.com/file/d/…/view", "regular", "",
-    ];
-    const ws = XLSX.utils.aoa_to_sheet([headers, example]);
-    ws["!cols"] = headers.map((h) => ({ wch: Math.max(12, h.length + 2) }));
-    const notes = XLSX.utils.aoa_to_sheet([
-      ["Column", "Allowed values"],
-      ["Course", "at, ch, ce, cs, ec, ee, me, ps"],
-      ["Admission Type", "regular, lateral-puc, lateral-iti, lateral-iti-cross"],
-      ["Semester", "1 for regular, 3 for lateral"],
-      ["AdmissionYear", "Regular: year of admission. Lateral: year of joining (2nd year)."],
-      ["Batch Number", "1 or 2"],
-      ["DOB", "A date, or dd-mm-yyyy"],
-      ["Student Photo", "Google Drive link (folder shared as 'Anyone with the link'), or leave empty"],
-      ["Register Number", "Not needed – the system generates it"],
-    ]);
-    notes["!cols"] = [{ wch: 18 }, { wch: 70 }];
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Students");
-    XLSX.utils.book_append_sheet(wb, notes, "How to fill");
-    XLSX.writeFile(wb, "student_import_template.xlsx");
+async function downloadRegisterNumbers(api, doc) {
+  const r = await api("get", `/${doc._id}/export`, undefined, { responseType: "blob" });
+  const url = URL.createObjectURL(r.data);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `register_numbers_${(doc.departments || []).join("_").toUpperCase() || "students"}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/** Confirm, then undo an import step by step with a progress window. */
+function useUndoFlow() {
+  const api = useApi();
+  const toast = useToast();
+  const confirm = useConfirm();
+  const [state, setState] = useState(null); // { fileName, removed, total }
+
+  const run = async (doc, onDone) => {
+    const created = doc.summary?.created ?? 0;
+    const ok = await confirm({
+      title: "Undo this import?",
+      message:
+        `This removes the ${created} ${created === 1 ? "student" : "students"} created from “${doc.fileName}”, ` +
+        "including their login accounts and photos, and frees their register numbers so the Excel can be imported again.\n\n" +
+        "Use this only if the import was a mistake. It cannot be reversed.",
+      confirmText: "Undo import",
+      tone: "danger",
+      requireText: "UNDO",
+    });
+    if (!ok) return;
+
+    setState({ fileName: doc.fileName, removed: 0, total: doc.summary?.total || 0 });
+    let busyTries = 0;
+    for (;;) {
+      try {
+        const r = await api("post", `/${doc._id}/undo`, { confirm: "UNDO" });
+        setState((st) => ({ ...st, removed: r.data.removed, total: r.data.total }));
+        if (r.data.done) {
+          toast.success(
+            r.data.numbersReleased
+              ? `Import undone. ${r.data.total} students removed and their register numbers are free again.`
+              : `Import undone. ${r.data.total} students removed. Some register numbers stay used because newer ones were issued after this import.`,
+            7000
+          );
+          break;
+        }
+      } catch (e) {
+        if (e?.response?.status === 409 && busyTries < 10) {
+          busyTries++;
+          await new Promise((res) => setTimeout(res, 3000));
+          continue;
+        }
+        toast.error(errMsg(e, "Undo stopped because of a network problem. Click Undo again to finish it."));
+        break;
+      }
+    }
+    setState(null);
+    onDone?.();
   };
+
+  const modal = state && (
+    <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-slate-950/45 backdrop-blur-[2px]" />
+      <div className="relative w-full max-w-md rounded-t-3xl bg-white p-6 shadow-2xl sm:rounded-3xl">
+        <div className="flex items-center gap-3">
+          <span className="h-9 w-9 animate-spin rounded-full border-[3px] border-red-100 border-t-red-600" />
+          <div className="min-w-0">
+            <p className="text-lg font-bold tracking-tight text-slate-950">Undoing import…</p>
+            <p className="truncate text-sm text-slate-500">{state.fileName}</p>
+          </div>
+        </div>
+        <div className="mt-6 mb-2 flex justify-between text-sm">
+          <span className="font-medium text-slate-700">Students removed</span>
+          <span className="tabular-nums text-slate-500">
+            {state.removed} / {state.total}
+          </span>
+        </div>
+        <Bar value={state.removed} total={state.total} tone="bg-red-600" />
+        <p className="mt-4 text-xs leading-5 text-slate-500">
+          Keep this page open. Login accounts and photos are deleted along with each student.
+        </p>
+      </div>
+    </div>
+  );
+
+  return { run, modal, busy: Boolean(state) };
+}
+
+// ------------------------------------------------------------------ cards
+
+const STATUS_CHIP = (d) => {
+  const s = d.summary;
+  if (d.status === "UNDOING") return ["Undo not finished", "bg-red-50 text-red-700"];
+  if (d.status !== "DONE") return ["In progress", "bg-blue-50 text-blue-700"];
+  if (s.failed || s.photosFailed) return ["Done – needs attention", "bg-orange-50 text-orange-700"];
+  return ["Done", "bg-emerald-50 text-emerald-700"];
+};
+
+function ImportCard({ doc, onOpen, onUndo, compact }) {
+  const api = useApi();
+  const toast = useToast();
+  const [label, cls] = STATUS_CHIP(doc);
+  const s = doc.summary;
+  const photoTotal = s.photosDone + s.photosFailed + s.photosPending;
+  const unfinishedUndo = doc.status === "UNDOING";
+
   return (
-    <button
-      onClick={download}
-      className="inline-flex items-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
-    >
-      <Icon name="report" className="h-4 w-4 text-slate-500" />
-      Excel template
-    </button>
+    <li className="flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-center">
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="truncate font-semibold text-slate-900">{doc.fileName}</p>
+          <span className={`rounded-lg px-2 py-0.5 text-xs font-semibold ${cls}`}>{label}</span>
+        </div>
+        <p className="mt-1 text-xs text-slate-500">
+          {fmtDate(doc.createdAt)} · {(doc.departments || []).join(", ").toUpperCase()} · by {doc.createdByEmail || "—"}
+        </p>
+        {!compact && (
+          <p className="mt-2 text-sm text-slate-600">
+            <span className="font-semibold tabular-nums text-slate-900">{s.created}</span> of {s.total} students created
+            {photoTotal > 0 && (
+              <>
+                {" "}· <span className="font-semibold tabular-nums text-slate-900">{s.photosDone}</span> of {photoTotal} photos
+              </>
+            )}
+            {s.failed > 0 && <span className="text-red-700"> · {s.failed} failed</span>}
+          </p>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {!unfinishedUndo && (
+          <button
+            onClick={() => onOpen(doc._id)}
+            className="rounded-xl bg-slate-950 px-3.5 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+          >
+            {doc.status === "DONE" ? "View details" : "Continue import"}
+          </button>
+        )}
+        {!unfinishedUndo && (
+          <button
+            onClick={() =>
+              downloadRegisterNumbers(api, doc).catch((e) => toast.error(errMsg(e, "Download failed.")))
+            }
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            <Icon name="report" className="h-4 w-4 text-slate-500" />
+            Excel
+          </button>
+        )}
+        <button
+          onClick={() => onUndo(doc)}
+          className="rounded-xl border border-red-200 bg-white px-3.5 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
+        >
+          {unfinishedUndo ? "Finish undo" : "Undo import"}
+        </button>
+      </div>
+    </li>
+  );
+}
+
+function useImportList(limit) {
+  const api = useApi();
+  const [list, setList] = useState(null);
+  const [error, setError] = useState("");
+  const load = useCallback(() => {
+    api("get", "/")
+      .then((r) => {
+        const all = Array.isArray(r.data?.data) ? r.data.data : [];
+        setList(limit ? all.slice(0, limit) : all);
+      })
+      .catch((e) => setError(errMsg(e, "Could not load imports.")));
+  }, [api, limit]);
+  useEffect(load, [load]);
+  return { list, error, reload: load };
+}
+
+function RecentImports({ onOpen, onUndo, onShowHistory }) {
+  const { list } = useImportList(3);
+  if (!list?.length) return null;
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
+        <p className="text-sm font-semibold text-slate-900">Recent imports</p>
+        <button onClick={onShowHistory} className="text-sm font-semibold text-blue-700 hover:underline">
+          See all
+        </button>
+      </div>
+      <ul className="divide-y divide-slate-100">
+        {list.map((d) => (
+          <ImportCard key={d._id} doc={d} onOpen={onOpen} onUndo={onUndo} compact />
+        ))}
+      </ul>
+    </div>
   );
 }
 
 // ------------------------------------------------------------------ import
 
-function ImportTab({ openImportId, onOpened }) {
+function ImportTab({ openImportId, onOpened, onOpen, onShowHistory, undo, onChanged }) {
   const api = useApi();
+  const toast = useToast();
   const [file, setFile] = useState(null);
   const [stage, setStage] = useState("pick"); // pick | checking | preview | starting | running
   const [preview, setPreview] = useState(null);
@@ -147,9 +316,9 @@ function ImportTab({ openImportId, onOpened }) {
         setImportDoc(r.data.data);
         setStage("running");
       })
-      .catch((e) => setError(errMsg(e, "Could not open that import.")))
+      .catch((e) => toast.error(errMsg(e, "Could not open that import.")))
       .finally(onOpened);
-  }, [openImportId, api, onOpened]);
+  }, [openImportId, api, onOpened, toast]);
 
   const check = async (f) => {
     setFile(f);
@@ -177,6 +346,7 @@ function ImportTab({ openImportId, onOpened }) {
       const r = await api("post", "/", body);
       setImportDoc(r.data.data);
       setStage("running");
+      toast.info("Register numbers reserved. Creating students now…");
     } catch (e) {
       if (e?.response?.data?.preview) setPreview(e.response.data.preview);
       setError(errMsg(e, "Import could not start."));
@@ -192,6 +362,8 @@ function ImportTab({ openImportId, onOpened }) {
     setStage("pick");
   };
 
+  const undoThen = (doc, after) => undo.run(doc, () => (after?.(), onChanged()));
+
   return (
     <div className="space-y-5">
       {error && (
@@ -201,14 +373,66 @@ function ImportTab({ openImportId, onOpened }) {
         </div>
       )}
 
-      {(stage === "pick" || stage === "checking") && <Dropzone busy={stage === "checking"} fileName={file?.name} onFile={check} />}
+      {(stage === "pick" || stage === "checking") && (
+        <>
+          <Dropzone busy={stage === "checking"} fileName={file?.name} onFile={check} />
+          {stage === "pick" && <RecentImports onOpen={onOpen} onUndo={(d) => undoThen(d)} onShowHistory={onShowHistory} />}
+        </>
+      )}
 
       {(stage === "preview" || stage === "starting") && preview && (
         <Preview preview={preview} starting={stage === "starting"} onStart={start} onReset={reset} />
       )}
 
-      {stage === "running" && importDoc && <Progress initial={importDoc} onReset={reset} />}
+      {stage === "running" && importDoc && (
+        <Progress initial={importDoc} onReset={reset} onUndo={(d) => undoThen(d, reset)} undoBusy={undo.busy} />
+      )}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------- template
+
+function TemplateButton() {
+  const download = () => {
+    const headers = [
+      "Roll Number", "Student Name", "Father Name", "Mother Name", "DOB", "Gender", "Email id",
+      "Phone Number", "Parent Phone", "Caste", "Category", "Aadhaar Number", "Course", "AdmissionYear",
+      "Batch", "Batch Number", "Semester", "Status", "Student Photo", "Admission Type", "SATS Number",
+    ];
+    const example = [
+      "AT26001", "STUDENT NAME", "FATHER NAME", "MOTHER NAME", "24-12-2009", "male", "student@gmail.com",
+      "9876543210", "9876543211", "", "GM", "234567890123", "at", "2026", "2026-2029", "1", "1", "active",
+      "https://drive.google.com/file/d/…/view", "regular", "",
+    ];
+    const ws = XLSX.utils.aoa_to_sheet([headers, example]);
+    ws["!cols"] = headers.map((h) => ({ wch: Math.max(12, h.length + 2) }));
+    const notes = XLSX.utils.aoa_to_sheet([
+      ["Column", "Allowed values"],
+      ["Course", "at, ch, ce, cs, ec, ee, me, ps"],
+      ["Admission Type", "regular, lateral-puc, lateral-iti, lateral-iti-cross"],
+      ["Semester", "1 for regular, 3 for lateral"],
+      ["AdmissionYear", "Regular: year of admission. Lateral: year of joining (2nd year)."],
+      ["Batch", "Optional – worked out automatically (e.g. 2026-2029 for students admitted in 2026)"],
+      ["Batch Number", "1 or 2"],
+      ["DOB", "A date, or dd-mm-yyyy"],
+      ["Student Photo", "Google Drive link (folder shared as 'Anyone with the link'), or leave empty"],
+      ["Register Number", "Not needed – the system generates it"],
+    ]);
+    notes["!cols"] = [{ wch: 18 }, { wch: 70 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Students");
+    XLSX.utils.book_append_sheet(wb, notes, "How to fill");
+    XLSX.writeFile(wb, "student_import_template.xlsx");
+  };
+  return (
+    <button
+      onClick={download}
+      className="inline-flex items-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+    >
+      <Icon name="report" className="h-4 w-4 text-slate-500" />
+      Excel template
+    </button>
   );
 }
 
@@ -394,6 +618,50 @@ function Preview({ preview, starting, onStart, onReset }) {
         )}
       </div>
 
+      {summary.errors === 0 &&
+        summary.series
+          .filter((x) => x.alreadyUsed > 0 || x.reservedOnly > 0)
+          .map((x) => (
+            <div
+              key={`warn-${x.department}-${x.year}-${x.type}`}
+              className="rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 text-sm text-orange-900"
+            >
+              <p className="font-semibold">
+                {x.department} {x.typeLabel} numbers will start at {x.first}, not at{" "}
+                {x.first.slice(0, -3)}
+                {String(x.startsAt).padStart(3, "0")}
+              </p>
+              {x.alreadyUsed > 0 && (
+                <>
+                  <p className="mt-1">
+                    {x.alreadyUsed === 1
+                      ? "This number already belongs to a student in the system:"
+                      : `These ${x.alreadyUsed} numbers already belong to students in the system:`}
+                  </p>
+                  <ul className="mt-2 space-y-0.5">
+                    {x.holders.map((h) => (
+                      <li key={h.registerNumber} className="tabular-nums">
+                        <span className="font-semibold">{h.registerNumber}</span> · {h.rollNumber} · {h.name}
+                      </li>
+                    ))}
+                    {x.alreadyUsed > x.holders.length && <li>…and {x.alreadyUsed - x.holders.length} more</li>}
+                  </ul>
+                </>
+              )}
+              {x.reservedOnly > 0 && (
+                <p className="mt-1">
+                  {x.reservedOnly} number{x.reservedOnly === 1 ? " was" : "s were"} reserved by an earlier import. Undo
+                  that import in “Import history” to free {x.reservedOnly === 1 ? "it" : "them"}.
+                </p>
+              )}
+              <p className="mt-2 text-orange-800">
+                If {x.alreadyUsed + x.reservedOnly === 1 ? "that is a test record" : "those are test records"}, delete
+                {x.alreadyUsed + x.reservedOnly === 1 ? " it" : " them"} first and choose this file again. Otherwise you can import as
+                shown.
+              </p>
+            </div>
+          ))}
+
       {/* Rows */}
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="no-scrollbar flex gap-2 overflow-x-auto border-b border-slate-100 p-3">
@@ -510,8 +778,9 @@ function Bar({ value, total, tone = "bg-blue-600" }) {
   );
 }
 
-function Progress({ initial, onReset }) {
+function Progress({ initial, onReset, onUndo, undoBusy }) {
   const api = useApi();
+  const toast = useToast();
   const [doc, setDoc] = useState(initial);
   const [running, setRunning] = useState(initial.status !== "DONE");
   const [error, setError] = useState("");
@@ -525,14 +794,19 @@ function Progress({ initial, onReset }) {
       try {
         const r = await api("post", `/${initial._id}/process`);
         setDoc(r.data.data);
-        if (r.data.done) break;
+        if (r.data.done) {
+          const sm = r.data.data.summary;
+          if (sm.failed) toast.error(`${sm.created} students imported, ${sm.failed} failed. See “Needs attention” below.`, 8000);
+          else toast.success(`All ${sm.created} students imported.`);
+          break;
+        }
       } catch (e) {
         setError(errMsg(e, "Processing paused because of a network problem."));
         break;
       }
     }
     setRunning(false);
-  }, [api, initial._id]);
+  }, [api, initial._id, toast]);
 
   useEffect(() => {
     if (initial.status !== "DONE") loop();
@@ -551,18 +825,11 @@ function Progress({ initial, onReset }) {
     }
   };
 
-  const download = async () => {
-    try {
-      const r = await api("get", `/${initial._id}/export`, undefined, { responseType: "blob" });
-      const url = URL.createObjectURL(r.data);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `register_numbers_${(doc.departments || []).join("_").toUpperCase() || "students"}.xlsx`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      setError(errMsg(e, "Download failed."));
-    }
+  const download = () => downloadRegisterNumbers(api, doc).catch((e) => toast.error(errMsg(e, "Download failed.")));
+
+  const undo = () => {
+    stop.current = true;
+    onUndo(doc);
   };
 
   const s = doc.summary;
@@ -585,7 +852,7 @@ function Progress({ initial, onReset }) {
                     : `All ${s.created} students imported`
                   : "Import paused"}
             </p>
-            {running && <p className="mt-1 text-xs text-slate-500">Keep this page open. You can come back later from Past imports.</p>}
+            {running && <p className="mt-1 text-xs text-slate-500">Keep this page open. You can come back later from Import history.</p>}
           </div>
           <div className="flex flex-wrap gap-2">
             {!running && doc.status !== "DONE" && (
@@ -596,6 +863,15 @@ function Progress({ initial, onReset }) {
             {!running && failedRows.length > 0 && (
               <button onClick={retry} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                 Retry failed
+              </button>
+            )}
+            {!running && (
+              <button
+                onClick={undo}
+                disabled={undoBusy}
+                className="rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50"
+              >
+                Undo import
               </button>
             )}
             <button
@@ -790,60 +1066,50 @@ function PhotosTab() {
 
 // ----------------------------------------------------------------- history
 
-function HistoryTab({ onOpen }) {
-  const api = useApi();
-  const [list, setList] = useState(null);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    api("get", "/")
-      .then((r) => setList(r.data.data))
-      .catch((e) => setError(errMsg(e, "Could not load past imports.")));
-  }, [api]);
+function HistoryTab({ onOpen, undo, onChanged }) {
+  const { list, error, reload } = useImportList();
 
   if (error) return <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>;
   if (!list) return <p className="text-sm text-slate-500">Loading…</p>;
-  if (!list.length)
-    return (
-      <div className="rounded-2xl border border-slate-200 bg-white px-6 py-12 text-center text-sm text-slate-500">
-        No imports yet.
-      </div>
-    );
 
   return (
-    <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      {list.map((d) => (
-        <li key={d._id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center">
-          <div className="min-w-0 flex-1">
-            <p className="truncate font-semibold text-slate-900">{d.fileName}</p>
-            <p className="text-xs text-slate-500">
-              {fmtDate(d.createdAt)} · {d.createdByEmail} · {(d.departments || []).join(", ").toUpperCase()}
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm tabular-nums text-slate-600">
-              {d.summary.created}/{d.summary.total} students
-            </span>
-            <span
-              className={`rounded-lg px-2 py-1 text-xs font-semibold ${
-                d.status === "DONE"
-                  ? d.summary.failed || d.summary.photosFailed
-                    ? "bg-orange-50 text-orange-700"
-                    : "bg-emerald-50 text-emerald-700"
-                  : "bg-blue-50 text-blue-700"
-              }`}
-            >
-              {d.status === "DONE" ? (d.summary.failed || d.summary.photosFailed ? "Done with issues" : "Done") : "In progress"}
-            </span>
-            <button
-              onClick={() => onOpen(d._id)}
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              Open
-            </button>
-          </div>
-        </li>
-      ))}
-    </ul>
+    <div className="space-y-4">
+      <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-5 text-sm leading-6 text-slate-600 shadow-sm sm:grid-cols-3">
+        <p>
+          <span className="font-semibold text-slate-900">View details / Continue</span> – see each student&apos;s result,
+          finish an import that stopped, or retry failed rows.
+        </p>
+        <p>
+          <span className="font-semibold text-slate-900">Excel</span> – download the list of students with their new register
+          numbers for the office.
+        </p>
+        <p>
+          <span className="font-semibold text-red-700">Undo import</span> – removes every student created by that Excel
+          (with logins and photos) and frees the register numbers. Use it only for a wrong import.
+        </p>
+      </div>
+
+      {list.length === 0 ? (
+        <div className="rounded-2xl border border-slate-200 bg-white px-6 py-12 text-center text-sm text-slate-500">
+          No imports yet. Use “New import” to upload the first Excel.
+        </div>
+      ) : (
+        <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          {list.map((d) => (
+            <ImportCard
+              key={d._id}
+              doc={d}
+              onOpen={onOpen}
+              onUndo={(doc) =>
+                undo.run(doc, () => {
+                  reload();
+                  onChanged();
+                })
+              }
+            />
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }

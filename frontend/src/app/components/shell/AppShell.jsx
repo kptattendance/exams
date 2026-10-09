@@ -13,6 +13,7 @@ import { usePathname } from "next/navigation";
 import { UserButton, useClerk, useUser } from "@clerk/nextjs";
 
 import Icon from "./Icon";
+import { FeedbackProvider } from "../ui/Feedback";
 
 function findActive(sections, pathname) {
   let best = null;
@@ -127,7 +128,9 @@ export default function AppShell({ menu, children }) {
           </div>
         </header>
 
-        <main className={`min-h-[calc(100vh-4rem)] lg:pb-0 ${showTabs ? "pb-24" : "pb-6"}`}>{children}</main>
+        <main className={`min-h-[calc(100vh-4rem)] lg:pb-0 ${showTabs ? "pb-24" : "pb-6"}`}>
+          <FeedbackProvider>{children}</FeedbackProvider>
+        </main>
       </div>
 
       {/* ---------------- Phone bottom tabs ---------------- */}

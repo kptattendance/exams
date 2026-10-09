@@ -166,10 +166,13 @@ const studentSchema = new mongoose.Schema(
       required: true,
     },
 
+      // The class the student studies with: the 3-year span, e.g. "2026-2029".
+    // Filled automatically from admissionYear + admissionType if left empty.
+    // Changes only if the student is detained and moves to a junior class.
     batch: {
       type: String,
-      required: true,
       trim: true,
+      match: [/^\d{4}-\d{4}$/, "Batch must look like 2026-2029"],
     },
 
     // Example: 1 or 2
@@ -233,6 +236,21 @@ const studentSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+// Batch = class start year to start year + 3.
+// Regular admitted 2026 -> 2026-2029
+// Lateral joining 2nd year in 2027 -> 2026-2029 (same class as the regulars)
+studentSchema.statics.batchFor = (admissionYear, admissionType = "regular") => {
+  const start = admissionType === "regular" ? admissionYear : admissionYear - 1;
+  return `${start}-${start + 3}`;
+};
+
+studentSchema.pre("validate", function () {
+  if (!this.batch && this.admissionYear) {
+    this.batch = this.constructor.batchFor(this.admissionYear, this.admissionType);
+  }
+});
+
 
 const Student =
   mongoose.models.Student ||

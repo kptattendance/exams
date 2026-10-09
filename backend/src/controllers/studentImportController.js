@@ -72,11 +72,14 @@ function readWorkbook(buffer) {
 }
 
 /** Existing register numbers for the given prefixes, e.g. 103AT26 */
-async function existingNumbers(prefixes) {
+async function existingStudents(prefixes) {
   if (!prefixes.length) return [];
   const regex = new RegExp(`^(${prefixes.join("|")})\\d{3}$`);
-  const docs = await Student.find({ registerNumber: regex }).select("registerNumber").lean();
-  return docs.map((d) => d.registerNumber);
+  return Student.find({ registerNumber: regex }).select("registerNumber rollNumber name").lean();
+}
+
+async function existingNumbers(prefixes) {
+  return (await existingStudents(prefixes)).map((d) => d.registerNumber);
 }
 
 async function clerkEmailsInUse(emails) {
@@ -153,14 +156,28 @@ async function analyse(buffer) {
   // ---- tentative register numbers for rows without errors
   const groups = groupBySeries(cleaned.filter((r) => !hasErrors(r)));
   const prefixes = [...new Set(groups.map((g) => formatRegisterNumber(g.department, g.yy, 0).slice(0, -3)))];
-  const [taken, counters] = await Promise.all([
-    existingNumbers(prefixes),
+  const [takenDocs, counters] = await Promise.all([
+    existingStudents(prefixes),
     Counter.find({ _id: { $in: groups.map((g) => g.key) } }).lean(),
   ]);
+  const taken = takenDocs.map((d) => d.registerNumber);
   const lastUsed = {};
   for (const g of groups) {
+    const range = ADMISSION_TYPES[g.type];
     const fromCounter = counters.find((c) => c._id === g.key)?.seq || 0;
-    lastUsed[g.key] = Math.max(fromCounter, highestExistingSerial(taken, g.department, g.yy, g.type));
+    const fromStudents = highestExistingSerial(taken, g.department, g.yy, g.type);
+    lastUsed[g.key] = Math.max(fromCounter, fromStudents);
+
+    // Tell the user why a series does not start at 001 / 301 / 401 / 701
+    const prefix = formatRegisterNumber(g.department, g.yy, 0).slice(0, -3);
+    g.holders = takenDocs
+      .filter((d) => {
+        const serial = parseInt(d.registerNumber.slice(prefix.length), 10);
+        return d.registerNumber.startsWith(prefix) && serial >= range.start && serial <= range.end;
+      })
+      .sort((x, y) => x.registerNumber.localeCompare(y.registerNumber))
+      .map((d) => ({ registerNumber: d.registerNumber, rollNumber: d.rollNumber, name: d.name }));
+    g.reservedOnly = fromCounter > fromStudents ? fromCounter - Math.max(fromStudents, range.start - 1) : 0;
   }
   assignRegisterNumbers(groups, lastUsed);
 
@@ -186,6 +203,10 @@ function previewPayload(fileName, rows, groups) {
         count: g.rows.length,
         first: g.rows[0]?.student.registerNumber || "",
         last: g.rows.at(-1)?.student.registerNumber || "",
+        startsAt: ADMISSION_TYPES[g.type].start,
+        alreadyUsed: (g.holders || []).length,
+        holders: (g.holders || []).slice(0, 10),
+        reservedOnly: g.reservedOnly || 0,
       })),
     },
     // Only what the preview needs – no Aadhaar, phone or parent details
@@ -263,8 +284,10 @@ export const startImport = async (req, res) => {
     // Reserve real numbers (they may differ from the preview if someone
     // else imported the same department in between)
     const importRows = [];
+    const reserved = [];
     for (const g of groups) {
       const first = await reserveSeries(g);
+      reserved.push({ key: g.key, first, last: first + g.rows.length - 1 });
       g.rows.forEach((row, i) => {
         const s = row.student;
         const serial = first + i;
@@ -314,6 +337,7 @@ export const startImport = async (req, res) => {
       createdBy: req.user.id,
       createdByEmail: req.user.email || "",
       departments: [...new Set(groups.map((g) => g.department))],
+      reserved,
       rows: importRows,
     });
 
@@ -385,7 +409,7 @@ async function copyDrivePhoto(url) {
   if (!id) throw new Error("Not a Google Drive file link.");
   const resp = await axios.get(`https://drive.google.com/uc?export=download&id=${id}`, {
     responseType: "arraybuffer",
-    timeout: 20000,
+    timeout: 6000,
     maxContentLength: 12 * 1024 * 1024,
   });
   const type = resp.headers["content-type"] || "";
@@ -417,20 +441,24 @@ export const processImport = async (req, res) => {
   // Lock so two open tabs never process the same import at once
   const doc = await StudentImport.findOneAndUpdate(
     { _id: req.params.id, $or: [{ lockedUntil: { $exists: false } }, { lockedUntil: { $lt: now } }] },
-    { $set: { lockedUntil: new Date(now.getTime() + 90 * 1000) } },
+    { $set: { lockedUntil: new Date(now.getTime() + 25 * 1000) } },
     { returnDocument: "after" }
   );
   if (!doc) {
     const exists = await StudentImport.exists({ _id: req.params.id });
     return exists ? fail(res, 409, "This import is being processed in another window.") : fail(res, 404, "Import not found.");
   }
+  if (doc.status === "UNDOING") {
+    await StudentImport.updateOne({ _id: doc._id }, { $set: { lockedUntil: new Date(0) } });
+    return fail(res, 409, "This import is being undone.");
+  }
 
-  const deadline = Date.now() + 40 * 1000; // stay well inside server time limits
+  const deadline = Date.now() + 7 * 1000; // stay inside even a 10-second server time limit
   try {
     // 1) students
     let created = 0;
     for (const row of doc.rows) {
-      if (row.state !== "PENDING" || created >= 6 || Date.now() > deadline) continue;
+      if (row.state !== "PENDING" || created >= 4 || Date.now() > deadline) continue;
       row.attempts += 1;
       try {
         row.student = await createStudent(row, doc._id);
@@ -446,7 +474,7 @@ export const processImport = async (req, res) => {
     // 2) photos (only for students that exist)
     let photos = 0;
     for (const row of doc.rows) {
-      if (row.state !== "CREATED" || row.photoState !== "PENDING" || photos >= 4 || Date.now() > deadline) continue;
+      if (row.state !== "CREATED" || row.photoState !== "PENDING" || photos >= 2 || Date.now() > deadline) continue;
       try {
         const up = await copyDrivePhoto(row.photoUrl);
         await Student.updateOne({ _id: row.student }, { imageUrl: up.secure_url, imagePublicId: up.public_id });
@@ -574,4 +602,71 @@ export const uploadStudentPhoto = async (req, res) => {
     console.error("[studentImport] photo:", e);
     fail(res, 500, "Photo could not be uploaded. Please try again.");
   }
+};
+
+// ====================================================================
+// Undo an import: delete its students, logins and photos, and give the
+// register numbers back (only if nobody has taken later numbers since)
+// ====================================================================
+
+// POST /api/student-import/:id/undo   { confirm: "UNDO" }
+// Called repeatedly by the page (like processing). Each call removes a few
+// students; the last call frees the register numbers and deletes the import.
+export const undoImport = async (req, res) => {
+  if (!isId(req.params.id)) return fail(res, 400, "Invalid import id.");
+  if (req.body?.confirm !== "UNDO") return fail(res, 400, "Type UNDO to confirm.");
+
+  const now = new Date();
+  const doc = await StudentImport.findOneAndUpdate(
+    { _id: req.params.id, lockedUntil: { $lt: now } },
+    { $set: { lockedUntil: new Date(now.getTime() + 25 * 1000), status: "UNDOING" } },
+    { returnDocument: "after" }
+  );
+  if (!doc) {
+    const exists = await StudentImport.exists({ _id: req.params.id });
+    return exists
+      ? fail(res, 409, "This import is busy in another window. Try again in a few seconds.")
+      : fail(res, 404, "Import not found – it may already be undone.");
+  }
+
+  const deadline = Date.now() + 7 * 1000; // fits a 10-second server limit
+  const problems = [];
+  for (const row of doc.rows) {
+    if (Date.now() > deadline) break;
+    if (row.state === "UNDONE") continue;
+    try {
+      if (row.student) {
+        const st = await Student.findById(row.student).select("clerkId imagePublicId");
+        if (st) {
+          if (st.clerkId) await clerkClient.users.deleteUser(st.clerkId).catch(() => {});
+          if (st.imagePublicId) cloudinary.uploader.destroy(st.imagePublicId).catch(() => {});
+          await Student.deleteOne({ _id: st._id });
+        }
+        row.student = null;
+      }
+      row.state = "UNDONE";
+    } catch (e) {
+      problems.push(`${row.registerNumber}: ${e.message}`);
+    }
+  }
+
+  const total = doc.rows.length;
+  const removed = doc.rows.filter((r) => r.state === "UNDONE").length;
+
+  if (removed < total) {
+    doc.markModified("rows");
+    doc.lockedUntil = new Date(0);
+    await doc.save();
+    return res.json({ done: false, removed, total, problems: problems.slice(0, 3) });
+  }
+
+  // Everything removed: give the register numbers back if nobody took later ones
+  const released = [];
+  for (const r of doc.reserved || []) {
+    const out = await Counter.updateOne({ _id: r.key, seq: r.last }, { $set: { seq: r.first - 1 } });
+    if (out.modifiedCount) released.push(r.key);
+  }
+  await logAction(req, "STUDENT_IMPORT_UNDONE", doc._id, { removed: total, released, fileName: doc.fileName });
+  await StudentImport.deleteOne({ _id: doc._id });
+  res.json({ done: true, removed, total, numbersReleased: released.length === (doc.reserved || []).length });
 };

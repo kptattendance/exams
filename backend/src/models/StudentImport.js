@@ -18,7 +18,7 @@ const rowSchema = new mongoose.Schema(
     // Cleaned student data, ready to save (Aadhaar already encrypted)
     data: { type: mongoose.Schema.Types.Mixed, required: true },
 
-    state: { type: String, enum: ["PENDING", "CREATED", "FAILED"], default: "PENDING" },
+    state: { type: String, enum: ["PENDING", "CREATED", "FAILED", "UNDONE"], default: "PENDING" },
     error: { type: String, default: "" },
     attempts: { type: Number, default: 0 },
     student: { type: mongoose.Schema.Types.ObjectId, ref: "Student", default: null },
@@ -35,18 +35,21 @@ const studentImportSchema = new mongoose.Schema(
     fileName: { type: String, default: "" },
     createdBy: { type: String, required: true }, // clerkId
     createdByEmail: { type: String, default: "" },
-    status: { type: String, enum: ["PROCESSING", "DONE"], default: "PROCESSING", index: true },
+    status: { type: String, enum: ["PROCESSING", "DONE", "UNDOING"], default: "PROCESSING", index: true },
     departments: [String],
     lockedUntil: { type: Date, default: () => new Date(0) },
+    // Register-number blocks taken by this import, e.g. { key: "regno:AT:26:regular", first: 1, last: 64 }
+    reserved: { type: [{ key: String, first: Number, last: Number, _id: false }], default: [] },
     rows: [rowSchema],
   },
   { timestamps: true }
 );
 
 studentImportSchema.methods.summary = function () {
-  const c = { total: this.rows.length, created: 0, failed: 0, pending: 0, photosDone: 0, photosFailed: 0, photosPending: 0, noPhoto: 0 };
+  const c = { total: this.rows.length, created: 0, failed: 0, pending: 0, undone: 0, photosDone: 0, photosFailed: 0, photosPending: 0, noPhoto: 0 };
   for (const r of this.rows) {
-    if (r.state === "CREATED") c.created++;
+    if (r.state === "UNDONE") c.undone++;
+    else if (r.state === "CREATED") c.created++;
     else if (r.state === "FAILED") c.failed++;
     else c.pending++;
     if (r.photoState === "DONE") c.photosDone++;

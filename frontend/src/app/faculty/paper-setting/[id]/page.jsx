@@ -6,6 +6,8 @@ import { useParams } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
 
+import { useConfirm, useToast } from "../../../components/ui/Feedback";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const MAX_MB = Number(process.env.NEXT_PUBLIC_MAX_PAPER_MB || 4);
 
@@ -35,6 +37,8 @@ export default function PaperUploadPage() {
   const [submitting, setSubmitting] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef(null);
+  const toast = useToast();
+  const confirmDialog = useConfirm();
 
   const auth = useCallback(async () => ({ Authorization: `Bearer ${await getToken()}` }), [getToken]);
 
@@ -86,6 +90,7 @@ export default function PaperUploadPage() {
       setWarnings(res.data.warnings || []);
       setFile(null);
       setConfirmed(false);
+      toast.success("Paper uploaded. Check the preview below before you submit.");
       if (inputRef.current) inputRef.current.value = "";
     } catch (e) {
       setError(e.response?.data?.error || "Upload failed. Please try again.");
@@ -95,7 +100,12 @@ export default function PaperUploadPage() {
   };
 
   const submit = async () => {
-    if (!confirm("After final submission you cannot change or view this paper. Submit now?")) return;
+    const ok = await confirmDialog({
+      title: "Submit your final paper?",
+      message: "After final submission you cannot change or view this paper again. The COE office receives it encrypted.",
+      confirmText: "Final submit",
+    });
+    if (!ok) return;
     setSubmitting(true);
     setError("");
     try {
@@ -106,6 +116,7 @@ export default function PaperUploadPage() {
       );
       setPaper(res.data.data);
       setPreview(null);
+      toast.success("Paper submitted. Thank you!");
     } catch (e) {
       setError(e.response?.data?.error || "Submission failed.");
     } finally {

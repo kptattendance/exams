@@ -8,6 +8,7 @@ import {
   startImport,
   processImport,
   retryFailed,
+  undoImport,
   listImports,
   getImport,
   exportImport,
@@ -50,6 +51,7 @@ router.post("/", handleUpload(excel), startImport);
 router.get("/:id", getImport);
 router.post("/:id/process", processImport);
 router.post("/:id/retry", retryFailed);
+router.post("/:id/undo", undoImport);
 router.get("/:id/export", exportImport);
 
 export default router;

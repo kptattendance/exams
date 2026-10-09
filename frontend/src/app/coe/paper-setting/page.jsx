@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
 
+import { useConfirm, useToast } from "../../components/ui/Feedback";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const departments = [
@@ -78,7 +80,8 @@ export default function PaperSettingPage() {
   const [papers, setPapers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [toast, setToast] = useState("");
+  const toast = useToast();
+  const confirmDialog = useConfirm();
 
   const [showCreate, setShowCreate] = useState(false);
   const [returning, setReturning] = useState(null);
@@ -86,10 +89,7 @@ export default function PaperSettingPage() {
   const [auditFor, setAuditFor] = useState(null);
   const [busyId, setBusyId] = useState(null);
 
-  const flash = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(""), 3500);
-  };
+  const flash = (msg) => toast.success(msg);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -125,15 +125,20 @@ export default function PaperSettingPage() {
       if (okMsg) flash(okMsg);
       await load();
     } catch (e) {
-      alert(e.response?.data?.error || "Action failed.");
+      toast.error(e.response?.data?.error || "Action failed.");
     } finally {
       setBusyId(null);
     }
   };
 
-  const download = (p) =>
-    act(p._id, async () => {
-      if (!confirm("This download will be recorded in the audit log. Continue?")) return;
+  const download = async (p) => {
+    const ok = await confirmDialog({
+      title: "Download this question paper?",
+      message: `${p.subject?.code} – Set ${p.setNo}. Your name, time and IP address will be recorded in the activity log.`,
+      confirmText: "Download",
+    });
+    if (!ok) return;
+    return act(p._id, async () => {
       const res = await api("get", `/paper-setting/${p._id}/download`, undefined, {
         responseType: "blob",
       });
@@ -144,6 +149,7 @@ export default function PaperSettingPage() {
       a.click();
       URL.revokeObjectURL(url);
     });
+  };
 
   const renderActions = (p, busy) => (
     <div className="flex flex-wrap gap-1.5">
@@ -179,10 +185,16 @@ export default function PaperSettingPage() {
         <SmallBtn
           tone="danger"
           disabled={busy}
-          onClick={() =>
-            confirm("Cancel this assignment? The examiner will no longer see it.") &&
-            act(p._id, () => api("post", `/paper-setting/${p._id}/cancel`, {}), "Cancelled.")
-          }
+          onClick={async () => {
+            const ok = await confirmDialog({
+              title: "Cancel this assignment?",
+              message: `${p.subject?.code} – Set ${p.setNo} (${p.examiner?.name}). The examiner will no longer see it.`,
+              confirmText: "Cancel assignment",
+              cancelText: "Keep it",
+              tone: "danger",
+            });
+            if (ok) act(p._id, () => api("post", `/paper-setting/${p._id}/cancel`, {}), "Assignment cancelled.");
+          }}
         >
           Cancel
         </SmallBtn>
@@ -420,11 +432,7 @@ export default function PaperSettingPage() {
 
       {auditFor && <AuditModal api={api} paper={auditFor} onClose={() => setAuditFor(null)} />}
 
-      {toast && (
-        <div className="fixed bottom-5 right-5 z-50 rounded-xl bg-slate-950 px-4 py-3 text-sm font-medium text-white shadow-lg">
-          {toast}
-        </div>
-      )}
+
     </div>
   );
 }
