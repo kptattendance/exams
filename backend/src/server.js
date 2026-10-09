@@ -10,6 +10,7 @@ import studentRoutes from "./routes/studentRoutes.js";
 import finalIARoutes from "./routes/finalIARoutes.js";
 import finalAttendanceRoutes from "./routes/finalAttendanceRoutes.js";
 import paperSettingRoutes from "./routes/paperSettingRoutes.js";
+import studentImportRoutes from "./routes/studentImportRoutes.js";
 
 
 
@@ -94,6 +95,7 @@ app.use(
   finalAttendanceRoutes
 );
 app.use("/api/paper-setting", paperSettingRoutes);
+app.use("/api/student-import", studentImportRoutes);
 
 
 

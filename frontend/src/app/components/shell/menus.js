@@ -18,6 +18,7 @@ export const MENUS = {
         items: [
           { label: "Faculty", href: "/admin/faculty", icon: "faculty", pinned: true },
           { label: "Students", href: "/admin/students", icon: "students", pinned: true },
+          { label: "Import 1st-year students", href: "/admin/students/import", icon: "userPlus" },
           { label: "Users & roles", href: "/admin/users", icon: "users" },
           { label: "Login accounts", href: "/admin/clerk-users", icon: "key" },
         ],
@@ -41,6 +42,7 @@ export const MENUS = {
         title: "Master data",
         items: [
           { label: "Students", href: "/coe/students", icon: "students", pinned: true },
+          { label: "Import 1st-year students", href: "/coe/students/import", icon: "userPlus" },
           { label: "Staff / Faculty", href: "/coe/faculty", icon: "faculty" },
           { label: "Subjects", href: "/coe/subjects", icon: "subjects" },
         ],

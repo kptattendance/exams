@@ -121,6 +121,35 @@ const studentSchema = new mongoose.Schema(
       default: "",
     },
 
+    // Encrypted Aadhaar (new imports). aadhaarNumber above then holds only
+    // the masked value, e.g. XXXXXXXX1234. See services/studentCrypto.js
+    aadhaarEncrypted: {
+      type: String,
+      default: "",
+      select: false,
+    },
+
+    aadhaarHash: {
+      type: String,
+      default: "",
+      index: true,
+    },
+
+    // regular | lateral-puc | lateral-iti | lateral-iti-cross
+    // Decides the register-number series and the bridge courses.
+    admissionType: {
+      type: String,
+      enum: ["regular", "lateral-puc", "lateral-iti", "lateral-iti-cross"],
+      default: "regular",
+    },
+
+    // Which Excel import created this student (if any)
+    importBatch: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "StudentImport",
+      default: null,
+    },
+
     // =====================================================
     // ACADEMIC DETAILS
     // =====================================================
