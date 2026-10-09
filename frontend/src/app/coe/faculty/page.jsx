@@ -74,7 +74,7 @@ export default function FacultyPage() {
         }
       );
 
-      const users = response.data || [];
+        const users = response.data?.data || [];
 
       const facultyUsers = users.filter(
         (user) => user.role?.toLowerCase() === "staff"

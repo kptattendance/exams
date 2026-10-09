@@ -10,11 +10,15 @@ import {
 } from "../controllers/subjectController.js";
 
 import { authenticateUser } from "../middlewares/authMiddleware.js";
+import { requireRole } from "../middlewares/requireRole.js";
 import { uploadCSV } from "../middlewares/uploadCSV.js";
 
 const router = express.Router();
 
-// Get all subjects
+// Only these roles can add, edit or delete subjects
+const CAN_MANAGE = requireRole("admin", "coe");
+
+// Get all subjects (any signed-in user can read)
 router.get(
   "/getsubjects",
   authenticateUser,
@@ -32,6 +36,7 @@ router.get(
 router.post(
   "/addsubject",
   authenticateUser,
+  CAN_MANAGE,
   createSubject
 );
 
@@ -39,6 +44,7 @@ router.post(
 router.put(
   "/updatesubject/:id",
   authenticateUser,
+  CAN_MANAGE,
   updateSubject
 );
 
@@ -46,6 +52,7 @@ router.put(
 router.delete(
   "/deletesubject/:id",
   authenticateUser,
+  CAN_MANAGE,
   deleteSubject
 );
 
@@ -53,6 +60,7 @@ router.delete(
 router.post(
   "/bulk-upload",
   authenticateUser,
+  CAN_MANAGE,
   uploadCSV,
   bulkUploadSubjects
 );
