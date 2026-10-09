@@ -21,6 +21,7 @@ import {
 } from "../controllers/examController.js";
 import { listFees, recordFee, feeTemplate, importFees, exportFees } from "../controllers/feeController.js";
 import { getTimetable, saveTimetable, suggest, publishTimetable } from "../controllers/timetableController.js";
+import { listHallTickets } from "../controllers/hallTicketController.js";
 
 const router = express.Router();
 
@@ -72,5 +73,8 @@ router.get("/:id/timetable", VIEW, getTimetable);
 router.put("/:id/timetable", MANAGE, saveTimetable);
 router.post("/:id/timetable/suggest", MANAGE, suggest);
 router.post("/:id/timetable/publish", MANAGE, publishTimetable);
+
+// Hall tickets
+router.get("/:id/hall-tickets", VIEW, listHallTickets);
 
 export default router;

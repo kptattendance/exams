@@ -56,7 +56,7 @@ export const MENUS = {
           { label: "Register numbers", href: "/coe/register-numbers", icon: "register" },
           { label: "Paper setting", href: "/coe/paper-setting", icon: "lock", pinned: true },
           { label: "Time table", href: "/coe/timetable", icon: "calendar" },
-          { label: "Hall tickets", href: "/coe/hall-tickets", icon: "ticket", soon: true },
+          { label: "Hall tickets", href: "/coe/hall-tickets", icon: "ticket" },
         ],
       },
       {
@@ -150,7 +150,7 @@ export const MENUS = {
           { label: "Time table", href: "/exam-officer/timetable", icon: "calendar" },
           { label: "Subject-wise candidates", href: "/exam-officer/subjects", icon: "subjects", soon: true },
           { label: "Back paper candidates", href: "/exam-officer/back-papers", icon: "layers", soon: true },
-          { label: "Hall tickets", href: "/exam-officer/hall-tickets", icon: "ticket", soon: true },
+          { label: "Hall tickets", href: "/exam-officer/hall-tickets", icon: "ticket" },
         ],
       },
       {
