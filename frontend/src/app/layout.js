@@ -1,5 +1,12 @@
 import { ClerkProvider } from "@clerk/nextjs";
+import { Hanken_Grotesk } from "next/font/google";
 import "./globals.css";
+
+const uiFont = Hanken_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-ui",
+  display: "swap",
+});
 
 export const metadata = {
   metadataBase: new URL("https://exams.kptmangaluru.in"),
@@ -81,10 +88,16 @@ export const metadata = {
   },
 };
 
+export const viewport = {
+  themeColor: "#0e162b",
+  width: "device-width",
+  initialScale: 1,
+};
+
 export default function RootLayout({ children }) {
   return (
     <ClerkProvider>
-      <html lang="en-IN">
+      <html lang="en-IN" className={uiFont.variable}>
         <head>
           <meta
             name="google-site-verification"
@@ -92,7 +105,7 @@ export default function RootLayout({ children }) {
           />
         </head>
 
-        <body>{children}</body>
+        <body className="min-h-screen bg-slate-50 text-slate-900 antialiased">{children}</body>
       </html>
     </ClerkProvider>
   );

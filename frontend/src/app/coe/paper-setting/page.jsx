@@ -145,6 +145,51 @@ export default function PaperSettingPage() {
       URL.revokeObjectURL(url);
     });
 
+  const renderActions = (p, busy) => (
+    <div className="flex flex-wrap gap-1.5">
+      {["ASSIGNED", "UPLOADED", "RETURNED"].includes(p.status) && (
+        <>
+          <SmallBtn
+            disabled={busy}
+            onClick={() =>
+              act(p._id, () => api("post", `/paper-setting/${p._id}/send-email`), "Email sent.")
+            }
+          >
+            {p.emailSentAt ? "Remind" : "Send email"}
+          </SmallBtn>
+          <SmallBtn disabled={busy} onClick={() => setExtending(p)}>
+            Deadline
+          </SmallBtn>
+        </>
+      )}
+      {p.status === "SUBMITTED" && (
+        <>
+          <SmallBtn tone="dark" disabled={busy} onClick={() => download(p)}>
+            Download
+          </SmallBtn>
+          <SmallBtn disabled={busy} onClick={() => setReturning(p)}>
+            Return
+          </SmallBtn>
+        </>
+      )}
+      <SmallBtn disabled={busy} onClick={() => setAuditFor(p)}>
+        Log
+      </SmallBtn>
+      {p.status !== "CANCELLED" && p.status !== "SUBMITTED" && (
+        <SmallBtn
+          tone="danger"
+          disabled={busy}
+          onClick={() =>
+            confirm("Cancel this assignment? The examiner will no longer see it.") &&
+            act(p._id, () => api("post", `/paper-setting/${p._id}/cancel`, {}), "Cancelled.")
+          }
+        >
+          Cancel
+        </SmallBtn>
+      )}
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-5 sm:px-6 lg:px-7">
       {/* HEADER */}
@@ -164,11 +209,11 @@ export default function PaperSettingPage() {
       </div>
 
       {/* STATS */}
-      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="no-scrollbar -mx-4 mb-4 flex gap-3 overflow-x-auto px-4 sm:mx-0 sm:grid sm:grid-cols-5 sm:overflow-visible sm:px-0">
         {[
           ["Total", counts.total || 0, "text-slate-900"],
           ["Waiting", counts.ASSIGNED || 0, "text-slate-700"],
-          ["Draft", (counts.UPLOADED || 0) + (counts.RETURNED || 0), "text-amber-600"],
+          ["Draft", (counts.UPLOADED || 0) + (counts.RETURNED || 0), "text-blue-700"],
           ["Submitted", counts.SUBMITTED || 0, "text-emerald-600"],
           [
             "Overdue",
@@ -176,9 +221,9 @@ export default function PaperSettingPage() {
             "text-red-600",
           ],
         ].map(([label, n, cls]) => (
-          <div key={label} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
-            <p className={`mt-1 text-2xl font-bold ${cls}`}>{n}</p>
+          <div key={label} className="min-w-[124px] shrink-0 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm sm:min-w-0">
+            <p className="text-xs font-medium text-slate-500">{label}</p>
+            <p className={`mt-1 text-2xl font-bold tabular-nums ${cls}`}>{n}</p>
           </div>
         ))}
       </div>
@@ -223,12 +268,13 @@ export default function PaperSettingPage() {
             <p className="mt-1 text-xs text-slate-400">Click “New assignment” to appoint a paper setter.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[980px]">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50">
                   {["Subject", "Set", "Examiner", "Deadline", "Status", "Email", "Actions"].map((h) => (
-                    <th key={h} className="px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                    <th key={h} className="px-3 py-3 text-left text-xs font-semibold text-slate-500">
                       {h}
                     </th>
                   ))}
@@ -271,52 +317,11 @@ export default function PaperSettingPage() {
                             <span className="text-[11px] text-slate-400">{fmtDate(p.emailSentAt)}</span>
                           </>
                         ) : (
-                          <span className="text-amber-600">Not sent</span>
+                          <span className="font-medium text-orange-600">Not sent</span>
                         )}
                       </td>
                       <td className="px-3 py-3">
-                        <div className="flex flex-wrap gap-1.5">
-                          {["ASSIGNED", "UPLOADED", "RETURNED"].includes(p.status) && (
-                            <>
-                              <SmallBtn
-                                disabled={busy}
-                                onClick={() =>
-                                  act(p._id, () => api("post", `/paper-setting/${p._id}/send-email`), "Email sent.")
-                                }
-                              >
-                                {p.emailSentAt ? "Remind" : "Send email"}
-                              </SmallBtn>
-                              <SmallBtn disabled={busy} onClick={() => setExtending(p)}>
-                                Deadline
-                              </SmallBtn>
-                            </>
-                          )}
-                          {p.status === "SUBMITTED" && (
-                            <>
-                              <SmallBtn tone="dark" disabled={busy} onClick={() => download(p)}>
-                                Download
-                              </SmallBtn>
-                              <SmallBtn disabled={busy} onClick={() => setReturning(p)}>
-                                Return
-                              </SmallBtn>
-                            </>
-                          )}
-                          <SmallBtn disabled={busy} onClick={() => setAuditFor(p)}>
-                            Log
-                          </SmallBtn>
-                          {p.status !== "CANCELLED" && p.status !== "SUBMITTED" && (
-                            <SmallBtn
-                              tone="danger"
-                              disabled={busy}
-                              onClick={() =>
-                                confirm("Cancel this assignment? The examiner will no longer see it.") &&
-                                act(p._id, () => api("post", `/paper-setting/${p._id}/cancel`, {}), "Cancelled.")
-                              }
-                            >
-                              Cancel
-                            </SmallBtn>
-                          )}
-                        </div>
+                        {renderActions(p, busy)}
                       </td>
                     </tr>
                   );
@@ -324,6 +329,49 @@ export default function PaperSettingPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Phone: one card per assignment */}
+          <ul className="divide-y divide-slate-100 md:hidden">
+            {papers.map((p) => {
+              const overdue = !["SUBMITTED", "CANCELLED"].includes(p.status) && new Date(p.deadline) < new Date();
+              const busy = busyId === p._id;
+              return (
+                <li key={p._id} className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-900">
+                        {p.subject?.code} <span className="font-normal text-slate-400">Set {p.setNo}</span>
+                      </p>
+                      <p className="truncate text-sm text-slate-600">{p.subject?.name}</p>
+                    </div>
+                    <span className={`shrink-0 rounded-lg px-2 py-1 text-xs font-semibold ${STATUS_STYLE[p.status]}`}>
+                      {STATUS_LABEL[p.status]}
+                    </span>
+                  </div>
+                  <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                    <div className="col-span-2">
+                      <dt className="text-slate-400">Examiner</dt>
+                      <dd className="truncate font-medium text-slate-700">{p.examiner?.name} <span className="font-normal text-slate-400">{p.examinerType === "EXTERNAL" ? "(external)" : ""}</span></dd>
+                    </div>
+                    <div>
+                      <dt className="text-slate-400">Deadline</dt>
+                      <dd className={overdue ? "font-semibold text-red-600" : "font-medium text-slate-700"}>
+                        {fmtDate(p.deadline)}{overdue ? ", overdue" : ""}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-slate-400">Email</dt>
+                      <dd className="font-medium text-slate-700">
+                        {p.emailSentAt ? `Sent ${p.emailCount}×` : <span className="text-orange-600">Not sent</span>}
+                      </dd>
+                    </div>
+                  </dl>
+                  <div className="mt-3">{renderActions(p, busy)}</div>
+                </li>
+              );
+            })}
+          </ul>
+          </>
         )}
       </div>
 

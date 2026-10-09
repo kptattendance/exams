@@ -4,6 +4,7 @@ import { useAuth, useClerk } from "@clerk/nextjs";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import FullPageStatus from "../../components/shell/FullPageStatus";
 
 export default function AuthCheckPage() {
   const { isLoaded, isSignedIn, getToken } = useAuth();
@@ -131,21 +132,5 @@ case "exam_officer":
     router,
   ]);
 
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
-      <div className="w-full max-w-md rounded-xl border bg-white p-8 text-center shadow-sm">
-
-        <div className="mx-auto mb-5 h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-black" />
-
-        <h1 className="text-xl font-semibold">
-          Account Verification
-        </h1>
-
-        <p className="mt-3 text-sm text-gray-600">
-          {message}
-        </p>
-
-      </div>
-    </div>
-  );
+  return <FullPageStatus message={message} />;
 }

@@ -145,7 +145,7 @@ export default function PaperUploadPage() {
             <p className="text-xs text-slate-500">Last date</p>
             <p className="text-sm font-semibold text-slate-900">{fmt(paper.deadline)}</p>
             {paper.status !== "SUBMITTED" && (
-              <p className={`text-xs font-semibold ${paper.isPastDeadline ? "text-red-600" : "text-amber-600"}`}>
+              <p className={`text-xs font-semibold ${paper.isPastDeadline ? "text-red-600" : "text-orange-600"}`}>
                 {timeLeft(paper.deadline)}
               </p>
             )}
@@ -257,7 +257,7 @@ export default function PaperUploadPage() {
           </div>
 
           {warnings.length > 0 && (
-            <ul className="mx-5 mt-4 list-disc rounded-xl bg-amber-50 py-3 pl-8 pr-4 text-sm text-amber-800">
+            <ul className="mx-5 mt-4 list-disc rounded-xl bg-orange-50 py-3 pl-8 pr-4 text-sm text-orange-800">
               {warnings.map((w) => <li key={w}>{w}</li>)}
             </ul>
           )}

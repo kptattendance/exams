@@ -8,7 +8,7 @@ import axios from "axios";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const STATUS = {
-  ASSIGNED: ["Upload pending", "bg-amber-50 text-amber-700"],
+  ASSIGNED: ["Upload pending", "bg-orange-50 text-orange-700"],
   UPLOADED: ["Draft – not submitted", "bg-blue-50 text-blue-700"],
   RETURNED: ["Returned – correction needed", "bg-orange-50 text-orange-700"],
   SUBMITTED: ["Submitted", "bg-emerald-50 text-emerald-700"],
