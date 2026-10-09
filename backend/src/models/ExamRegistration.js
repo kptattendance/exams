@@ -95,6 +95,13 @@ const examRegistrationSchema = new mongoose.Schema(
     // BLOCKED   – no subject permitted
     // PENDING   – waiting for IA/attendance
     overall: { type: String, enum: ["ALL_CLEAR", "PARTIAL", "BLOCKED", "PENDING"], default: "PENDING", index: true },
+
+    // Fee verification by the office
+    //   PAID    – regular fee and every back paper paid
+    //   PARTIAL – something still unpaid
+    //   UNPAID  – nothing paid yet
+    //   NONE    – nothing to pay
+    feeStatus: { type: String, enum: ["PAID", "PARTIAL", "UNPAID", "NONE"], default: "UNPAID", index: true },
   },
   { timestamps: true }
 );

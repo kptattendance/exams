@@ -129,3 +129,29 @@ test("refresh keeps overrides, fee ticks and manual subjects", () => {
   assert.deepEqual(merged.map((s) => s.subject), ["a", "m"]);
   assert.equal(merged[0].effective, "ELIGIBLE");
 });
+
+import { feeItems, feeSummary, subjectFeePaid, parsePays } from "../src/services/exams/rules.js";
+
+test("fees: regular block + one item per back paper", () => {
+  const reg = {
+    regularFee: { paid: true, receiptNo: "4521" },
+    subjects: [
+      { subject: "r1", code: "R1", kind: "REGULAR" },
+      { subject: "e1", code: "E1", kind: "ELECTIVE" },
+      { subject: "b1", code: "B1", kind: "BACKLOG", fee: { paid: false } },
+    ],
+  };
+  assert.deepEqual(feeItems(reg).map((i) => i.key), ["REGULAR", "b1"]);
+  assert.deepEqual(feeSummary(reg), { status: "PARTIAL", total: 2, paid: 1 });
+  assert.equal(subjectFeePaid(reg, reg.subjects[0]), true);
+  assert.equal(subjectFeePaid(reg, reg.subjects[2]), false);
+  // back-paper-only student has no regular fee
+  assert.deepEqual(feeSummary({ subjects: [{ subject: "b", kind: "BACKLOG", fee: { paid: true } }] }), { status: "PAID", total: 1, paid: 1 });
+  assert.equal(feeSummary({ subjects: [] }).status, "NONE");
+});
+
+test("fees: office Excel 'pays' column", () => {
+  assert.deepEqual(parsePays(""), { all: true, regular: true, codes: [] });
+  assert.deepEqual(parsePays("regular"), { all: false, regular: true, codes: [] });
+  assert.deepEqual(parsePays("25sc11t0, Regular"), { all: false, regular: true, codes: ["25SC11T0"] });
+});

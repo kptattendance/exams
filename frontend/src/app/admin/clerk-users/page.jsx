@@ -314,6 +314,8 @@ const filteredUsers = users.filter((user) => {
 
   <option value="exam_officer">Exam Officer</option>
 
+  <option value="office">Office</option>
+
   <option value="hod">HOD</option>
 
   <option value="staff">Staff</option>

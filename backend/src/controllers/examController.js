@@ -42,6 +42,7 @@ import {
   hasPracticalExam,
   examGroupKey,
   isIncomplete,
+  feeSummary,
 } from "../services/exams/rules.js";
 
 const DEPARTMENTS = ["at", "ch", "ce", "cs", "ec", "ee", "me", "ps"];
@@ -206,7 +207,7 @@ export const getExam = async (req, res) => {
   const exam = await Exam.findById(req.params.id).lean();
   if (!exam) return fail(res, 404, "Exam not found.");
 
-  const [classStats, issueStats, readiness, unmappedBridge] = await Promise.all([
+  const [classStats, issueStats, readiness, unmappedBridge, feeStats] = await Promise.all([
     ExamRegistration.aggregate([
       { $match: { exam: exam._id } },
       {
@@ -226,6 +227,10 @@ export const getExam = async (req, res) => {
       .select("code name department semester")
       .sort({ department: 1, semester: 1, code: 1 })
       .lean(),
+    ExamRegistration.aggregate([
+      { $match: { exam: exam._id } },
+      { $group: { _id: { $ifNull: ["$feeStatus", "UNPAID"] }, n: { $sum: 1 } } },
+    ]),
   ]);
 
   const classes = {};
@@ -260,6 +265,7 @@ export const getExam = async (req, res) => {
       },
       readiness,
       unmappedBridge,
+      feeCounts: Object.fromEntries(["PAID", "PARTIAL", "UNPAID", "NONE"].map((k) => [k, feeStats.find((f) => f._id === k)?.n || 0])),
     }),
   });
 };
@@ -496,10 +502,11 @@ async function saveRegistrations(exam, docs, existingByStudent) {
     const prev = existingByStudent.get(String(student));
     const merged = mergeSubjects(subjects, prev?.subjects || []).map((s) => ({ ...s, effective: effectiveOf(s) }));
     const { counts, overall } = summarize(merged, { incomplete: isIncomplete(warnings) });
+    const feeStatus = feeSummary({ subjects: merged, regularFee: prev?.regularFee }).status;
     return {
       updateOne: {
         filter: { exam: exam._id, student },
-        update: { $set: { ...fields, subjects: merged, warnings, counts, overall } },
+        update: { $set: { ...fields, subjects: merged, warnings, counts, overall, feeStatus } },
         upsert: true,
       },
     };
@@ -618,6 +625,7 @@ function regListView(r) {
     group: r.group,
     counts: r.counts,
     overall: r.overall,
+    feeStatus: r.feeStatus,
     warnings: r.warnings,
     subjects: (r.subjects || []).map((s) => ({
       subject: s.subject,
@@ -677,11 +685,12 @@ async function loadReg(req, res) {
   return reg;
 }
 
-function recount(reg) {
+export function recount(reg) {
   for (const s of reg.subjects) s.effective = effectiveOf(s);
   const { counts, overall } = summarize(reg.subjects, { incomplete: isIncomplete(reg.warnings) });
   reg.counts = counts;
   reg.overall = overall;
+  reg.feeStatus = feeSummary(reg).status;
   reg.markModified("subjects");
 }
 

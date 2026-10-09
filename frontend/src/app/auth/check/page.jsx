@@ -82,6 +82,10 @@ case "exam_officer":
     router.replace("/exam-officer");
     break;
 
+  case "office":
+    router.replace("/office");
+    break;
+
   case "staff":
     router.replace("/faculty");
     break;

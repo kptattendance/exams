@@ -37,6 +37,7 @@ const userSchema = new mongoose.Schema(
         "principal",
         "coe",
         "exam_officer",
+        "office",
         "hod",
         "staff",
         "student",

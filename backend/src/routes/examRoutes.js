@@ -1,4 +1,5 @@
 import express from "express";
+import multer from "multer";
 
 import { authenticateUser } from "../middlewares/authMiddleware.js";
 import { requireRole } from "../middlewares/requireRole.js";
@@ -18,12 +19,24 @@ import {
   listBridgeCourses,
   saveBridgeCourses,
 } from "../controllers/examController.js";
+import { listFees, recordFee, feeTemplate, importFees, exportFees } from "../controllers/feeController.js";
 
 const router = express.Router();
 
 // COE and Admin run exams; Exam Officer and Principal can look
 const MANAGE = requireRole("coe", "admin");
-const VIEW = requireRole("coe", "admin", "exam_officer", "principal");
+const VIEW = requireRole("coe", "admin", "exam_officer", "principal", "office");
+// Fee verification: office staff, COE, Admin
+const FEES = requireRole("office", "coe", "admin");
+
+const excel = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 4 * 1024 * 1024, files: 1 },
+  fileFilter: (req, file, cb) =>
+    /\.(xlsx|xls|csv)$/i.test(file.originalname)
+      ? cb(null, true)
+      : cb(Object.assign(new Error("Upload the Excel file (.xlsx, .xls or .csv)."), { status: 400 })),
+}).single("file");
 
 router.use(authenticateUser);
 
@@ -45,5 +58,12 @@ router.post("/:id/registrations/:regId/override", MANAGE, overrideSubject);
 router.delete("/:id/registrations/:regId/subjects/:subjectId", MANAGE, removeManualSubject);
 router.post("/:id/back-papers", MANAGE, addBackPapers);
 router.get("/:id/export", VIEW, exportRegistrations);
+
+// Fee verification
+router.get("/:id/fees", VIEW, listFees);
+router.get("/:id/fees/template", FEES, feeTemplate);
+router.get("/:id/fees/export", VIEW, exportFees);
+router.post("/:id/fees/import", FEES, excel, importFees);
+router.post("/:id/registrations/:regId/fee", FEES, recordFee);
 
 export default router;

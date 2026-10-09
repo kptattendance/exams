@@ -266,3 +266,55 @@ export function mergeSubjects(fresh, existing = []) {
 export const isIncomplete = (warnings = []) => warnings.some((w) => w.startsWith("Elective not chosen"));
 
 export const examGroupKey = (department, semester) => `${department}-${semester}`;
+
+// ------------------------------------------------------------------ fees
+//
+// A student pays one regular fee for his current-semester subjects, and a
+// separate fee for every back paper.
+//   items  : what he must pay for (regular block + each back paper)
+//   status : PAID | PARTIAL | UNPAID | NONE (nothing to pay)
+export function feeItems(reg) {
+  const items = [];
+  const subjects = reg.subjects || [];
+  if (subjects.some((s) => s.kind !== "BACKLOG")) {
+    items.push({ type: "REGULAR", key: "REGULAR", label: "Regular fee", paid: Boolean(reg.regularFee?.paid), fee: reg.regularFee || {} });
+  }
+  for (const s of subjects) {
+    if (s.kind !== "BACKLOG") continue;
+    items.push({
+      type: "SUBJECT",
+      key: String(s.subject),
+      subject: s.subject,
+      code: s.code,
+      label: `Back paper ${s.code}`,
+      paid: Boolean(s.fee?.paid),
+      fee: s.fee || {},
+    });
+  }
+  return items;
+}
+
+export function feeSummary(reg) {
+  const items = feeItems(reg);
+  const paid = items.filter((i) => i.paid).length;
+  const status = !items.length ? "NONE" : paid === items.length ? "PAID" : paid === 0 ? "UNPAID" : "PARTIAL";
+  return { status, total: items.length, paid };
+}
+
+// Hall-ticket rule: may the student write this subject?
+//   eligible (IA/attendance/override) AND the fee for it is paid
+export function subjectFeePaid(reg, s) {
+  return s.kind === "BACKLOG" ? Boolean(s.fee?.paid) : Boolean(reg.regularFee?.paid);
+}
+
+// Office Excel: "ALL", "REGULAR", or subject codes "25SC11T0, 25CS11T0"
+export function parsePays(value) {
+  const v = String(value ?? "").trim().toUpperCase();
+  if (!v || v === "ALL") return { all: true, regular: true, codes: [] };
+  const parts = v.split(/[\s,;/]+/).filter(Boolean);
+  return {
+    all: false,
+    regular: parts.includes("REGULAR") || parts.includes("REG"),
+    codes: parts.filter((p) => p !== "REGULAR" && p !== "REG"),
+  };
+}

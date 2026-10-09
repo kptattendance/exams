@@ -52,6 +52,7 @@ export const MENUS = {
         title: "Examination",
         items: [
           { label: "Examinations", href: "/coe/exams", icon: "paper", pinned: true },
+          { label: "Fee verification", href: "/coe/fees", icon: "money" },
           { label: "Register numbers", href: "/coe/register-numbers", icon: "register" },
           { label: "Paper setting", href: "/coe/paper-setting", icon: "lock", pinned: true },
           { label: "Time table", href: "/coe/timetable", icon: "calendar", soon: true },
@@ -138,7 +139,7 @@ export const MENUS = {
         title: "Student eligibility",
         items: [
           { label: "Attendance shortage", href: "/exam-officer/attendance-shortage", icon: "attendance", soon: true },
-          { label: "Fee defaulters", href: "/exam-officer/fee-defaulters", icon: "money", soon: true },
+          { label: "Fee status", href: "/exam-officer/fees", icon: "money" },
           { label: "Candidate list", href: "/exam-officer/candidates", icon: "list", soon: true },
         ],
       },
@@ -168,6 +169,17 @@ export const MENUS = {
           { label: "Fee defaulter report", href: "/exam-officer/reports/fees", icon: "money", soon: true },
           { label: "Candidate reports", href: "/exam-officer/reports/candidates", icon: "report", soon: true },
         ],
+      },
+    ],
+  },
+
+  office: {
+    role: "Office",
+    home: "/office",
+    sections: [
+      {
+        title: "Examination",
+        items: [{ label: "Fee verification", href: "/office", icon: "money", pinned: true }],
       },
     ],
   },

@@ -108,6 +108,7 @@ const ALL_ROLES = [
   "principal",
   "coe",
   "exam_officer",
+  "office", // office staff: exam fee verification
   "hod",
   "staff",
   "student",
@@ -153,6 +154,7 @@ const rolePermissions = {
     "principal",
     "coe",
     "exam_officer",
+    "office",
     "hod",
     "staff",
     "student",
@@ -160,6 +162,7 @@ const rolePermissions = {
 
   principal: [
     "exam_officer",
+    "office",
     "hod",
     "staff",
     "student",
@@ -167,6 +170,7 @@ const rolePermissions = {
 
   coe: [
     "exam_officer",
+    "office",
     "hod",
     "staff",
     "student",
@@ -182,6 +186,8 @@ const rolePermissions = {
     "staff",
     "student",
   ],
+
+  office: [],
 
   staff: [],
 

@@ -26,7 +26,7 @@ import {
 
 const PAGE_SIZE = 40;
 
-export default function ExamDetail({ id, basePath, canManage = false, bridgeHref }) {
+export default function ExamDetail({ id, basePath, canManage = false, bridgeHref, feesHref }) {
   const api = useApi();
   const toast = useToast();
   const confirm = useConfirm();
@@ -308,6 +308,18 @@ export default function ExamDetail({ id, basePath, canManage = false, bridgeHref
             </button>{" "}
             · {exam.subjectCounts.PENDING} waiting
           </p>
+          {exam.feeCounts && (
+            <p className="mt-1 text-sm text-slate-500">
+              Fees: <b className="text-emerald-700">{exam.feeCounts.PAID}</b> fully paid ·{" "}
+              <b className="text-orange-700">{exam.feeCounts.PARTIAL}</b> partly paid ·{" "}
+              <b className="text-red-700">{exam.feeCounts.UNPAID}</b> not paid
+              {feesHref && (
+                <Link href={feesHref} className="ml-2 font-semibold text-blue-700 hover:underline">
+                  Open fee verification →
+                </Link>
+              )}
+            </p>
+          )}
 
           {/* ------------------------------------------------ classes */}
           <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
