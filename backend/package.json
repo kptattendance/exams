@@ -3,9 +3,11 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "scripts": {
+   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "dev": "nodemon src/server.js",
+    "drive:token": "node scripts/getDriveToken.js",
+    "test": "node --test test/*.test.js"
   },
   "keywords": [],
   "author": "",
@@ -16,14 +18,19 @@
   },
   "dependencies": {
     "@clerk/express": "^2.1.66",
+    "@googleapis/drive": "^26.0.2",
     "axios": "^1.20.0",
     "cloudinary": "^2.11.0",
     "cors": "^2.8.6",
     "csv-parse": "^7.0.2",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.7.1",
+    "mammoth": "^1.13.0",
     "mongoose": "^9.9.5",
     "multer": "^2.4.0",
+    "nodemailer": "^10.0.16",
+    "sanitize-html": "^2.18.0",
     "xlsx": "^0.18.5"
   }
 }

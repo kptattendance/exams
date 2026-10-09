@@ -9,6 +9,7 @@ import subjectRoutes from "./routes/subjectRoutes.js";
 import studentRoutes from "./routes/studentRoutes.js";
 import finalIARoutes from "./routes/finalIARoutes.js";
 import finalAttendanceRoutes from "./routes/finalAttendanceRoutes.js";
+import paperSettingRoutes from "./routes/paperSettingRoutes.js";
 
 
 
@@ -16,6 +17,9 @@ import connectDB from "./config/db.js";
 dotenv.config();
 
 const app = express();
+
+// Correct client IPs behind Vercel / Nginx (used by audit log + rate limit)
+app.set("trust proxy", 1);
 
 const allowedOrigins = [
   "http://localhost:3000",
@@ -77,6 +81,7 @@ app.use(
   "/api/final-attendance",
   finalAttendanceRoutes
 );
+app.use("/api/paper-setting", paperSettingRoutes);
 
 
 
