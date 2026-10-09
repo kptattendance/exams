@@ -165,6 +165,11 @@ const finalAttendanceSchema =
         type: Date,
         default: null,
       },
+
+    // Set when the Exam Officer sends the sheet back to the HOD
+    returnedReason: { type: String, default: "" },
+    returnedAt: { type: Date, default: null },
+    returnedBy: { type: String, default: "" },
     },
     {
       timestamps: true,

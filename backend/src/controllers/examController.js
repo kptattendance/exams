@@ -284,10 +284,27 @@ async function readinessFor(exam) {
     // the least-ready sheet decides (a class can have more than one batch)
     return docs.map((x) => x.status).sort((a, b) => order.indexOf(a) - order.indexOf(b))[0];
   };
+  // sheets the HOD saved under a different academic year (a common mistake)
+  const other = { semester: { $in: exam.semesters }, academicYear: { $ne: exam.academicYear } };
+  const [iaOther, attOther] = await Promise.all([
+    FinalIA.find(other).select("department semester academicYear").lean(),
+    FinalAttendance.find(other).select("department semester academicYear").lean(),
+  ]);
+  const otherYear = (list, d, s) => [...new Set(list.filter((x) => x.department === d && x.semester === s).map((x) => x.academicYear))];
+
   const out = [];
   for (const semester of exam.semesters) {
     for (const department of DEPARTMENTS) {
-      out.push({ department, semester, ia: pick(ia, department, semester), attendance: pick(att, department, semester) });
+      const iaState = pick(ia, department, semester);
+      const attState = pick(att, department, semester);
+      out.push({
+        department,
+        semester,
+        ia: iaState,
+        attendance: attState,
+        iaOtherYears: iaState === "missing" ? otherYear(iaOther, department, semester) : [],
+        attendanceOtherYears: attState === "missing" ? otherYear(attOther, department, semester) : [],
+      });
     }
   }
   return out;

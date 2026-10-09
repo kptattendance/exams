@@ -13,6 +13,7 @@ import paperSettingRoutes from "./routes/paperSettingRoutes.js";
 import studentImportRoutes from "./routes/studentImportRoutes.js";
 import examRoutes from "./routes/examRoutes.js";
 import electiveRoutes from "./routes/electiveRoutes.js";
+import sheetReviewRoutes from "./routes/sheetReviewRoutes.js";
 
 
 
@@ -100,6 +101,7 @@ app.use("/api/paper-setting", paperSettingRoutes);
 app.use("/api/student-import", studentImportRoutes);
 app.use("/api/exams", examRoutes);
 app.use("/api/electives", electiveRoutes);
+app.use("/api/sheet-review", sheetReviewRoutes);
 
 
 

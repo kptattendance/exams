@@ -249,6 +249,24 @@ export default function ExamDetail({ id, basePath, canManage = false, bridgeHref
             )}
           </Banner>
         )}
+        {exam.readiness.some((r) => r.iaOtherYears?.length || r.attendanceOtherYears?.length) && (
+          <Banner tone="amber" icon="alert" title="Some HOD sheets were saved under a different academic year">
+            {exam.readiness
+              .filter((r) => r.iaOtherYears?.length || r.attendanceOtherYears?.length)
+              .map(
+                (r) =>
+                  `${r.department.toUpperCase()} sem ${r.semester}: ${[
+                    r.iaOtherYears?.length ? `IA in ${r.iaOtherYears.join(", ")}` : "",
+                    r.attendanceOtherYears?.length ? `attendance in ${r.attendanceOtherYears.join(", ")}` : "",
+                  ]
+                    .filter(Boolean)
+                    .join(", ")}`
+              )
+              .join(" · ")}
+            . This exam uses {exam.academicYear}: the HOD should open the sheet with academic year {exam.academicYear}, or edit this
+            exam’s academic year if that is wrong.
+          </Banner>
+        )}
         {registered && relevantNotReady.length > 0 && (
           <Banner tone="blue" icon="list" title={`IA or attendance not frozen yet for ${relevantNotReady.length} classes`}>
             Students of those classes show as “Waiting”. Once the Exam Officer freezes them, click Refresh registration.

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { useAuth } from "@clerk/nextjs";
+import { batchFor, currentAcademicYear } from "../../components/academicYear";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -21,7 +22,7 @@ export default function AttendancePage() {
   // ============================================================
 
   const [academicYear, setAcademicYear] =
-    useState("2025-26");
+    useState(currentAcademicYear);
 
   const [semester, setSemester] =
     useState("");
@@ -57,6 +58,9 @@ export default function AttendancePage() {
 
   const [status, setStatus] =
     useState("draft");
+
+  // Note from the Exam Officer when a sheet is sent back
+  const [returnedReason, setReturnedReason] = useState("");
 
   const [message, setMessage] =
     useState("");
@@ -222,6 +226,10 @@ export default function AttendancePage() {
       setStatus(
         data.status || "draft"
       );
+
+      setReturnedReason(
+        data.returnedReason || ""
+      );
     } catch (err) {
       console.error(
         "Attendance Load Error:",
@@ -246,6 +254,7 @@ export default function AttendancePage() {
   // ============================================================
 
   const clearTable = () => {
+    setReturnedReason("");
     setSubjects([]);
     setStudents([]);
     setStatus("draft");
@@ -1437,6 +1446,13 @@ export default function AttendancePage() {
           </p>
         </div>
 
+        {returnedReason && status === "draft" && (
+          <div className="mb-3 w-full rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-900">
+            <b>Sent back by the Exam Officer:</b> {returnedReason}
+            <span className="block text-xs text-orange-700">Correct the sheet and click Submit again.</span>
+          </div>
+        )}
+
         <div>
           {status === "draft" && (
             <span className="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-700">
@@ -1480,6 +1496,7 @@ export default function AttendancePage() {
                 setAcademicYear(
                   e.target.value
                 );
+                if (semester) setBatch(batchFor(e.target.value, semester));
 
                 clearTable();
               }}
@@ -1513,7 +1530,8 @@ export default function AttendancePage() {
                   e.target.value
                 );
 
-                setBatch("");
+                // batch follows from academic year + semester (can still be changed)
+                setBatch(batchFor(academicYear, e.target.value));
 
                 clearTable();
               }}

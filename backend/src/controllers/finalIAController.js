@@ -306,6 +306,12 @@ const responseStudents = students.map(
         confirmedAt:
           existing?.confirmedAt ||
           null,
+
+        // Exam Officer's note when the sheet was sent back
+        returnedReason:
+          existing?.status === "draft"
+            ? existing?.returnedReason || ""
+            : "",
       },
     });
 
