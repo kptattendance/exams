@@ -77,8 +77,8 @@ export default function SubjectsPage() {
         }
       );
 
-      setSubjects(response.data?.data || []);
-      setSelectedSubjects([]);
+      setSubjects(response.data?.subjects || []);
+            setSelectedSubjects([]);
     } catch (error) {
       console.error("Failed to fetch subjects:", error);
 
