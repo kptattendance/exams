@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { SignInButton, UserButton, useAuth } from "@clerk/nextjs";
 import { usePathname } from "next/navigation";
@@ -7,7 +8,12 @@ import { usePathname } from "next/navigation";
 export default function FacultyLayout({ children }) {
   const { isLoaded, isSignedIn } = useAuth();
   const pathname = usePathname();
+  const [slow, setSlow] = useState(false);
 
+  useEffect(() => {
+    const t = setTimeout(() => setSlow(true), 10000);
+    return () => clearTimeout(t);
+  }, []);
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
@@ -21,10 +27,22 @@ export default function FacultyLayout({ children }) {
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-6">
-        {!isLoaded ? (
-          <div className="flex min-h-60 items-center justify-center">
+             {!isLoaded ? (
+          <div className="flex min-h-60 flex-col items-center justify-center gap-3 text-center">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-slate-900" />
+            {slow && (
+              <p className="max-w-sm text-sm text-slate-500">
+                This is taking longer than usual. Please{" "}
+                <button onClick={() => location.reload()} className="font-semibold text-blue-600 underline">
+                  reload the page
+                </button>
+                . If it still doesn't load, try another browser or turn off ad-blockers.
+              </p>
+            )}
           </div>
+
+
+
         ) : !isSignedIn ? (
           // People arrive here from the email link: sign in, then come back to the same page
           <div className="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
