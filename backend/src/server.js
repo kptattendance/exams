@@ -57,6 +57,18 @@ app.use(
 
 app.use(clerkMiddleware());
 
+// Make sure MongoDB is connected before any API route runs.
+// If it is not reachable, reply with a clear error instead of crashing.
+app.use("/api", async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    res.status(503).json({ error: "Database is not reachable. Please try again in a moment." });
+  }
+});
+
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -85,12 +97,15 @@ app.use("/api/paper-setting", paperSettingRoutes);
 
 
 
-connectDB().then(() => {
-  if (process.env.NODE_ENV !== "production") {
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running at http://localhost:${PORT}`);
+// Local development only (Vercel does not use app.listen)
+if (process.env.NODE_ENV !== "production") {
+  connectDB()
+    .catch(() => {})
+    .finally(() => {
+      app.listen(PORT, () => {
+        console.log(`🚀 Server running at http://localhost:${PORT}`);
+      });
     });
-  }
-});
+}
 
 export default app;
