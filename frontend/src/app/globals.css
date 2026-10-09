@@ -1,1 +1,9 @@
 @import "tailwindcss";
+
+/* Question paper preview (faculty paper-setting page) */
+.qp-preview table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+.qp-preview td, .qp-preview th { border: 1px solid #cbd5e1; padding: 4px 6px; vertical-align: top; }
+.qp-preview p { margin: 4px 0; }
+.qp-preview img { max-width: 100%; height: auto; }
+.qp-preview h1, .qp-preview h2, .qp-preview h3 { font-weight: 700; margin: 8px 0; }
+.qp-preview ol, .qp-preview ul { padding-left: 1.5rem; list-style: revert; }

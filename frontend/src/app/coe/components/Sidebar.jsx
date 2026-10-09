@@ -43,6 +43,11 @@ const menuSections = [
         href: "/coe/register-numbers",
         icon: "register",
       },
+      {
+        label: "Paper Setting",
+        href: "/coe/paper-setting",
+        icon: "exam",
+      },
     //   {
     //     label: "Examinations",
     //     href: "/coe/examinations",
