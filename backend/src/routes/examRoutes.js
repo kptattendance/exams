@@ -20,6 +20,7 @@ import {
   saveBridgeCourses,
 } from "../controllers/examController.js";
 import { listFees, recordFee, feeTemplate, importFees, exportFees } from "../controllers/feeController.js";
+import { getTimetable, saveTimetable, suggest, publishTimetable } from "../controllers/timetableController.js";
 
 const router = express.Router();
 
@@ -65,5 +66,11 @@ router.get("/:id/fees/template", FEES, feeTemplate);
 router.get("/:id/fees/export", VIEW, exportFees);
 router.post("/:id/fees/import", FEES, excel, importFees);
 router.post("/:id/registrations/:regId/fee", FEES, recordFee);
+
+// Timetable (written exams)
+router.get("/:id/timetable", VIEW, getTimetable);
+router.put("/:id/timetable", MANAGE, saveTimetable);
+router.post("/:id/timetable/suggest", MANAGE, suggest);
+router.post("/:id/timetable/publish", MANAGE, publishTimetable);
 
 export default router;

@@ -53,6 +53,31 @@ const examSchema = new mongoose.Schema(
       startedBy: { type: String, default: "" },
     },
 
+    // Written-exam timetable. One entry per subject code: every department
+    // writing that code sits the same paper at the same time.
+    timetable: {
+      sessions: {
+        FN: { start: { type: String, default: "10:00" }, end: { type: String, default: "13:00" } },
+        AN: { start: { type: String, default: "14:00" }, end: { type: String, default: "17:00" } },
+      },
+      entries: {
+        type: [
+          new mongoose.Schema(
+            {
+              code: { type: String, required: true },
+              date: { type: String, required: true }, // "2026-11-16"
+              session: { type: String, enum: ["FN", "AN"], required: true },
+            },
+            { _id: false }
+          ),
+        ],
+        default: [],
+      },
+      published: { type: Boolean, default: false },
+      publishedAt: { type: Date, default: null },
+      updatedBy: { type: String, default: "" },
+    },
+
     createdBy: { type: String, required: true },
     createdByEmail: { type: String, default: "" },
   },

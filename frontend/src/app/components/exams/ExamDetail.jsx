@@ -196,6 +196,12 @@ export default function ExamDetail({ id, basePath, canManage = false, bridgeHref
               Refresh registration
             </button>
           )}
+          {registered && canManage && (
+            <Link href={`${basePath}/${id}/timetable`} className={btn.secondary}>
+              <Icon name="calendar" className="h-4 w-4" />
+              Time table
+            </Link>
+          )}
           {canManage && (
             <button onClick={() => setAddingBack(true)} className={btn.secondary}>
               <Icon name="plus" className="h-4 w-4" />

@@ -1,21 +1,22 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
 
 const BASE = `${process.env.NEXT_PUBLIC_API_URL}/api`;
 
 // api("get", "/exams", undefined, { params: {...} })
+// The returned function never changes, so pages can safely list it in
+// useEffect dependencies without reloading in a loop.
 export function useApi() {
   const { getToken } = useAuth();
-  return useCallback(
-    async (method, path, data, extra = {}) => {
-      const token = await getToken();
-      return axios({ method, url: `${BASE}${path}`, data, headers: { Authorization: `Bearer ${token}` }, ...extra });
-    },
-    [getToken]
-  );
+  const tokenRef = useRef(getToken);
+  tokenRef.current = getToken;
+  return useCallback(async (method, path, data, extra = {}) => {
+    const token = await tokenRef.current();
+    return axios({ method, url: `${BASE}${path}`, data, headers: { Authorization: `Bearer ${token}` }, ...extra });
+  }, []);
 }
 
 export const errMsg = (e, fallback = "Something went wrong. Please try again.") =>
