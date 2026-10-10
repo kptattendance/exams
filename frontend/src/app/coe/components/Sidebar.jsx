@@ -82,7 +82,7 @@ const menuSections = [
       },
       {
         label: "Practical Exam Marks",
-        href: "/coe/pactical-exam-marks",
+        href: "/coe/practical-exam-marks",
         icon: "exam",
       },
       {

@@ -25,7 +25,10 @@ export const MENUS = {
       },
       {
         title: "Academics",
-        items: [{ label: "Subjects", href: "/admin/subjects", icon: "subjects", pinned: true }],
+        items: [
+          { label: "Subjects", href: "/admin/subjects", icon: "subjects", pinned: true },
+          { label: "Practical marks corrections", href: "/admin/practical-marks", icon: "marks" },
+        ],
       },
       {
         title: "Administration",
@@ -67,7 +70,7 @@ export const MENUS = {
         title: "Marks & results",
         items: [
           { label: "IA marks", href: "/coe/ia-marks", icon: "marks", soon: true },
-          { label: "Practical exam marks", href: "/coe/pactical-exam-marks", icon: "paper", soon: true },
+          { label: "Practical exam marks", href: "/coe/practical-exam-marks", icon: "paper" },
           { label: "Valuation", href: "/coe/valuation", icon: "valuation" },
           { label: "Marks entry", href: "/coe/marks-entry", icon: "marks" },
           { label: "Results", href: "/coe/results", icon: "results", soon: true },
@@ -110,6 +113,13 @@ export const MENUS = {
         items: [
           { label: "Final IA", href: "/hod/final-ia", icon: "marks", pinned: true },
           { label: "Final attendance", href: "/hod/attendance", icon: "attendance", pinned: true },
+        ],
+      },
+      {
+        title: "Practical exams",
+        items: [
+          { label: "Practical batches", href: "/hod/practical", icon: "layers" },
+          { label: "Practical marks entry", href: "/hod/practical-marks", icon: "marks" },
         ],
       },
       {
@@ -208,7 +218,10 @@ export const MENUS = {
     sections: [
       {
         title: "My work",
-        items: [{ label: "Paper setting", href: "/faculty", icon: "lock", pinned: true }],
+        items: [
+          { label: "Paper setting", href: "/faculty", icon: "lock", pinned: true },
+          { label: "Practical marks entry", href: "/faculty/practical", icon: "marks", pinned: true },
+        ],
       },
     ],
   },

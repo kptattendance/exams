@@ -61,6 +61,15 @@ const regSubjectSchema = new mongoose.Schema(
       marks: { type: Number, default: null }, // reduced to the subject's theory maximum
       decodedAt: { type: Date, default: null },
     },
+
+    // Practical exam result, filled when the two examiners submit their batch
+    practical: {
+      attendance: { type: String, enum: ["PRESENT", "ABSENT", "MALPRACTICE", null], default: null },
+      marks: { type: Number, default: null }, // out of the subject's practical maximum
+      max: { type: Number, default: null },
+      batch: { type: mongoose.Schema.Types.ObjectId, ref: "PracticalBatch", default: null },
+      submittedAt: { type: Date, default: null },
+    },
   },
   { _id: false }
 );

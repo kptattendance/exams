@@ -16,6 +16,7 @@ import electiveRoutes from "./routes/electiveRoutes.js";
 import sheetReviewRoutes from "./routes/sheetReviewRoutes.js";
 import settingsRoutes from "./routes/settingsRoutes.js";
 import marksEntryRoutes from "./routes/marksEntryRoutes.js";
+import practicalRoutes from "./routes/practicalRoutes.js";
 
 
 
@@ -106,6 +107,7 @@ app.use("/api/electives", electiveRoutes);
 app.use("/api/sheet-review", sheetReviewRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/marks-entry", marksEntryRoutes);
+app.use("/api/practicals", practicalRoutes);
 
 
 
