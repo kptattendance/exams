@@ -74,6 +74,32 @@ const regSubjectSchema = new mongoose.Schema(
   { _id: false }
 );
 
+// One subject of the processed result (see services/exams/results.js)
+const resultCourseSchema = new mongoose.Schema(
+  {
+    subject: { type: mongoose.Schema.Types.ObjectId, ref: "Subject" },
+    code: String,
+    name: String,
+    semester: Number,
+    kind: String,
+    credit: { type: Number, default: 0 },
+    cie: { type: Number, default: null },
+    cieMax: { type: Number, default: 0 },
+    theory: { type: Number, default: null },
+    theoryMax: { type: Number, default: 0 },
+    practical: { type: Number, default: null },
+    practicalMax: { type: Number, default: 0 },
+    total: { type: Number, default: null },
+    max: { type: Number, default: 0 },
+    status: String, // PASS | FAIL | ABSENT | NE | ANS | WITHHELD
+    grade: { type: String, default: "" },
+    points: { type: Number, default: 0 },
+    moderation: { type: Number, default: 0 }, // marks added – confidential
+    note: { type: String, default: "" },
+  },
+  { _id: false }
+);
+
 const examRegistrationSchema = new mongoose.Schema(
   {
     exam: { type: mongoose.Schema.Types.ObjectId, ref: "Exam", required: true, index: true },
@@ -119,6 +145,19 @@ const examRegistrationSchema = new mongoose.Schema(
     //   UNPAID  – nothing paid yet
     //   NONE    – nothing to pay
     feeStatus: { type: String, enum: ["PAID", "PARTIAL", "UNPAID", "NONE"], default: "UNPAID", index: true },
+
+    // Filled when the COE processes the results
+    result: {
+      courses: { type: [resultCourseSchema], default: [] },
+      sgpa: { type: Number, default: null },
+      cgpa: { type: Number, default: null },
+      credits: {
+        registered: { type: Number, default: 0 },
+        earned: { type: Number, default: 0 },
+      },
+      outcome: { type: String, enum: ["PASS", "FAIL", "WITHHELD", null], default: null },
+      processedAt: { type: Date, default: null },
+    },
   },
   { timestamps: true }
 );

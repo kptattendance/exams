@@ -39,6 +39,7 @@ import {
   paperMarks,
   updateValuationSettings,
 } from "../controllers/valuationController.js";
+import { readiness, listResults, processResults, publishResults } from "../controllers/resultController.js";
 
 const router = express.Router();
 
@@ -113,5 +114,11 @@ router.post("/:id/valuation/:code/second", MANAGE, sendSecondValuation);
 router.post("/:id/valuation/:code/third", MANAGE, createThirdValuation);
 router.post("/:id/valuation/:code/decode", SECRET, decodePaper);
 router.get("/:id/valuation/:code/marks", SECRET, paperMarks);
+
+// Results: marks with names and moderation are for COE / Admin only
+router.get("/:id/results/readiness", SECRET, readiness);
+router.get("/:id/results", SECRET, listResults);
+router.post("/:id/results/process", SECRET, processResults);
+router.post("/:id/results/publish", SECRET, publishResults);
 
 export default router;

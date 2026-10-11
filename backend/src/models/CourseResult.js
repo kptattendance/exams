@@ -21,9 +21,13 @@ const courseResultSchema = new mongoose.Schema(
 
     status: { type: String, enum: RESULT_STATUS, required: true },
     cie: { type: Number, default: null },
-    see: { type: Number, default: null },
+    see: { type: Number, default: null }, // theory paper
+    practical: { type: Number, default: null },
     total: { type: Number, default: null },
+    max: { type: Number, default: null },
     grade: { type: String, default: "" },
+    gradePoint: { type: Number, default: null },
+    credit: { type: Number, default: null },
 
     // When the result was declared; the latest one per subject counts
     declaredAt: { type: Date, default: Date.now },

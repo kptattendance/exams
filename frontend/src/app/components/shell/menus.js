@@ -73,7 +73,7 @@ export const MENUS = {
           { label: "Practical exam marks", href: "/coe/practical-exam-marks", icon: "paper" },
           { label: "Valuation", href: "/coe/valuation", icon: "valuation" },
           { label: "Marks entry", href: "/coe/marks-entry", icon: "marks" },
-          { label: "Results", href: "/coe/results", icon: "results", soon: true },
+          { label: "Results", href: "/coe/results", icon: "results" },
         ],
       },
       {

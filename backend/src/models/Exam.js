@@ -84,6 +84,15 @@ const examSchema = new mongoose.Schema(
       thirdValuationPercent: { type: Number, default: 15 }, // > this gap between 1st and 2nd → 3rd valuation
     },
 
+    // Results: processed (can be repeated) and then published once
+    results: {
+      moderationMarks: { type: Number, default: 0, min: 0, max: 5 }, // approved by the Academic Council
+      processedAt: { type: Date, default: null },
+      processedBy: { type: String, default: "" },
+      publishedAt: { type: Date, default: null },
+      publishedBy: { type: String, default: "" },
+    },
+
     createdBy: { type: String, required: true },
     createdByEmail: { type: String, default: "" },
   },
