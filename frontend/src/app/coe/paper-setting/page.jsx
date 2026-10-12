@@ -87,6 +87,7 @@ export default function PaperSettingPage() {
   const [returning, setReturning] = useState(null);
   const [extending, setExtending] = useState(null);
   const [auditFor, setAuditFor] = useState(null);
+  const [showSyllabus, setShowSyllabus] = useState(false);
   const [busyId, setBusyId] = useState(null);
 
   const flash = (msg) => toast.success(msg);
@@ -158,7 +159,10 @@ export default function PaperSettingPage() {
           <SmallBtn
             disabled={busy}
             onClick={() =>
-              act(p._id, () => api("post", `/paper-setting/${p._id}/send-email`), "Email sent.")
+              act(p._id, async () => {
+                const res = await api("post", `/paper-setting/${p._id}/send-email`);
+                flash(res.data?.syllabusAttached ? "Email sent with the syllabus." : `Email sent. No syllabus is uploaded for ${p.subject?.code}.`);
+              })
             }
           >
             {p.emailSentAt ? "Remind" : "Send email"}
@@ -212,12 +216,20 @@ export default function PaperSettingPage() {
             Assign examiners, track uploads and receive encrypted question papers.
           </p>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="inline-flex items-center gap-2 self-start rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
-        >
-          <span className="text-lg leading-none">+</span> New assignment
-        </button>
+        <div className="flex gap-2 self-start">
+          <button
+            onClick={() => setShowSyllabus(true)}
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+          >
+            Syllabus files
+          </button>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+          >
+            <span className="text-lg leading-none">+</span> New assignment
+          </button>
+        </div>
       </div>
 
       {/* STATS */}
@@ -392,8 +404,9 @@ export default function PaperSettingPage() {
           api={api}
           defaultSessionValue={session}
           onClose={() => setShowCreate(false)}
-          onCreated={(emailSent) => {
-            flash(emailSent ? "Assigned and email sent." : "Assigned. Email was NOT sent – use “Send email”.");
+          onCreated={(emailSent, syllabusAttached) => {
+            if (!emailSent) flash("Assigned. Email was NOT sent – use “Send email”.");
+            else flash(syllabusAttached ? "Assigned and email sent with the syllabus." : "Assigned and email sent. No syllabus is uploaded for this subject.");
             load();
           }}
         />
@@ -431,6 +444,8 @@ export default function PaperSettingPage() {
       )}
 
       {auditFor && <AuditModal api={api} paper={auditFor} onClose={() => setAuditFor(null)} />}
+
+      {showSyllabus && <SyllabusModal api={api} onClose={() => setShowSyllabus(false)} />}
 
 
     </div>
@@ -530,7 +545,7 @@ function CreateModal({ api, defaultSessionValue, onClose, onCreated }) {
         setNo: Number(form.setNo),
         deadline: new Date(form.deadline).toISOString(),
       });
-      onCreated(res.data?.emailSent);
+      onCreated(res.data?.emailSent, res.data?.syllabusAttached);
       if (keepOpen) {
         // quick entry of the next set for the same subject
         setForm((f) => ({ ...f, setNo: Number(f.setNo) + 1, examinerId: "" }));
@@ -650,6 +665,110 @@ function CreateModal({ api, defaultSessionValue, onClose, onCreated }) {
         <button disabled={saving} onClick={() => submit(false)} className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50">
           {saving ? "Saving…" : "Assign"}
         </button>
+      </div>
+    </Modal>
+  );
+}
+
+// Syllabus / scheme PDFs that go with the email. Named by subject code.
+function SyllabusModal({ api, onClose }) {
+  const toast = useToast();
+  const [files, setFiles] = useState(null);
+  const [progress, setProgress] = useState("");
+  const [failed, setFailed] = useState([]);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await api("get", "/paper-setting/syllabus");
+      setFiles(res.data?.data || []);
+    } catch {
+      setFiles([]);
+    }
+  }, [api]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  // One request per file, so each stays under the upload size limit
+  const upload = async (list) => {
+    const picked = [...list];
+    if (!picked.length) return;
+    const bad = [];
+    for (let i = 0; i < picked.length; i++) {
+      setProgress(`Uploading ${i + 1} of ${picked.length}…`);
+      const body = new FormData();
+      body.append("file", picked[i]);
+      try {
+        await api("post", "/paper-setting/syllabus", body);
+      } catch (e) {
+        bad.push(`${picked[i].name}: ${e.response?.data?.error || "upload failed"}`);
+      }
+    }
+    setProgress("");
+    setFailed(bad);
+    if (picked.length > bad.length) toast.success(`${picked.length - bad.length} file${picked.length - bad.length > 1 ? "s" : ""} uploaded.`);
+    load();
+  };
+
+  const remove = async (f) => {
+    try {
+      await api("delete", `/paper-setting/syllabus/${f._id}`);
+      load();
+    } catch (e) {
+      toast.error(e.response?.data?.error || "Could not remove the file.");
+    }
+  };
+
+  return (
+    <Modal title="Syllabus files" onClose={onClose} wide>
+      <p className="text-sm text-slate-600">
+        These PDFs are attached to the email of the subject. Name each file with the subject code first, e.g.{" "}
+        <b>25CS31T0.pdf</b> or <b>25CS31T0 scheme.pdf</b>. You can choose many files at once.
+      </p>
+      <label className="mt-4 flex cursor-pointer flex-col items-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 px-6 py-6 text-center hover:border-slate-300">
+        <span className="text-sm font-semibold text-slate-800">{progress || "Choose PDF files"}</span>
+        <span className="mt-1 text-xs text-slate-500">A file with the same name replaces the old one</span>
+        <input
+          type="file"
+          accept="application/pdf,.pdf"
+          multiple
+          disabled={Boolean(progress)}
+          className="hidden"
+          onChange={(e) => {
+            upload(e.target.files);
+            e.target.value = "";
+          }}
+        />
+      </label>
+
+      {failed.length > 0 && (
+        <ul className="mt-3 list-disc rounded-xl bg-red-50 py-3 pl-8 pr-4 text-sm text-red-700">
+          {failed.map((m) => (
+            <li key={m}>{m}</li>
+          ))}
+        </ul>
+      )}
+
+      <div className="mt-4">
+        {!files ? (
+          <p className="text-sm text-slate-500">Loading…</p>
+        ) : files.length === 0 ? (
+          <p className="text-sm text-slate-500">No syllabus uploaded yet.</p>
+        ) : (
+          <ul className="divide-y divide-slate-100 text-sm">
+            {files.map((f) => (
+              <li key={f._id} className="flex items-center gap-3 py-2">
+                <span className="w-24 shrink-0 font-semibold text-slate-900">{f.code}</span>
+                <span className="min-w-0 flex-1 truncate text-slate-600">{f.name}</span>
+                <span className="text-xs text-slate-400">{Math.ceil(f.size / 1024)} KB</span>
+                <SmallBtn tone="danger" onClick={() => remove(f)}>
+                  Remove
+                </SmallBtn>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </Modal>
   );

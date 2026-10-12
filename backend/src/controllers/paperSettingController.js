@@ -28,6 +28,7 @@ import {
   deleteEncrypted,
 } from "../services/driveStorage.js";
 import { sendPaperSettingEmail } from "../services/mailer.js";
+import { syllabusAttachments } from "./syllabusController.js";
 
 const isId = (id) => mongoose.Types.ObjectId.isValid(id);
 
@@ -116,38 +117,44 @@ export const createAssignment = async (req, res) => {
       examiner: examiner.email,
     });
 
-    let emailSent = false;
+    let mail = { sent: false, attached: 0 };
     if (sendEmail) {
-      emailSent = await trySendEmail(req, paper, subject, examiner, false);
+      mail = await trySendEmail(req, paper, subject, examiner, false);
     }
 
     const populated = await PaperSetting.findById(paper._id).populate(POPULATE);
-    res.status(201).json({ data: populated, emailSent });
+    res.status(201).json({ data: populated, emailSent: mail.sent, syllabusAttached: mail.attached });
   } catch (err) {
     handleError(res, err, "createAssignment");
   }
 };
 
+// -> { sent, attached }  attached = number of syllabus / scheme PDFs sent along
 async function trySendEmail(req, paper, subject, examiner, isReminder) {
   try {
+    const attachments = await syllabusAttachments(subject.code).catch(() => []);
     const sent = await sendPaperSettingEmail({
       to: examiner.email,
       name: examiner.name,
       subject,
       paper,
       isReminder,
+      attachments,
     });
     if (sent) {
       await PaperSetting.updateOne(
         { _id: paper._id },
         { $set: { emailSentAt: new Date() }, $inc: { emailCount: 1 } }
       );
-      await audit(req, isReminder ? "EMAIL_REMINDER_SENT" : "EMAIL_SENT", paper._id, { to: examiner.email });
+      await audit(req, isReminder ? "EMAIL_REMINDER_SENT" : "EMAIL_SENT", paper._id, {
+        to: examiner.email,
+        attached: attachments.map((a) => a.filename),
+      });
     }
-    return sent;
+    return { sent, attached: sent ? attachments.length : 0 };
   } catch (e) {
     console.error("Email failed:", e.message);
-    return false;
+    return { sent: false, attached: 0 };
   }
 }
 
@@ -184,9 +191,9 @@ export const resendEmail = async (req, res) => {
       Subject.findById(paper.subject).lean(),
       User.findById(paper.examiner).lean(),
     ]);
-    const sent = await trySendEmail(req, paper, subject, examiner, paper.emailCount > 0);
-    if (!sent) return fail(res, 502, "Email could not be sent. Check SMTP settings.");
-    res.json({ ok: true });
+    const mail = await trySendEmail(req, paper, subject, examiner, paper.emailCount > 0);
+    if (!mail.sent) return fail(res, 502, "Email could not be sent. Check SMTP settings.");
+    res.json({ ok: true, syllabusAttached: mail.attached });
   } catch (err) {
     handleError(res, err, "resendEmail");
   }

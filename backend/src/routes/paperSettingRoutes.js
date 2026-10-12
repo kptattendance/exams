@@ -21,6 +21,8 @@ import {
   submitMyPaper,
 } from "../controllers/paperSettingController.js";
 
+import { listSyllabus, addSyllabus, removeSyllabus, uploadPdf } from "../controllers/syllabusController.js";
+
 const router = express.Router();
 
 // Who can manage assignments (create, email, return, cancel)
@@ -40,6 +42,10 @@ router.post("/my/:id/submit", submitMyPaper);
 
 // ---------------- COE / Exam officer ----------------
 router.get("/examiners", requireRole(...MANAGERS), listExaminers);
+// Syllabus / scheme PDFs sent with the email (before "/:id")
+router.get("/syllabus", requireRole(...MANAGERS), listSyllabus);
+router.post("/syllabus", requireRole(...MANAGERS), uploadPdf, addSyllabus);
+router.delete("/syllabus/:id", requireRole(...MANAGERS), removeSyllabus);
 router.get("/", requireRole(...MANAGERS), listAssignments);
 router.post("/", requireRole(...MANAGERS), createAssignment);
 router.patch("/:id", requireRole(...MANAGERS), updateAssignment);

@@ -1,7 +1,8 @@
 // src/services/mailer.js
 //
 // Sends the "please set the question paper" email.
-// The email contains ONLY a link to the website. The link by itself gives
+// The email contains a link to the website and, when the COE has uploaded
+// them, the syllabus / scheme PDFs of the subject. The link by itself gives
 // no access: the faculty must sign in with Clerk, and the server checks that
 // the signed-in user is the examiner assigned to that paper.
 //
@@ -36,7 +37,7 @@ const esc = (s) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
   );
 
-export async function sendPaperSettingEmail({ to, name, subject, paper, isReminder }) {
+export async function sendPaperSettingEmail({ to, name, subject, paper, isReminder, attachments = [] }) {
   const t = getTransporter();
   if (!t) {
     console.warn("SMTP not configured: paper-setting email not sent to", to);
@@ -66,6 +67,12 @@ export async function sendPaperSettingEmail({ to, name, subject, paper, isRemind
     </p>
     <p><b>Last date for submission:</b> ${esc(deadline)}</p>
     ${paper.instructions ? `<p><b>Instructions:</b><br/>${esc(paper.instructions).replace(/\n/g, "<br/>")}</p>` : ""}
+    ${
+      attachments.length
+        ? `<p>We have attached the syllabus of this subject and the scheme of setting the question paper
+           (${attachments.map((a) => esc(a.filename)).join(", ")}). Please set the paper as per these.</p>`
+        : ""
+    }
     <p style="margin:24px 0">
       <a href="${link}" style="background:#2563eb;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none">
         Sign in and upload the paper
@@ -84,6 +91,7 @@ export async function sendPaperSettingEmail({ to, name, subject, paper, isRemind
     to,
     subject: `${title} – ${subject.code}`,
     html,
+    attachments,
   });
   return true;
 }
