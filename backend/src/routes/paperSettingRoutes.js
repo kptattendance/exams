@@ -12,6 +12,7 @@ import {
   updateAssignment,
   returnForCorrection,
   cancelAssignment,
+  deleteAssignment,
   downloadPaper,
   getAuditTrail,
   myAssignments,
@@ -52,6 +53,7 @@ router.patch("/:id", requireRole(...MANAGERS), updateAssignment);
 router.post("/:id/send-email", requireRole(...MANAGERS), resendEmail);
 router.post("/:id/return", requireRole(...CONTENT_READERS), returnForCorrection);
 router.post("/:id/cancel", requireRole(...MANAGERS), cancelAssignment);
+router.delete("/:id", requireRole(...MANAGERS), deleteAssignment);
 router.get("/:id/download", requireRole(...CONTENT_READERS), downloadPaper);
 router.get("/:id/audit", requireRole(...CONTENT_READERS), getAuditTrail);
 

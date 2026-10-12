@@ -97,6 +97,13 @@ export const createAssignment = async (req, res) => {
     if (!subject) return fail(res, 404, "Subject not found.");
     if (!examiner) return fail(res, 404, "Examiner not found.");
 
+    // A cancelled assignment must not block the same set from being given again
+    const slot = { subject: subject._id, examSession: examSession.trim().toUpperCase(), paperType, setNo: Number(setNo) || 1 };
+    for (const old of await PaperSetting.find({ ...slot, status: "CANCELLED" })) {
+      await removePaper(old);
+      await audit(req, "CANCELLED_REPLACED", old._id, { subject: subject.code, setNo: old.setNo });
+    }
+
     const paper = await PaperSetting.create({
       subject: subject._id,
       examSession: examSession.trim(),
@@ -258,6 +265,29 @@ export const returnForCorrection = async (req, res) => {
     res.json({ data: paper });
   } catch (err) {
     handleError(res, err, "returnForCorrection");
+  }
+};
+
+// Deletes the record and its encrypted files in Drive
+async function removePaper(paper) {
+  for (const f of [paper.currentFile, ...(paper.fileHistory || [])]) {
+    if (f?.driveFileId) await deleteEncrypted(f.driveFileId);
+  }
+  await PaperSetting.deleteOne({ _id: paper._id });
+}
+
+// DELETE /api/paper-setting/:id   (cancelled assignments only)
+export const deleteAssignment = async (req, res) => {
+  try {
+    if (!isId(req.params.id)) return fail(res, 400, "Invalid id.");
+    const paper = await PaperSetting.findById(req.params.id).populate("subject", "code");
+    if (!paper) return fail(res, 404, "Not found.");
+    if (paper.status !== "CANCELLED") return fail(res, 400, "Cancel the assignment first. Only cancelled assignments can be deleted.");
+    await removePaper(paper);
+    await audit(req, "PAPER_DELETED", paper._id, { subject: paper.subject?.code, examSession: paper.examSession, setNo: paper.setNo });
+    res.json({ ok: true });
+  } catch (err) {
+    handleError(res, err, "deleteAssignment");
   }
 };
 

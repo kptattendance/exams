@@ -203,6 +203,23 @@ export default function PaperSettingPage() {
           Cancel
         </SmallBtn>
       )}
+      {p.status === "CANCELLED" && (
+        <SmallBtn
+          tone="danger"
+          disabled={busy}
+          onClick={async () => {
+            const ok = await confirmDialog({
+              title: "Delete this cancelled assignment?",
+              message: `${p.subject?.code} – Set ${p.setNo} (${p.examiner?.name}). Any file uploaded for it is deleted too. This cannot be undone.`,
+              confirmText: "Delete",
+              tone: "danger",
+            });
+            if (ok) act(p._id, () => api("delete", `/paper-setting/${p._id}`), "Assignment deleted.");
+          }}
+        >
+          Delete
+        </SmallBtn>
+      )}
     </div>
   );
 
