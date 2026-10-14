@@ -62,6 +62,7 @@ export const MENUS = {
           { label: "Fee verification", href: "/coe/fees", icon: "money" },
           { label: "Register numbers", href: "/coe/register-numbers", icon: "register" },
           { label: "Paper setting", href: "/coe/paper-setting", icon: "lock", pinned: true },
+          { label: "Paper setter orders", href: "/coe/paper-orders", icon: "report" },
           { label: "Time table", href: "/coe/timetable", icon: "calendar" },
           { label: "Hall tickets", href: "/coe/hall-tickets", icon: "ticket" },
         ],
@@ -196,7 +197,10 @@ export const MENUS = {
     sections: [
       {
         title: "Examination",
-        items: [{ label: "Fee verification", href: "/office", icon: "money", pinned: true }],
+        items: [
+          { label: "Fee verification", href: "/office", icon: "money", pinned: true },
+          { label: "Paper setter orders", href: "/office/paper-orders", icon: "report", pinned: true },
+        ],
       },
     ],
   },

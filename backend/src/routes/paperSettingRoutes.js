@@ -13,6 +13,8 @@ import {
   returnForCorrection,
   cancelAssignment,
   deleteAssignment,
+  listOrders,
+  getOrder,
   downloadPaper,
   getAuditTrail,
   myAssignments,
@@ -30,6 +32,8 @@ const router = express.Router();
 const MANAGERS = ["coe", "exam_officer"];
 // Who can open the actual question paper (keep this list as small as possible)
 const CONTENT_READERS = ["coe"];
+// Who can print the appointment orders that are posted to the setters
+const ORDER_PRINTERS = [...MANAGERS, "office"];
 
 router.use(authenticateUser);
 
@@ -43,6 +47,7 @@ router.post("/my/:id/submit", submitMyPaper);
 
 // ---------------- COE / Exam officer ----------------
 router.get("/examiners", requireRole(...MANAGERS), listExaminers);
+router.get("/orders", requireRole(...ORDER_PRINTERS), listOrders);
 // Syllabus / scheme PDFs sent with the email (before "/:id")
 router.get("/syllabus", requireRole(...MANAGERS), listSyllabus);
 router.post("/syllabus", requireRole(...MANAGERS), uploadPdf, addSyllabus);
@@ -56,5 +61,6 @@ router.post("/:id/cancel", requireRole(...MANAGERS), cancelAssignment);
 router.delete("/:id", requireRole(...MANAGERS), deleteAssignment);
 router.get("/:id/download", requireRole(...CONTENT_READERS), downloadPaper);
 router.get("/:id/audit", requireRole(...CONTENT_READERS), getAuditTrail);
+router.get("/:id/order", requireRole(...ORDER_PRINTERS), getOrder);
 
 export default router;

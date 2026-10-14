@@ -44,16 +44,7 @@ const menuSections = [
         href: "/coe/paper-setting",
         icon: "exam",
       },
-    //   {
-    //     label: "Examinations",
-    //     href: "/coe/examinations",
-    //     icon: "exam",
-    //   },
-    //   {
-    //     label: "Exam Applications",
-    //     href: "/coe/applications",
-    //     icon: "applications",
-    //   },
+  
       {
         label: "Time Table",
         href: "/coe/timetable",
@@ -64,11 +55,7 @@ const menuSections = [
         href: "/coe/hall-tickets",
         icon: "ticket",
       },
-    //   {
-    //     label: "Seating Arrangement",
-    //     href: "/coe/seating",
-    //     icon: "seating",
-    //   },
+ 
     ],
   },
 

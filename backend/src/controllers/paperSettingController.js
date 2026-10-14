@@ -185,6 +185,48 @@ export const listAssignments = async (req, res) => {
   }
 };
 
+// ---------------------------------------------------------------- office orders
+//
+// The printed appointment order (ಅಧಿಕೃತ ಜ್ಞಾಪನ) that the office posts to the
+// paper setter. Only who / which subject / last date – never the paper itself.
+
+const orderView = (p) => ({
+  _id: p._id,
+  examSession: p.examSession,
+  setNo: p.setNo,
+  paperType: p.paperType,
+  deadline: p.deadline,
+  assignedAt: p.createdAt,
+  examinerType: p.examinerType,
+  subject: p.subject && { code: p.subject.code, name: p.subject.name, semester: p.subject.semester, department: p.subject.department },
+  examiner: p.examiner && { name: p.examiner.name, department: p.examiner.department, email: p.examiner.email, phone: p.examiner.phone },
+});
+
+// GET /api/paper-setting/orders?examSession=NOV-2026
+export const listOrders = async (req, res) => {
+  try {
+    const filter = { status: { $ne: "CANCELLED" } };
+    if (req.query.examSession) filter.examSession = String(req.query.examSession).toUpperCase();
+    const papers = await PaperSetting.find(filter).populate(POPULATE).sort({ createdAt: -1 }).lean();
+    res.json({ data: papers.map(orderView) });
+  } catch (err) {
+    handleError(res, err, "listOrders");
+  }
+};
+
+// GET /api/paper-setting/:id/order
+export const getOrder = async (req, res) => {
+  try {
+    if (!isId(req.params.id)) return fail(res, 400, "Invalid id.");
+    const paper = await PaperSetting.findById(req.params.id).populate(POPULATE).lean();
+    if (!paper) return fail(res, 404, "Not found.");
+    if (paper.status === "CANCELLED") return fail(res, 400, "This assignment is cancelled.");
+    res.json({ data: orderView(paper) });
+  } catch (err) {
+    handleError(res, err, "getOrder");
+  }
+};
+
 // POST /api/paper-setting/:id/send-email
 export const resendEmail = async (req, res) => {
   try {

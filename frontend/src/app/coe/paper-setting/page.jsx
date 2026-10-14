@@ -182,6 +182,11 @@ export default function PaperSettingPage() {
           </SmallBtn>
         </>
       )}
+      {p.status !== "CANCELLED" && (
+        <SmallBtn disabled={busy} onClick={() => window.open(`/print/paper-orders?id=${p._id}`, "_blank")}>
+          Order
+        </SmallBtn>
+      )}
       <SmallBtn disabled={busy} onClick={() => setAuditFor(p)}>
         Log
       </SmallBtn>
