@@ -765,11 +765,14 @@ function SyllabusModal({ api, onClose }) {
       </label>
 
       {failed.length > 0 && (
-        <ul className="mt-3 list-disc rounded-xl bg-red-50 py-3 pl-8 pr-4 text-sm text-red-700">
-          {failed.map((m) => (
-            <li key={m}>{m}</li>
-          ))}
-        </ul>
+       <ul className="mt-3 list-none rounded-xl bg-red-50 py-3 pl-4 pr-4 text-sm text-red-700">
+  {failed.map((m, index) => (
+    <li key={m} className="mb-1">
+      <span className="mr-2 font-semibold">{index + 1}.</span>
+      {m}
+    </li>
+  ))}
+</ul>
       )}
 
       <div className="mt-4">
