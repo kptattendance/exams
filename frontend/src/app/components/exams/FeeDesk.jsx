@@ -14,6 +14,7 @@ import Icon from "../shell/Icon";
 import Modal, { btn, field } from "../ui/Modal";
 import { useToast } from "../ui/Feedback";
 import { ADMISSION_SHORT, downloadBlob, errMsg, useApi } from "./shared";
+import { T } from "../ui/table";
 
 const FEE = {
   PAID: { label: "Paid", dot: "bg-emerald-500", text: "text-emerald-700" },
@@ -182,20 +183,20 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
           )}
 
           {/* search */}
-          <div className="mt-6 flex flex-col gap-2 sm:flex-row">
-            <div className="relative flex-1">
-              <Icon name="search" className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+          <div className="mt-6 flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <Icon name="search" className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 ref={searchRef}
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 autoFocus
-                placeholder="Type register number or name"
-                className="h-12 w-full rounded-2xl border border-slate-300 bg-white pl-11 pr-4 text-base outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
+                placeholder="Register number or name"
+                className={`${T.field} h-10 w-72 pl-8 text-sm`}
               />
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:flex">
-              <select value={cls} onChange={(e) => setCls(e.target.value)} className={`${sel} h-12`}>
+            <div className="flex flex-wrap gap-2">
+              <select value={cls} onChange={(e) => setCls(e.target.value)} className={T.field}>
                 <option value="">All classes</option>
                 {classOptions.map(([v, l]) => (
                   <option key={v} value={v}>
@@ -203,7 +204,7 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
                   </option>
                 ))}
               </select>
-              <select value={status} onChange={(e) => setStatus(e.target.value)} className={`${sel} h-12`}>
+              <select value={status} onChange={(e) => setStatus(e.target.value)} className={T.field}>
                 <option value="">Any status</option>
                 <option value="PENDING">Not fully paid</option>
                 <option value="UNPAID">Not paid</option>
@@ -214,17 +215,32 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
           </div>
 
           {/* list */}
-          <div className="mt-4 space-y-2">
-            {data === null &&
-              [0, 1, 2].map((i) => <div key={i} className="h-20 animate-pulse rounded-2xl border border-slate-200 bg-white" />)}
+          <div className={`mt-4 ${T.wrap}`}>
+            {data === null && <div className="h-48 animate-pulse" />}
             {data && items.length === 0 && (
-              <p className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center text-sm text-slate-500">
+              <p className="px-4 py-10 text-center text-sm text-slate-500">
                 {query ? `No registered student matches “${query}”.` : total === 0 ? "No students are registered for this exam yet." : "No students match these filters."}
               </p>
             )}
-            {items.map((r, i) => (
-              <FeeRow key={r._id} sl={(page - 1) * 40 + i + 1} reg={r} canEdit={canEdit} onPay={() => setPaying(r)} />
-            ))}
+            {items.length > 0 && (
+              <table className={T.table}>
+                <thead>
+                  <tr className={T.headRow}>
+                    <th className={T.thNum}>Sl.</th>
+                    <th className={T.th}>Student</th>
+                    <th className={T.th}>Class</th>
+                    <th className={T.th}>Fees</th>
+                    <th className={T.th}>Status</th>
+                    {canEdit && <th className={`${T.th} text-right`}>Action</th>}
+                  </tr>
+                </thead>
+                <tbody className={T.body}>
+                  {items.map((r, i) => (
+                    <FeeRow key={r._id} sl={(page - 1) * 40 + i + 1} reg={r} canEdit={canEdit} onPay={() => setPaying(r)} />
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
 
           {data && data.pages > 1 && (
@@ -300,62 +316,68 @@ function FeeRow({ sl, reg, canEdit, onPay }) {
   const st = FEE[reg.feeStatus] || FEE.UNPAID;
   const unpaid = reg.items.filter((i) => !i.paid).length;
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3.5 sm:flex-row sm:items-center">
-      <div className="flex min-w-0 flex-1 items-start gap-3">
-        <span className="w-7 shrink-0 pt-2.5 text-right text-xs tabular-nums text-slate-400 sm:pt-0">{sl}.</span>
-        {reg.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={reg.imageUrl} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover ring-1 ring-slate-200" />
-        ) : (
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-600">
-            {initials(reg.name)}
-          </span>
-        )}
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-baseline gap-x-2">
-            <p className="truncate font-semibold text-slate-950">{reg.name}</p>
-            <p className="text-xs font-semibold tabular-nums text-slate-500">{reg.registerNumber}</p>
-          </div>
-          <p className="mt-0.5 text-xs text-slate-500">
-            {reg.department.toUpperCase()} · Sem {reg.semester} · {ADMISSION_SHORT[reg.admissionType] || reg.admissionType}
-          </p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {reg.items.map((i) => (
-              <span
-                key={i.key}
-                className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-semibold ${
-                  i.paid ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-dashed border-slate-300 bg-white text-slate-600"
-                }`}
-                title={i.paid ? `Receipt ${i.receiptNo}, ${fmtDate(i.paidOn)} (${i.by})` : "Not paid"}
-              >
-                {i.paid ? <Icon name="check" className="h-3.5 w-3.5" strokeWidth={2.5} /> : <span className="h-1.5 w-1.5 rounded-full bg-red-500" />}
-                {i.type === "REGULAR" ? "Regular" : `Back ${i.code}`}
-                {i.paid && <span className="font-normal text-emerald-700/80">· {i.receiptNo}</span>}
-                {(i.eligibility === "ANS" || i.eligibility === "NE") && i.type === "SUBJECT" && (
-                  <span className="font-normal text-red-600">· {i.eligibility}</span>
-                )}
-              </span>
-            ))}
+    <tr className={T.row}>
+      <td className={T.tdNum}>{sl}</td>
+      <td className={T.td}>
+        <div className="flex items-center gap-2.5">
+          {reg.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={reg.imageUrl} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover ring-1 ring-slate-200" />
+          ) : (
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-bold text-slate-600">
+              {initials(reg.name)}
+            </span>
+          )}
+          <div className="min-w-0">
+            <p className="truncate font-medium text-slate-950">{reg.name}</p>
+            <p className="text-[11px] font-semibold tabular-nums text-slate-500">{reg.registerNumber}</p>
           </div>
         </div>
-      </div>
-      <div className="flex items-center justify-between gap-3 sm:justify-end">
-        <span className={`flex items-center gap-1.5 text-xs font-semibold ${st.text}`}>
-          <span className={`h-2 w-2 rounded-full ${st.dot}`} />
+      </td>
+      <td className={`${T.td} whitespace-nowrap text-xs text-slate-600`}>
+        {reg.department.toUpperCase()} · Sem {reg.semester}
+        <p className="text-[11px] text-slate-400">{ADMISSION_SHORT[reg.admissionType] || reg.admissionType}</p>
+      </td>
+      <td className={T.td}>
+        <div className="flex flex-wrap gap-1">
+          {reg.items.map((i) => (
+            <span
+              key={i.key}
+              className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-semibold ${
+                i.paid ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-dashed border-slate-300 bg-white text-slate-600"
+              }`}
+              title={i.paid ? `Receipt ${i.receiptNo}, ${fmtDate(i.paidOn)} (${i.by})` : "Not paid"}
+            >
+              {i.paid ? <Icon name="check" className="h-3 w-3" strokeWidth={2.5} /> : <span className="h-1.5 w-1.5 rounded-full bg-red-500" />}
+              {i.type === "REGULAR" ? "Regular" : `Back ${i.code}`}
+              {i.paid && <span className="font-normal text-emerald-700/80">· {i.receiptNo}</span>}
+              {(i.eligibility === "ANS" || i.eligibility === "NE") && i.type === "SUBJECT" && (
+                <span className="font-normal text-red-600">· {i.eligibility}</span>
+              )}
+            </span>
+          ))}
+        </div>
+      </td>
+      <td className={T.td}>
+        <span className={`${T.pill} bg-slate-50 ${st.text}`}>
+          <span className={`${T.dot} ${st.dot}`} />
           {st.label}
         </span>
-        {canEdit &&
-          (unpaid ? (
-            <button onClick={onPay} className={btn.primary}>
+      </td>
+      {canEdit && (
+        <td className={`${T.td} text-right`}>
+          {unpaid ? (
+            <button onClick={onPay} className={btn.small}>
               Record payment
             </button>
           ) : (
-            <button onClick={onPay} className={btn.secondary}>
+            <button onClick={onPay} className={`${btn.small} text-slate-500`}>
               View / correct
             </button>
-          ))}
-      </div>
-    </div>
+          )}
+        </td>
+      )}
+    </tr>
   );
 }
 

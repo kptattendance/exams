@@ -10,6 +10,7 @@ import Icon from "../shell/Icon";
 import { btn } from "../ui/Modal";
 import { useToast } from "../ui/Feedback";
 import { ADMISSION_SHORT, errMsg, useApi } from "./shared";
+import { T } from "../ui/table";
 
 const DEPTS = ["at", "ch", "ce", "cs", "ec", "ee", "me", "ps"];
 
@@ -156,17 +157,12 @@ export default function HallTickets({ timetableHref }) {
             ))}
           </div>
 
-          <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-            <div className="relative flex-1">
-              <Icon name="search" className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-              <input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Register number or name"
-                className="h-11 w-full rounded-xl border border-slate-300 bg-white pl-11 pr-4 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
-              />
+          <div className="mt-5 flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <Icon name="search" className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Register number or name" className={`${T.field} w-60 pl-8`} />
             </div>
-            <select value={cls} onChange={(e) => setCls(e.target.value)} className={sel}>
+            <select value={cls} onChange={(e) => setCls(e.target.value)} className={T.field}>
               <option value="">All classes</option>
               {classes.map(([v, l]) => (
                 <option key={v} value={v}>
@@ -176,38 +172,66 @@ export default function HallTickets({ timetableHref }) {
             </select>
           </div>
 
-          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          <div className={`mt-4 ${T.wrap}`}>
             {!data && <div className="h-48 animate-pulse" />}
             {data && data.data.length === 0 && <p className="px-4 py-10 text-center text-sm text-slate-500">No students match.</p>}
-            <ul className="divide-y divide-slate-100">
-              {data?.data.map((t, i) => (
-                <li key={t._id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-slate-950">
-                      <span className="mr-1 font-normal tabular-nums text-slate-400">{(page - 1) * 40 + i + 1}.</span>
-                      {t.name} <span className="ml-1 text-xs font-semibold tabular-nums text-slate-500">{t.registerNumber}</span>
-                    </p>
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      {t.backPapersOnly ? "Back papers only" : `${t.department.toUpperCase()} · Sem ${t.semester}`} ·{" "}
-                      {ADMISSION_SHORT[t.admissionType] || t.admissionType}
-                    </p>
-                    {t.ready ? (
-                      <p className="mt-1 text-xs font-semibold text-emerald-700">
-                        Ready · {t.permittedCount} of {t.subjects.length} subjects permitted
-                      </p>
-                    ) : (
-                      <p className="mt-1 text-xs font-semibold text-red-600">{t.reasons.join(" ")}</p>
-                    )}
-                  </div>
-                  {t.ready && (
-                    <a href={printUrl({ q: t.registerNumber })} target="_blank" rel="noreferrer" className={btn.small}>
-                      <Icon name="ticket" className="h-3.5 w-3.5" />
-                      Print
-                    </a>
-                  )}
-                </li>
-              ))}
-            </ul>
+            {data?.data.length > 0 && (
+              <table className={T.table}>
+                <thead>
+                  <tr className={T.headRow}>
+                    <th className={T.thNum}>Sl.</th>
+                    <th className={T.th}>Register no.</th>
+                    <th className={T.th}>Name</th>
+                    <th className={T.th}>Class</th>
+                    <th className={T.th}>Subjects</th>
+                    <th className={T.th}>Status</th>
+                    <th className={`${T.th} text-right`}>Hall ticket</th>
+                  </tr>
+                </thead>
+                <tbody className={T.body}>
+                  {data.data.map((t, i) => (
+                    <tr key={t._id} className={T.row}>
+                      <td className={T.tdNum}>{(page - 1) * 40 + i + 1}</td>
+                      <td className={`${T.td} font-semibold tabular-nums text-slate-950`}>{t.registerNumber}</td>
+                      <td className={T.td}>
+                        <p className="font-medium text-slate-900">{t.name}</p>
+                        <p className="text-[11px] text-slate-400">{ADMISSION_SHORT[t.admissionType] || t.admissionType}</p>
+                      </td>
+                      <td className={`${T.td} whitespace-nowrap text-xs text-slate-600`}>
+                        {t.backPapersOnly ? "Back papers only" : `${t.department.toUpperCase()} · Sem ${t.semester}`}
+                      </td>
+                      <td className={`${T.td} text-xs tabular-nums text-slate-600`}>
+                        {t.permittedCount} / {t.subjects.length} permitted
+                      </td>
+                      <td className={`${T.td} max-w-[18rem]`}>
+                        {t.ready ? (
+                          <span className={`${T.pill} bg-emerald-50 text-emerald-700`}>
+                            <span className={`${T.dot} bg-emerald-500`} />
+                            Ready
+                          </span>
+                        ) : (
+                          <>
+                            <span className={`${T.pill} bg-red-50 text-red-700`}>
+                              <span className={`${T.dot} bg-red-500`} />
+                              Not ready
+                            </span>
+                            <p className="mt-1 text-[11px] leading-4 text-red-600">{t.reasons.join(" ")}</p>
+                          </>
+                        )}
+                      </td>
+                      <td className={`${T.td} text-right`}>
+                        {t.ready && (
+                          <a href={printUrl({ q: t.registerNumber })} target="_blank" rel="noreferrer" className={btn.small}>
+                            <Icon name="ticket" className="h-3.5 w-3.5" />
+                            Print
+                          </a>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
 
           {data && data.pages > 1 && (

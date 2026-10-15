@@ -10,6 +10,8 @@ import {
 import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
 import * as XLSX from "xlsx";
+import PurgeStudents, { PurgeLog } from "../../../components/students/PurgeStudents";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const departments = [
@@ -123,6 +125,8 @@ export default function StudentTable({
   // Selection
   const [selectedStudents, setSelectedStudents] =
     useState([]);
+  const [purging, setPurging] = useState(false);
+  const [showPurgeLog, setShowPurgeLog] = useState(false);
   const [deletingSelected, setDeletingSelected] =
     useState(false);
 
@@ -967,6 +971,36 @@ const downloadStudentsExcel = () => {
     </div>
 
     <div className="flex flex-wrap gap-2">
+
+      {selectedStudents.length > 0 && (
+        <button
+          onClick={() => setPurging(true)}
+          title="Delete the selected students and everything linked to them (needs a code sent to your email)"
+          className="rounded-lg border border-red-600 bg-red-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-700"
+        >
+          Delete with all records
+        </button>
+      )}
+
+      <button
+        onClick={() => setShowPurgeLog(true)}
+        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+      >
+        Deletion log
+      </button>
+
+      {purging && (
+        <PurgeStudents
+          ids={selectedStudents}
+          onClose={() => setPurging(false)}
+          onDeleted={(ids) => {
+            const gone = new Set(ids.map(String));
+            setStudents((prev) => prev.filter((st) => !gone.has(String(st._id))));
+            setSelectedStudents([]);
+          }}
+        />
+      )}
+      {showPurgeLog && <PurgeLog onClose={() => setShowPurgeLog(false)} />}
 
       {selectedStudents.length > 0 && (
         <button

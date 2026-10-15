@@ -18,6 +18,12 @@ const SCHEME = "C-25";
 const HELP_PHONES = "9448104224, 9481115003";
 const INSTITUTION = "Karnataka (Govt.) Polytechnic, Mangaluru";
 const INSTITUTION_CODE = "________"; // Enter the official college/institution code
+// Footer of the first page
+const FOOTER_KN = [
+  "ಕರ್ನಾಟಕ (ಸರ್ಕಾರಿ) ಪಾಲಿಟೆಕ್ನಿಕ್ (ಸ್ವಾಯತ್ತ), ಮಂಗಳೂರು",
+  "ಕದ್ರಿ ಹಿಲ್ಸ್, ಮಂಗಳೂರು - 575004, ದಕ್ಷಿಣ ಕನ್ನಡ, ಕರ್ನಾಟಕ",
+  "Phone No. 0824 – 3516910 / 2211636, E-Mail: kptmng@gmail.com",
+];
 
 const SESSION_KN = { NOV: "ನವೆಂಬರ್/ಡಿಸೆಂಬರ್", DEC: "ನವೆಂಬರ್/ಡಿಸೆಂಬರ್", MAY: "ಮೇ/ಜೂನ್", JUN: "ಮೇ/ಜೂನ್" };
 const DEPT = {
@@ -77,17 +83,20 @@ function PrintOrders() {
   if (!orders) return <p className="p-8 text-sm text-slate-500">Loading…</p>;
 
   return (
-    <div className="mx-auto max-w-[210mm] bg-white text-black print:max-w-none">
+    <div className="bg-slate-100 text-black print:bg-white">
       <style>{`
-        @page { size: A4; margin: 12mm 14mm; }
+        /* No page margins: the browser then prints no date, time or web address of its own.
+           Each order is drawn as two A4 sheets with their own header and footer. */
+        @page { size: A4; margin: 0; }
         @media print { body { background: #fff; } }
-        .order { break-after: page; page-break-after: always; }
-        .order:last-child { break-after: auto; page-break-after: auto; }
+        .sheet { width: 210mm; height: 296.5mm; padding: 11mm 14mm 9mm; display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box; background: #fff; }
+        .sheet + .sheet, .order + .order .sheet { break-before: page; page-break-before: always; }
+        @media screen { .sheet { margin: 16px auto; box-shadow: 0 1px 6px rgba(0,0,0,.15); } }
       `}</style>
 
       <div className="flex items-center gap-3 border-b border-slate-200 p-4 print:hidden">
         <p className="flex-1 text-sm text-slate-600">
-          <b>{orders.length}</b> order{orders.length === 1 ? "" : "s"} · one per A4 page
+          <b>{orders.length}</b> order{orders.length === 1 ? "" : "s"} · two A4 pages each
         </p>
         <button
           onClick={() => window.print()}
@@ -115,136 +124,158 @@ function Order({ o }) {
   const designationKn = DESIGNATION_KN[designation] || "ಉಪನ್ಯಾಸಕರು";
 
   return (
-    <section className="order px-6 py-6 text-[13px] leading-[1.75] print:px-0 print:py-0">
-      {/* letterhead */}
-      <div className="flex items-center justify-between gap-3 border-b-2 border-black pb-2">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.jpg" alt="" className="h-[22mm] w-auto" />
-        <div className="text-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo3.png" alt="" className="mx-auto h-[16mm] w-auto" />
-          <p className="text-[14px] font-bold leading-tight">GOVERNMENT OF KARNATAKA</p>
-          <p className="text-[13px] font-bold leading-tight">DEPARTMENT OF TECHNICAL EDUCATION</p>
-          <p className="text-[17px] font-bold leading-tight text-[#c0392b]">KARNATAKA (GOVT.) POLYTECHNIC, MANGALURU</p>
-          <p className="text-[12px] font-semibold leading-tight text-[#c0392b]">(First Autonomous Polytechnic in India from AICTE New Delhi)</p>
-          <p className="text-[12px] leading-tight">Kadri Hills, Mangaluru – 575004, Dakshina Kannada, Karnataka</p>
+    <section className="order text-[13px] leading-[1.75]">
+      {/* ---------------- page 1: letterhead, the order ---------------- */}
+      <div className="sheet">
+        <div className="flex-1">
+          {/* letterhead */}
+          <div className="flex items-center justify-between gap-3 border-b-2 border-black pb-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.jpg" alt="" className="h-[22mm] w-auto" />
+            <div className="text-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo3.png" alt="" className="mx-auto h-[16mm] w-auto" />
+              <p className="text-[14px] font-bold leading-tight">GOVERNMENT OF KARNATAKA</p>
+              <p className="text-[13px] font-bold leading-tight">DEPARTMENT OF TECHNICAL EDUCATION</p>
+              <p className="text-[17px] font-bold leading-tight text-[#c0392b]">KARNATAKA (GOVT.) POLYTECHNIC, MANGALURU</p>
+              <p className="text-[12px] font-semibold leading-tight text-[#c0392b]">(First Autonomous Polytechnic in India from AICTE New Delhi)</p>
+              <p className="text-[12px] leading-tight">Kadri Hills, Mangaluru – 575004, Dakshina Kannada, Karnataka</p>
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo2.png" alt="" className="h-[22mm] w-auto" />
+          </div>
+
+          <div className="mt-3 flex justify-between gap-6">
+            <p>
+              ನಂ: {REF_PREFIX}/{academicYear(date)}
+            </p>
+            <p className="text-right">
+              ಪರೀಕ್ಷಾ ನಿಯಂತ್ರಕರ ಕಛೇರಿ,
+              <br />
+              ಕರ್ನಾಟಕ(ಸರ್ಕಾರಿ)ಪಾಲಿಟೆಕ್ನಿಕ್(ಸ್ವಾಯತ್ತತೆ)
+              <br />
+              ಮಂಗಳೂರು, ದಿನಾಂಕ:{ddmmyyyy(date)}.
+            </p>
+          </div>
+
+          <p className="mt-3 text-center text-[15px] font-bold underline">ಅಧಿಕೃತ ಜ್ಞಾಪನ</p>
+          <p className="mt-1 pl-[20%]">
+            ವಿಷಯ: {months}-{year} ಸೆಮಿಸ್ಟರ್ ಪರೀಕ್ಷೆಯ ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಗಳನ್ನು ರಚಿಸುವ ಕುರಿತು.
+          </p>
+          <p className="text-center">*****</p>
+
+          <p className="mt-1 indent-12 text-justify">
+            ಮೇಲ್ಕಂಡ ವಿಷಯಕ್ಕೆ ಸಂಬಂಧಿಸಿದಂತೆ, {year}ರ {months} ಡಿಪ್ಲೋಮಾ ಸೆಮಿಸ್ಟರ್ ಪರೀಕ್ಷೆಗೆ ಸಂಬಂಧಿಸಿದಂತೆ, ಕೆಳಕಂಡ
+            ವಿಷಯದ ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯನ್ನು ರಚಿಸಲು {o.examiner?.name || ""}, {designationKn}{dept ? `, ${dept}` : ""} ಇವರನ್ನು ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆ
+            ರಚನಕಾರರಾಗಿ ನೇಮಿಸಲಾಗಿದೆ.
+          </p>
+          <p className="mt-2 indent-12 text-justify">
+            ನೇಮಕಗೊಂಡ ಉಪನ್ಯಾಸಕರು, {SCHEME} ಪಠ್ಯಕ್ರಮದ ನಿಗದಿತ ಪಠ್ಯವಿಷಯಗಳು, ಸ್ಕೀಮ್ ಆಫ್ ಸ್ಟಡೀಸ್, ಸಂಬಂಧಿತ ಬ್ಲೂಪ್ರಿಂಟ್
+            ಹಾಗೂ ಅನ್ವಯವಾಗುವ ಮಾರ್ಗಸೂಚಿಗಳಿಗೆ ಅನುಗುಣವಾಗಿ ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯನ್ನು ಸಿದ್ಧಪಡಿಸಬೇಕು. ಸಿದ್ಧಪಡಿಸಿದ ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯನ್ನು
+            MS Word ರೂಪದಲ್ಲಿ ಸಾಫ್ಟ್ ಕಾಪಿಯಾಗಿ ಸಿದ್ಧಪಡಿಸಿ, ನಿಗದಿತ ಅವಧಿಯೊಳಗೆ
+            <b> exams.kptmangaluru.in </b> ವೆಬ್‌ಸೈಟ್ ಮೂಲಕ ಅಪ್‌ಲೋಡ್ ಮಾಡಬೇಕು. ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯನ್ನು Word ಡಾಕ್ಯುಮೆಂಟ್
+            ರೂಪದಲ್ಲಿಯೇ ಅಪ್‌ಲೋಡ್ ಮಾಡತಕ್ಕದ್ದು.
+          </p>
+          <p className="mt-2 indent-12 text-justify">
+            ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆ ರಚನೆಯ ಸಂದರ್ಭದಲ್ಲಿ ಸಂಬಂಧಿತ ವಿಷಯ ಸಮಿತಿಯ ಅಧ್ಯಕ್ಷರು/ಸದಸ್ಯರು ಹಾಗೂ KPT ಪರೀಕ್ಷಾ ನಿಯಂತ್ರಕರು
+            (Controller of Examination) ಕಾಲಕಾಲಕ್ಕೆ ನೀಡುವ ಸೂಚನೆಗಳನ್ನು ಪಾಲಿಸಿ, ಅವರೊಂದಿಗೆ ಸಮನ್ವಯದಿಂದ ಕಾರ್ಯನಿರ್ವಹಿಸಬೇಕು.
+          </p>
+          <p className="mt-2 indent-12 text-justify">
+            ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆ ರಚನೆಯ ಕಾರ್ಯವನ್ನು ಅತ್ಯಂತ ಜವಾಬ್ದಾರಿ, ನಿಖರತೆ, ಎಚ್ಚರಿಕೆ ಮತ್ತು ಸಂಪೂರ್ಣ ಗೌಪ್ಯತೆಯಿಂದ ನಿರ್ವಹಿಸಬೇಕು.
+            ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯಲ್ಲಿ ಯಾವುದೇ ರೀತಿಯ ದೋಷ, ಅಸ್ಪಷ್ಟತೆ ಅಥವಾ ಲೋಪ ಉಂಟಾಗದಂತೆ ವಿಶೇಷ ಗಮನಹರಿಸಬೇಕು.
+          </p>
+
         </div>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo2.png" alt="" className="h-[22mm] w-auto" />
+        <footer className="mt-2 border-t-2 border-black pt-1.5 text-center text-[10.5px] leading-snug">
+          <p className="font-semibold">{FOOTER_KN[0]}</p>
+          <p>{FOOTER_KN[1]}</p>
+          <p>{FOOTER_KN[2]}</p>
+        </footer>
       </div>
 
-      <div className="mt-3 flex justify-between gap-6">
-        <p>
-          ನಂ: {REF_PREFIX}/{academicYear(date)}
-        </p>
-        <p className="text-right">
-          ಪರೀಕ್ಷಾ ನಿಯಂತ್ರಕರ ಕಛೇರಿ,
-          <br />
-          ಕರ್ನಾಟಕ(ಸರ್ಕಾರಿ)ಪಾಲಿಟೆಕ್ನಿಕ್(ಸ್ವಾಯತ್ತತೆ)
-          <br />
-          ಮಂಗಳೂರು, ದಿನಾಂಕ:{ddmmyyyy(date)}.
-        </p>
-      </div>
+      {/* ---------------- page 2: instructions, details, signature ---------------- */}
+      <div className="sheet">
+        <header className="mb-3 border-b border-black pb-1 text-right text-[11px] font-semibold">
+          Controller of Examination, KPT Mangaluru
+        </header>
+        <div className="flex-1">
+          <p className="mt-3 text-[15px] font-bold">ಪಾಲಿಸಬೇಕಾದ ಸೂಚನೆಗಳು:</p>
+          <p className="text-justify">
+            ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆ ರಚನಕಾರರು KPT ಪರೀಕ್ಷಾ ನಿಯಂತ್ರಕರು ನೀಡುವ ಎಲ್ಲಾ ಸೂಚನೆಗಳು, ನಿಯಮಗಳು ಮತ್ತು ಮಾರ್ಗಸೂಚಿಗಳನ್ನು
+            ಕಡ್ಡಾಯವಾಗಿ ಪಾಲಿಸಬೇಕು.
+          </p>
+          <ol className="ml-8 list-decimal text-justify">
+            <li>
+              ಪ್ರತಿ ಪ್ರಶ್ನೆಗೆ ನಿಗದಿಪಡಿಸಿದ ಅಂಕಗಳು, ಉತ್ತರಿಸಲು ಬೇಕಾದ ಅಂದಾಜು ಸಮಯ, ನಿರೀಕ್ಷಿತ ಉತ್ತರದ ಸ್ವರೂಪ ಮತ್ತು ವಿಸ್ತಾರ
+              ಹಾಗೂ ಮೌಲ್ಯಮಾಪನ ಯೋಜನೆಯ (Scheme of Valuation) ಅವಶ್ಯಕತೆಗಳನ್ನು ಗಮನದಲ್ಲಿಟ್ಟುಕೊಂಡು ಪ್ರಶ್ನೆಗಳನ್ನು ಸ್ಪಷ್ಟವಾಗಿ,
+              ನಿಖರವಾಗಿ ಮತ್ತು ದೋಷರಹಿತವಾಗಿ ರೂಪಿಸಬೇಕು.
+            </li>
+            <li>
+              ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯನ್ನು ಸಂಪೂರ್ಣವಾಗಿ ನಿಗದಿತ ಪಠ್ಯಕ್ರಮಕ್ಕೆ ಅನುಗುಣವಾಗಿ ರಚಿಸಬೇಕು. ಪ್ರತಿ ಅಧ್ಯಾಯಕ್ಕೆ ನಿಗದಿಪಡಿಸಿರುವ
+              ಬೋಧನಾ ಗಂಟೆಗಳು, ವಿಷಯದ ಪ್ರಾಮುಖ್ಯತೆ ಹಾಗೂ ಅನುಮೋದಿತ ಬ್ಲೂಪ್ರಿಂಟ್‌ನಲ್ಲಿರುವ ಅಂಕಗಳ ಹಂಚಿಕೆಯನ್ನು ಕಡ್ಡಾಯವಾಗಿ
+              ಅನುಸರಿಸಬೇಕು.
+            </li>
+            <li>
+              ಅನ್ವಯಿಸುವ ಸಂದರ್ಭಗಳಲ್ಲಿ ನಿಗದಿಪಡಿಸಿರುವ ಮೌಲ್ಯಮಾಪನ ರೂಬ್ರಿಕ್ಸ್‌ಗಳನ್ನು (Rubrics) ಕಡ್ಡಾಯವಾಗಿ ಅನುಸರಿಸಬೇಕು.
+            </li>
+            <li>
+              ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯ ಬ್ಲೂಪ್ರಿಂಟ್, ಪಠ್ಯಕ್ರಮ, ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆ ಕೋಡ್ ಅಥವಾ ಇತರ ತಾಂತ್ರಿಕ ವಿವರಗಳಿಗೆ ಸಂಬಂಧಿಸಿದಂತೆ
+              ಸ್ಪಷ್ಟನೆ ಅಗತ್ಯವಿದ್ದಲ್ಲಿ, ಸಂಬಂಧಿತ ವಿಷಯ ಸಮಿತಿಯ ಅಧ್ಯಕ್ಷರನ್ನು ಸಂಪರ್ಕಿಸಬೇಕು. ಅಗತ್ಯ ಮಾಹಿತಿಗಾಗಿ
+              {HELP_PHONES} ದೂರವಾಣಿ ಸಂಖ್ಯೆಗಳನ್ನು ಸಂಪರ್ಕಿಸಬಹುದು.
+            </li>
+            <li>
+              ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯನ್ನು MS Word ನಲ್ಲಿ ಸಿದ್ಧಪಡಿಸಿ, ಸಂಬಂಧಿತ ವಿಷಯ ಸಮಿತಿಯ ಅಧ್ಯಕ್ಷರು ಹಾಗೂ KPT ಪರೀಕ್ಷಾ ನಿಯಂತ್ರಕರೊಂದಿಗೆ
+              ಸಮನ್ವಯ ಸಾಧಿಸಿ, ನಿಗದಿಪಡಿಸಿದ ಕೊನೆಯ ದಿನಾಂಕ ಮತ್ತು ಸಮಯದೊಳಗೆ
+              <b> exams.kptmangaluru.in </b> ವೆಬ್‌ಸೈಟ್‌ನಲ್ಲಿ ಅಪ್‌ಲೋಡ್ ಮಾಡಬೇಕು. Word ಡಾಕ್ಯುಮೆಂಟ್ ಹೊರತುಪಡಿಸಿ ಇತರ
+              ಫೈಲ್ ರೂಪಗಳನ್ನು ಅಪ್‌ಲೋಡ್ ಮಾಡಬಾರದು.
+            </li>
+            <li>
+              ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯ ವಿಭಾಗಗಳು, ಪ್ರಶ್ನೆಗಳ ಆಯ್ಕೆ, ಅಂಕಗಳ ಹಂಚಿಕೆ ಮತ್ತು ಇತರ ವಿನ್ಯಾಸದ ಅಂಶಗಳು ಸಂಬಂಧಿತ ವಿಭಾಗದ
+              ಅನುಮೋದಿತ ಬ್ಲೂಪ್ರಿಂಟ್‌ಗೆ ಸಂಪೂರ್ಣವಾಗಿ ಅನುಗುಣವಾಗಿರಬೇಕು.
+            </li>
+            <li>
+              ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯ ಸಿದ್ಧತೆ, ಸಂಗ್ರಹಣೆ ಮತ್ತು ಅಪ್‌ಲೋಡ್ ಪ್ರಕ್ರಿಯೆಯ ಪ್ರತಿಯೊಂದು ಹಂತದಲ್ಲಿಯೂ ಸಂಪೂರ್ಣ ಗೌಪ್ಯತೆಯನ್ನು
+              ಕಾಪಾಡಬೇಕು. ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯ ವಿಷಯವನ್ನು ಅನಧಿಕೃತ ವ್ಯಕ್ತಿಗಳೊಂದಿಗೆ ಹಂಚಿಕೊಳ್ಳಬಾರದು. ಯಾವುದೇ ದೋಷ ಅಥವಾ ಸಂದೇಹ
+              ಕಂಡುಬಂದಲ್ಲಿ ತಕ್ಷಣ ಸಂಬಂಧಿತ ವಿಷಯ ಸಮಿತಿಯ ಅಧ್ಯಕ್ಷರು ಅಥವಾ ಪರೀಕ್ಷಾ ನಿಯಂತ್ರಕರ ಗಮನಕ್ಕೆ ತರಬೇಕು.
+            </li>
+          </ol>
 
-      <p className="mt-3 text-center text-[15px] font-bold underline">ಅಧಿಕೃತ ಜ್ಞಾಪನ</p>
-      <p className="mt-1 pl-[20%]">
-        ವಿಷಯ: {months}-{year} ಸೆಮಿಸ್ಟರ್ ಪರೀಕ್ಷೆಯ ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಗಳನ್ನು ರಚಿಸುವ ಕುರಿತು.
-      </p>
-      <p className="text-center">*****</p>
 
-      <p className="mt-1 indent-12 text-justify">
-        ಮೇಲ್ಕಂಡ ವಿಷಯಕ್ಕೆ ಸಂಬಂಧಿಸಿದಂತೆ, {year}ರ {months} ಡಿಪ್ಲೋಮಾ ಸೆಮಿಸ್ಟರ್ ಪರೀಕ್ಷೆಗೆ ಸಂಬಂಧಿಸಿದಂತೆ, ಕೆಳಕಂಡ
-        ವಿಷಯದ ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯನ್ನು ರಚಿಸಲು {o.examiner?.name || ""}, {designationKn}{dept ? `, ${dept}` : ""} ಇವರನ್ನು ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆ
-        ರಚನಕಾರರಾಗಿ ನೇಮಿಸಲಾಗಿದೆ.
-      </p>
-      <p className="mt-2 indent-12 text-justify">
-        ನೇಮಕಗೊಂಡ ಉಪನ್ಯಾಸಕರು, {SCHEME} ಪಠ್ಯಕ್ರಮದ ನಿಗದಿತ ಪಠ್ಯವಿಷಯಗಳು, ಸ್ಕೀಮ್ ಆಫ್ ಸ್ಟಡೀಸ್, ಸಂಬಂಧಿತ ಬ್ಲೂಪ್ರಿಂಟ್
-        ಹಾಗೂ ಅನ್ವಯವಾಗುವ ಮಾರ್ಗಸೂಚಿಗಳಿಗೆ ಅನುಗುಣವಾಗಿ ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯನ್ನು ಸಿದ್ಧಪಡಿಸಬೇಕು. ಸಿದ್ಧಪಡಿಸಿದ ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯನ್ನು
-        MS Word ರೂಪದಲ್ಲಿ ಸಾಫ್ಟ್ ಕಾಪಿಯಾಗಿ ಸಿದ್ಧಪಡಿಸಿ, ನಿಗದಿತ ಅವಧಿಯೊಳಗೆ
-        <b> exams.kptmangaluru.in </b> ವೆಬ್‌ಸೈಟ್ ಮೂಲಕ ಅಪ್‌ಲೋಡ್ ಮಾಡಬೇಕು. ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯನ್ನು Word ಡಾಕ್ಯುಮೆಂಟ್
-        ರೂಪದಲ್ಲಿಯೇ ಅಪ್‌ಲೋಡ್ ಮಾಡತಕ್ಕದ್ದು.
-      </p>
-      <p className="mt-2 indent-12 text-justify">
-        ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆ ರಚನೆಯ ಸಂದರ್ಭದಲ್ಲಿ ಸಂಬಂಧಿತ ವಿಷಯ ಸಮಿತಿಯ ಅಧ್ಯಕ್ಷರು/ಸದಸ್ಯರು ಹಾಗೂ KPT ಪರೀಕ್ಷಾ ನಿಯಂತ್ರಕರು
-        (Controller of Examination) ಕಾಲಕಾಲಕ್ಕೆ ನೀಡುವ ಸೂಚನೆಗಳನ್ನು ಪಾಲಿಸಿ, ಅವರೊಂದಿಗೆ ಸಮನ್ವಯದಿಂದ ಕಾರ್ಯನಿರ್ವಹಿಸಬೇಕು.
-      </p>
-      <p className="mt-2 indent-12 text-justify">
-        ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆ ರಚನೆಯ ಕಾರ್ಯವನ್ನು ಅತ್ಯಂತ ಜವಾಬ್ದಾರಿ, ನಿಖರತೆ, ಎಚ್ಚರಿಕೆ ಮತ್ತು ಸಂಪೂರ್ಣ ಗೌಪ್ಯತೆಯಿಂದ ನಿರ್ವಹಿಸಬೇಕು.
-        ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯಲ್ಲಿ ಯಾವುದೇ ರೀತಿಯ ದೋಷ, ಅಸ್ಪಷ್ಟತೆ ಅಥವಾ ಲೋಪ ಉಂಟಾಗದಂತೆ ವಿಶೇಷ ಗಮನಹರಿಸಬೇಕು.
-      </p>
+          <table className="mt-6 w-full border-collapse text-[13px]">
+            <tbody>
+              {[
+                ["QP SETTER NAME", `${o.examiner?.name || ""}${dept ? `, ${dept}` : ""}`],
+                ["DESIGNATION", designation || "Lecturer"],
+                ["INST CODE and NAME", internal ? INSTITUTION : ""],
+                ["QP CODE", `${o.subject?.code || ""}${o.setNo ? ` (Set ${o.setNo})` : ""}`],
+                ["SUBJECT NAME", `${o.subject?.name || ""}${o.paperType === "PRACTICAL" ? " (Practical)" : ""}`],
+                ["LAST DATE TO UPLOAD", lastDate(o.deadline)],
+              ].map(([k, v]) => (
+                <tr key={k}>
+                  <td className="w-[32%] border border-black px-3 py-2 text-center font-semibold">{k}</td>
+                  <td className="border border-black px-3 py-2">{v}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
 
-      <p className="mt-3 text-[15px] font-bold">ಪಾಲಿಸಬೇಕಾದ ಸೂಚನೆಗಳು:</p>
-      <p className="text-justify">
-        ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆ ರಚನಕಾರರು KPT ಪರೀಕ್ಷಾ ನಿಯಂತ್ರಕರು ನೀಡುವ ಎಲ್ಲಾ ಸೂಚನೆಗಳು, ನಿಯಮಗಳು ಮತ್ತು ಮಾರ್ಗಸೂಚಿಗಳನ್ನು
-        ಕಡ್ಡಾಯವಾಗಿ ಪಾಲಿಸಬೇಕು.
-      </p>
-      <ol className="ml-8 list-decimal text-justify">
-        <li>
-          ಪ್ರತಿ ಪ್ರಶ್ನೆಗೆ ನಿಗದಿಪಡಿಸಿದ ಅಂಕಗಳು, ಉತ್ತರಿಸಲು ಬೇಕಾದ ಅಂದಾಜು ಸಮಯ, ನಿರೀಕ್ಷಿತ ಉತ್ತರದ ಸ್ವರೂಪ ಮತ್ತು ವಿಸ್ತಾರ
-          ಹಾಗೂ ಮೌಲ್ಯಮಾಪನ ಯೋಜನೆಯ (Scheme of Valuation) ಅವಶ್ಯಕತೆಗಳನ್ನು ಗಮನದಲ್ಲಿಟ್ಟುಕೊಂಡು ಪ್ರಶ್ನೆಗಳನ್ನು ಸ್ಪಷ್ಟವಾಗಿ,
-          ನಿಖರವಾಗಿ ಮತ್ತು ದೋಷರಹಿತವಾಗಿ ರೂಪಿಸಬೇಕು.
-        </li>
-        <li>
-          ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯನ್ನು ಸಂಪೂರ್ಣವಾಗಿ ನಿಗದಿತ ಪಠ್ಯಕ್ರಮಕ್ಕೆ ಅನುಗುಣವಾಗಿ ರಚಿಸಬೇಕು. ಪ್ರತಿ ಅಧ್ಯಾಯಕ್ಕೆ ನಿಗದಿಪಡಿಸಿರುವ
-          ಬೋಧನಾ ಗಂಟೆಗಳು, ವಿಷಯದ ಪ್ರಾಮುಖ್ಯತೆ ಹಾಗೂ ಅನುಮೋದಿತ ಬ್ಲೂಪ್ರಿಂಟ್‌ನಲ್ಲಿರುವ ಅಂಕಗಳ ಹಂಚಿಕೆಯನ್ನು ಕಡ್ಡಾಯವಾಗಿ
-          ಅನುಸರಿಸಬೇಕು.
-        </li>
-        <li>
-          ಅನ್ವಯಿಸುವ ಸಂದರ್ಭಗಳಲ್ಲಿ ನಿಗದಿಪಡಿಸಿರುವ ಮೌಲ್ಯಮಾಪನ ರೂಬ್ರಿಕ್ಸ್‌ಗಳನ್ನು (Rubrics) ಕಡ್ಡಾಯವಾಗಿ ಅನುಸರಿಸಬೇಕು.
-        </li>
-        <li>
-          ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯ ಬ್ಲೂಪ್ರಿಂಟ್, ಪಠ್ಯಕ್ರಮ, ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆ ಕೋಡ್ ಅಥವಾ ಇತರ ತಾಂತ್ರಿಕ ವಿವರಗಳಿಗೆ ಸಂಬಂಧಿಸಿದಂತೆ
-          ಸ್ಪಷ್ಟನೆ ಅಗತ್ಯವಿದ್ದಲ್ಲಿ, ಸಂಬಂಧಿತ ವಿಷಯ ಸಮಿತಿಯ ಅಧ್ಯಕ್ಷರನ್ನು ಸಂಪರ್ಕಿಸಬೇಕು. ಅಗತ್ಯ ಮಾಹಿತಿಗಾಗಿ
-          {HELP_PHONES} ದೂರವಾಣಿ ಸಂಖ್ಯೆಗಳನ್ನು ಸಂಪರ್ಕಿಸಬಹುದು.
-        </li>
-        <li>
-          ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯನ್ನು MS Word ನಲ್ಲಿ ಸಿದ್ಧಪಡಿಸಿ, ಸಂಬಂಧಿತ ವಿಷಯ ಸಮಿತಿಯ ಅಧ್ಯಕ್ಷರು ಹಾಗೂ KPT ಪರೀಕ್ಷಾ ನಿಯಂತ್ರಕರೊಂದಿಗೆ
-          ಸಮನ್ವಯ ಸಾಧಿಸಿ, ನಿಗದಿಪಡಿಸಿದ ಕೊನೆಯ ದಿನಾಂಕ ಮತ್ತು ಸಮಯದೊಳಗೆ
-          <b> exams.kptmangaluru.in </b> ವೆಬ್‌ಸೈಟ್‌ನಲ್ಲಿ ಅಪ್‌ಲೋಡ್ ಮಾಡಬೇಕು. Word ಡಾಕ್ಯುಮೆಂಟ್ ಹೊರತುಪಡಿಸಿ ಇತರ
-          ಫೈಲ್ ರೂಪಗಳನ್ನು ಅಪ್‌ಲೋಡ್ ಮಾಡಬಾರದು.
-        </li>
-        <li>
-          ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯ ವಿಭಾಗಗಳು, ಪ್ರಶ್ನೆಗಳ ಆಯ್ಕೆ, ಅಂಕಗಳ ಹಂಚಿಕೆ ಮತ್ತು ಇತರ ವಿನ್ಯಾಸದ ಅಂಶಗಳು ಸಂಬಂಧಿತ ವಿಭಾಗದ
-          ಅನುಮೋದಿತ ಬ್ಲೂಪ್ರಿಂಟ್‌ಗೆ ಸಂಪೂರ್ಣವಾಗಿ ಅನುಗುಣವಾಗಿರಬೇಕು.
-        </li>
-        <li>
-          ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯ ಸಿದ್ಧತೆ, ಸಂಗ್ರಹಣೆ ಮತ್ತು ಅಪ್‌ಲೋಡ್ ಪ್ರಕ್ರಿಯೆಯ ಪ್ರತಿಯೊಂದು ಹಂತದಲ್ಲಿಯೂ ಸಂಪೂರ್ಣ ಗೌಪ್ಯತೆಯನ್ನು
-          ಕಾಪಾಡಬೇಕು. ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯ ವಿಷಯವನ್ನು ಅನಧಿಕೃತ ವ್ಯಕ್ತಿಗಳೊಂದಿಗೆ ಹಂಚಿಕೊಳ್ಳಬಾರದು. ಯಾವುದೇ ದೋಷ ಅಥವಾ ಸಂದೇಹ
-          ಕಂಡುಬಂದಲ್ಲಿ ತಕ್ಷಣ ಸಂಬಂಧಿತ ವಿಷಯ ಸಮಿತಿಯ ಅಧ್ಯಕ್ಷರು ಅಥವಾ ಪರೀಕ್ಷಾ ನಿಯಂತ್ರಕರ ಗಮನಕ್ಕೆ ತರಬೇಕು.
-        </li>
-      </ol>
 
-      <p className="mt-10 text-right font-semibold">ಪರೀಕ್ಷಾ ನಿಯಂತ್ರಕರು</p>
+          <p className="mt-10 text-right font-semibold">ಪರೀಕ್ಷಾ ನಿಯಂತ್ರಕರು</p>
 
-      <table className="mt-6 w-full border-collapse text-[13px]">
-        <tbody>
-          {[
-            ["QP SETTER NAME", `${o.examiner?.name || ""}${dept ? `, ${dept}` : ""}`],
-            ["DESIGNATION", designation || "Lecturer"],
-            ["INST CODE and NAME", internal ? INSTITUTION : ""],
-            ["QP CODE", `${o.subject?.code || ""}${o.setNo ? ` (Set ${o.setNo})` : ""}`],
-            ["SUBJECT NAME", `${o.subject?.name || ""}${o.paperType === "PRACTICAL" ? " (Practical)" : ""}`],
-            ["LAST DATE TO UPLOAD", lastDate(o.deadline)],
-          ].map(([k, v]) => (
-            <tr key={k}>
-              <td className="w-[32%] border border-black px-3 py-3 text-center">{k}</td>
-              <td className="border border-black px-3 py-3">{v}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
 
-      <p className="mt-6 text-[11px] leading-tight">
-        Exam/QP/memo
-        <br />
-        Dt:{ddmmyy(date)}
-      </p>
 
-      <div className="mt-5 border-t border-black pt-2 text-[11px] leading-tight">
-        <p className="font-semibold">ಪ್ರತಿ (Copy to):</p>
-        <p>
-          ಪ್ರಾಂಶುಪಾಲರು, ಸಂಸ್ಥೆಯ ಕೋಡ್: {INSTITUTION_CODE}, {INSTITUTION} — ಮಾಹಿತಿಗಾಗಿ.
-        </p>
+
+          <div className="mt-5 border-t border-black pt-2 text-[11px] leading-tight">
+            <p className="font-semibold">ಪ್ರತಿ (Copy to):</p>
+            <p>
+              ಪ್ರಾಂಶುಪಾಲರು, ಸಂಸ್ಥೆಯ ಕೋಡ್: {INSTITUTION_CODE}, {INSTITUTION} — ಮಾಹಿತಿಗಾಗಿ.
+            </p>
+          </div>
+        </div>
+        <footer className="mt-2 flex justify-between border-t border-black pt-1.5 text-[10.5px]">
+          <span>https://exams.kptmangaluru.in</span>
+          <span>Page 2 of 2</span>
+        </footer>
       </div>
     </section>
   );

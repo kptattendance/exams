@@ -11,6 +11,7 @@ import Icon from "../shell/Icon";
 import { btn, field } from "../ui/Modal";
 import { useConfirm, useToast } from "../ui/Feedback";
 import { errMsg, useApi } from "./shared";
+import { T } from "../ui/table";
 
 const SESSION = { FN: "Morning", AN: "Afternoon" };
 
@@ -69,6 +70,10 @@ export default function Timetable({ examId: fixedExamId, canManage = false, back
   const [sessions, setSessions] = useState(null);
   const [busy, setBusy] = useState(false);
   const [autoOpen, setAutoOpen] = useState(false);
+  // List filters (they do not change the timetable itself)
+  const [search, setSearch] = useState("");
+  const [dept, setDept] = useState("");
+  const [only, setOnly] = useState(""); // "" | "NO_DATE" | "CLASH"
 
   useEffect(() => {
     if (fixedExamId) return;
@@ -167,16 +172,26 @@ export default function Timetable({ examId: fixedExamId, canManage = false, back
   const locked = !canManage;
 
   // papers grouped: Semester 1, Semester 3, … then back papers only
+  const departments = useMemo(
+    () => [...new Set((data?.papers || []).flatMap((p) => p.departments.map((d) => d.toUpperCase())))].sort(),
+    [data]
+  );
+
   const groups = useMemo(() => {
     if (!data) return [];
+    const q = search.trim().toLowerCase();
     const g = new Map();
     for (const p of data.papers) {
+      if (q && !`${p.code} ${p.name}`.toLowerCase().includes(q)) continue;
+      if (dept && !p.departments.some((d) => d.toUpperCase() === dept)) continue;
+      if (only === "NO_DATE" && rows[p.code]?.date) continue;
+      if (only === "CLASH" && !clashCodes.has(p.code)) continue;
       const label = p.departments.length === 0 ? "Back papers only" : `Semester ${p.semesters.join(" / ")}`;
       if (!g.has(label)) g.set(label, []);
       g.get(label).push(p);
     }
     return [...g.entries()].sort(([a], [b]) => (a.startsWith("Back") ? 1 : b.startsWith("Back") ? -1 : a.localeCompare(b)));
-  }, [data]);
+  }, [data, search, dept, only, rows, clashCodes]);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 pb-28 sm:px-6 lg:px-7">
@@ -296,63 +311,114 @@ export default function Timetable({ examId: fixedExamId, canManage = false, back
           )}
 
           {/* ---------------- papers ---------------- */}
-          <div className="mt-6 space-y-6">
+          <div className="mt-6 flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <Icon name="search" className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Subject code or name" className={`${T.field} w-52 pl-8`} />
+            </div>
+            <select value={dept} onChange={(e) => setDept(e.target.value)} className={T.field}>
+              <option value="">All departments</option>
+              {departments.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+            <select value={only} onChange={(e) => setOnly(e.target.value)} className={T.field}>
+              <option value="">All papers</option>
+              <option value="NO_DATE">Without a date</option>
+              <option value="CLASH">With a clash</option>
+            </select>
+            {(search || dept || only) && (
+              <button
+                onClick={() => {
+                  setSearch("");
+                  setDept("");
+                  setOnly("");
+                }}
+                className="h-9 rounded-lg px-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          <div className="mt-4 space-y-5">
+            {groups.length === 0 && (
+              <p className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center text-sm text-slate-500">No paper matches.</p>
+            )}
             {groups.map(([label, papers]) => (
               <section key={label}>
-                <h3 className="mb-2 text-sm font-bold text-slate-900">{label}</h3>
-                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                  <ul className="divide-y divide-slate-100">
-                    {papers.map((p, i) => {
-                      const v = rows[p.code] || {};
-                      const bad = clashCodes.has(p.code);
-                      return (
-                        <li
-                          key={p.code}
-                          className={`flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center ${bad ? "bg-red-50/70" : ""}`}
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold text-slate-900">
-                              <span className="mr-1 font-normal tabular-nums text-slate-400">{i + 1}.</span>
-                              {p.code} <span className="font-normal text-slate-600">{p.name}</span>
-                            </p>
-                            <p className="mt-0.5 text-xs text-slate-500">
-                              {p.departments.length ? p.departments.map((d) => d.toUpperCase()).join(", ") : "Back paper"} ·{" "}
-                              {p.candidates} students
-                              {p.backlog > 0 && p.departments.length > 0 && ` (${p.backlog} back paper)`}
-                              {bad && <span className="ml-2 font-semibold text-red-600">Clash</span>}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="date"
-                              value={v.date || ""}
-                              disabled={locked || published}
-                              onChange={(e) => setRow(p.code, { date: e.target.value })}
-                              className={`h-10 w-36 shrink-0 rounded-xl border px-2 text-sm text-slate-900 outline-none focus:border-slate-500 disabled:bg-slate-50 ${
-                                !v.date ? "border-orange-300 bg-orange-50" : "border-slate-300 bg-white"
-                              }`}
-                              aria-label={`Date for ${p.code}`}
-                            />
-                            <div className="flex shrink-0 overflow-hidden rounded-xl border border-slate-200">
-                              {["FN", "AN"].map((k) => (
-                                <button
-                                  key={k}
-                                  type="button"
-                                  disabled={locked || published || !v.date}
-                                  onClick={() => setRow(p.code, { session: k })}
-                                  className={`h-10 px-3 text-xs font-semibold transition disabled:cursor-default ${
-                                    v.date && (v.session || "FN") === k ? "bg-slate-950 text-white" : "bg-white text-slate-500 hover:bg-slate-50"
-                                  }`}
-                                >
-                                  {SESSION[k]}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
+                <h3 className="mb-2 text-sm font-bold text-slate-900">
+                  {label} <span className="font-normal text-slate-400">· {papers.length} papers</span>
+                </h3>
+                <div className={T.wrap}>
+                  <table className={T.table}>
+                    <thead>
+                      <tr className={T.headRow}>
+                        <th className={T.thNum}>Sl.</th>
+                        <th className={T.th}>Subject</th>
+                        <th className={T.th}>Departments</th>
+                        <th className={`${T.th} text-right`}>Students</th>
+                        <th className={T.th}>Date</th>
+                        <th className={T.th}>Session</th>
+                      </tr>
+                    </thead>
+                    <tbody className={T.body}>
+                      {papers.map((p, i) => {
+                        const v = rows[p.code] || {};
+                        const bad = clashCodes.has(p.code);
+                        return (
+                          <tr key={p.code} className={`${T.row} ${bad ? "bg-red-50/70" : ""}`}>
+                            <td className={T.tdNum}>{i + 1}</td>
+                            <td className={T.td}>
+                              <p className="font-semibold text-slate-950">
+                                {p.code}
+                                {bad && <span className={`${T.pill} ml-2 bg-red-100 text-red-700`}>Clash</span>}
+                              </p>
+                              <p className="max-w-[18rem] truncate text-xs text-slate-500">{p.name}</p>
+                            </td>
+                            <td className={`${T.td} text-xs text-slate-600`}>
+                              {p.departments.length ? p.departments.map((d) => d.toUpperCase()).join(", ") : "Back paper"}
+                            </td>
+                            <td className={`${T.td} text-right text-xs tabular-nums text-slate-600`}>
+                              {p.candidates}
+                              {p.backlog > 0 && p.departments.length > 0 && <span className="block text-[11px] text-slate-400">{p.backlog} back</span>}
+                            </td>
+                            <td className={T.td}>
+                              <input
+                                type="date"
+                                value={v.date || ""}
+                                disabled={locked || published}
+                                onChange={(e) => setRow(p.code, { date: e.target.value })}
+                                className={`h-8 w-36 rounded-lg border px-2 text-xs text-slate-900 outline-none focus:border-slate-500 disabled:bg-slate-50 ${
+                                  !v.date ? "border-orange-300 bg-orange-50" : "border-slate-300 bg-white"
+                                }`}
+                                aria-label={`Date for ${p.code}`}
+                              />
+                            </td>
+                            <td className={T.td}>
+                              <div className="inline-flex overflow-hidden rounded-lg border border-slate-200">
+                                {["FN", "AN"].map((k) => (
+                                  <button
+                                    key={k}
+                                    type="button"
+                                    disabled={locked || published || !v.date}
+                                    onClick={() => setRow(p.code, { session: k })}
+                                    className={`h-8 px-2.5 text-[11px] font-semibold transition disabled:cursor-default ${
+                                      v.date && (v.session || "FN") === k ? "bg-slate-950 text-white" : "bg-white text-slate-500 hover:bg-slate-50"
+                                    }`}
+                                  >
+                                    {SESSION[k]}
+                                  </button>
+                                ))}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               </section>
             ))}

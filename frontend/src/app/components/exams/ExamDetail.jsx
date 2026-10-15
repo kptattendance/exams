@@ -12,6 +12,7 @@ import Icon from "../shell/Icon";
 import Modal, { btn, field } from "../ui/Modal";
 import { useConfirm, useToast } from "../ui/Feedback";
 import { ExamForm } from "./ExamList";
+import { T } from "../ui/table";
 import {
   ADMISSION_SHORT,
   DECISION,
@@ -645,7 +646,7 @@ function StudentList({ examId, classes, filters, setFilters, canManage, canEditS
   };
 
   const items = data?.data || [];
-  const sel = "h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-slate-400";
+  const sel = T.field;
 
   return (
     <section className="mt-8">
@@ -653,14 +654,14 @@ function StudentList({ examId, classes, filters, setFilters, canManage, canEditS
         <h3 className="text-lg font-bold tracking-tight text-slate-950">
           Students {data && <span className="text-sm font-medium text-slate-500">({data.total})</span>}
         </h3>
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-          <div className="relative col-span-2 sm:w-56">
-            <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative w-56">
+            <Icon name="search" className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Name or register no."
-              className={`${sel} w-full pl-9`}
+              className={`${sel} w-full pl-8`}
             />
           </div>
           <select value={filters.cls} onChange={(e) => setFilters((f) => ({ ...f, cls: e.target.value }))} className={sel}>
@@ -695,14 +696,22 @@ function StudentList({ examId, classes, filters, setFilters, canManage, canEditS
         </button>
       )}
 
-      <div className="mt-4 space-y-2">
-        {data === null &&
-          [0, 1, 2].map((i) => <div key={i} className="h-20 animate-pulse rounded-2xl border border-slate-200 bg-white" />)}
-        {data && items.length === 0 && (
-          <p className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center text-sm text-slate-500">
-            No students match these filters.
-          </p>
-        )}
+      <div className={`mt-4 ${T.wrap}`}>
+        {data === null && <div className="h-48 animate-pulse" />}
+        {data && items.length === 0 && <p className="px-4 py-10 text-center text-sm text-slate-500">No students match these filters.</p>}
+        {items.length > 0 && (
+        <table className={T.table}>
+          <thead>
+            <tr className={T.headRow}>
+              <th className={T.thNum}>Sl.</th>
+              <th className={T.th}>Student</th>
+              <th className={T.th}>Class</th>
+              <th className={T.th}>Subjects</th>
+              <th className={T.th}>Eligibility</th>
+              <th className="w-8" />
+            </tr>
+          </thead>
+          <tbody className={T.body}>
         {items.map((reg, i) => (
           <StudentRow
             key={reg._id}
@@ -716,6 +725,9 @@ function StudentList({ examId, classes, filters, setFilters, canManage, canEditS
             onRemove={(s) => removeManual(reg, s)}
           />
         ))}
+          </tbody>
+        </table>
+        )}
       </div>
 
       {data && data.pages > 1 && (
@@ -761,27 +773,34 @@ function initials(name = "") {
 function StudentRow({ sl, reg, open, onToggle, canManage, canEditSubjects, onOverride, onRemove }) {
   const o = OVERALL[reg.overall];
   return (
-    <div className={`overflow-hidden rounded-2xl border bg-white transition ${open ? "border-slate-300 shadow-sm" : "border-slate-200"}`}>
-      <button onClick={onToggle} className="flex w-full items-start gap-3 px-4 py-3.5 text-left sm:items-center" aria-expanded={open}>
-        <span className="w-7 shrink-0 pt-2.5 text-right text-xs tabular-nums text-slate-400 sm:pt-0">{sl}.</span>
-        {reg.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={reg.imageUrl} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover ring-1 ring-slate-200" />
-        ) : (
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-600">
-            {initials(reg.name)}
-          </span>
-        )}
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-baseline gap-x-2">
-            <p className="truncate font-semibold text-slate-950">{reg.name}</p>
-            <p className="text-xs font-semibold tabular-nums text-slate-500">{reg.registerNumber}</p>
+    <>
+      <tr onClick={onToggle} className={`cursor-pointer ${T.row} ${open ? "bg-slate-50" : ""}`} aria-expanded={open}>
+        <td className={T.tdNum}>{sl}</td>
+        <td className={T.td}>
+          <div className="flex items-center gap-2.5">
+            {reg.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={reg.imageUrl} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover ring-1 ring-slate-200" />
+            ) : (
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-bold text-slate-600">
+                {initials(reg.name)}
+              </span>
+            )}
+            <div className="min-w-0">
+              <p className="truncate font-medium text-slate-950">{reg.name}</p>
+              <p className="text-[11px] font-semibold tabular-nums text-slate-500">
+                {reg.registerNumber}
+                {reg.warnings?.length > 0 && <span className="ml-2 text-orange-700">⚠ {reg.warnings.length}</span>}
+              </p>
+            </div>
           </div>
-          <p className="mt-0.5 text-xs text-slate-500">
-            {reg.department.toUpperCase()} · Sem {reg.semester} · {ADMISSION_SHORT[reg.admissionType] || reg.admissionType}
-            {reg.warnings?.length > 0 && <span className="ml-2 font-semibold text-orange-700">⚠ {reg.warnings.length}</span>}
-          </p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
+        </td>
+        <td className={`${T.td} whitespace-nowrap text-xs text-slate-600`}>
+          {reg.department.toUpperCase()} · Sem {reg.semester}
+          <p className="text-[11px] text-slate-400">{ADMISSION_SHORT[reg.admissionType] || reg.admissionType}</p>
+        </td>
+        <td className={T.td}>
+          <div className="flex flex-wrap gap-1">
             {reg.subjects.map((s) => (
               <span
                 key={s.subject}
@@ -795,35 +814,38 @@ function StudentRow({ sl, reg, open, onToggle, canManage, canEditSubjects, onOve
               </span>
             ))}
           </div>
-        </div>
-        <span className={`hidden shrink-0 items-center gap-1.5 text-xs font-semibold sm:flex ${o.text}`}>
-          <span className={`h-2 w-2 rounded-full ${o.dot}`} />
-          {o.short}
-        </span>
-        <Icon name="chevronRight" className={`mt-1 h-5 w-5 shrink-0 text-slate-300 transition sm:mt-0 ${open ? "rotate-90" : ""}`} />
-      </button>
+        </td>
+        <td className={T.td}>
+          <span className={`${T.pill} bg-slate-50 ${o.text}`}>
+            <span className={`${T.dot} ${o.dot}`} />
+            {o.short}
+          </span>
+        </td>
+        <td className="pr-3">
+          <Icon name="chevronRight" className={`h-4 w-4 text-slate-300 transition ${open ? "rotate-90" : ""}`} />
+        </td>
+      </tr>
 
       {open && (
-        <div className="border-t border-slate-100 bg-slate-50/60 px-4 py-4">
-          <p className={`mb-3 flex items-center gap-1.5 text-sm font-semibold sm:hidden ${o.text}`}>
-            <span className={`h-2 w-2 rounded-full ${o.dot}`} />
-            {o.label}
-          </p>
-          {reg.warnings?.length > 0 && (
-            <ul className="mb-3 space-y-1 rounded-xl bg-orange-50 px-3 py-2 text-xs leading-5 text-orange-900">
-              {reg.warnings.map((w, i) => (
-                <li key={i}>⚠ {w}</li>
+        <tr className="bg-slate-50/60">
+          <td />
+          <td colSpan={5} className="px-3 pb-4 pt-2">
+            {reg.warnings?.length > 0 && (
+              <ul className="mb-3 space-y-1 rounded-xl bg-orange-50 px-3 py-2 text-xs leading-5 text-orange-900">
+                {reg.warnings.map((w, i) => (
+                  <li key={i}>⚠ {w}</li>
+                ))}
+              </ul>
+            )}
+            <div className="space-y-2">
+              {reg.subjects.map((s) => (
+                <SubjectLine key={s.subject} s={s} canManage={canManage} canEditSubjects={canEditSubjects} onOverride={() => onOverride(s)} onRemove={() => onRemove(s)} />
               ))}
-            </ul>
-          )}
-          <div className="space-y-2">
-            {reg.subjects.map((s) => (
-              <SubjectLine key={s.subject} s={s} canManage={canManage} canEditSubjects={canEditSubjects} onOverride={() => onOverride(s)} onRemove={() => onRemove(s)} />
-            ))}
-          </div>
-        </div>
+            </div>
+          </td>
+        </tr>
       )}
-    </div>
+    </>
   );
 }
 

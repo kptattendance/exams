@@ -15,6 +15,7 @@ import {
 } from "../controllers/studentController.js";
 
 import { authenticateUser } from "../middlewares/authMiddleware.js";
+import { requestPurge, confirmPurge, purgeLog } from "../controllers/studentPurgeController.js";
 import { uploadSingleImage } from "../middlewares/uploadImage.js";
 
 const router = express.Router();
@@ -114,6 +115,11 @@ router.put(
 // =====================================================
 // DELETE ONE
 // =====================================================
+
+// Admin: delete students with ALL their records, after a code sent by email
+router.post("/purge/request", authenticateUser, requireRole("admin"), requestPurge);
+router.post("/purge/confirm", authenticateUser, requireRole("admin"), confirmPurge);
+router.get("/purge/log", authenticateUser, requireRole("admin"), purgeLog);
 
 // Must come before "/:id", or "bulk-delete" is taken as a student id
 router.delete(

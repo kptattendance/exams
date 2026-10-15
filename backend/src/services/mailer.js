@@ -209,3 +209,26 @@ export async function sendPracticalScheduleEmail({ to, name, exam, panel, batche
   });
   return true;
 }
+
+// ------------------------------------------------------------------ security codes
+
+// One-time code for a dangerous admin action (e.g. deleting students with all records)
+export async function sendSecurityCodeEmail({ to, code, action, details = [] }) {
+  const t = getTransporter();
+  if (!t || !to) return false;
+  const html = wrap(
+    "Security code",
+    `<p>A request was made on the examination website to <b>${esc(action)}</b>.</p>
+    ${details.length ? `<ul>${details.map((d) => `<li>${esc(d)}</li>`).join("")}</ul>` : ""}
+    <p>Your code (valid for 10 minutes):</p>
+    <p style="font-size:28px;font-weight:bold;letter-spacing:6px;background:#f1f5f9;padding:12px;border-radius:8px;text-align:center">${esc(code)}</p>
+    <p style="font-size:13px;color:#475569">If you did not ask for this, do not share the code and inform the COE office.</p>`
+  );
+  await t.sendMail({
+    from: process.env.MAIL_FROM || process.env.SMTP_USER,
+    to,
+    subject: `Security code: ${action}`,
+    html,
+  });
+  return true;
+}
