@@ -38,9 +38,29 @@ export function codeFromName(fileName, codes) {
 }
 
 // GET /api/paper-setting/syllabus
+// Each file also carries the department(s) and semester of its subject code
+// (a common subject can belong to several departments), for filtering.
 export const listSyllabus = async (req, res) => {
   const files = await SyllabusFile.find().select("code name size createdAt").sort({ code: 1, name: 1 }).lean();
-  res.json({ data: files });
+  const subjects = await Subject.find({ code: { $in: [...new Set(files.map((f) => f.code))] } })
+    .select("code department semester")
+    .lean();
+  const byCode = new Map();
+  for (const s of subjects) {
+    if (!byCode.has(s.code)) byCode.set(s.code, { departments: new Set(), semesters: new Set() });
+    byCode.get(s.code).departments.add(String(s.department || "").toUpperCase());
+    byCode.get(s.code).semesters.add(s.semester);
+  }
+  res.json({
+    data: files.map((f) => {
+      const info = byCode.get(f.code);
+      return {
+        ...f,
+        departments: info ? [...info.departments].filter(Boolean).sort() : [],
+        semesters: info ? [...info.semesters].filter(Boolean).sort((a, b) => a - b) : [],
+      };
+    }),
+  });
 };
 
 // POST /api/paper-setting/syllabus   (multipart: file)

@@ -708,6 +708,16 @@ function SyllabusModal({ api, onClose }) {
   const [files, setFiles] = useState(null);
   const [progress, setProgress] = useState("");
   const [failed, setFailed] = useState([]);
+  const [dept, setDept] = useState("");
+  const [sem, setSem] = useState("");
+
+  // Filters use the department(s) and semester of each file's subject code
+  const departmentsOf = [...new Set((files || []).flatMap((f) => f.departments || []))].sort();
+  const semestersOf = [...new Set((files || []).flatMap((f) => f.semesters || []))].sort((a, b) => a - b);
+  const shownFiles = (files || []).filter(
+    (f) => (!dept || (f.departments || []).includes(dept)) && (!sem || (f.semesters || []).map(String).includes(sem))
+  );
+  const smallField = "h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700 outline-none focus:border-slate-400";
 
   const load = useCallback(async () => {
     try {
@@ -792,13 +802,56 @@ function SyllabusModal({ api, onClose }) {
           <p className="text-sm text-slate-500">No syllabus uploaded yet.</p>
         ) : (
           <>
-          <p className="mb-1 text-xs font-semibold text-slate-500">{files.length} file{files.length === 1 ? "" : "s"} uploaded</p>
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <select value={dept} onChange={(e) => setDept(e.target.value)} className={smallField}>
+              <option value="">All departments</option>
+              {departmentsOf.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+            <select value={sem} onChange={(e) => setSem(e.target.value)} className={smallField}>
+              <option value="">All semesters</option>
+              {semestersOf.map((n) => (
+                <option key={n} value={String(n)}>
+                  Sem {n}
+                </option>
+              ))}
+            </select>
+            {(dept || sem) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setDept("");
+                  setSem("");
+                }}
+                className="h-8 rounded-lg px-2 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+              >
+                Clear
+              </button>
+            )}
+            <span className="ml-auto text-xs font-semibold text-slate-500">
+              {shownFiles.length === files.length
+                ? `${files.length} file${files.length === 1 ? "" : "s"} uploaded`
+                : `${shownFiles.length} of ${files.length} files`}
+            </span>
+          </div>
+          {shownFiles.length === 0 && <p className="py-4 text-center text-sm text-slate-500">No file for this selection.</p>}
           <ul className="divide-y divide-slate-100 text-sm">
-            {files.map((f, i) => (
+            {shownFiles.map((f, i) => (
               <li key={f._id} className="flex items-center gap-3 py-2">
                 <span className="w-7 shrink-0 text-right tabular-nums text-slate-400">{i + 1}.</span>
                 <span className="w-24 shrink-0 font-semibold text-slate-900">{f.code}</span>
-                <span className="min-w-0 flex-1 truncate text-slate-600">{f.name}</span>
+                <span className="min-w-0 flex-1 truncate text-slate-600">
+                  {f.name}
+                  {(f.departments?.length > 0 || f.semesters?.length > 0) && (
+                    <span className="block text-[11px] text-slate-400">
+                      {f.departments?.join(", ")}
+                      {f.semesters?.length > 0 && ` · Sem ${f.semesters.join(", ")}`}
+                    </span>
+                  )}
+                </span>
                 <span className="text-xs text-slate-400">{Math.ceil(f.size / 1024)} KB</span>
                 <SmallBtn tone="danger" onClick={() => remove(f)}>
                   Remove
