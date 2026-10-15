@@ -11,6 +11,7 @@ import Icon from "../shell/Icon";
 import Modal, { btn, field } from "../ui/Modal";
 import { useConfirm, useToast } from "../ui/Feedback";
 import { deptLabel, errMsg, useApi } from "./shared";
+import { T } from "../ui/table";
 
 const TITLE = { ia: "Final IA", attendance: "Final attendance" };
 const TABS = [
@@ -29,6 +30,8 @@ export default function SheetReview({ type }) {
   const [list, setList] = useState(null);
   const [counts, setCounts] = useState({});
   const [open, setOpen] = useState(null); // sheet id
+  const [dept, setDept] = useState("");
+  const [sem, setSem] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -71,8 +74,12 @@ export default function SheetReview({ type }) {
     }
   };
 
+  const departments = [...new Set((list || []).map((x) => x.department))].sort();
+  const semesters = [...new Set((list || []).map((x) => x.semester))].sort((a, b) => a - b);
+  const shown = (list || []).filter((x) => (!dept || x.department === dept) && (!sem || String(x.semester) === sem));
+
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-7">
+    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-7">
       <h2 className="text-2xl font-bold tracking-tight text-slate-950">{TITLE[type]}</h2>
       <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
         Sheets submitted by HODs appear here by themselves. Open one, check it, then freeze it or send it back.
@@ -99,43 +106,116 @@ export default function SheetReview({ type }) {
         ))}
       </div>
 
-      <div className="mt-4 space-y-3">
-        {list === null && [0, 1].map((i) => <div key={i} className="h-24 animate-pulse rounded-2xl border border-slate-200 bg-white" />)}
-        {list?.length === 0 && (
-          <p className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center text-sm text-slate-500">
-            {tab === "submitted" ? "Nothing waiting. New sheets show up here when HODs submit them." : "No sheets here."}
+      {/* filters */}
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <select value={dept} onChange={(e) => setDept(e.target.value)} className={T.field}>
+          <option value="">All departments</option>
+          {departments.map((d) => (
+            <option key={d} value={d}>
+              {d.toUpperCase()} – {deptLabel(d)}
+            </option>
+          ))}
+        </select>
+        <select value={sem} onChange={(e) => setSem(e.target.value)} className={T.field}>
+          <option value="">All semesters</option>
+          {semesters.map((n) => (
+            <option key={n} value={String(n)}>
+              Sem {n}
+            </option>
+          ))}
+        </select>
+        {(dept || sem) && (
+          <button
+            onClick={() => {
+              setDept("");
+              setSem("");
+            }}
+            className="h-9 rounded-lg px-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+          >
+            Clear
+          </button>
+        )}
+        {list && (
+          <span className="ml-auto text-xs text-slate-500">
+            {shown.length} sheet{shown.length === 1 ? "" : "s"} · {shown.reduce((a, x) => a + (x.students || 0), 0)} students
+          </span>
+        )}
+      </div>
+
+      <div className={`mt-3 ${T.wrap}`}>
+        {list === null && <div className="h-40 animate-pulse" />}
+        {list && shown.length === 0 && (
+          <p className="px-4 py-10 text-center text-sm text-slate-500">
+            {tab === "submitted" && !dept && !sem ? "Nothing waiting. New sheets show up here when HODs submit them." : "No sheets here."}
           </p>
         )}
-        {list?.map((s) => (
-          <div key={s._id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 sm:flex-row sm:items-center">
-            <div className="min-w-0 flex-1">
-              <p className="font-semibold text-slate-950">
-                {s.department.toUpperCase()} · Semester {s.semester}
-                <span className="ml-2 text-sm font-normal text-slate-500">{deptLabel(s.department)}</span>
-              </p>
-              <p className="mt-0.5 text-sm text-slate-500">
-                Batch {s.batch} · {s.academicYear} · {s.students} students · {s.subjects} subjects
-              </p>
-              <p className="mt-1 text-xs text-slate-500">
-                {s.status === "submitted" && `Submitted ${fmt(s.submittedAt)}`}
-                {s.status === "confirmed" && `Frozen ${fmt(s.confirmedAt)}`}
-                {s.status === "draft" && (s.returnedReason ? `Sent back: ${s.returnedReason}` : "HOD is still entering")}
-                {s.empty > 0 && <span className="ml-2 font-semibold text-orange-700">{s.empty} empty entries</span>}
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => setOpen(s._id)} className={btn.secondary}>
-                Review
-              </button>
-              {s.status === "submitted" && (
-                <button onClick={() => freeze(s)} className={btn.primary}>
-                  <Icon name="lock" className="h-4 w-4" />
-                  Freeze
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
+        {shown.length > 0 && (
+          <table className={T.table}>
+            <thead>
+              <tr className={T.headRow}>
+                <th className={T.thNum}>Sl.</th>
+                <th className={T.th}>Department</th>
+                <th className={T.th}>Sem</th>
+                <th className={T.th}>Batch</th>
+                <th className={T.th}>Year</th>
+                <th className={`${T.th} text-right`}>Students</th>
+                <th className={`${T.th} text-right`}>Subjects</th>
+                <th className={T.th}>Status</th>
+                <th className={`${T.th} text-right`}>Action</th>
+              </tr>
+            </thead>
+            <tbody className={T.body}>
+              {shown.map((s, i) => (
+                <tr key={s._id} className={T.row}>
+                  <td className={T.tdNum}>{i + 1}</td>
+                  <td className={T.td}>
+                    <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-700">{s.department.toUpperCase()}</span>
+                    <span className="ml-2 text-xs text-slate-500">{deptLabel(s.department)}</span>
+                  </td>
+                  <td className={`${T.td} text-xs font-semibold text-slate-700`}>{s.semester}</td>
+                  <td className={`${T.td} text-xs text-slate-600`}>{s.batch}</td>
+                  <td className={`${T.td} text-xs text-slate-600`}>{s.academicYear}</td>
+                  <td className={`${T.td} text-right text-xs tabular-nums text-slate-700`}>{s.students}</td>
+                  <td className={`${T.td} text-right text-xs tabular-nums text-slate-700`}>{s.subjects}</td>
+                  <td className={T.td}>
+                    {s.status === "submitted" && (
+                      <span className={`${T.pill} bg-blue-50 text-blue-700`}>
+                        <span className={`${T.dot} bg-blue-500`} />
+                        Waiting · {fmt(s.submittedAt)}
+                      </span>
+                    )}
+                    {s.status === "confirmed" && (
+                      <span className={`${T.pill} bg-emerald-50 text-emerald-700`}>
+                        <span className={`${T.dot} bg-emerald-500`} />
+                        Frozen · {fmt(s.confirmedAt)}
+                      </span>
+                    )}
+                    {s.status === "draft" && (
+                      <span className={`${T.pill} bg-slate-100 text-slate-600`} title={s.returnedReason || ""}>
+                        <span className={`${T.dot} bg-slate-400`} />
+                        {s.returnedReason ? "Sent back" : "HOD entering"}
+                      </span>
+                    )}
+                    {s.empty > 0 && <p className="mt-1 text-[11px] font-semibold text-orange-700">{s.empty} empty entries</p>}
+                  </td>
+                  <td className={`${T.td} text-right`}>
+                    <div className="flex justify-end gap-1.5">
+                      <button onClick={() => setOpen(s._id)} className={btn.small}>
+                        Review
+                      </button>
+                      {s.status === "submitted" && (
+                        <button onClick={() => freeze(s)} className={`${btn.small} border-slate-900 bg-slate-900 text-white hover:bg-slate-700`}>
+                          <Icon name="lock" className="h-3.5 w-3.5" />
+                          Freeze
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       {open && (

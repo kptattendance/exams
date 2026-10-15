@@ -5,10 +5,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import Icon from "../shell/Icon";
 import { useToast } from "../ui/Feedback";
 import { errMsg, useApi } from "./shared";
+import { T } from "../ui/table";
 
 export const STAGE = {
   ATTENDANCE: { label: "Mark absentees", chip: "bg-slate-100 text-slate-600" },
@@ -23,9 +25,13 @@ const fmtDay = (iso) =>
 export default function ValuationBoard({ basePath, canManage = false }) {
   const api = useApi();
   const toast = useToast();
+  const router = useRouter();
   const [exams, setExams] = useState(null);
   const [examId, setExamId] = useState("");
   const [data, setData] = useState(null);
+  const [stage, setStage] = useState("");
+  const [dept, setDept] = useState("");
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -65,6 +71,15 @@ export default function ValuationBoard({ basePath, canManage = false }) {
       toast.error(errMsg(e, "Could not save."));
     }
   };
+
+  const departments = [...new Set((data?.data || []).flatMap((p) => p.departments.map((d) => d.toUpperCase())))].sort();
+  const q = search.trim().toLowerCase();
+  const shown = (data?.data || []).filter(
+    (p) =>
+      (!stage || p.stage === stage) &&
+      (!dept || p.departments.some((d) => d.toUpperCase() === dept)) &&
+      (!q || `${p.code} ${p.name}`.toLowerCase().includes(q))
+  );
 
   const doubleEntry = data?.exam?.valuation?.doubleEntry !== false;
   const percent = data?.exam?.valuation?.thirdValuationPercent ?? 15;
@@ -111,39 +126,115 @@ export default function ValuationBoard({ basePath, canManage = false }) {
       {examId && !data && <div className="mt-6 h-64 animate-pulse rounded-2xl bg-white" />}
 
       {data && (
-        <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-          {data.data.length === 0 && <p className="px-4 py-10 text-center text-sm text-slate-500">No written papers. Register students first.</p>}
-          <ul className="divide-y divide-slate-100">
-            {data.data.map((p, i) => (
-              <li key={p.code}>
-                <Link
-                  href={`${basePath}/${examId}/${encodeURIComponent(p.code)}`}
-                  className="flex flex-col gap-2 px-4 py-3.5 hover:bg-slate-50 sm:flex-row sm:items-center"
-                >
-                  <div className="w-28 shrink-0 text-xs font-semibold text-slate-500">
-                    {fmtDay(p.date)} {p.session && (p.session === "FN" ? "· Morning" : "· Afternoon")}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-slate-950">
-                      <span className="mr-1 font-normal tabular-nums text-slate-400">{i + 1}.</span>
-                      {p.code} <span className="font-normal text-slate-600">{p.name}</span>
-                    </p>
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      {p.departments.length ? p.departments.map((d) => d.toUpperCase()).join(", ") : "Back paper"}
-                      {p.candidates !== null && ` · ${p.candidates} candidates`}
-                      {p.absent > 0 && ` · ${p.absent} absent`}
-                      {p.packets > 0 && ` · packets ${p.packetsVerified}/${p.packets} entered`}
-                    </p>
-                  </div>
-                  <span className={`self-start rounded-full px-2.5 py-1 text-xs font-semibold sm:self-center ${STAGE[p.stage].chip}`}>
-                    {STAGE[p.stage].label}
-                  </span>
-                  <Icon name="chevronRight" className="hidden h-5 w-5 text-slate-300 sm:block" />
-                </Link>
-              </li>
+        <>
+          {/* stage tiles: click to filter */}
+          <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-5">
+            {[["", "All papers"], ...Object.entries(STAGE).map(([k, v]) => [k, v.label])].map(([k, label]) => (
+              <button
+                key={label}
+                onClick={() => setStage(k)}
+                className={`rounded-2xl border bg-white px-3 py-2.5 text-left transition ${
+                  stage === k ? "border-slate-900 ring-1 ring-slate-900" : "border-slate-200 hover:border-slate-300"
+                }`}
+              >
+                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{label}</p>
+                <p className="mt-0.5 text-xl font-bold tabular-nums text-slate-900">
+                  {k ? data.data.filter((p) => p.stage === k).length : data.data.length}
+                </p>
+              </button>
             ))}
-          </ul>
-        </div>
+          </div>
+
+          {/* filters */}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <Icon name="search" className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Subject code or name" className={`${T.field} w-52 pl-8`} />
+            </div>
+            <select value={dept} onChange={(e) => setDept(e.target.value)} className={T.field}>
+              <option value="">All departments</option>
+              {departments.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+            {(stage || dept || search) && (
+              <button
+                onClick={() => {
+                  setStage("");
+                  setDept("");
+                  setSearch("");
+                }}
+                className="h-9 rounded-lg px-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+              >
+                Clear
+              </button>
+            )}
+            <span className="ml-auto text-xs text-slate-500">
+              {shown.length} of {data.data.length}
+            </span>
+          </div>
+
+          <div className={`mt-3 ${T.wrap}`}>
+            {shown.length === 0 && (
+              <p className="px-4 py-10 text-center text-sm text-slate-500">
+                {data.data.length ? "No paper matches these filters." : "No written papers. Register students first."}
+              </p>
+            )}
+            {shown.length > 0 && (
+              <table className={T.table}>
+                <thead>
+                  <tr className={T.headRow}>
+                    <th className={T.thNum}>Sl.</th>
+                    <th className={T.th}>Exam date</th>
+                    <th className={T.th}>Subject</th>
+                    <th className={T.th}>Departments</th>
+                    <th className={`${T.th} text-right`}>Candidates</th>
+                    <th className={`${T.th} text-right`}>Absent</th>
+                    <th className={T.th}>Packets entered</th>
+                    <th className={T.th}>Stage</th>
+                    <th className="w-8" />
+                  </tr>
+                </thead>
+                <tbody className={T.body}>
+                  {shown.map((p, i) => {
+                    const href = `${basePath}/${examId}/${encodeURIComponent(p.code)}`;
+                    return (
+                      <tr key={p.code} className={`${T.row} cursor-pointer`} onClick={() => router.push(href)}>
+                        <td className={T.tdNum}>{i + 1}</td>
+                        <td className={`${T.td} whitespace-nowrap text-xs text-slate-600`}>
+                          {fmtDay(p.date)}
+                          {p.session && <span className="block text-[11px] text-slate-400">{p.session === "FN" ? "Morning" : "Afternoon"}</span>}
+                        </td>
+                        <td className={T.td}>
+                          <Link href={href} onClick={(e) => e.stopPropagation()} className="font-semibold text-slate-950 hover:underline">
+                            {p.code}
+                          </Link>
+                          <p className="max-w-[16rem] truncate text-xs text-slate-500">{p.name}</p>
+                        </td>
+                        <td className={`${T.td} text-xs text-slate-600`}>
+                          {p.departments.length ? p.departments.map((d) => d.toUpperCase()).join(", ") : "Back paper"}
+                        </td>
+                        <td className={`${T.td} text-right text-xs tabular-nums text-slate-700`}>{p.candidates ?? "–"}</td>
+                        <td className={`${T.td} text-right text-xs tabular-nums ${p.absent > 0 ? "font-semibold text-red-600" : "text-slate-400"}`}>
+                          {p.absent || 0}
+                        </td>
+                        <td className={`${T.td} text-xs tabular-nums text-slate-600`}>{p.packets > 0 ? `${p.packetsVerified} / ${p.packets}` : "–"}</td>
+                        <td className={T.td}>
+                          <span className={`${T.pill} ${STAGE[p.stage].chip}`}>{STAGE[p.stage].label}</span>
+                        </td>
+                        <td className="pr-3">
+                          <Icon name="chevronRight" className="h-4 w-4 text-slate-300" />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </>
       )}
     </div>
   );
