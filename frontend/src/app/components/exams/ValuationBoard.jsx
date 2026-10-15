@@ -114,7 +114,7 @@ export default function ValuationBoard({ basePath, canManage = false }) {
         <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white">
           {data.data.length === 0 && <p className="px-4 py-10 text-center text-sm text-slate-500">No written papers. Register students first.</p>}
           <ul className="divide-y divide-slate-100">
-            {data.data.map((p) => (
+            {data.data.map((p, i) => (
               <li key={p.code}>
                 <Link
                   href={`${basePath}/${examId}/${encodeURIComponent(p.code)}`}
@@ -125,6 +125,7 @@ export default function ValuationBoard({ basePath, canManage = false }) {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-slate-950">
+                      <span className="mr-1 font-normal tabular-nums text-slate-400">{i + 1}.</span>
                       {p.code} <span className="font-normal text-slate-600">{p.name}</span>
                     </p>
                     <p className="mt-0.5 text-xs text-slate-500">

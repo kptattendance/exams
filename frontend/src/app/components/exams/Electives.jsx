@@ -201,10 +201,13 @@ export default function Electives({ fixedDepartment = false }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {data.students.map((st) => (
+                  {data.students.map((st, n) => (
                     <tr key={st._id}>
                       <td className="px-4 py-2">
-                        <p className="font-semibold text-slate-900">{st.name}</p>
+                        <p className="font-semibold text-slate-900">
+                          <span className="mr-1 font-normal tabular-nums text-slate-400">{n + 1}.</span>
+                          {st.name}
+                        </p>
                         <p className="text-xs tabular-nums text-slate-500">{st.registerNumber}</p>
                       </td>
                       {data.groups.map((g) => {

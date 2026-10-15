@@ -703,9 +703,10 @@ function StudentList({ examId, classes, filters, setFilters, canManage, canEditS
             No students match these filters.
           </p>
         )}
-        {items.map((reg) => (
+        {items.map((reg, i) => (
           <StudentRow
             key={reg._id}
+            sl={(page - 1) * PAGE_SIZE + i + 1}
             reg={reg}
             open={open === reg._id}
             onToggle={() => setOpen(open === reg._id ? null : reg._id)}
@@ -757,11 +758,12 @@ function initials(name = "") {
     .toUpperCase();
 }
 
-function StudentRow({ reg, open, onToggle, canManage, canEditSubjects, onOverride, onRemove }) {
+function StudentRow({ sl, reg, open, onToggle, canManage, canEditSubjects, onOverride, onRemove }) {
   const o = OVERALL[reg.overall];
   return (
     <div className={`overflow-hidden rounded-2xl border bg-white transition ${open ? "border-slate-300 shadow-sm" : "border-slate-200"}`}>
       <button onClick={onToggle} className="flex w-full items-start gap-3 px-4 py-3.5 text-left sm:items-center" aria-expanded={open}>
+        <span className="w-7 shrink-0 pt-2.5 text-right text-xs tabular-nums text-slate-400 sm:pt-0">{sl}.</span>
         {reg.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={reg.imageUrl} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover ring-1 ring-slate-200" />

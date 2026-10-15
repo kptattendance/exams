@@ -67,10 +67,11 @@ export default function PaperOrders() {
         <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white">
           {orders.length === 0 && <p className="px-4 py-10 text-center text-sm text-slate-500">No paper setter appointed for {session || "this session"}.</p>}
           <ul className="divide-y divide-slate-100">
-            {orders.map((o) => (
+            {orders.map((o, i) => (
               <li key={o._id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-slate-950">
+                    <span className="mr-1 font-normal tabular-nums text-slate-400">{i + 1}.</span>
                     {o.subject?.code} <span className="font-normal text-slate-600">{o.subject?.name}</span>
                     <span className="ml-1 text-xs font-normal text-slate-500">· Set {o.setNo}</span>
                   </p>

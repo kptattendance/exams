@@ -481,6 +481,8 @@ const loadFaculty = async () => {
         "Phone",
         "Department",
         "Photo",
+        "College Code",
+        "College Name",
       ],
 
       [
@@ -489,6 +491,8 @@ const loadFaculty = async () => {
         "9876543210",
         "cs",
         "https://drive.google.com/file/d/FILE_ID_1/view?usp=sharing",
+        "",
+        "",
       ],
 
       [
@@ -497,6 +501,8 @@ const loadFaculty = async () => {
         "9876543211",
         "ec",
         "https://drive.google.com/file/d/FILE_ID_2/view?usp=sharing",
+        "",
+        "",
       ],
 
       [
@@ -505,6 +511,8 @@ const loadFaculty = async () => {
         "9876543212",
         "ot",
         "https://drive.google.com/file/d/FILE_ID_3/view?usp=sharing",
+        "135",
+        "Government Polytechnic, Udupi",
       ],
     ];
 
@@ -518,6 +526,8 @@ const loadFaculty = async () => {
       { wch: 18 },
       { wch: 18 },
       { wch: 70 },
+      { wch: 14 }, // College Code
+      { wch: 40 }, // College Name
     ];
 
     // Make Phone column text
@@ -1184,7 +1194,7 @@ const loadFaculty = async () => {
                     </p>
 
                     <p className="mt-1 text-xs text-amber-700">
-                      Required columns: Name, Email, Phone, Department.
+                      Required columns: Name, Email, Phone, Department. External examiners: also fill College Code and College Name (leave both empty for our own faculty, college 103).
                     </p>
 
                   </div>

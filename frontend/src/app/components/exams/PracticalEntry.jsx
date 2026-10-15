@@ -57,13 +57,14 @@ export default function PracticalEntry({ pad = true }) {
         {list === null && <div className="h-40 animate-pulse" />}
         {list?.length === 0 && <p className="px-4 py-10 text-center text-sm text-slate-500">No practical batch is given to you yet. The HOD fixes the batches and dates of your examiner set.</p>}
         <ul className="divide-y divide-slate-100">
-          {list?.map((b) => {
+          {list?.map((b, i) => {
             const st = b.status === "SUBMITTED" ? batchState(b) : b.codeLocked ? batchState(b) : { label: "Enter marks", chip: "bg-blue-50 text-blue-700" };
             return (
               <li key={b._id}>
                 <button onClick={() => setOpenId(b._id)} className="flex w-full flex-col gap-2 px-4 py-3.5 text-left hover:bg-slate-50 sm:flex-row sm:items-center">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-slate-950">
+                      <span className="mr-1 font-normal tabular-nums text-slate-400">{i + 1}.</span>
                       {b.code} <span className="font-normal text-slate-600">{b.name}</span>
                     </p>
                     <p className="mt-0.5 text-xs text-slate-500">

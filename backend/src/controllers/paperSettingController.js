@@ -314,15 +314,19 @@ async function removePaper(paper) {
   await PaperSetting.deleteOne({ _id: paper._id });
 }
 
-// DELETE /api/paper-setting/:id   (cancelled assignments only)
+// DELETE /api/paper-setting/:id   – any assignment; its files are removed from Drive
 export const deleteAssignment = async (req, res) => {
   try {
     if (!isId(req.params.id)) return fail(res, 400, "Invalid id.");
     const paper = await PaperSetting.findById(req.params.id).populate("subject", "code");
     if (!paper) return fail(res, 404, "Not found.");
-    if (paper.status !== "CANCELLED") return fail(res, 400, "Cancel the assignment first. Only cancelled assignments can be deleted.");
     await removePaper(paper);
-    await audit(req, "PAPER_DELETED", paper._id, { subject: paper.subject?.code, examSession: paper.examSession, setNo: paper.setNo });
+    await audit(req, "PAPER_DELETED", paper._id, {
+      subject: paper.subject?.code,
+      examSession: paper.examSession,
+      setNo: paper.setNo,
+      status: paper.status,
+    });
     res.json({ ok: true });
   } catch (err) {
     handleError(res, err, "deleteAssignment");

@@ -1,4 +1,6 @@
 import Student from "../models/Student.js";
+import ExamRegistration from "../models/ExamRegistration.js";
+import CourseResult from "../models/CourseResult.js";
 import { clerkClient } from "@clerk/express";
 import cloudinary from "../config/cloudinary.js";
 
@@ -1883,18 +1885,28 @@ export const deleteStudent = async (req, res) => {
       });
     }
 
+    if ((await withExamRecords([student._id])).size) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "This student is registered in an examination or has results, so the record cannot be deleted. Mark the student inactive instead, or delete the test examination first.",
+      });
+    }
+
     // -----------------------------------------
-    // Delete Clerk account
+    // Delete Clerk account (older records only)
     // -----------------------------------------
-    try {
-      await clerkClient.users.deleteUser(
-        student.clerkId
-      );
-    } catch (error) {
-      console.error(
-        "Clerk delete warning:",
-        error
-      );
+    if (student.clerkId) {
+      try {
+        await clerkClient.users.deleteUser(
+          student.clerkId
+        );
+      } catch (error) {
+        console.error(
+          "Clerk delete warning:",
+          error.message
+        );
+      }
     }
 
     // -----------------------------------------
@@ -2011,6 +2023,15 @@ export const updateStudentStatus = async (
 // DELETE MULTIPLE STUDENTS
 // DELETE /api/students/bulk-delete
 // =====================================================
+// Ids (as strings) of the given students who are registered in an exam or have results
+async function withExamRecords(ids) {
+  const [inExam, withResults] = await Promise.all([
+    ExamRegistration.distinct("student", { student: { $in: ids } }),
+    CourseResult.distinct("student", { student: { $in: ids } }),
+  ]);
+  return new Set([...inExam, ...withResults].map(String));
+}
+
 export const deleteMultipleStudents = async (
   req,
   res
@@ -2025,32 +2046,34 @@ export const deleteMultipleStudents = async (
       });
     }
 
-    const students =
-      await Student.find({
-        _id: { $in: ids },
-      });
+    const found = await Student.find({ _id: { $in: ids } })
+      .select("_id clerkId registerNumber")
+      .lean();
 
-    for (const student of students) {
-      try {
-        await clerkClient.users.deleteUser(
-          student.clerkId
-        );
-      } catch (error) {
-        console.error(
-          `Failed to delete Clerk user ${student.clerkId}`,
-          error
-        );
-      }
-    }
+    // Students in an examination or with results are kept: deleting them
+    // would break hall tickets, valuation and results.
+    const kept = await withExamRecords(found.map((s) => s._id));
+    const students = found.filter((s) => !kept.has(String(s._id)));
+
+    // Older records may still have a login; remove those in parallel
+    await Promise.allSettled(
+      students.filter((s) => s.clerkId).map((s) => clerkClient.users.deleteUser(s.clerkId))
+    );
 
     await Student.deleteMany({
-      _id: { $in: ids },
+      _id: { $in: students.map((s) => s._id) },
     });
 
     return res.status(200).json({
       success: true,
-      message: `${students.length} student(s) deleted successfully.`,
+      message:
+        `${students.length} student(s) deleted.` +
+        (kept.size
+          ? ` ${kept.size} not deleted because they are in an examination or have results (mark them inactive instead).`
+          : ""),
       deletedCount: students.length,
+      deletedIds: students.map((s) => String(s._id)),
+      keptCount: kept.size,
     });
 
   } catch (error) {

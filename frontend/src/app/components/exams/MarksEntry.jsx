@@ -84,10 +84,13 @@ export default function MarksEntry() {
         {list === null && <div className="h-40 animate-pulse" />}
         {list?.length === 0 && <p className="px-4 py-10 text-center text-sm text-slate-500">Nothing to type right now.</p>}
         <ul className="divide-y divide-slate-100">
-          {list?.map((p) => (
+          {list?.map((p, i) => (
             <li key={p._id}>
               <button onClick={() => setOpenId(p._id)} className="flex w-full flex-col gap-1 px-4 py-3 text-left hover:bg-slate-50 sm:flex-row sm:items-center">
-                <span className="w-48 font-semibold tabular-nums text-slate-950">{p.number}</span>
+                <span className="w-48 font-semibold tabular-nums text-slate-950">
+                  <span className="mr-1 font-normal tabular-nums text-slate-400">{i + 1}.</span>
+                  {p.number}
+                </span>
                 <span className="min-w-0 flex-1 text-sm text-slate-600">
                   {p.paperName} · {ROUND[p.round]} · {p.count} scripts{p.valuer && ` · ${p.valuer}`}
                 </span>

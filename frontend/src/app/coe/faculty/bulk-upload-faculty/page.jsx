@@ -472,6 +472,8 @@ const downloadBulkTemplate = () => {
       "Phone",
       "Department",
       "Photo",
+      "College Code",
+      "College Name",
     ],
 
     [
@@ -480,6 +482,8 @@ const downloadBulkTemplate = () => {
       "9876543210",
       "cs",
       "https://drive.google.com/file/d/FILE_ID_1/view?usp=sharing",
+      "",
+      "",
     ],
 
     [
@@ -488,6 +492,8 @@ const downloadBulkTemplate = () => {
       "9876543211",
       "ec",
       "https://drive.google.com/file/d/FILE_ID_2/view?usp=sharing",
+      "",
+      "",
     ],
 
     [
@@ -496,6 +502,8 @@ const downloadBulkTemplate = () => {
       "9876543212",
       "ot",
       "https://drive.google.com/file/d/FILE_ID_3/view?usp=sharing",
+      "135",
+      "Government Polytechnic, Udupi",
     ],
   ];
 
@@ -509,6 +517,8 @@ const downloadBulkTemplate = () => {
     { wch: 18 }, // Phone
     { wch: 18 }, // Department
     { wch: 70 }, // Photo
+    { wch: 14 }, // College Code
+    { wch: 40 }, // College Name
   ];
 
   // Make Phone column text
@@ -1104,7 +1114,7 @@ const handleBulkUpload = async () => {
                       Step 1 — Download template
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
-                      Required columns: Name, Email, Phone, Department.
+                      Required columns: Name, Email, Phone, Department. External examiners: also fill College Code and College Name (leave both empty for our own faculty, college 103).
                     </p>
                   </div>
 

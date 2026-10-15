@@ -302,7 +302,7 @@ export default function Timetable({ examId: fixedExamId, canManage = false, back
                 <h3 className="mb-2 text-sm font-bold text-slate-900">{label}</h3>
                 <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
                   <ul className="divide-y divide-slate-100">
-                    {papers.map((p) => {
+                    {papers.map((p, i) => {
                       const v = rows[p.code] || {};
                       const bad = clashCodes.has(p.code);
                       return (
@@ -312,6 +312,7 @@ export default function Timetable({ examId: fixedExamId, canManage = false, back
                         >
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-semibold text-slate-900">
+                              <span className="mr-1 font-normal tabular-nums text-slate-400">{i + 1}.</span>
                               {p.code} <span className="font-normal text-slate-600">{p.name}</span>
                             </p>
                             <p className="mt-0.5 text-xs text-slate-500">

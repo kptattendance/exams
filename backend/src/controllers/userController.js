@@ -580,6 +580,15 @@ export const bulkUploadFaculty = async (
         .trim()
         .toLowerCase();
 
+      // External examiners: their college. Empty = our own college (103).
+      const collegeCode = String(
+        row["College Code"] || row["Institution Code"] || row["Inst Code"] || row.collegeCode || ""
+      ).trim();
+
+      const collegeName = String(
+        row["College Name"] || row["Institution Name"] || row["Inst Name"] || row.collegeName || ""
+      ).trim();
+
       const photo = String(
         row.Photo ||
           row.photo ||
@@ -624,6 +633,20 @@ export const bulkUploadFaculty = async (
           email,
           message:
             "Invalid email address.",
+        });
+
+        continue;
+      }
+
+      if (collegeCode && collegeCode !== "103" && !collegeName) {
+        results.failed++;
+
+        results.errors.push({
+          row: excelRow,
+          name,
+          email,
+          message:
+            `College name is required for an external examiner (college code ${collegeCode}).`,
         });
 
         continue;
@@ -720,6 +743,8 @@ export const bulkUploadFaculty = async (
           email,
           phone,
           department,
+          collegeCode,
+          collegeName,
           role: "staff",
 
           clerkId:

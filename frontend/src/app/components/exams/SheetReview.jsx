@@ -282,10 +282,13 @@ function ReviewModal({ type, id, onClose, onFreeze, onChanged }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {rows.map((st) => (
+                {rows.map((st, n) => (
                   <tr key={st.studentId}>
                     <td className="sticky left-0 bg-white px-3 py-1.5">
-                      <span className="block font-semibold tabular-nums text-slate-900">{st.registerNumber}</span>
+                      <span className="block font-semibold tabular-nums text-slate-900">
+                        <span className="mr-1 font-normal tabular-nums text-slate-400">{n + 1}.</span>
+                        {st.registerNumber}
+                      </span>
                       <span className="block max-w-[11rem] truncate text-xs text-slate-500">{st.name}</span>
                     </td>
                     {st.cells.map((c, i) => (

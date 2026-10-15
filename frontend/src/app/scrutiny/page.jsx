@@ -36,6 +36,8 @@ export default function ScrutinyPage() {
   const [note, setNote] = useState("");
   const [scheme, setScheme] = useState(null);
   const [open, setOpen] = useState("");
+  const [department, setDepartment] = useState("");
+  const [semester, setSemester] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -116,6 +118,14 @@ export default function ScrutinyPage() {
   };
 
   const btn = "rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-40";
+  const deptOf = (p) => String(p.subject?.department || "").toUpperCase();
+  const departments = [...new Set((papers || []).map(deptOf).filter(Boolean))].sort();
+  const semesters = [...new Set((papers || []).map((p) => p.subject?.semester).filter(Boolean))].sort((a, b) => a - b);
+  const shown = (papers || []).filter(
+    (p) => (!department || deptOf(p) === department) && (!semester || String(p.subject?.semester) === semester)
+  );
+  const done = shown.filter((p) => p.scrutiny.status === "DONE").length;
+  const select = "h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm";
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-7">
@@ -125,19 +135,43 @@ export default function ScrutinyPage() {
         can download the final paper.
       </p>
 
-      <input
-        value={session}
-        onChange={(e) => setSession(e.target.value.toUpperCase())}
-        placeholder="Exam session e.g. NOV-2026"
-        className="mt-4 h-10 w-56 rounded-xl border border-slate-200 bg-white px-3 text-sm"
-      />
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <input
+          value={session}
+          onChange={(e) => setSession(e.target.value.toUpperCase())}
+          placeholder="Exam session e.g. NOV-2026"
+          className="h-10 w-56 rounded-xl border border-slate-200 bg-white px-3 text-sm"
+        />
+        <select value={department} onChange={(e) => setDepartment(e.target.value)} className={select}>
+          <option value="">All departments</option>
+          {departments.map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </select>
+        <select value={semester} onChange={(e) => setSemester(e.target.value)} className={select}>
+          <option value="">All semesters</option>
+          {semesters.map((n) => (
+            <option key={n} value={String(n)}>
+              Semester {n}
+            </option>
+          ))}
+        </select>
+        {papers && (
+          <span className="text-sm text-slate-600">
+            <b className="text-slate-900">{shown.length}</b> paper{shown.length === 1 ? "" : "s"} · {done} scrutinised ·{" "}
+            {shown.length - done} left
+          </span>
+        )}
+      </div>
 
       {!papers && <div className="mt-5 h-64 animate-pulse rounded-2xl bg-white" />}
       {papers && (
         <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-          {papers.length === 0 && <p className="px-4 py-10 text-center text-sm text-slate-500">No submitted paper for {session || "this session"}.</p>}
+          {shown.length === 0 && <p className="px-4 py-10 text-center text-sm text-slate-500">No submitted paper for this selection.</p>}
           <ul className="divide-y divide-slate-100">
-            {papers.map((p) => {
+            {shown.map((p, i) => {
               const s = p.scrutiny;
               const st = STATE[s.status] || STATE.PENDING;
               const working = busy === p._id;
@@ -146,6 +180,7 @@ export default function ScrutinyPage() {
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-slate-950">
+                        <span className="mr-1 font-normal tabular-nums text-slate-400">{i + 1}.</span>
                         {p.subject?.code} <span className="font-normal text-slate-600">{p.subject?.name}</span>
                         <span className="ml-1 text-xs font-normal text-slate-500">
                           · Set {p.setNo}
@@ -153,7 +188,7 @@ export default function ScrutinyPage() {
                         </span>
                       </p>
                       <p className="mt-0.5 text-xs text-slate-500">
-                        Submitted {fmt(p.submittedAt)}
+                        {deptOf(p)} · Semester {p.subject?.semester} · submitted {fmt(p.submittedAt)}
                         {s.status === "DONE" && ` · scrutinised ${fmt(s.doneAt)} · ${s.removed} removed, ${s.added} added`}
                       </p>
                     </div>

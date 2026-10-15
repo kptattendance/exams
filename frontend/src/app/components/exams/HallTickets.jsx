@@ -180,10 +180,11 @@ export default function HallTickets({ timetableHref }) {
             {!data && <div className="h-48 animate-pulse" />}
             {data && data.data.length === 0 && <p className="px-4 py-10 text-center text-sm text-slate-500">No students match.</p>}
             <ul className="divide-y divide-slate-100">
-              {data?.data.map((t) => (
+              {data?.data.map((t, i) => (
                 <li key={t._id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-slate-950">
+                      <span className="mr-1 font-normal tabular-nums text-slate-400">{(page - 1) * 40 + i + 1}.</span>
                       {t.name} <span className="ml-1 text-xs font-semibold tabular-nums text-slate-500">{t.registerNumber}</span>
                     </p>
                     <p className="mt-0.5 text-xs text-slate-500">

@@ -253,6 +253,7 @@ export default function Results() {
                 <table className="w-full min-w-[640px] text-sm">
                   <thead className="text-left text-xs font-semibold text-slate-500">
                     <tr className="border-b border-slate-100">
+                      <th className="px-4 py-2.5 text-right">Sl.</th>
                       <th className="px-4 py-2.5">Register no.</th>
                       <th className="px-4 py-2.5">Name</th>
                       <th className="px-4 py-2.5 text-right">Credits</th>
@@ -262,9 +263,10 @@ export default function Results() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {rows.map((r) => (
+                    {rows.map((r, i) => (
                       <Fragment key={r._id}>
                         <tr onClick={() => setOpen(open === r._id ? "" : r._id)} className="cursor-pointer hover:bg-slate-50">
+                          <td className="px-4 py-2.5 text-right tabular-nums text-slate-400">{i + 1}</td>
                           <td className="px-4 py-2.5 font-semibold text-slate-950">{r.registerNumber}</td>
                           <td className="px-4 py-2.5 text-slate-700">{r.name}</td>
                           <td className="px-4 py-2.5 text-right tabular-nums text-slate-600">
@@ -280,7 +282,7 @@ export default function Results() {
                         </tr>
                         {open === r._id && (
                           <tr className="bg-slate-50">
-                            <td colSpan={6} className="px-4 py-3">
+                            <td colSpan={7} className="px-4 py-3">
                               <Courses courses={r.result.courses} />
                             </td>
                           </tr>

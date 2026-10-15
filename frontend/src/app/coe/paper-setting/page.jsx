@@ -213,23 +213,30 @@ export default function PaperSettingPage() {
           Cancel
         </SmallBtn>
       )}
-      {p.status === "CANCELLED" && (
-        <SmallBtn
-          tone="danger"
-          disabled={busy}
-          onClick={async () => {
-            const ok = await confirmDialog({
-              title: "Delete this cancelled assignment?",
-              message: `${p.subject?.code} – Set ${p.setNo} (${p.examiner?.name}). Any file uploaded for it is deleted too. This cannot be undone.`,
-              confirmText: "Delete",
-              tone: "danger",
-            });
-            if (ok) act(p._id, () => api("delete", `/paper-setting/${p._id}`), "Assignment deleted.");
-          }}
-        >
-          Delete
-        </SmallBtn>
-      )}
+      <SmallBtn
+        tone="danger"
+        disabled={busy}
+        onClick={async () => {
+          const hasFiles = Boolean(p.currentFile || p.schemeFile);
+          const ok = await confirmDialog({
+            title: "Delete this assignment?",
+            message: `${p.subject?.code} – Set ${p.setNo} (${p.examiner?.name}).
+
+${
+              hasFiles
+                ? "The uploaded question paper and scheme are deleted from Google Drive too. "
+                : ""
+            }This cannot be undone. The activity log is kept.`,
+            confirmText: "Delete",
+            tone: "danger",
+            // A submitted paper needs a typed confirmation
+            requireText: p.status === "SUBMITTED" ? "DELETE" : undefined,
+          });
+          if (ok) act(p._id, () => api("delete", `/paper-setting/${p._id}`), "Assignment deleted.");
+        }}
+      >
+        Delete
+      </SmallBtn>
     </div>
   );
 
@@ -324,7 +331,7 @@ export default function PaperSettingPage() {
             <table className="w-full min-w-[980px]">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50">
-                  {["Subject", "Set", "Examiner", "Deadline", "Status", "Email", "Actions"].map((h) => (
+                  {["Sl.", "Subject", "Set", "Examiner", "Deadline", "Status", "Email", "Actions"].map((h) => (
                     <th key={h} className="px-3 py-3 text-left text-xs font-semibold text-slate-500">
                       {h}
                     </th>
@@ -332,12 +339,13 @@ export default function PaperSettingPage() {
                 </tr>
               </thead>
               <tbody>
-                {papers.map((p) => {
+                {papers.map((p, i) => {
                   const overdue =
                     !["SUBMITTED", "CANCELLED"].includes(p.status) && new Date(p.deadline) < new Date();
                   const busy = busyId === p._id;
                   return (
                     <tr key={p._id} className="border-b border-slate-100 align-top last:border-0 hover:bg-slate-50/60">
+                      <td className="px-3 py-3 text-sm tabular-nums text-slate-500">{i + 1}</td>
                       <td className="px-3 py-3">
                         <p className="text-sm font-semibold text-slate-900">{p.subject?.code}</p>
                         <p className="text-xs text-slate-500">{p.subject?.name}</p>
@@ -383,7 +391,7 @@ export default function PaperSettingPage() {
 
           {/* Phone: one card per assignment */}
           <ul className="divide-y divide-slate-100 md:hidden">
-            {papers.map((p) => {
+            {papers.map((p, i) => {
               const overdue = !["SUBMITTED", "CANCELLED"].includes(p.status) && new Date(p.deadline) < new Date();
               const busy = busyId === p._id;
               return (
@@ -391,6 +399,7 @@ export default function PaperSettingPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-slate-900">
+                        <span className="mr-1 font-normal text-slate-400">{i + 1}.</span>
                         {p.subject?.code} <span className="font-normal text-slate-400">Set {p.setNo}</span>
                       </p>
                       <p className="truncate text-sm text-slate-600">{p.subject?.name}</p>
@@ -781,9 +790,12 @@ function SyllabusModal({ api, onClose }) {
         ) : files.length === 0 ? (
           <p className="text-sm text-slate-500">No syllabus uploaded yet.</p>
         ) : (
+          <>
+          <p className="mb-1 text-xs font-semibold text-slate-500">{files.length} file{files.length === 1 ? "" : "s"} uploaded</p>
           <ul className="divide-y divide-slate-100 text-sm">
-            {files.map((f) => (
+            {files.map((f, i) => (
               <li key={f._id} className="flex items-center gap-3 py-2">
+                <span className="w-7 shrink-0 text-right tabular-nums text-slate-400">{i + 1}.</span>
                 <span className="w-24 shrink-0 font-semibold text-slate-900">{f.code}</span>
                 <span className="min-w-0 flex-1 truncate text-slate-600">{f.name}</span>
                 <span className="text-xs text-slate-400">{Math.ceil(f.size / 1024)} KB</span>
@@ -793,6 +805,7 @@ function SyllabusModal({ api, onClose }) {
               </li>
             ))}
           </ul>
+          </>
         )}
       </div>
     </Modal>

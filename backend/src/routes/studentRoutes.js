@@ -1,6 +1,8 @@
 import express from "express";
 import multer from "multer";
 
+import { requireRole } from "../middlewares/requireRole.js";
+
 import {
   createStudent,
   getStudents,
@@ -113,9 +115,18 @@ router.put(
 // DELETE ONE
 // =====================================================
 
+// Must come before "/:id", or "bulk-delete" is taken as a student id
+router.delete(
+  "/bulk-delete",
+  authenticateUser,
+  requireRole("admin", "coe", "acoe"),
+  deleteMultipleStudents
+);
+
 router.delete(
   "/:id",
   authenticateUser,
+  requireRole("admin", "coe", "acoe"),
   deleteStudent
 );
 
@@ -129,14 +140,5 @@ router.patch(
   updateStudentStatus
 );
 
-// =====================================================
-// BULK DELETE
-// =====================================================
-
-router.delete(
-  "/bulk-delete",
-  authenticateUser,
-  deleteMultipleStudents
-);
 
 export default router;

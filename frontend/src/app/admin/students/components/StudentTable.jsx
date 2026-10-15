@@ -707,7 +707,7 @@ const downloadStudentsExcel = () => {
 
       const token = await getToken();
 
-      await axios.delete(
+      const res = await axios.delete(
         `${API_URL}/api/students/bulk-delete`,
         {
           data: {
@@ -719,19 +719,16 @@ const downloadStudentsExcel = () => {
         }
       );
 
+      // Students in an examination are kept by the server
+      const gone = new Set(res.data?.deletedIds || []);
       setStudents((prev) =>
-        prev.filter(
-          (student) =>
-            !selectedStudents.includes(
-              student._id
-            )
-        )
+        prev.filter((student) => !gone.has(String(student._id)))
       );
 
       setSelectedStudents([]);
 
       setMessage(
-        "Selected students deleted successfully."
+        res.data?.message || "Selected students deleted."
       );
     } catch (err) {
       setActionError(

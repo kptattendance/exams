@@ -222,8 +222,8 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
                 {query ? `No registered student matches “${query}”.` : total === 0 ? "No students are registered for this exam yet." : "No students match these filters."}
               </p>
             )}
-            {items.map((r) => (
-              <FeeRow key={r._id} reg={r} canEdit={canEdit} onPay={() => setPaying(r)} />
+            {items.map((r, i) => (
+              <FeeRow key={r._id} sl={(page - 1) * 40 + i + 1} reg={r} canEdit={canEdit} onPay={() => setPaying(r)} />
             ))}
           </div>
 
@@ -296,12 +296,13 @@ const initials = (name = "") =>
     .slice(0, 2)
     .toUpperCase();
 
-function FeeRow({ reg, canEdit, onPay }) {
+function FeeRow({ sl, reg, canEdit, onPay }) {
   const st = FEE[reg.feeStatus] || FEE.UNPAID;
   const unpaid = reg.items.filter((i) => !i.paid).length;
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3.5 sm:flex-row sm:items-center">
       <div className="flex min-w-0 flex-1 items-start gap-3">
+        <span className="w-7 shrink-0 pt-2.5 text-right text-xs tabular-nums text-slate-400 sm:pt-0">{sl}.</span>
         {reg.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={reg.imageUrl} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover ring-1 ring-slate-200" />
