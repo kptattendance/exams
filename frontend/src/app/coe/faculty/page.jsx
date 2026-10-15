@@ -479,7 +479,7 @@ export default function FacultyPage() {
         <div className="flex flex-wrap items-center gap-2">
 
         <Link
-  href="/admin/faculty/bulk-upload-faculty"
+  href="/coe/faculty/bulk-upload-faculty"
   className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
 >
   <span className="text-base leading-none">
