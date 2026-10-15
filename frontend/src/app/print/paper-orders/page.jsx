@@ -185,6 +185,23 @@ function Order({ o }) {
             ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯಲ್ಲಿ ಯಾವುದೇ ರೀತಿಯ ದೋಷ, ಅಸ್ಪಷ್ಟತೆ ಅಥವಾ ಲೋಪ ಉಂಟಾಗದಂತೆ ವಿಶೇಷ ಗಮನಹರಿಸಬೇಕು.
           </p>
 
+  <table className="mt-6 w-full border-collapse text-[13px]">
+            <tbody>
+              {[
+                ["QP SETTER NAME", `${o.examiner?.name || ""}${dept ? `, ${dept}` : ""}`],
+                ["DESIGNATION", designation || "Lecturer"],
+                ["INST CODE and NAME", internal ? INSTITUTION : ""],
+                ["QP CODE", `${o.subject?.code || ""}${o.setNo ? ` (Set ${o.setNo})` : ""}`],
+                ["SUBJECT NAME", `${o.subject?.name || ""}${o.paperType === "PRACTICAL" ? " (Practical)" : ""}`],
+                ["LAST DATE TO UPLOAD", lastDate(o.deadline)],
+              ].map(([k, v]) => (
+                <tr key={k}>
+                  <td className="w-[32%] border border-black px-3 py-2 text-center font-semibold">{k}</td>
+                  <td className="border border-black px-3 py-2">{v}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
         <footer className="mt-2 border-t-2 border-black pt-1.5 text-center text-[10.5px] leading-snug">
           <p className="font-semibold">{FOOTER_KN[0]}</p>
@@ -241,23 +258,7 @@ function Order({ o }) {
           </ol>
 
 
-          <table className="mt-6 w-full border-collapse text-[13px]">
-            <tbody>
-              {[
-                ["QP SETTER NAME", `${o.examiner?.name || ""}${dept ? `, ${dept}` : ""}`],
-                ["DESIGNATION", designation || "Lecturer"],
-                ["INST CODE and NAME", internal ? INSTITUTION : ""],
-                ["QP CODE", `${o.subject?.code || ""}${o.setNo ? ` (Set ${o.setNo})` : ""}`],
-                ["SUBJECT NAME", `${o.subject?.name || ""}${o.paperType === "PRACTICAL" ? " (Practical)" : ""}`],
-                ["LAST DATE TO UPLOAD", lastDate(o.deadline)],
-              ].map(([k, v]) => (
-                <tr key={k}>
-                  <td className="w-[32%] border border-black px-3 py-2 text-center font-semibold">{k}</td>
-                  <td className="border border-black px-3 py-2">{v}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        
 
 
           <p className="mt-10 text-right font-semibold">ಪರೀಕ್ಷಾ ನಿಯಂತ್ರಕರು</p>
