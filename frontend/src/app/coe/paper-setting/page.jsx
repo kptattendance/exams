@@ -651,7 +651,8 @@ function CreateModal({ api, defaultSessionValue, onClose, onCreated }) {
               <option value="">Select examiner</option>
               {examiners.map((u) => (
                 <option key={u._id} value={u._id}>
-                  {u.name} – {u.email} ({u.department?.toUpperCase() || "—"})
+                  {u.name}
+                  {u.designation ? `, ${u.designation}` : ""} – {u.email} ({u.department?.toUpperCase() || "—"})
                   {u.college?.external ? ` · ${u.college.code} ${u.college.name}` : ""}
                 </option>
               ))}

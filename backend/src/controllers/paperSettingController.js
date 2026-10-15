@@ -50,7 +50,7 @@ const handleError = (res, err, where) => {
 
 const POPULATE = [
   { path: "subject", select: "code subjectId name semester department" },
-  { path: "examiner", select: "name email department phone collegeCode collegeName" },
+  { path: "examiner", select: "name email department designation phone collegeCode collegeName" },
 ];
 
 // ======================================================================
@@ -67,7 +67,7 @@ export const listExaminers = async (req, res) => {
     if (req.query.type === "INTERNAL") filter.collegeCode = home;
     else if (req.query.type === "EXTERNAL") filter.collegeCode = { $nin: ["", null, HOME_COLLEGE.code] };
     const users = await User.find(filter)
-      .select("name email department role clerkId collegeCode collegeName")
+      .select("name email department designation role clerkId collegeCode collegeName")
       .sort({ department: 1, name: 1 })
       .lean();
     res.json({ data: users.map((u) => ({ ...u, college: collegeOf(u) })) });
@@ -211,6 +211,7 @@ const orderView = (p) => ({
   examiner: p.examiner && {
     name: p.examiner.name,
     department: p.examiner.department,
+    designation: p.examiner.designation || "",
     email: p.examiner.email,
     phone: p.examiner.phone,
     college: collegeOf(p.examiner),

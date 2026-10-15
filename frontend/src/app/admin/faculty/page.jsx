@@ -5,6 +5,7 @@ import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
 import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
+import { DESIGNATIONS } from "../../components/designations";
 
 const departments = [
   { value: "", label: "Select department" },
@@ -29,7 +30,7 @@ const getDepartmentName = (code) => {
 };
 
 export default function FacultyPage() {
-  const { getToken } = useAuth();
+  const { getToken, isLoaded, isSignedIn } = useAuth();
 
   const [faculty, setFaculty] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -48,6 +49,7 @@ export default function FacultyPage() {
     name: "",
     email: "",
     phone: "",
+    designation: "",
     collegeCode: "",
     collegeName: "",
     department: "",
@@ -100,16 +102,26 @@ const loadFaculty = async () => {
     alert(
       error.response?.data?.message ||
         error.response?.data?.error ||
-        "Failed to load faculty."
+        (error.response
+          ? `Failed to load faculty (error ${error.response.status}).`
+          : `Failed to load faculty: cannot reach the server at ${process.env.NEXT_PUBLIC_API_URL}.`)
     );
   } finally {
     setLoading(false);
   }
 };
 
+  // Wait until sign-in has loaded, otherwise the request goes without a token
+
   useEffect(() => {
+
+    if (!isLoaded || !isSignedIn) return;
+
     loadFaculty();
-  }, []);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+  }, [isLoaded, isSignedIn]);
 
   // --------------------------------------------------
   // FILTER
@@ -216,6 +228,7 @@ const loadFaculty = async () => {
       name: "",
       email: "",
       phone: "",
+      designation: "",
       collegeCode: "",
       collegeName: "",
       department: "",
@@ -238,6 +251,7 @@ const loadFaculty = async () => {
       name: user.name || "",
       email: user.email || "",
       phone: user.phone || "",
+      designation: user.designation || "",
       collegeCode: user.collegeCode || "",
       collegeName: user.collegeName || "",
       department: user.department || "",
@@ -283,6 +297,7 @@ const loadFaculty = async () => {
       formData.append("name", form.name);
       formData.append("email", form.email);
       formData.append("phone", form.phone);
+      formData.append("designation", form.designation);
       formData.append("collegeCode", form.collegeCode.trim());
       formData.append("collegeName", form.collegeName.trim());
       formData.append("department", form.department);
@@ -818,7 +833,7 @@ const loadFaculty = async () => {
                             </p>
 
                             <p className="mt-0.5 truncate text-xs text-amber-600">
-                              Faculty · Staff
+                              {user.designation || "Faculty"}
                             </p>
 
                           </div>
@@ -1066,7 +1081,25 @@ const loadFaculty = async () => {
               </div>
 
               {/* PHONE + DEPARTMENT */}
-              <div className="grid gap-4 sm:grid-cols-[120px_1fr]">
+              {/* DESIGNATION */}
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Designation</label>
+                  <select
+                    name="designation"
+                    value={form.designation}
+                    onChange={handleChange}
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100"
+                  >
+                    <option value="">Select designation</option>
+                    {DESIGNATIONS.map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-[120px_1fr]">
                   <div>
                     <label className="mb-1.5 block text-xs font-semibold text-slate-600">College code</label>
                     <input

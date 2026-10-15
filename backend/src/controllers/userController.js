@@ -6,7 +6,7 @@ import XLSX from "xlsx";
 import axios from "axios";
 
 
-import User from "../models/User.js";
+import User, { DESIGNATIONS, normalizeDesignation } from "../models/User.js";
 import Student from "../models/Student.js";
 import Subject from "../models/Subject.js";
 import { ROLES } from "../config/roles.js";
@@ -589,6 +589,8 @@ export const bulkUploadFaculty = async (
         row["College Name"] || row["Institution Name"] || row["Inst Name"] || row.collegeName || ""
       ).trim();
 
+      const designation = normalizeDesignation(row.Designation ?? row.designation);
+
       const photo = String(
         row.Photo ||
           row.photo ||
@@ -633,6 +635,19 @@ export const bulkUploadFaculty = async (
           email,
           message:
             "Invalid email address.",
+        });
+
+        continue;
+      }
+
+      if (designation === null) {
+        results.failed++;
+
+        results.errors.push({
+          row: excelRow,
+          name,
+          email,
+          message: `Invalid designation. Use one of: ${DESIGNATIONS.join(", ")}.`,
         });
 
         continue;
@@ -745,6 +760,7 @@ export const bulkUploadFaculty = async (
           department,
           collegeCode,
           collegeName,
+          designation,
           role: "staff",
 
           clerkId:
@@ -963,7 +979,16 @@ export const createUser = async (
       role,
       collegeCode,
       collegeName,
+      designation: rawDesignation,
     } = req.body;
+
+    const designation = normalizeDesignation(rawDesignation);
+    if (designation === null) {
+      return res.status(400).json({
+        success: false,
+        message: `Designation must be one of: ${DESIGNATIONS.join(", ")}.`,
+      });
+    }
 
     const targetRole = (
       role || ""
@@ -1073,6 +1098,7 @@ export const createUser = async (
 
       collegeCode: String(collegeCode || "").trim(),
       collegeName: String(collegeName || "").trim(),
+      designation,
 
       role: targetRole,
 
@@ -1214,7 +1240,7 @@ export const getUsers = async (req, res) => {
 
     const users = await User.find(filter)
       .select(
-        "name email phone department role collegeCode collegeName imageUrl imagePublicId createdAt"
+        "name email phone department designation role collegeCode collegeName imageUrl imagePublicId createdAt"
       )
       .sort({
         department: 1,
@@ -1362,6 +1388,16 @@ export const updateUser = async (
     const updateData = {
       ...req.body,
     };
+
+    if (updateData.designation !== undefined) {
+      updateData.designation = normalizeDesignation(updateData.designation);
+      if (updateData.designation === null) {
+        return res.status(400).json({
+          success: false,
+          message: `Designation must be one of: ${DESIGNATIONS.join(", ")}.`,
+        });
+      }
+    }
 
     /*
      * Validate role if supplied

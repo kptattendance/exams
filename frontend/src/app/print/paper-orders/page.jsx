@@ -32,6 +32,13 @@ const DEPT = {
   sc: "Science & English",
 };
 
+// Designation in Kannada (none recorded -> Lecturer)
+const DESIGNATION_KN = {
+  Lecturer: "ಉಪನ್ಯಾಸಕರು",
+  "Senior Grade Lecturer": "ಹಿರಿಯ ಶ್ರೇಣಿ ಉಪನ್ಯಾಸಕರು",
+  "Selection Grade Lecturer": "ಆಯ್ಕೆ ಶ್ರೇಣಿ ಉಪನ್ಯಾಸಕರು",
+};
+
 // "NOV-2026" -> { months: "ನವೆಂಬರ್/ಡಿಸೆಂಬರ್", year: "2026" }
 function sessionParts(session) {
   const [m, y] = String(session || "").toUpperCase().split("-");
@@ -104,6 +111,8 @@ function Order({ o }) {
   const date = o.assignedAt || new Date();
   const internal = o.examinerType !== "EXTERNAL";
   const dept = DEPT[String(o.examiner?.department || "").toLowerCase()];
+  const designation = o.examiner?.designation || "";
+  const designationKn = DESIGNATION_KN[designation] || "ಉಪನ್ಯಾಸಕರು";
 
   return (
     <section className="order px-6 py-6 text-[13px] leading-[1.75] print:px-0 print:py-0">
@@ -145,7 +154,7 @@ function Order({ o }) {
 
       <p className="mt-1 indent-12 text-justify">
         ಮೇಲ್ಕಂಡ ವಿಷಯಕ್ಕೆ ಸಂಬಂಧಿಸಿದಂತೆ, {year}ರ {months} ಡಿಪ್ಲೋಮಾ ಸೆಮಿಸ್ಟರ್ ಪರೀಕ್ಷೆಗೆ ಸಂಬಂಧಿಸಿದಂತೆ, ಕೆಳಕಂಡ
-        ವಿಷಯದ ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯನ್ನು ರಚಿಸಲು {o.examiner?.name || ""}{dept ? `, ${dept}` : ""} ಇವರನ್ನು ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆ
+        ವಿಷಯದ ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯನ್ನು ರಚಿಸಲು {o.examiner?.name || ""}, {designationKn}{dept ? `, ${dept}` : ""} ಇವರನ್ನು ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆ
         ರಚನಕಾರರಾಗಿ ನೇಮಿಸಲಾಗಿದೆ.
       </p>
       <p className="mt-2 indent-12 text-justify">
@@ -211,6 +220,7 @@ function Order({ o }) {
         <tbody>
           {[
             ["QP SETTER NAME", `${o.examiner?.name || ""}${dept ? `, ${dept}` : ""}`],
+            ["DESIGNATION", designation || "Lecturer"],
             ["INST CODE and NAME", internal ? INSTITUTION : ""],
             ["QP CODE", `${o.subject?.code || ""}${o.setNo ? ` (Set ${o.setNo})` : ""}`],
             ["SUBJECT NAME", `${o.subject?.name || ""}${o.paperType === "PRACTICAL" ? " (Practical)" : ""}`],

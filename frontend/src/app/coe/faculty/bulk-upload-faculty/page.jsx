@@ -4,6 +4,7 @@ import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
 import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
+import { DESIGNATIONS } from "../../../components/designations";
 const departments = [
   { value: "", label: "Select department" },
   { value: "at", label: "Automobile Engineering" },
@@ -24,7 +25,7 @@ const getDepartmentName = (code) => {
 };
 
 export default function FacultyPage() {
-  const { getToken } = useAuth();
+  const { getToken, isLoaded, isSignedIn } = useAuth();
 
   const [faculty, setFaculty] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -48,6 +49,7 @@ export default function FacultyPage() {
     name: "",
     email: "",
     phone: "",
+    designation: "",
     department: "",
     role: "staff",
     image: null,
@@ -88,16 +90,26 @@ export default function FacultyPage() {
       alert(
         error.response?.data?.message ||
           error.response?.data?.error ||
-          "Failed to load faculty."
+          (error.response
+            ? `Failed to load faculty (error ${error.response.status}).`
+            : `Failed to load faculty: cannot reach the server at ${process.env.NEXT_PUBLIC_API_URL}.`)
       );
     } finally {
       setLoading(false);
     }
   };
 
+  // Wait until sign-in has loaded, otherwise the request goes without a token
+
   useEffect(() => {
+
+    if (!isLoaded || !isSignedIn) return;
+
     loadFaculty();
-  }, []);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+  }, [isLoaded, isSignedIn]);
 
   // --------------------------------------------------
   // FILTER
@@ -204,6 +216,7 @@ export default function FacultyPage() {
       name: "",
       email: "",
       phone: "",
+      designation: "",
       department: "",
       role: "staff",
       image: null,
@@ -224,6 +237,7 @@ export default function FacultyPage() {
       name: user.name || "",
       email: user.email || "",
       phone: user.phone || "",
+      designation: user.designation || "",
       department: user.department || "",
       role: "staff",
       image: null,
@@ -267,6 +281,7 @@ export default function FacultyPage() {
       formData.append("name", form.name);
       formData.append("email", form.email);
       formData.append("phone", form.phone);
+      formData.append("designation", form.designation);
       formData.append("department", form.department);
       formData.append("role", "staff");
 
@@ -474,6 +489,7 @@ const downloadBulkTemplate = () => {
       "Photo",
       "College Code",
       "College Name",
+      "Designation",
     ],
 
     [
@@ -484,6 +500,7 @@ const downloadBulkTemplate = () => {
       "https://drive.google.com/file/d/FILE_ID_1/view?usp=sharing",
       "",
       "",
+      "Lecturer",
     ],
 
     [
@@ -494,6 +511,7 @@ const downloadBulkTemplate = () => {
       "https://drive.google.com/file/d/FILE_ID_2/view?usp=sharing",
       "",
       "",
+      "Senior Grade Lecturer",
     ],
 
     [
@@ -504,6 +522,7 @@ const downloadBulkTemplate = () => {
       "https://drive.google.com/file/d/FILE_ID_3/view?usp=sharing",
       "135",
       "Government Polytechnic, Udupi",
+      "Selection Grade Lecturer",
     ],
   ];
 
@@ -519,6 +538,7 @@ const downloadBulkTemplate = () => {
     { wch: 70 }, // Photo
     { wch: 14 }, // College Code
     { wch: 40 }, // College Name
+    { wch: 26 }, // Designation
   ];
 
   // Make Phone column text
@@ -953,7 +973,7 @@ const handleBulkUpload = async () => {
                             </p>
 
                             <p className="mt-0.5 truncate text-xs text-slate-400">
-                              Faculty · Staff
+                              {user.designation || "Faculty"}
                             </p>
                           </div>
 
@@ -1114,7 +1134,7 @@ const handleBulkUpload = async () => {
                       Step 1 — Download template
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
-                      Required columns: Name, Email, Phone, Department. External examiners: also fill College Code and College Name (leave both empty for our own faculty, college 103).
+                      Required columns: Name, Email, Phone, Department. Designation: Lecturer, Senior Grade Lecturer or Selection Grade Lecturer. External examiners: also fill College Code and College Name (leave both empty for our own faculty, college 103).
                     </p>
                   </div>
 
@@ -1361,7 +1381,25 @@ const handleBulkUpload = async () => {
                 )}
               </div>
 
-              {/* PHONE + DEPARTMENT */}
+              {/* DESIGNATION */}
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Designation</label>
+                  <select
+                    name="designation"
+                    value={form.designation}
+                    onChange={handleChange}
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100"
+                  >
+                    <option value="">Select designation</option>
+                    {DESIGNATIONS.map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* PHONE + DEPARTMENT */}
               <div className="grid gap-4 sm:grid-cols-2">
 
                 <div>

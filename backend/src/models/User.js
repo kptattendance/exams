@@ -58,6 +58,9 @@ const userSchema = new mongoose.Schema(
       default: "",
     },
 
+    // Lecturer / Senior Grade Lecturer / Selection Grade Lecturer (see DESIGNATIONS)
+    designation: { type: String, trim: true, default: "" },
+
     // The examiner's institution. Empty = our own college (see collegeOf)
     collegeCode: { type: String, trim: true, default: "" },
     collegeName: { type: String, trim: true, default: "" },
@@ -77,6 +80,19 @@ const userSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+export const DESIGNATIONS = ["Lecturer", "Senior Grade Lecturer", "Selection Grade Lecturer"];
+
+// "SELECTION GRADE LECTURER" / "selection grade" -> "Selection Grade Lecturer";
+// "" stays ""; anything else -> null (invalid)
+export function normalizeDesignation(value) {
+  const v = String(value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+  if (!v) return "";
+  if (v.startsWith("selection")) return DESIGNATIONS[2];
+  if (v.startsWith("senior")) return DESIGNATIONS[1];
+  if (v === "lecturer") return DESIGNATIONS[0];
+  return null;
+}
 
 // Everyone already in the database is from our college
 export const HOME_COLLEGE = { code: "103", name: "Karnataka (Govt.) Polytechnic, Mangaluru" };
