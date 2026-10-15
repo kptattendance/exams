@@ -665,7 +665,7 @@ export const getBatch = async (req, res) => {
   const { batch, panel } = await loadBatch(req);
   const role = req.user?.role;
   const mine = Boolean(batch) && isInternal(req, panel);
-  const allowed = batch && (role === "admin" || role === "coe" || (role === "hod" && lower(req.user.department) === batch.department) || mine);
+  const allowed = batch && (role === "admin" || role === "coe" || role === "acoe" || (role === "hod" && lower(req.user.department) === batch.department) || mine);
   if (!allowed) return fail(res, 404, "Batch not found.");
   const exam = await Exam.findById(batch.exam).select("name academicYear").lean();
   const unlocked = mine && batch.status === "OPEN" && isUnlocked(batch);

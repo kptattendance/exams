@@ -44,10 +44,12 @@ import { readiness, listResults, processResults, publishResults } from "../contr
 const router = express.Router();
 
 // COE and Admin run exams; Exam Officer and Principal can look
-const MANAGE = requireRole("coe", "admin");
-const VIEW = requireRole("coe", "admin", "exam_officer", "principal", "office");
+const MANAGE = requireRole("coe", "acoe", "admin");
+const VIEW = requireRole("coe", "acoe", "admin", "office", "principal");
 // Fee verification: office staff, COE, Admin
-const FEES = requireRole("office", "coe", "admin");
+const FEES = requireRole("office", "coe", "acoe", "admin");
+// Subject changes on hall tickets (back papers added / removed by hand): office too
+const REGISTER = requireRole("coe", "acoe", "admin", "office");
 
 const excel = multer({
   storage: multer.memoryStorage(),
@@ -75,8 +77,8 @@ router.post("/:id/process", MANAGE, processGeneration);
 
 router.get("/:id/registrations", VIEW, listRegistrations);
 router.post("/:id/registrations/:regId/override", MANAGE, overrideSubject);
-router.delete("/:id/registrations/:regId/subjects/:subjectId", MANAGE, removeManualSubject);
-router.post("/:id/back-papers", MANAGE, addBackPapers);
+router.delete("/:id/registrations/:regId/subjects/:subjectId", REGISTER, removeManualSubject);
+router.post("/:id/back-papers", REGISTER, addBackPapers);
 router.get("/:id/export", VIEW, exportRegistrations);
 
 // Fee verification
@@ -97,8 +99,8 @@ router.get("/:id/hall-tickets", VIEW, listHallTickets);
 
 // Valuation (hard copy): COE runs it, Exam Officer helps with attendance and packets.
 // The coding sheet (register number ↔ dummy number) is for COE / Admin only.
-const VALUE = requireRole("coe", "admin", "exam_officer");
-const SECRET = requireRole("coe", "admin");
+const VALUE = requireRole("coe", "acoe", "admin", "office");
+const SECRET = requireRole("coe", "acoe", "admin");
 router.get("/:id/valuation", VALUE, listPapers);
 router.patch("/:id/valuation-settings", MANAGE, updateValuationSettings);
 router.patch("/:id/valuation/packets/:packetId", VALUE, setValuer);
@@ -109,7 +111,7 @@ router.post("/:id/valuation/:code/attendance", VALUE, saveAttendance);
 router.post("/:id/valuation/:code/coding", MANAGE, codePaper);
 router.post("/:id/valuation/:code/coding/undo", MANAGE, undoCoding);
 router.get("/:id/valuation/:code/coding-sheet", SECRET, codingSheet);
-router.get("/:id/valuation/:code/slips", requireRole("coe", "admin", "exam_officer", "exam_clerk"), packetSlips);
+router.get("/:id/valuation/:code/slips", requireRole("coe", "acoe", "admin", "office", "exam_clerk"), packetSlips);
 router.post("/:id/valuation/:code/second", MANAGE, sendSecondValuation);
 router.post("/:id/valuation/:code/third", MANAGE, createThirdValuation);
 router.post("/:id/valuation/:code/decode", SECRET, decodePaper);

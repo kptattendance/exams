@@ -28,9 +28,9 @@ const router = express.Router();
 // COE allots the examiner sets of each department; the board's HOD forms the
 // batches and the time table (COE / Admin may help); the internal examiner
 // enters the marks; only the Admin corrects them later.
-const ALLOT = requireRole("coe", "admin");
-const BATCHES = requireRole("hod", "coe", "admin");
-const VIEW = requireRole("hod", "coe", "admin", "exam_officer", "principal");
+const ALLOT = requireRole("coe", "acoe", "admin");
+const BATCHES = requireRole("hod", "coe", "acoe", "admin");
+const VIEW = requireRole("hod", "coe", "acoe", "admin", "office", "principal");
 const EXAMINER = requireRole("staff", "hod");
 
 router.use(authenticateUser);

@@ -5,6 +5,7 @@ import axios from "axios";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
+import { ROLE_OPTIONS, roleLabel } from "../../components/roles";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -51,36 +52,7 @@ const departments = [
   },
 ];
 
-const roles = [
-  {
-    value: "admin",
-    label: "Admin",
-  },
-  {
-    value: "principal",
-    label: "Principal",
-  },
-  {
-    value: "coe",
-    label: "COE",
-  },
-  {
-    value: "exam_officer",
-    label: "Exam Officer",
-  },
-  {
-    value: "office",
-    label: "Office (fee verification)",
-  },
-  {
-    value: "exam_clerk",
-    label: "Exam clerk (marks entry)",
-  },
-  {
-    value: "hod",
-    label: "HOD",
-  },
-];
+const roles = ROLE_OPTIONS;
 
 const getDepartmentName = (value) => {
   return (
@@ -92,25 +64,7 @@ const getDepartmentName = (value) => {
   );
 };
 
-const getRoleName = (role) => {
-  const found = roles.find(
-    (item) => item.value === role
-  );
-
-  if (found) {
-    return found.label;
-  }
-
-  if (role === "staff") {
-    return "Staff";
-  }
-
-  if (role === "student") {
-    return "Student";
-  }
-
-  return role || "Not assigned";
-};
+const getRoleName = roleLabel;
 
 const getRoleBadgeClass = (role) => {
   return "bg-amber-50 text-amber-700 border-amber-200";

@@ -49,39 +49,42 @@ export async function deleteEncrypted(fileId) {
   }
 }
 
-// ------------------------------------------------------------------ syllabus PDFs
+// ------------------------------------------------------------------ sub-folders
 //
-// Not secret, so they are stored as they are, in a "Syllabus" folder inside
-// the papers folder. The app creates that folder itself, because in OAuth
-// mode it can only see files and folders it created.
+// Sub-folders inside the papers folder. The app creates them itself, because
+// in OAuth mode it can only see files and folders it created.
 
-let syllabusFolderId = null;
+const folderIds = new Map();
 
-async function getSyllabusFolderId() {
-  if (syllabusFolderId) return syllabusFolderId;
+async function subFolderId(name) {
+  if (folderIds.has(name)) return folderIds.get(name);
   const drive = getDrive();
   const parent = getPaperFolderId();
   const found = await drive.files.list({
-    q: `name = 'Syllabus' and '${parent}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+    q: `name = '${name}' and '${parent}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
     fields: "files(id)",
     supportsAllDrives: true,
     includeItemsFromAllDrives: true,
   });
-  syllabusFolderId = found.data.files?.[0]?.id;
-  if (!syllabusFolderId) {
+  let id = found.data.files?.[0]?.id;
+  if (!id) {
     const made = await drive.files.create({
-      requestBody: { name: "Syllabus", parents: [parent], mimeType: "application/vnd.google-apps.folder" },
+      requestBody: { name, parents: [parent], mimeType: "application/vnd.google-apps.folder" },
       fields: "id",
       supportsAllDrives: true,
     });
-    syllabusFolderId = made.data.id;
+    id = made.data.id;
   }
-  return syllabusFolderId;
+  folderIds.set(name, id);
+  return id;
 }
+
+// ------------------------------------------------------------------ syllabus PDFs
+// Not secret, so they are stored as they are, in the "Syllabus" folder.
 
 export async function uploadSyllabus(buffer, name) {
   const res = await getDrive().files.create({
-    requestBody: { name, parents: [await getSyllabusFolderId()], mimeType: "application/pdf" },
+    requestBody: { name, parents: [await subFolderId("Syllabus")], mimeType: "application/pdf" },
     media: { mimeType: "application/pdf", body: Readable.from(buffer) },
     fields: "id",
     supportsAllDrives: true,
@@ -91,3 +94,38 @@ export async function uploadSyllabus(buffer, name) {
 
 export const downloadFile = downloadEncrypted;
 export const deleteFile = deleteEncrypted;
+
+// ------------------------------------------------------------------ scrutiny in Google Docs
+//
+// While a paper is being scrutinised it exists as a Google Doc (not encrypted)
+// in the "Scrutiny" folder, shared only with the scrutiniser. When scrutiny is
+// finished it is exported back to Word, encrypted again, and the Doc is deleted.
+
+const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+export async function createScrutinyDoc(buffer, name) {
+  const res = await getDrive().files.create({
+    requestBody: { name, parents: [await subFolderId("Scrutiny")], mimeType: "application/vnd.google-apps.document" },
+    media: { mimeType: DOCX, body: Readable.from(buffer) },
+    fields: "id",
+    supportsAllDrives: true,
+  });
+  return res.data.id;
+}
+
+// Only this person (a Google account) may open and edit the Doc
+export async function shareForEditing(fileId, email) {
+  await getDrive().permissions.create({
+    fileId,
+    requestBody: { type: "user", role: "writer", emailAddress: email },
+    sendNotificationEmail: false,
+    supportsAllDrives: true,
+  });
+}
+
+export async function exportAsDocx(fileId) {
+  const res = await getDrive().files.export({ fileId, mimeType: DOCX }, { responseType: "arraybuffer" });
+  return Buffer.from(res.data);
+}
+
+export const scrutinyDocUrl = (fileId) => `https://docs.google.com/document/d/${fileId}/edit`;

@@ -6,7 +6,7 @@ import { electiveOverview, getElectives, saveElectives } from "../controllers/el
 
 const router = express.Router();
 
-router.use(authenticateUser, requireRole("hod", "coe", "admin"));
+router.use(authenticateUser, requireRole("hod", "coe", "acoe", "admin"));
 
 router.get("/overview", electiveOverview);
 router.get("/", getElectives);

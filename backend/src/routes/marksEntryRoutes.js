@@ -7,7 +7,7 @@ import { listEntryPackets, findPacket, getEntryPacket, submitEntry } from "../co
 const router = express.Router();
 
 // Exam clerk types the award lists; COE / Admin may also do it
-router.use(authenticateUser, requireRole("exam_clerk", "coe", "admin"));
+router.use(authenticateUser, requireRole("exam_clerk", "coe", "acoe", "admin"));
 router.get("/packets", listEntryPackets);
 router.get("/find", findPacket);
 router.get("/packets/:id", getEntryPacket);

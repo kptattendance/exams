@@ -2,6 +2,8 @@
 
 import mongoose from "mongoose";
 
+import { ROLES } from "../config/roles.js";
+
 const userSchema = new mongoose.Schema(
   {
     clerkId: {
@@ -32,17 +34,9 @@ const userSchema = new mongoose.Schema(
 
     role: {
       type: String,
-      enum: [
-        "admin",
-        "principal",
-        "coe",
-        "exam_officer",
-        "office",
-        "exam_clerk",
-        "hod",
-        "staff",
-        "student",
-      ],
+      // See config/roles.js. "exam_officer" and "student" are old values
+      // kept only so existing records still load.
+      enum: [...ROLES, "exam_officer", "student"],
       required: true,
     },
 
@@ -64,6 +58,10 @@ const userSchema = new mongoose.Schema(
       default: "",
     },
 
+    // The examiner's institution. Empty = our own college (see collegeOf)
+    collegeCode: { type: String, trim: true, default: "" },
+    collegeName: { type: String, trim: true, default: "" },
+
     imageUrl: {
       type: String,
       default: "",
@@ -79,6 +77,13 @@ const userSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+// Everyone already in the database is from our college
+export const HOME_COLLEGE = { code: "103", name: "Karnataka (Govt.) Polytechnic, Mangaluru" };
+export const collegeOf = (u) =>
+  !u?.collegeCode || u.collegeCode === HOME_COLLEGE.code
+    ? { ...HOME_COLLEGE, external: false }
+    : { code: u.collegeCode, name: u.collegeName || "", external: true };
 
 const User =
   mongoose.models.User ||

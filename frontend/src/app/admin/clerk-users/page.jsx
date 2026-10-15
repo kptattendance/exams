@@ -3,6 +3,7 @@
 import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
 import { useEffect, useState } from "react";
+import { ROLE_OPTIONS } from "../../components/roles";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -305,24 +306,12 @@ const filteredUsers = users.filter((user) => {
   className="min-w-44 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-700 outline-none focus:border-amber-400 focus:bg-white focus:ring-4 focus:ring-amber-50"
 >
   <option value="">All Roles</option>
-
-  <option value="admin">Admin</option>
-
-  <option value="principal">Principal</option>
-
-  <option value="coe">COE</option>
-
-  <option value="exam_officer">Exam Officer</option>
-
-  <option value="office">Office</option>
-
-  <option value="exam_clerk">Exam clerk</option>
-
-  <option value="hod">HOD</option>
-
-  <option value="staff">Staff</option>
-
-  <option value="student">Student</option>
+  {ROLE_OPTIONS.map((r) => (
+    <option key={r.value} value={r.value}>
+      {r.label}
+    </option>
+  ))}
+  <option value="staff">Faculty</option>
 </select>
 
             {/* DEPARTMENT */}

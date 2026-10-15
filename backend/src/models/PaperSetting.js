@@ -90,8 +90,32 @@ const paperSettingSchema = new mongoose.Schema(
     },
 
     currentFile: { type: fileSchema, default: null },
+    // Scheme of valuation (Word), uploaded by the setter with the paper
+    schemeFile: { type: fileSchema, default: null },
 
-    // Older uploads are kept (still encrypted) for traceability.
+    // Scrutiny by the QP scrutiniser. While IN_PROGRESS the paper is a Google
+    // Doc (docId) shared only with the scrutiniser; when DONE the corrected
+    // paper is stored encrypted in `file` and the Doc is deleted. The setter
+    // sees the note and the list of changed lines, never the file.
+    scrutiny: {
+      status: { type: String, enum: ["PENDING", "IN_PROGRESS", "DONE"], default: "PENDING" },
+      docId: { type: String, default: "" },
+      startedAt: { type: Date, default: null },
+      startedBy: { type: String, default: "" },
+      doneAt: { type: Date, default: null },
+      doneBy: { type: String, default: "" },
+      note: { type: String, default: "" },
+      changes: {
+        type: [new mongoose.Schema({ op: String, text: String, after: String }, { _id: false })],
+        default: [],
+      },
+      added: { type: Number, default: 0 },
+      removed: { type: Number, default: 0 },
+      file: { type: fileSchema, default: null },
+    },
+
+    // Older uploads of earlier versions. New drafts replace the old one and the
+    // old file is deleted from Drive; only records made before that remain here.
     fileHistory: { type: [fileSchema], default: [] },
 
     emailSentAt: { type: Date, default: null },
@@ -124,6 +148,11 @@ paperSettingSchema.set("toJSON", {
         uploadedAt: f.uploadedAt,
       };
     ret.currentFile = strip(ret.currentFile);
+    ret.schemeFile = strip(ret.schemeFile);
+    if (ret.scrutiny) {
+      ret.scrutiny.file = strip(ret.scrutiny.file);
+      delete ret.scrutiny.docId;
+    }
     ret.fileHistory = (ret.fileHistory || []).map(strip);
     return ret;
   },

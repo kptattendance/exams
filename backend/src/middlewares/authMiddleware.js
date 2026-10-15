@@ -2,6 +2,8 @@
 
 import { getAuth, clerkClient } from "@clerk/express";
 
+import { normalizeRole } from "../config/roles.js";
+
 export const authenticateUser = async (req, res, next) => {
   try {
     const auth = getAuth(req);
@@ -25,7 +27,8 @@ export const authenticateUser = async (req, res, next) => {
     req.user = {
       id: user.id,
       email: user.emailAddresses[0]?.emailAddress,
-      role: user.publicMetadata?.role || null,
+      // Old "exam_officer" accounts work as "office"
+      role: normalizeRole(user.publicMetadata?.role),
       department: user.publicMetadata?.department || null,
     };
 

@@ -5,6 +5,7 @@ import axios from "axios";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import FullPageStatus from "../../components/shell/FullPageStatus";
+import { HOME_BY_ROLE } from "../../components/shell/menus";
 
 export default function AuthCheckPage() {
   const { isLoaded, isSignedIn, getToken } = useAuth();
@@ -61,47 +62,22 @@ export default function AuthCheckPage() {
         // ==========================================
         // ROLE BASED REDIRECTION
         // ==========================================
-switch (user.role) {
-  case "admin":
-    router.replace("/admin");
-    break;
-
-  case "principal":
-    router.replace("/principal");
-    break;
-
-  case "hod":
-    router.replace("/hod");
-    break;
-
- case "coe":
-    router.replace("/coe");
-    break;
-
-case "exam_officer":
-    router.replace("/exam-officer");
-    break;
-
-  case "office":
-    router.replace("/office");
-    break;
-
-  case "exam_clerk":
-    router.replace("/clerk");
-    break;
-
-  case "staff":
-    router.replace("/faculty");
-    break;
-
+const home = HOME_BY_ROLE[user.role];
+if (home) {
+  router.replace(home);
+} else {
+  switch (user.role) {
   case "student":
-    router.replace("/student");
+    setMessage("Students do not sign in here. Results are published on the results page.");
+    await signOut();
+    setTimeout(() => router.replace("/"), 2500);
     break;
 
   default:
     setMessage("Your account has an invalid role.");
     await signOut();
     setTimeout(() => router.replace("/"), 1500);
+  }
 }
       } catch (error) {
         console.error(

@@ -924,8 +924,8 @@ export const getAttendance = async (
       ![
         "admin",
         "principal",
-        "coe",
-        "exam_officer",
+        "coe", "acoe",
+        "office",
       ].includes(role)
     ) {
       return res.status(403).json({
@@ -1297,11 +1297,11 @@ export const confirmAttendance = async (
     // ONLY EXAM OFFICER
     // -------------------------------------------------
 
-    if (role !== "exam_officer") {
+    if (role !== "office") {
       return res.status(403).json({
         success: false,
         message:
-          "Only Exam Officer can freeze attendance.",
+          "Only the exam section (office) can freeze attendance.",
       });
     }
 
@@ -1409,7 +1409,7 @@ export const confirmAttendance = async (
 
     record.confirmedBy =
       getUserClerkId(req) ||
-      "exam_officer";
+      "office";
 
     record.confirmedAt =
       new Date();

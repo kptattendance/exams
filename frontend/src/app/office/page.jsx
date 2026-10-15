@@ -260,28 +260,28 @@ export default function ExamOfficerDashboard() {
             <div className="grid gap-3 p-5 sm:grid-cols-2">
 
               <QuickAction
-                href="/exam-officer/attendance-shortage"
+                href="/office/attendance-shortage"
                 title="Attendance Shortage"
                 description="Mark students with attendance shortage."
                 icon="attendance"
               />
 
               <QuickAction
-                href="/exam-officer/fee-defaulters"
+                href="/office/fee-defaulters"
                 title="Fee Defaulters"
                 description="Manage students with pending fees."
                 icon="fees"
               />
 
               <QuickAction
-                href="/exam-officer/candidates"
+                href="/office/candidates"
                 title="Candidate List"
                 description="View eligible examination candidates."
                 icon="candidates"
               />
 
               <QuickAction
-                href="/exam-officer/hall-tickets"
+                href="/office/hall-tickets"
                 title="Hall Tickets"
                 description="Prepare examination hall tickets."
                 icon="ticket"

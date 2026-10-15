@@ -14,7 +14,7 @@ export default function robots() {
           "/student/",
           "/staff/",
           "/coe/",
-          "/exam-officer/",
+          "/office/",
           "/faculty/",
           "/login/",
           "/auth/",

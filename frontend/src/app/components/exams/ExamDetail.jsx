@@ -2,7 +2,7 @@
 
 // One examination: register students, see who may write which subject,
 // change a decision (with reason), add back papers by hand, download Excel.
-// COE/Admin: canManage. Exam Officer / Principal: view only.
+// COE/Admin: canManage. Office: canEditSubjects (back papers on hall tickets). Principal: view only.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -26,7 +26,7 @@ import {
 
 const PAGE_SIZE = 40;
 
-export default function ExamDetail({ id, basePath, canManage = false, bridgeHref, feesHref }) {
+export default function ExamDetail({ id, basePath, canManage = false, canEditSubjects = canManage, bridgeHref, feesHref }) {
   const api = useApi();
   const toast = useToast();
   const confirm = useConfirm();
@@ -202,7 +202,7 @@ export default function ExamDetail({ id, basePath, canManage = false, bridgeHref
               Time table
             </Link>
           )}
-          {canManage && (
+          {canEditSubjects && (
             <button onClick={() => setAddingBack(true)} className={btn.secondary}>
               <Icon name="plus" className="h-4 w-4" />
               Add back paper
@@ -361,6 +361,7 @@ export default function ExamDetail({ id, basePath, canManage = false, bridgeHref
             filters={filters}
             setFilters={setFilters}
             canManage={canManage}
+            canEditSubjects={canEditSubjects}
             onChanged={load}
           />
         </>
@@ -371,7 +372,7 @@ export default function ExamDetail({ id, basePath, canManage = false, bridgeHref
       {canManage && editing && (
         <EditExam exam={exam} onClose={() => setEditing(false)} onSaved={(e) => (setEditing(false), load())} />
       )}
-      {canManage && (
+      {canEditSubjects && (
         <AddBackPaper
           open={addingBack}
           examId={id}
@@ -582,7 +583,7 @@ function ProgressModal({ gen }) {
 
 // ==================================================================== student list
 
-function StudentList({ examId, classes, filters, setFilters, canManage, onChanged }) {
+function StudentList({ examId, classes, filters, setFilters, canManage, canEditSubjects, onChanged }) {
   const api = useApi();
   const toast = useToast();
   const [data, setData] = useState(null);
@@ -709,6 +710,7 @@ function StudentList({ examId, classes, filters, setFilters, canManage, onChange
             open={open === reg._id}
             onToggle={() => setOpen(open === reg._id ? null : reg._id)}
             canManage={canManage}
+            canEditSubjects={canEditSubjects}
             onOverride={(s) => setOverriding({ reg, subject: s })}
             onRemove={(s) => removeManual(reg, s)}
           />
@@ -755,7 +757,7 @@ function initials(name = "") {
     .toUpperCase();
 }
 
-function StudentRow({ reg, open, onToggle, canManage, onOverride, onRemove }) {
+function StudentRow({ reg, open, onToggle, canManage, canEditSubjects, onOverride, onRemove }) {
   const o = OVERALL[reg.overall];
   return (
     <div className={`overflow-hidden rounded-2xl border bg-white transition ${open ? "border-slate-300 shadow-sm" : "border-slate-200"}`}>
@@ -814,7 +816,7 @@ function StudentRow({ reg, open, onToggle, canManage, onOverride, onRemove }) {
           )}
           <div className="space-y-2">
             {reg.subjects.map((s) => (
-              <SubjectLine key={s.subject} s={s} canManage={canManage} onOverride={() => onOverride(s)} onRemove={() => onRemove(s)} />
+              <SubjectLine key={s.subject} s={s} canManage={canManage} canEditSubjects={canEditSubjects} onOverride={() => onOverride(s)} onRemove={() => onRemove(s)} />
             ))}
           </div>
         </div>
@@ -823,7 +825,7 @@ function StudentRow({ reg, open, onToggle, canManage, onOverride, onRemove }) {
   );
 }
 
-function SubjectLine({ s, canManage, onOverride, onRemove }) {
+function SubjectLine({ s, canManage, canEditSubjects, onOverride, onRemove }) {
   const d = DECISION[s.effective];
   const blocked = s.effective === "ANS" || s.effective === "NE";
   return (
@@ -856,7 +858,7 @@ function SubjectLine({ s, canManage, onOverride, onRemove }) {
               Change
             </button>
           )}
-          {canManage && s.source === "MANUAL" && (
+          {canEditSubjects && s.source === "MANUAL" && (
             <button onClick={onRemove} className={`${btn.small} text-red-600`} title="Remove this back paper">
               <Icon name="trash" className="h-3.5 w-3.5" />
             </button>

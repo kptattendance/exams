@@ -10,11 +10,15 @@ import {
   listAssignments,
   resendEmail,
   updateAssignment,
-  returnForCorrection,
   cancelAssignment,
   deleteAssignment,
   listOrders,
   getOrder,
+  listForScrutiny,
+  scrutinyScheme,
+  startScrutiny,
+  finishScrutiny,
+  cancelScrutiny,
   downloadPaper,
   getAuditTrail,
   myAssignments,
@@ -29,11 +33,13 @@ import { listSyllabus, addSyllabus, removeSyllabus, uploadPdf } from "../control
 const router = express.Router();
 
 // Who can manage assignments (create, email, return, cancel)
-const MANAGERS = ["coe", "exam_officer"];
+const MANAGERS = ["coe", "acoe"];
 // Who can open the actual question paper (keep this list as small as possible)
 const CONTENT_READERS = ["coe"];
 // Who can print the appointment orders that are posted to the setters
-const ORDER_PRINTERS = [...MANAGERS, "office"];
+const ORDER_PRINTERS = ["office"];
+// Only the scrutiniser opens papers for scrutiny (not even the COE)
+const SCRUTINY = requireRole("qp_scrutinizer");
 
 router.use(authenticateUser);
 
@@ -42,12 +48,14 @@ router.use(authenticateUser);
 router.get("/my", myAssignments);
 router.get("/my/:id", myAssignment);
 router.post("/my/:id/upload", uploadLimiter, uploadDocx, uploadPaper);
+router.post("/my/:id/upload/:kind", uploadLimiter, uploadDocx, uploadPaper);
 router.get("/my/:id/preview", previewMyPaper);
 router.post("/my/:id/submit", submitMyPaper);
 
 // ---------------- COE / Exam officer ----------------
 router.get("/examiners", requireRole(...MANAGERS), listExaminers);
 router.get("/orders", requireRole(...ORDER_PRINTERS), listOrders);
+router.get("/scrutiny", SCRUTINY, listForScrutiny);
 // Syllabus / scheme PDFs sent with the email (before "/:id")
 router.get("/syllabus", requireRole(...MANAGERS), listSyllabus);
 router.post("/syllabus", requireRole(...MANAGERS), uploadPdf, addSyllabus);
@@ -56,11 +64,14 @@ router.get("/", requireRole(...MANAGERS), listAssignments);
 router.post("/", requireRole(...MANAGERS), createAssignment);
 router.patch("/:id", requireRole(...MANAGERS), updateAssignment);
 router.post("/:id/send-email", requireRole(...MANAGERS), resendEmail);
-router.post("/:id/return", requireRole(...CONTENT_READERS), returnForCorrection);
 router.post("/:id/cancel", requireRole(...MANAGERS), cancelAssignment);
 router.delete("/:id", requireRole(...MANAGERS), deleteAssignment);
 router.get("/:id/download", requireRole(...CONTENT_READERS), downloadPaper);
 router.get("/:id/audit", requireRole(...CONTENT_READERS), getAuditTrail);
 router.get("/:id/order", requireRole(...ORDER_PRINTERS), getOrder);
+router.get("/:id/scrutiny/scheme", SCRUTINY, scrutinyScheme);
+router.post("/:id/scrutiny/start", SCRUTINY, startScrutiny);
+router.post("/:id/scrutiny/finish", SCRUTINY, finishScrutiny);
+router.post("/:id/scrutiny/cancel", SCRUTINY, cancelScrutiny);
 
 export default router;

@@ -9,6 +9,7 @@ import axios from "axios";
 import User from "../models/User.js";
 import Student from "../models/Student.js";
 import Subject from "../models/Subject.js";
+import { ROLES } from "../config/roles.js";
 // import Attendance from "../models/Attendance.js";
 // import IAMarks from "../models/IAMarks.js";
 
@@ -85,119 +86,19 @@ export const getDashboardStats = async (req, res) => {
   }
 };
 
-/*
-|--------------------------------------------------------------------------
-| ROLE CONFIGURATION
-|--------------------------------------------------------------------------
-|
-| General administrative roles:
-| admin
-| principal
-| coe
-| exam_officer
-| hod
-|
-| Staff and student are handled through their separate modules,
-| but they remain valid roles in the database.
-|
-|--------------------------------------------------------------------------
-*/
+// The roles and what each one does: see config/roles.js
+const ALL_ROLES = ROLES;
 
-const ALL_ROLES = [
-  "admin",
-  "principal",
-  "coe",
-  "exam_officer",
-  "office", // office staff: exam fee verification
-  "exam_clerk", // types valuation marks (sees dummy numbers only)
-  "hod",
-  "staff",
-  "student",
-];
+// Roles that may open the login-accounts list
+const ADMIN_ROLES = ["admin", "principal", "coe", "acoe"];
 
-const ADMIN_ROLES = [
-  "admin",
-  "principal",
-  "coe",
-  "exam_officer",
-  "hod",
-];
-
-/*
-|--------------------------------------------------------------------------
-| ROLE PERMISSIONS
-|--------------------------------------------------------------------------
-|
-| admin
-|   -> can manage principal, coe, exam_officer, hod
-|
-| principal
-|   -> can manage exam_officer and hod
-|
-| coe
-|   -> can manage exam_officer
-|
-| exam_officer
-|   -> can manage hod
-|
-| hod
-|   -> can manage staff and student
-|
-| staff/student
-|   -> cannot manage users
-|
-|--------------------------------------------------------------------------
-*/
-
+// Which roles each role may create, edit and delete
 const rolePermissions = {
-  admin: [
-    'admin',
-    "principal",
-    "coe",
-    "exam_officer",
-    "office",
-    "exam_clerk",
-    "hod",
-    "staff",
-    "student",
-  ],
-
-  principal: [
-    "exam_officer",
-    "office",
-    "exam_clerk",
-    "hod",
-    "staff",
-    "student",
-  ],
-
-  coe: [
-    "exam_officer",
-    "office",
-    "exam_clerk",
-    "hod",
-    "staff",
-    "student",
-  ],
-
-  exam_officer: [
-    "hod",
-    "staff",
-    "student",
-  ],
-
-  hod: [
-    "staff",
-    "student",
-  ],
-
-  office: [],
-
-  exam_clerk: [],
-
-  staff: [],
-
-  student: [],
+  admin: [...ROLES],
+  principal: ["acoe", "office", "exam_clerk", "qp_scrutinizer", "hod", "staff"],
+  coe: ["acoe", "office", "exam_clerk", "qp_scrutinizer", "hod", "staff"],
+  acoe: ["office", "exam_clerk", "hod", "staff"],
+  hod: ["staff"],
 };
 
 
@@ -1035,6 +936,8 @@ export const createUser = async (
       phone,
       department,
       role,
+      collegeCode,
+      collegeName,
     } = req.body;
 
     const targetRole = (
@@ -1142,6 +1045,9 @@ export const createUser = async (
 
       department:
         department || "",
+
+      collegeCode: String(collegeCode || "").trim(),
+      collegeName: String(collegeName || "").trim(),
 
       role: targetRole,
 
@@ -1283,7 +1189,7 @@ export const getUsers = async (req, res) => {
 
     const users = await User.find(filter)
       .select(
-        "name email phone department role imageUrl imagePublicId createdAt"
+        "name email phone department role collegeCode collegeName imageUrl imagePublicId createdAt"
       )
       .sort({
         department: 1,

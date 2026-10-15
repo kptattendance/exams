@@ -7,6 +7,7 @@ import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
 
 import { useConfirm, useToast } from "../../../components/ui/Feedback";
+import { ChangeList } from "../../../components/exams/ChangeList";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const MAX_MB = Number(process.env.NEXT_PUBLIC_MAX_PAPER_MB || 4);
@@ -37,6 +38,11 @@ export default function PaperUploadPage() {
   const [submitting, setSubmitting] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef(null);
+  // Scheme of valuation (second Word file)
+  const [scheme, setScheme] = useState(null);
+  const [schemeBusy, setSchemeBusy] = useState(false);
+  const [schemePreview, setSchemePreview] = useState(null);
+  const schemeRef = useRef(null);
   const toast = useToast();
   const confirmDialog = useConfirm();
 
@@ -99,6 +105,36 @@ export default function PaperUploadPage() {
     }
   };
 
+  const uploadScheme = async () => {
+    if (!scheme) return;
+    setSchemeBusy(true);
+    setError("");
+    try {
+      const body = new FormData();
+      body.append("file", scheme);
+      const res = await axios.post(`${API_URL}/api/paper-setting/my/${id}/upload/scheme`, body, { headers: await auth() });
+      setPaper(res.data.data);
+      setSchemePreview(res.data.preview);
+      setScheme(null);
+      setConfirmed(false);
+      toast.success("Scheme of valuation uploaded.");
+      if (schemeRef.current) schemeRef.current.value = "";
+    } catch (e) {
+      setError(e.response?.data?.error || "Upload failed. Please try again.");
+    } finally {
+      setSchemeBusy(false);
+    }
+  };
+
+  const showSchemePreview = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/api/paper-setting/my/${id}/preview?kind=scheme`, { headers: await auth() });
+      setSchemePreview(res.data?.preview || null);
+    } catch (e) {
+      setError(e.response?.data?.error || "Could not open the scheme.");
+    }
+  };
+
   const submit = async () => {
     const ok = await confirmDialog({
       title: "Submit your final paper?",
@@ -134,7 +170,8 @@ export default function PaperUploadPage() {
   if (!paper) return <p className="text-sm text-slate-500">Loading…</p>;
 
   const editable = ["ASSIGNED", "UPLOADED", "RETURNED"].includes(paper.status) && !paper.isPastDeadline;
-  const canSubmit = ["UPLOADED", "RETURNED"].includes(paper.status) && paper.currentFile && !paper.isPastDeadline;
+  const canSubmit =
+    ["UPLOADED", "RETURNED"].includes(paper.status) && paper.currentFile && paper.schemeFile && !paper.isPastDeadline;
 
   return (
     <div className="space-y-5">
@@ -184,11 +221,32 @@ export default function PaperUploadPage() {
           <p className="text-lg font-bold text-emerald-800">Paper submitted ✔</p>
           <p className="mt-1 text-sm text-emerald-700">
             Received on {fmt(paper.submittedAt)} · {paper.currentFile?.originalName} ({kb(paper.currentFile?.size || 0)})
+            {paper.schemeFile && ` · scheme ${paper.schemeFile.originalName}`}
           </p>
           <p className="mt-3 text-xs text-emerald-700">
             The paper is now locked and stored encrypted. Please delete any copies from your computer, pen drive,
             email and WhatsApp.
           </p>
+        </div>
+      )}
+
+      {/* What the scrutiniser changed – text only, the paper itself is not shown */}
+      {paper.status === "SUBMITTED" && paper.scrutiny && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="font-semibold text-slate-900">Scrutinised on {fmt(paper.scrutiny.doneAt)}</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            The examination section made these changes to your paper: {paper.scrutiny.removed} line
+            {paper.scrutiny.removed === 1 ? "" : "s"} removed, {paper.scrutiny.added} added. No action is needed from you.
+          </p>
+          {paper.scrutiny.note && (
+            <p className="mt-3 whitespace-pre-line rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
+              <span className="font-semibold">Note: </span>
+              {paper.scrutiny.note}
+            </p>
+          )}
+          <div className="mt-3">
+            <ChangeList changes={paper.scrutiny.changes} />
+          </div>
         </div>
       )}
 
@@ -248,6 +306,53 @@ export default function PaperUploadPage() {
         </div>
       )}
 
+      {/* SCHEME OF VALUATION */}
+      {editable && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="font-semibold text-slate-900">Scheme of valuation</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Upload the scheme of valuation (answers and marks for each question) as a Word file (.docx). It is required before
+            final submit and is encrypted like the paper.
+          </p>
+          {paper.schemeFile && (
+            <p className="mt-3 text-sm text-slate-700">
+              Uploaded: <b>{paper.schemeFile.originalName}</b> · {kb(paper.schemeFile.size)} · {fmt(paper.schemeFile.uploadedAt)}
+              <button onClick={showSchemePreview} className="ml-2 text-xs font-semibold text-blue-700 hover:underline">
+                Check it
+              </button>
+            </p>
+          )}
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <input
+              ref={schemeRef}
+              type="file"
+              accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                setError("");
+                if (f && !/\.docx$/i.test(f.name)) return setError("The scheme must be a Word file ending in .docx.");
+                if (f && f.size > MAX_MB * 1024 * 1024) return setError(`File is larger than ${MAX_MB} MB.`);
+                setScheme(f || null);
+              }}
+              className="min-w-0 flex-1 text-sm text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-semibold"
+            />
+            <button
+              disabled={!scheme || schemeBusy}
+              onClick={uploadScheme}
+              className="rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {schemeBusy ? "Uploading…" : paper.schemeFile ? "Replace scheme" : "Upload scheme"}
+            </button>
+          </div>
+          {schemePreview && (
+            <div
+              className="qp-preview mt-4 max-h-[40vh] overflow-y-auto rounded-xl border border-slate-200 p-4 text-sm leading-relaxed text-slate-800 select-none"
+              dangerouslySetInnerHTML={{ __html: schemePreview.html || "" }}
+            />
+          )}
+        </div>
+      )}
+
       {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
       {/* PREVIEW + SUBMIT */}
@@ -283,6 +388,12 @@ export default function PaperUploadPage() {
             className="qp-preview m-5 max-h-[60vh] overflow-y-auto rounded-xl border border-slate-200 p-5 text-sm leading-relaxed text-slate-800 select-none"
             dangerouslySetInnerHTML={{ __html: preview?.html || "<p>Loading preview…</p>" }}
           />
+
+          {!paper.schemeFile && paper.status !== "SUBMITTED" && (
+            <p className="border-t border-slate-100 px-5 py-4 text-sm font-medium text-orange-700">
+              Upload the scheme of valuation as well. Final submit opens once both files are uploaded.
+            </p>
+          )}
 
           {canSubmit && (
             <div className="border-t border-slate-100 px-5 py-4">

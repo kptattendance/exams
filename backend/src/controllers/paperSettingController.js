@@ -17,7 +17,7 @@ import { cleanHtml } from "../services/cleanHtml.js";
 
 import PaperSetting from "../models/PaperSetting.js";
 import Subject from "../models/Subject.js";
-import User from "../models/User.js";
+import User, { HOME_COLLEGE, collegeOf } from "../models/User.js";
 import AuditLog, { audit } from "../models/AuditLog.js";
 
 import { encryptPaper, decryptPaper } from "../services/paperCrypto.js";
@@ -26,7 +26,12 @@ import {
   uploadEncrypted,
   downloadEncrypted,
   deleteEncrypted,
+  createScrutinyDoc,
+  shareForEditing,
+  exportAsDocx,
+  scrutinyDocUrl,
 } from "../services/driveStorage.js";
+import { changeRecord } from "../services/textDiff.js";
 import { sendPaperSettingEmail } from "../services/mailer.js";
 import { syllabusAttachments } from "./syllabusController.js";
 
@@ -45,23 +50,27 @@ const handleError = (res, err, where) => {
 
 const POPULATE = [
   { path: "subject", select: "code subjectId name semester department" },
-  { path: "examiner", select: "name email department phone" },
+  { path: "examiner", select: "name email department phone collegeCode collegeName" },
 ];
 
 // ======================================================================
 // COE / EXAM OFFICER
 // ======================================================================
 
-// GET /api/paper-setting/examiners?department=cs
+// GET /api/paper-setting/examiners?type=INTERNAL|EXTERNAL&department=cs
+//   INTERNAL = our own faculty (college 103), EXTERNAL = any other college
 export const listExaminers = async (req, res) => {
   try {
     const filter = { role: { $in: ["staff", "hod"] } };
     if (req.query.department) filter.department = String(req.query.department).toLowerCase();
+    const home = { $in: ["", null, HOME_COLLEGE.code] };
+    if (req.query.type === "INTERNAL") filter.collegeCode = home;
+    else if (req.query.type === "EXTERNAL") filter.collegeCode = { $nin: ["", null, HOME_COLLEGE.code] };
     const users = await User.find(filter)
-      .select("name email department role clerkId")
+      .select("name email department role clerkId collegeCode collegeName")
       .sort({ department: 1, name: 1 })
       .lean();
-    res.json({ data: users });
+    res.json({ data: users.map((u) => ({ ...u, college: collegeOf(u) })) });
   } catch (err) {
     handleError(res, err, "listExaminers");
   }
@@ -199,7 +208,13 @@ const orderView = (p) => ({
   assignedAt: p.createdAt,
   examinerType: p.examinerType,
   subject: p.subject && { code: p.subject.code, name: p.subject.name, semester: p.subject.semester, department: p.subject.department },
-  examiner: p.examiner && { name: p.examiner.name, department: p.examiner.department, email: p.examiner.email, phone: p.examiner.phone },
+  examiner: p.examiner && {
+    name: p.examiner.name,
+    department: p.examiner.department,
+    email: p.examiner.email,
+    phone: p.examiner.phone,
+    college: collegeOf(p.examiner),
+  },
 });
 
 // GET /api/paper-setting/orders?examSession=NOV-2026
@@ -290,31 +305,12 @@ export const updateAssignment = async (req, res) => {
   }
 };
 
-// POST /api/paper-setting/:id/return   { remarks }
-export const returnForCorrection = async (req, res) => {
-  try {
-    if (!isId(req.params.id)) return fail(res, 400, "Invalid id.");
-    const remarks = String(req.body.remarks || "").trim();
-    if (!remarks) return fail(res, 400, "Please enter remarks for the examiner.");
-
-    const paper = await PaperSetting.findOneAndUpdate(
-      { _id: req.params.id, status: "SUBMITTED" },
-      { $set: { status: "RETURNED", returnedAt: new Date(), returnRemarks: remarks } },
-      { returnDocument: "after" }
-    );
-    if (!paper) return fail(res, 400, "Only a submitted paper can be returned.");
-    await audit(req, "PAPER_RETURNED", paper._id, { remarks });
-    res.json({ data: paper });
-  } catch (err) {
-    handleError(res, err, "returnForCorrection");
-  }
-};
-
 // Deletes the record and its encrypted files in Drive
 async function removePaper(paper) {
-  for (const f of [paper.currentFile, ...(paper.fileHistory || [])]) {
+  for (const f of [paper.currentFile, paper.schemeFile, paper.scrutiny?.file, ...(paper.fileHistory || [])]) {
     if (f?.driveFileId) await deleteEncrypted(f.driveFileId);
   }
+  if (paper.scrutiny?.docId) await deleteEncrypted(paper.scrutiny.docId);
   await PaperSetting.deleteOne({ _id: paper._id });
 }
 
@@ -350,21 +346,28 @@ export const cancelAssignment = async (req, res) => {
   }
 };
 
-// GET /api/paper-setting/:id/download   (COE only, every download logged)
+// GET /api/paper-setting/:id/download[?kind=scheme]   (COE only, every download logged)
 export const downloadPaper = async (req, res) => {
   try {
     if (!isId(req.params.id)) return fail(res, 400, "Invalid id.");
+    const kind = fileKind(req);
+    const scheme = kind === "schemeFile";
     const paper = await PaperSetting.findById(req.params.id).populate(POPULATE[0]);
-    if (!paper?.currentFile) return fail(res, 404, "No file uploaded.");
+    if (!paper?.[kind]) return fail(res, 404, "No file uploaded.");
     if (paper.status !== "SUBMITTED") {
       return fail(res, 400, "The paper can be downloaded only after the examiner submits it.");
     }
+    // The question paper is released to the COE only after scrutiny, in its scrutinised form
+    if (!scheme && paper.scrutiny?.status !== "DONE") {
+      return fail(res, 400, "The paper can be downloaded after the scrutiniser finishes scrutiny.");
+    }
+    const file = scheme ? paper.schemeFile : paper.scrutiny.file;
 
-    const plain = await getDecryptedFile(paper);
-    await audit(req, "PAPER_DOWNLOADED", paper._id, { sha256: paper.currentFile.sha256 });
+    const plain = await getDecryptedFile(paper, file);
+    await audit(req, scheme ? "SCHEME_DOWNLOADED" : "PAPER_DOWNLOADED", paper._id, { sha256: file.sha256 });
 
     // Neutral file name: no examiner name
-    const name = `${paper.subject.code}_${paper.examSession}_SET${paper.setNo}.docx`.replace(/[^\w.-]/g, "_");
+    const name = `${paper.subject.code}_${paper.examSession}_SET${paper.setNo}${scheme ? "_SCHEME" : ""}.docx`.replace(/[^\w.-]/g, "_");
     res.set({
       "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "Content-Disposition": `attachment; filename="${name}"`,
@@ -416,6 +419,8 @@ async function loadOwnPaper(req, res) {
   return paper;
 }
 
+const brief = (f) => (f ? { originalName: f.originalName, size: f.size, uploadedAt: f.uploadedAt } : null);
+
 const facultyView = (p) => {
   const j = p.toJSON();
   return {
@@ -430,9 +435,13 @@ const facultyView = (p) => {
     returnRemarks: j.status === "RETURNED" ? j.returnRemarks : "",
     submittedAt: j.submittedAt,
     // After submission the examiner sees only that a file was submitted
-    currentFile: j.currentFile
-      ? { originalName: j.currentFile.originalName, size: j.currentFile.size, uploadedAt: j.currentFile.uploadedAt }
-      : null,
+    currentFile: brief(j.currentFile),
+    schemeFile: brief(j.schemeFile),
+    // What the scrutiniser changed (text only, never the file)
+    scrutiny:
+      j.scrutiny?.status === "DONE"
+        ? { doneAt: j.scrutiny.doneAt, note: j.scrutiny.note, changes: j.scrutiny.changes, added: j.scrutiny.added, removed: j.scrutiny.removed }
+        : null,
     isPastDeadline: new Date() > new Date(j.deadline),
   };
 };
@@ -464,9 +473,13 @@ export const myAssignment = async (req, res) => {
   }
 };
 
-// POST /api/paper-setting/my/:id/upload   (multipart, field "file")
+// POST /api/paper-setting/my/:id/upload           question paper
+// POST /api/paper-setting/my/:id/upload/scheme    scheme of valuation
+// (multipart, field "file"). A new upload replaces the draft and the old file
+// is deleted from Drive.
 export const uploadPaper = async (req, res) => {
   let driveFileId = null;
+  const kind = fileKind(req);
   try {
     const paper = await loadOwnPaper(req, res);
     if (!paper) return;
@@ -499,8 +512,7 @@ export const uploadPaper = async (req, res) => {
 
     // Conditional update: status must still be editable (prevents races
     // with a submit happening in another tab)
-    const update = { $set: { currentFile: fileRecord, status: "UPLOADED" } };
-    if (paper.currentFile) update.$push = { fileHistory: paper.currentFile.toObject() };
+    const update = { $set: { [kind]: fileRecord, status: "UPLOADED" } };
 
     const saved = await PaperSetting.findOneAndUpdate(
       { _id: paper._id, examinerClerkId: req.user.id, status: { $in: FACULTY_EDITABLE } },
@@ -513,10 +525,12 @@ export const uploadPaper = async (req, res) => {
       return fail(res, 409, "Paper status changed. Please refresh the page.");
     }
 
-    await audit(req, "PAPER_UPLOADED", paper._id, {
+    // The replaced draft is not kept
+    if (paper[kind]?.driveFileId) await deleteEncrypted(paper[kind].driveFileId);
+    await audit(req, kind === "schemeFile" ? "SCHEME_UPLOADED" : "PAPER_UPLOADED", paper._id, {
       sha256: meta.sha256,
       size: meta.size,
-      replaced: Boolean(paper.currentFile),
+      replaced: Boolean(paper[kind]),
     });
 
     res.json({ data: facultyView(saved), preview, warnings: [...warnings, ...preview.warnings] });
@@ -531,11 +545,12 @@ export const previewMyPaper = async (req, res) => {
   try {
     const paper = await loadOwnPaper(req, res);
     if (!paper) return;
-    if (!paper.currentFile) return fail(res, 404, "Nothing uploaded yet.");
+    const kind = fileKind(req);
+    if (!paper[kind]) return fail(res, 404, "Nothing uploaded yet.");
     if (!["UPLOADED", "RETURNED"].includes(paper.status)) {
       return fail(res, 403, "Preview is not available after submission.");
     }
-    const plain = await getDecryptedFile(paper);
+    const plain = await getDecryptedFile(paper, kind);
     const preview = await buildPreview(plain);
     plain.fill(0);
     res.set("Cache-Control", "no-store");
@@ -554,6 +569,7 @@ export const submitMyPaper = async (req, res) => {
     const paper = await loadOwnPaper(req, res);
     if (!paper) return;
     if (!paper.currentFile) return fail(res, 400, "Upload the paper before submitting.");
+    if (!paper.schemeFile) return fail(res, 400, "Upload the scheme of valuation before submitting.");
     if (new Date() > paper.deadline) {
       return fail(res, 400, "The deadline has passed. Please contact the COE office.");
     }
@@ -576,8 +592,14 @@ export const submitMyPaper = async (req, res) => {
 // helpers
 // ======================================================================
 
-async function getDecryptedFile(paper) {
-  const f = paper.currentFile;
+// ?kind=scheme (or /upload/scheme) -> the scheme of valuation, otherwise the question paper
+function fileKind(req) {
+  return req.query?.kind === "scheme" || req.params?.kind === "scheme" ? "schemeFile" : "currentFile";
+}
+
+// kind: "currentFile" / "schemeFile", or the file record itself
+async function getDecryptedFile(paper, kind = "currentFile") {
+  const f = typeof kind === "string" ? paper[kind] : kind;
   const encrypted = await downloadEncrypted(f.driveFileId);
   return decryptPaper(encrypted, f, paper._id); // throws if tampered
 }
@@ -606,3 +628,188 @@ async function buildPreview(buffer) {
     warnings,
   };
 }
+
+// ======================================================================
+// SCRUTINY — QP scrutiniser only. The setter's name is never shown here.
+// ======================================================================
+
+const scrutinyView = (p) => ({
+  _id: p._id,
+  subject: p.subject && { code: p.subject.code, name: p.subject.name, semester: p.subject.semester, department: p.subject.department },
+  examSession: p.examSession,
+  setNo: p.setNo,
+  paperType: p.paperType,
+  submittedAt: p.submittedAt,
+  hasScheme: Boolean(p.schemeFile),
+  scrutiny: {
+    status: p.scrutiny?.status || "PENDING",
+    startedAt: p.scrutiny?.startedAt || null,
+    doneAt: p.scrutiny?.doneAt || null,
+    note: p.scrutiny?.note || "",
+    added: p.scrutiny?.added || 0,
+    removed: p.scrutiny?.removed || 0,
+    changes: p.scrutiny?.changes || [],
+    editUrl: p.scrutiny?.docId ? scrutinyDocUrl(p.scrutiny.docId) : "",
+  },
+});
+
+async function loadForScrutiny(req, res) {
+  if (!isId(req.params.id)) return fail(res, 400, "Invalid id."), null;
+  const paper = await PaperSetting.findOne({ _id: req.params.id, status: "SUBMITTED" }).populate(POPULATE[0]);
+  if (!paper) return fail(res, 404, "Submitted paper not found."), null;
+  return paper;
+}
+
+const textOf = async (buffer) => (await mammoth.extractRawText({ buffer })).value;
+
+// GET /api/paper-setting/scrutiny?examSession=NOV-2026
+export const listForScrutiny = async (req, res) => {
+  try {
+    const filter = { status: "SUBMITTED" };
+    if (req.query.examSession) filter.examSession = String(req.query.examSession).toUpperCase();
+    const papers = await PaperSetting.find(filter).populate(POPULATE[0]).sort({ submittedAt: 1 }).lean();
+    res.json({ data: papers.map(scrutinyView) });
+  } catch (err) {
+    handleError(res, err, "listForScrutiny");
+  }
+};
+
+// GET /api/paper-setting/:id/scrutiny/scheme   – the scheme, to read on screen
+export const scrutinyScheme = async (req, res) => {
+  try {
+    const paper = await loadForScrutiny(req, res);
+    if (!paper) return;
+    if (!paper.schemeFile) return fail(res, 404, "The setter did not upload a scheme.");
+    const plain = await getDecryptedFile(paper, "schemeFile");
+    const preview = await buildPreview(plain);
+    plain.fill(0);
+    res.set("Cache-Control", "no-store");
+    res.json({ preview });
+  } catch (err) {
+    handleError(res, err, "scrutinyScheme");
+  }
+};
+
+// POST /api/paper-setting/:id/scrutiny/start
+// Opens the paper (or the earlier scrutinised version) as a Google Doc that
+// only the signed-in scrutiniser's Google account can edit.
+export const startScrutiny = async (req, res) => {
+  let docId = null;
+  try {
+    const paper = await loadForScrutiny(req, res);
+    if (!paper) return;
+    if (paper.scrutiny?.status === "IN_PROGRESS" && paper.scrutiny.docId) {
+      return res.json({ data: scrutinyView(paper), url: scrutinyDocUrl(paper.scrutiny.docId) });
+    }
+    const source = paper.scrutiny?.file || paper.currentFile;
+    const plain = await getDecryptedFile(paper, source);
+    docId = await createScrutinyDoc(plain, `${paper.subject.code} ${paper.examSession} Set ${paper.setNo} – scrutiny`);
+    plain.fill(0);
+    try {
+      await shareForEditing(docId, req.user.email);
+    } catch (e) {
+      console.error("Scrutiny share failed:", e.message);
+      await deleteEncrypted(docId);
+      return fail(res, 400, `Google could not share the document with ${req.user.email}. Sign in to this website with a Google (Gmail) account.`);
+    }
+    const saved = await PaperSetting.findOneAndUpdate(
+      { _id: paper._id, "scrutiny.status": { $ne: "IN_PROGRESS" } },
+      {
+        $set: {
+          "scrutiny.status": "IN_PROGRESS",
+          "scrutiny.docId": docId,
+          "scrutiny.startedAt": new Date(),
+          "scrutiny.startedBy": req.user.email || req.user.id,
+        },
+      },
+      { returnDocument: "after" }
+    ).populate(POPULATE[0]);
+    if (!saved) {
+      await deleteEncrypted(docId);
+      return fail(res, 409, "Scrutiny was just started in another window. Refresh the page.");
+    }
+    await audit(req, "SCRUTINY_STARTED", paper._id, { again: Boolean(paper.scrutiny?.file) });
+    res.json({ data: scrutinyView(saved), url: scrutinyDocUrl(docId) });
+  } catch (err) {
+    if (docId) await deleteEncrypted(docId);
+    handleError(res, err, "startScrutiny");
+  }
+};
+
+// POST /api/paper-setting/:id/scrutiny/finish   { note }
+// The Google Doc becomes the final Word paper (encrypted); the setter is shown
+// the note and the changed lines; the Doc is deleted.
+export const finishScrutiny = async (req, res) => {
+  try {
+    const paper = await loadForScrutiny(req, res);
+    if (!paper) return;
+    if (paper.scrutiny?.status !== "IN_PROGRESS" || !paper.scrutiny.docId) return fail(res, 400, "Start the scrutiny first.");
+    const note = String(req.body?.note || "").trim().slice(0, 4000);
+
+    const edited = await exportAsDocx(paper.scrutiny.docId);
+    const original = await getDecryptedFile(paper, "currentFile");
+    const record = changeRecord(await textOf(original), await textOf(edited));
+    original.fill(0);
+
+    const { ciphertext, meta } = encryptPaper(edited, paper._id);
+    edited.fill(0);
+    const driveFileId = await uploadEncrypted(ciphertext);
+    const file = {
+      driveFileId,
+      ...meta,
+      originalName: `${paper.subject.code}_${paper.examSession}_SET${paper.setNo}_scrutinised.docx`,
+      uploadedBy: req.user.id,
+      uploadedAt: new Date(),
+    };
+    const oldFile = paper.scrutiny.file?.driveFileId;
+    const docId = paper.scrutiny.docId;
+
+    const saved = await PaperSetting.findOneAndUpdate(
+      { _id: paper._id, "scrutiny.status": "IN_PROGRESS", "scrutiny.docId": docId },
+      {
+        $set: {
+          "scrutiny.status": "DONE",
+          "scrutiny.docId": "",
+          "scrutiny.doneAt": new Date(),
+          "scrutiny.doneBy": req.user.email || req.user.id,
+          "scrutiny.note": note,
+          "scrutiny.changes": record.changes.slice(0, 500),
+          "scrutiny.added": record.added,
+          "scrutiny.removed": record.removed,
+          "scrutiny.file": file,
+        },
+      },
+      { returnDocument: "after" }
+    ).populate(POPULATE[0]);
+    if (!saved) {
+      await deleteEncrypted(driveFileId);
+      return fail(res, 409, "Scrutiny changed in another window. Refresh the page.");
+    }
+    if (oldFile) await deleteEncrypted(oldFile);
+    await deleteEncrypted(docId);
+    await audit(req, "SCRUTINY_DONE", paper._id, { added: record.added, removed: record.removed, sha256: meta.sha256 });
+    res.json({ data: scrutinyView(saved) });
+  } catch (err) {
+    handleError(res, err, "finishScrutiny");
+  }
+};
+
+// POST /api/paper-setting/:id/scrutiny/cancel   – discard the Google Doc, keep what was there before
+export const cancelScrutiny = async (req, res) => {
+  try {
+    const paper = await loadForScrutiny(req, res);
+    if (!paper) return;
+    if (paper.scrutiny?.status !== "IN_PROGRESS") return fail(res, 400, "Scrutiny is not open.");
+    const docId = paper.scrutiny.docId;
+    const saved = await PaperSetting.findOneAndUpdate(
+      { _id: paper._id, "scrutiny.status": "IN_PROGRESS" },
+      { $set: { "scrutiny.status": paper.scrutiny.file ? "DONE" : "PENDING", "scrutiny.docId": "" } },
+      { returnDocument: "after" }
+    ).populate(POPULATE[0]);
+    if (docId) await deleteEncrypted(docId);
+    await audit(req, "SCRUTINY_CANCELLED", paper._id);
+    res.json({ data: scrutinyView(saved) });
+  } catch (err) {
+    handleError(res, err, "cancelScrutiny");
+  }
+};

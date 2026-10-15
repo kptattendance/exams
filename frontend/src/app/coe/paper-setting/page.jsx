@@ -84,7 +84,6 @@ export default function PaperSettingPage() {
   const confirmDialog = useConfirm();
 
   const [showCreate, setShowCreate] = useState(false);
-  const [returning, setReturning] = useState(null);
   const [extending, setExtending] = useState(null);
   const [auditFor, setAuditFor] = useState(null);
   const [showSyllabus, setShowSyllabus] = useState(false);
@@ -132,21 +131,23 @@ export default function PaperSettingPage() {
     }
   };
 
-  const download = async (p) => {
+  // kind: "paper" or "scheme" (scheme of valuation)
+  const download = async (p, kind = "paper") => {
+    const scheme = kind === "scheme";
     const ok = await confirmDialog({
-      title: "Download this question paper?",
+      title: scheme ? "Download the scheme of valuation?" : "Download this question paper?",
       message: `${p.subject?.code} – Set ${p.setNo}. Your name, time and IP address will be recorded in the activity log.`,
       confirmText: "Download",
     });
     if (!ok) return;
     return act(p._id, async () => {
-      const res = await api("get", `/paper-setting/${p._id}/download`, undefined, {
+      const res = await api("get", `/paper-setting/${p._id}/download${scheme ? "?kind=scheme" : ""}`, undefined, {
         responseType: "blob",
       });
       const url = URL.createObjectURL(res.data);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${p.subject?.code}_${p.examSession}_SET${p.setNo}.docx`;
+      a.download = `${p.subject?.code}_${p.examSession}_SET${p.setNo}${scheme ? "_SCHEME" : ""}.docx`;
       a.click();
       URL.revokeObjectURL(url);
     });
@@ -174,18 +175,22 @@ export default function PaperSettingPage() {
       )}
       {p.status === "SUBMITTED" && (
         <>
-          <SmallBtn tone="dark" disabled={busy} onClick={() => download(p)}>
-            Download
-          </SmallBtn>
-          <SmallBtn disabled={busy} onClick={() => setReturning(p)}>
-            Return
-          </SmallBtn>
+          {/* The paper is released after the scrutiniser finishes, in its scrutinised form */}
+          {p.scrutiny?.status === "DONE" ? (
+            <SmallBtn tone="dark" disabled={busy} onClick={() => download(p)}>
+              Download
+            </SmallBtn>
+          ) : (
+            <span className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-700">
+              {p.scrutiny?.status === "IN_PROGRESS" ? "Under scrutiny" : "Waiting for scrutiny"}
+            </span>
+          )}
+          {p.schemeFile && (
+            <SmallBtn disabled={busy} onClick={() => download(p, "scheme")}>
+              Scheme
+            </SmallBtn>
+          )}
         </>
-      )}
-      {p.status !== "CANCELLED" && (
-        <SmallBtn disabled={busy} onClick={() => window.open(`/print/paper-orders?id=${p._id}`, "_blank")}>
-          Order
-        </SmallBtn>
       )}
       <SmallBtn disabled={busy} onClick={() => setAuditFor(p)}>
         Log
@@ -434,21 +439,6 @@ export default function PaperSettingPage() {
         />
       )}
 
-      {returning && (
-        <PromptModal
-          title={`Return ${returning.subject?.code} Set ${returning.setNo} for correction`}
-          label="Remarks for the examiner (they will see this)"
-          multiline
-          onClose={() => setReturning(null)}
-          onSubmit={(remarks) =>
-            act(returning._id, async () => {
-              await api("post", `/paper-setting/${returning._id}/return`, { remarks });
-              setReturning(null);
-            }, "Returned to examiner.")
-          }
-        />
-      )}
-
       {extending && (
         <PromptModal
           title={`Change deadline – ${extending.subject?.code} Set ${extending.setNo}`}
@@ -550,12 +540,14 @@ function CreateModal({ api, defaultSessionValue, onClose, onCreated }) {
       .catch(() => setSubjects([]));
   }, [api, dept, semester]);
 
+  // Internal = our faculty (college 103), External = faculty of other colleges
   useEffect(() => {
-    const q = examinerDept ? `?department=${examinerDept}` : "";
-    api("get", `/paper-setting/examiners${q}`)
+    const q = new URLSearchParams({ type: form.examinerType });
+    if (examinerDept) q.set("department", examinerDept);
+    api("get", `/paper-setting/examiners?${q}`)
       .then((r) => setExaminers(r.data?.data || []))
       .catch(() => setExaminers([]));
-  }, [api, examinerDept]);
+  }, [api, examinerDept, form.examinerType]);
 
   const submit = async (keepOpen) => {
     setErr("");
@@ -635,7 +627,11 @@ function CreateModal({ api, defaultSessionValue, onClose, onCreated }) {
           </select>
         </Field>
         <Field label="Examiner type">
-          <select className={inputCls} value={form.examinerType} onChange={(e) => set("examinerType", e.target.value)}>
+          <select
+            className={inputCls}
+            value={form.examinerType}
+            onChange={(e) => setForm((f) => ({ ...f, examinerType: e.target.value, examinerId: "" }))}
+          >
             <option value="INTERNAL">Internal (our faculty)</option>
             <option value="EXTERNAL">External (other institution)</option>
           </select>
@@ -647,12 +643,16 @@ function CreateModal({ api, defaultSessionValue, onClose, onCreated }) {
               {examiners.map((u) => (
                 <option key={u._id} value={u._id}>
                   {u.name} – {u.email} ({u.department?.toUpperCase() || "—"})
+                  {u.college?.external ? ` · ${u.college.code} ${u.college.name}` : ""}
                 </option>
               ))}
             </select>
           </Field>
           <p className="mt-1 text-[11px] text-slate-400">
-            External examiners must first be added under Staff / Faculty (department “Other”) so they can sign in.
+            {form.examinerType === "EXTERNAL" && examiners.length === 0
+              ? "No external examiner yet. "
+              : ""}
+            External examiners must first be added under Staff / Faculty with their college code and name, so they can sign in.
           </p>
         </div>
         <Field label="Deadline">

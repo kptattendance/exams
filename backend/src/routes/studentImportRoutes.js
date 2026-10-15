@@ -43,7 +43,7 @@ const handleUpload = (mw) => (req, res, next) =>
     res.status(err.status || 400).json({ error: msg });
   });
 
-router.use(authenticateUser, requireRole("admin", "coe"));
+router.use(authenticateUser, requireRole("admin", "coe", "acoe"));
 
 router.post("/preview", handleUpload(excel), previewImport);
 router.post("/photo", handleUpload(photo), uploadStudentPhoto);

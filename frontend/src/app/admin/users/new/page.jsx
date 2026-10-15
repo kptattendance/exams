@@ -5,6 +5,7 @@ import axios from "axios";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ROLE_OPTIONS } from "../../../components/roles";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -56,38 +57,8 @@ const departments = [
 ];
 
 const roles = [
-  {
-    value: "",
-    label: "Select Role",
-  },
-  {
-    value: "admin",
-    label: "Admin",
-  },
-  {
-    value: "principal",
-    label: "Principal",
-  },
-  {
-    value: "coe",
-    label: "COE",
-  },
-  {
-    value: "exam_officer",
-    label: "Exam Officer",
-  },
-  {
-    value: "office",
-    label: "Office (fee verification)",
-  },
-  {
-    value: "exam_clerk",
-    label: "Exam clerk (marks entry)",
-  },
-  {
-    value: "hod",
-    label: "HOD",
-  },
+  { value: "", label: "Select Role" },
+  ...ROLE_OPTIONS.map((r) => ({ value: r.value, label: `${r.label} – ${r.does}` })),
 ];
 
 export default function NewUserPage() {

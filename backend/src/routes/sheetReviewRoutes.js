@@ -7,8 +7,8 @@ import { listSheets, getSheet, freezeSheet, returnSheet } from "../controllers/s
 const router = express.Router();
 
 // Exam Officer freezes; COE can also freeze (and Admin can look)
-const VIEW = requireRole("exam_officer", "coe", "admin", "principal");
-const DECIDE = requireRole("exam_officer", "coe");
+const VIEW = requireRole("office", "coe", "acoe", "admin", "principal");
+const DECIDE = requireRole("office", "coe", "acoe");
 
 router.use(authenticateUser);
 router.get("/", VIEW, listSheets);

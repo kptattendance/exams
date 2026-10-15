@@ -16,7 +16,7 @@ import { uploadCSV } from "../middlewares/uploadCSV.js";
 const router = express.Router();
 
 // Only these roles can add, edit or delete subjects
-const CAN_MANAGE = requireRole("admin", "coe");
+const CAN_MANAGE = requireRole("admin", "coe", "acoe");
 
 // Get all subjects (any signed-in user can read)
 router.get(

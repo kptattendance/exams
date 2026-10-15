@@ -4,6 +4,20 @@
 //  soon:   true  -> page not built yet; shown with a "Soon" tag, not clickable
 //                   (remove `soon` when you create the page)
 
+// Where each role lands after signing in (see backend config/roles.js)
+export const HOME_BY_ROLE = {
+  admin: "/admin",
+  principal: "/coe", // view only; the server refuses changes
+  coe: "/coe",
+  acoe: "/coe",
+  office: "/office",
+  exam_officer: "/office", // old name of office
+  exam_clerk: "/clerk",
+  qp_scrutinizer: "/scrutiny",
+  hod: "/hod",
+  staff: "/faculty",
+};
+
 export const MENUS = {
   admin: {
     role: "Administrator",
@@ -62,7 +76,6 @@ export const MENUS = {
           { label: "Fee verification", href: "/coe/fees", icon: "money" },
           { label: "Register numbers", href: "/coe/register-numbers", icon: "register" },
           { label: "Paper setting", href: "/coe/paper-setting", icon: "lock", pinned: true },
-          { label: "Paper setter orders", href: "/coe/paper-orders", icon: "report" },
           { label: "Time table", href: "/coe/timetable", icon: "calendar" },
           { label: "Hall tickets", href: "/coe/hall-tickets", icon: "ticket" },
         ],
@@ -136,71 +149,49 @@ export const MENUS = {
     ],
   },
 
-  examOfficer: {
-    role: "Exam Officer",
-    home: "/exam-officer",
+  // Exam section (office): fees, IA / attendance freezing, hall tickets,
+  // subject changes for hall tickets, absentees, paper-setter orders
+  office: {
+    role: "Exam section (office)",
+    home: "/office",
     sections: [
       {
         title: "Overview",
-        items: [{ label: "Dashboard", href: "/exam-officer", icon: "dashboard", pinned: true }],
+        items: [{ label: "Dashboard", href: "/office", icon: "dashboard", pinned: true }],
       },
       {
-        title: "Internal assessment",
+        title: "Before the exam",
         items: [
-          { label: "Final IA", href: "/exam-officer/final-ia", icon: "marks", pinned: true },
-          { label: "Final attendance", href: "/exam-officer/final-attendance", icon: "attendance", pinned: true },
+          { label: "Fee verification", href: "/office/fees", icon: "money", pinned: true },
+          { label: "Final IA", href: "/office/final-ia", icon: "marks" },
+          { label: "Final attendance", href: "/office/final-attendance", icon: "attendance" },
+          { label: "Examinations", href: "/office/examinations", icon: "paper" },
+          { label: "Time table", href: "/office/timetable", icon: "calendar" },
+          { label: "Hall tickets", href: "/office/hall-tickets", icon: "ticket", pinned: true },
+          { label: "Paper setter orders", href: "/office/paper-orders", icon: "report" },
         ],
       },
       {
-        title: "Student eligibility",
-        items: [
-          { label: "Attendance shortage", href: "/exam-officer/attendance-shortage", icon: "attendance", soon: true },
-          { label: "Fee status", href: "/exam-officer/fees", icon: "money" },
-          { label: "Candidate list", href: "/exam-officer/candidates", icon: "list", soon: true },
-        ],
-      },
-      {
-        title: "Examination",
-        items: [
-          { label: "Examinations", href: "/exam-officer/examinations", icon: "paper" },
-          { label: "Time table", href: "/exam-officer/timetable", icon: "calendar" },
-          { label: "Subject-wise candidates", href: "/exam-officer/subjects", icon: "subjects", soon: true },
-          { label: "Back paper candidates", href: "/exam-officer/back-papers", icon: "layers", soon: true },
-          { label: "Hall tickets", href: "/exam-officer/hall-tickets", icon: "ticket" },
-          { label: "Valuation", href: "/exam-officer/valuation", icon: "valuation" },
-        ],
-      },
-      {
-        title: "Results",
-        items: [
-          { label: "IA results", href: "/exam-officer/results/ia", icon: "results", soon: true },
-          { label: "Examination results", href: "/exam-officer/results/examination", icon: "results", soon: true },
-          { label: "Result processing", href: "/exam-officer/results/processing", icon: "cog", soon: true },
-          { label: "Result reports", href: "/exam-officer/results/reports", icon: "report", soon: true },
-        ],
+        title: "After the exam",
+        items: [{ label: "Absentees & packets", href: "/office/valuation", icon: "valuation" }],
       },
       {
         title: "Reports",
         items: [
-          { label: "Eligibility report", href: "/exam-officer/reports/eligibility", icon: "shield", soon: true },
-          { label: "Attendance report", href: "/exam-officer/reports/attendance", icon: "report", soon: true },
-          { label: "Fee defaulter report", href: "/exam-officer/reports/fees", icon: "money", soon: true },
-          { label: "Candidate reports", href: "/exam-officer/reports/candidates", icon: "report", soon: true },
+          { label: "Fee defaulter report", href: "/office/reports/fees", icon: "money", soon: true },
+          { label: "Candidate reports", href: "/office/reports/candidates", icon: "report", soon: true },
         ],
       },
     ],
   },
 
-  office: {
-    role: "Office",
-    home: "/office",
+  scrutiny: {
+    role: "QP scrutiniser",
+    home: "/scrutiny",
     sections: [
       {
-        title: "Examination",
-        items: [
-          { label: "Fee verification", href: "/office", icon: "money", pinned: true },
-          { label: "Paper setter orders", href: "/office/paper-orders", icon: "report", pinned: true },
-        ],
+        title: "Question papers",
+        items: [{ label: "Papers to scrutinise", href: "/scrutiny", icon: "lock", pinned: true }],
       },
     ],
   },

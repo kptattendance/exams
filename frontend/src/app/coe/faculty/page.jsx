@@ -48,6 +48,8 @@ export default function FacultyPage() {
     name: "",
     email: "",
     phone: "",
+    collegeCode: "",
+    collegeName: "",
     department: "",
     role: "staff",
     image: null,
@@ -204,6 +206,8 @@ export default function FacultyPage() {
       name: "",
       email: "",
       phone: "",
+      collegeCode: "",
+      collegeName: "",
       department: "",
       role: "staff",
       image: null,
@@ -224,6 +228,8 @@ export default function FacultyPage() {
       name: user.name || "",
       email: user.email || "",
       phone: user.phone || "",
+      collegeCode: user.collegeCode || "",
+      collegeName: user.collegeName || "",
       department: user.department || "",
       role: "staff",
       image: null,
@@ -267,6 +273,8 @@ export default function FacultyPage() {
       formData.append("name", form.name);
       formData.append("email", form.email);
       formData.append("phone", form.phone);
+      formData.append("collegeCode", form.collegeCode.trim());
+      formData.append("collegeName", form.collegeName.trim());
       formData.append("department", form.department);
       formData.append("role", "staff");
 
@@ -1047,7 +1055,32 @@ export default function FacultyPage() {
               </div>
 
               {/* PHONE + DEPARTMENT */}
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-[120px_1fr]">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold text-slate-600">College code</label>
+                    <input
+                      type="text"
+                      name="collegeCode"
+                      placeholder="103"
+                      value={form.collegeCode}
+                      onChange={handleChange}
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold text-slate-600">College name</label>
+                    <input
+                      type="text"
+                      name="collegeName"
+                      placeholder="Leave empty for Karnataka (Govt.) Polytechnic, Mangaluru"
+                      value={form.collegeName}
+                      onChange={handleChange}
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
 
                 {/* PHONE */}
                 <div>

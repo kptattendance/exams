@@ -3,5 +3,5 @@
 import HallTickets from "../../components/exams/HallTickets";
 
 export default function ExamOfficerHallTicketsPage() {
-  return <HallTickets timetableHref="/exam-officer/timetable" />;
+  return <HallTickets timetableHref="/office/timetable" />;
 }
