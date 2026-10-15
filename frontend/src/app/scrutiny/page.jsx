@@ -6,23 +6,26 @@
 //            shown the note and the changed lines, and the Doc is deleted
 // The setter's name is never shown here.
 
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 
 import Modal from "../components/ui/Modal";
 import { useConfirm, useToast } from "../components/ui/Feedback";
 import { errMsg, useApi } from "../components/exams/shared";
 import { ChangeList } from "../components/exams/ChangeList";
+import Icon from "../components/shell/Icon";
 
 const defaultSession = () => {
   const d = new Date();
   return d.getMonth() >= 6 ? `NOV-${d.getFullYear()}` : `MAY-${d.getFullYear()}`;
 };
-const fmt = (d) => (d ? new Date(d).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "");
+const fmtShort = (d) =>
+  d ? new Date(d).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "";
+const pill = "inline-flex h-8 items-center gap-1 rounded-lg border px-2.5 text-xs font-semibold transition disabled:opacity-40";
 
 const STATE = {
-  PENDING: { label: "To scrutinise", chip: "bg-slate-100 text-slate-700" },
-  IN_PROGRESS: { label: "Open in Google Docs", chip: "bg-blue-50 text-blue-700" },
-  DONE: { label: "Scrutinised", chip: "bg-emerald-50 text-emerald-700" },
+  PENDING: { label: "To scrutinise", chip: "bg-amber-50 text-amber-700", dot: "bg-amber-500" },
+  IN_PROGRESS: { label: "In progress", chip: "bg-blue-50 text-blue-700", dot: "bg-blue-500" },
+  DONE: { label: "Scrutinised", chip: "bg-emerald-50 text-emerald-700", dot: "bg-emerald-500" },
 };
 
 export default function ScrutinyPage() {
@@ -38,6 +41,8 @@ export default function ScrutinyPage() {
   const [open, setOpen] = useState("");
   const [department, setDepartment] = useState("");
   const [semester, setSemester] = useState("");
+  const [status, setStatus] = useState("");
+  const [search, setSearch] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -117,32 +122,135 @@ export default function ScrutinyPage() {
     }
   };
 
-  const btn = "rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-40";
   const deptOf = (p) => String(p.subject?.department || "").toUpperCase();
-  const departments = [...new Set((papers || []).map(deptOf).filter(Boolean))].sort();
-  const semesters = [...new Set((papers || []).map((p) => p.subject?.semester).filter(Boolean))].sort((a, b) => a - b);
-  const shown = (papers || []).filter(
-    (p) => (!department || deptOf(p) === department) && (!semester || String(p.subject?.semester) === semester)
+  const all = papers || [];
+  const departments = [...new Set(all.map(deptOf).filter(Boolean))].sort();
+  const semesters = [...new Set(all.map((p) => p.subject?.semester).filter(Boolean))].sort((a, b) => a - b);
+  const q = search.trim().toLowerCase();
+  // Department, semester and search narrow the list; the tiles count within that
+  const scoped = all.filter(
+    (p) =>
+      (!department || deptOf(p) === department) &&
+      (!semester || String(p.subject?.semester) === semester) &&
+      (!q || `${p.subject?.code} ${p.subject?.name}`.toLowerCase().includes(q))
   );
-  const done = shown.filter((p) => p.scrutiny.status === "DONE").length;
-  const select = "h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm";
+  const count = (st) => scoped.filter((p) => p.scrutiny.status === st).length;
+  const shown = status ? scoped.filter((p) => p.scrutiny.status === status) : scoped;
+  const doneCount = count("DONE");
+  const pct = scoped.length ? Math.round((doneCount / scoped.length) * 100) : 0;
+  const field = "h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-700 outline-none focus:border-slate-400";
+
+  const TILES = [
+    ["", "All papers", scoped.length, "text-slate-900"],
+    ["PENDING", "To scrutinise", count("PENDING"), "text-amber-700"],
+    ["IN_PROGRESS", "In progress", count("IN_PROGRESS"), "text-blue-700"],
+    ["DONE", "Scrutinised", doneCount, "text-emerald-700"],
+  ];
+
+  const actions = (p, s, working) => (
+    <div className="flex flex-wrap items-center justify-end gap-1.5">
+      {p.hasScheme && (
+        <button onClick={() => showScheme(p)} className={`${pill} border-slate-200 bg-white text-slate-700 hover:bg-slate-50`}>
+          Scheme
+        </button>
+      )}
+      {s.status === "IN_PROGRESS" ? (
+        <>
+          <a href={s.editUrl} target="_blank" rel="noreferrer" className={`${pill} border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100`}>
+            Open doc
+          </a>
+          <button disabled={working} onClick={() => setFinishing(p)} className={`${pill} border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700`}>
+            Finish
+          </button>
+          <button
+            disabled={working}
+            onClick={() => cancel(p)}
+            title="Discard the Google Doc"
+            className={`${pill} border-transparent text-red-600 hover:bg-red-50`}
+          >
+            <Icon name="close" className="h-3.5 w-3.5" />
+          </button>
+        </>
+      ) : (
+        <button disabled={working} onClick={() => start(p)} className={`${pill} border-slate-900 bg-slate-900 text-white hover:bg-slate-700`}>
+          {working ? "Opening…" : s.status === "DONE" ? "Re-open" : "Scrutinise"}
+        </button>
+      )}
+      {s.status === "DONE" && (
+        <button
+          onClick={() => setOpen(open === p._id ? "" : p._id)}
+          title="Changes made"
+          className={`${pill} border-slate-200 bg-white text-slate-700 hover:bg-slate-50`}
+        >
+          <Icon name="chevronRight" className={`h-3.5 w-3.5 transition ${open === p._id ? "rotate-90" : ""}`} />
+          Changes
+        </button>
+      )}
+    </div>
+  );
+
+  const changesPanel = (s) => (
+    <div className="space-y-2">
+      {s.note && (
+        <p className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700">
+          <span className="font-semibold">Note to setter: </span>
+          {s.note}
+        </p>
+      )}
+      <ChangeList changes={s.changes} />
+    </div>
+  );
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-7">
-      <h2 className="text-2xl font-bold tracking-tight text-slate-950">Question paper scrutiny</h2>
-      <p className="mt-1 text-sm text-slate-500">
-        Correct the paper directly in Google Docs, then press Finish. The setter sees your note and the changed lines; only the COE
-        can download the final paper.
-      </p>
-
-      <div className="mt-4 flex flex-wrap items-center gap-2">
+    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-7">
+      {/* header */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-950">Question paper scrutiny</h2>
+          <p className="mt-1 text-sm text-slate-500">Edit in Google Docs, then press Finish. The setter sees only your note and the changed lines.</p>
+        </div>
         <input
           value={session}
           onChange={(e) => setSession(e.target.value.toUpperCase())}
-          placeholder="Exam session e.g. NOV-2026"
-          className="h-10 w-56 rounded-xl border border-slate-200 bg-white px-3 text-sm"
+          placeholder="Session e.g. NOV-2026"
+          className={`${field} w-40 font-semibold tracking-wide`}
+          aria-label="Exam session"
         />
-        <select value={department} onChange={(e) => setDepartment(e.target.value)} className={select}>
+      </div>
+
+      {/* tiles: click to filter by status */}
+      <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {TILES.map(([key, label, n, tone]) => (
+          <button
+            key={label}
+            onClick={() => setStatus(key)}
+            className={`rounded-2xl border bg-white px-4 py-3 text-left transition ${
+              status === key ? "border-slate-900 shadow-sm ring-1 ring-slate-900" : "border-slate-200 hover:border-slate-300"
+            }`}
+          >
+            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{label}</p>
+            <p className={`mt-1 text-2xl font-bold tabular-nums ${tone}`}>{papers ? n : "–"}</p>
+          </button>
+        ))}
+      </div>
+
+      {/* progress */}
+      {papers && scoped.length > 0 && (
+        <div className="mt-3 flex items-center gap-3">
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200">
+            <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
+          </div>
+          <span className="text-xs font-semibold tabular-nums text-slate-600">{pct}% done</span>
+        </div>
+      )}
+
+      {/* filters */}
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <div className="relative">
+          <Icon name="search" className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Subject code or name" className={`${field} w-52 pl-8`} />
+        </div>
+        <select value={department} onChange={(e) => setDepartment(e.target.value)} className={field}>
           <option value="">All departments</option>
           {departments.map((d) => (
             <option key={d} value={d}>
@@ -150,85 +258,132 @@ export default function ScrutinyPage() {
             </option>
           ))}
         </select>
-        <select value={semester} onChange={(e) => setSemester(e.target.value)} className={select}>
+        <select value={semester} onChange={(e) => setSemester(e.target.value)} className={field}>
           <option value="">All semesters</option>
           {semesters.map((n) => (
             <option key={n} value={String(n)}>
-              Semester {n}
+              Sem {n}
             </option>
           ))}
         </select>
-        {papers && (
-          <span className="text-sm text-slate-600">
-            <b className="text-slate-900">{shown.length}</b> paper{shown.length === 1 ? "" : "s"} · {done} scrutinised ·{" "}
-            {shown.length - done} left
-          </span>
+        {(search || department || semester || status) && (
+          <button
+            onClick={() => {
+              setSearch("");
+              setDepartment("");
+              setSemester("");
+              setStatus("");
+            }}
+            className="h-9 rounded-lg px-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+          >
+            Clear
+          </button>
         )}
+        <span className="ml-auto text-xs text-slate-500">
+          {shown.length} of {all.length}
+        </span>
       </div>
 
-      {!papers && <div className="mt-5 h-64 animate-pulse rounded-2xl bg-white" />}
+      {!papers && <div className="mt-4 h-72 animate-pulse rounded-2xl bg-white" />}
+
       {papers && (
-        <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-          {shown.length === 0 && <p className="px-4 py-10 text-center text-sm text-slate-500">No submitted paper for this selection.</p>}
-          <ul className="divide-y divide-slate-100">
+        <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          {shown.length === 0 && (
+            <div className="px-6 py-14 text-center">
+              <Icon name="paper" className="mx-auto h-8 w-8 text-slate-300" />
+              <p className="mt-2 text-sm font-medium text-slate-600">No paper here</p>
+              <p className="text-xs text-slate-400">Try another session or clear the filters.</p>
+            </div>
+          )}
+
+          {/* desktop table */}
+          {shown.length > 0 && (
+            <table className="hidden w-full text-sm md:table">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50/80 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                  <th className="w-12 px-4 py-3 text-right">Sl.</th>
+                  <th className="px-3 py-3">Subject</th>
+                  <th className="px-3 py-3">Dept · Sem</th>
+                  <th className="px-3 py-3">Set</th>
+                  <th className="px-3 py-3">Submitted</th>
+                  <th className="px-3 py-3">Status</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {shown.map((p, i) => {
+                  const s = p.scrutiny;
+                  const st = STATE[s.status] || STATE.PENDING;
+                  return (
+                    <Fragment key={p._id}>
+                      <tr className="transition hover:bg-slate-50/70">
+                        <td className="px-4 py-3 text-right text-xs tabular-nums text-slate-400">{i + 1}</td>
+                        <td className="max-w-[22rem] px-3 py-3">
+                          <p className="font-semibold text-slate-950">{p.subject?.code}</p>
+                          <p className="truncate text-xs text-slate-500">
+                            {p.subject?.name}
+                            {p.paperType === "PRACTICAL" && " · Practical"}
+                          </p>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3 text-xs text-slate-600">
+                          <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-semibold text-slate-700">{deptOf(p)}</span>
+                          <span className="ml-1.5">Sem {p.subject?.semester}</span>
+                        </td>
+                        <td className="px-3 py-3 text-xs font-semibold text-slate-700">{p.setNo}</td>
+                        <td className="whitespace-nowrap px-3 py-3 text-xs text-slate-500">{fmtShort(p.submittedAt)}</td>
+                        <td className="px-3 py-3">
+                          <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-semibold ${st.chip}`}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${st.dot}`} />
+                            {st.label}
+                          </span>
+                          {s.status === "DONE" && (
+                            <p className="mt-1 whitespace-nowrap text-[11px] tabular-nums text-slate-400">
+                              <span className="text-red-500">-{s.removed}</span> <span className="text-emerald-600">+{s.added}</span> · {fmtShort(s.doneAt)}
+                            </p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">{actions(p, s, busy === p._id)}</td>
+                      </tr>
+                      {open === p._id && s.status === "DONE" && (
+                        <tr className="bg-slate-50/70">
+                          <td />
+                          <td colSpan={6} className="px-3 pb-4 pt-1">
+                            {changesPanel(s)}
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+
+          {/* phone cards */}
+          <ul className="divide-y divide-slate-100 md:hidden">
             {shown.map((p, i) => {
               const s = p.scrutiny;
               const st = STATE[s.status] || STATE.PENDING;
-              const working = busy === p._id;
               return (
-                <li key={p._id} className="px-4 py-3">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <div className="min-w-0 flex-1">
+                <li key={p._id} className="space-y-2 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
                       <p className="text-sm font-semibold text-slate-950">
-                        <span className="mr-1 font-normal tabular-nums text-slate-400">{i + 1}.</span>
-                        {p.subject?.code} <span className="font-normal text-slate-600">{p.subject?.name}</span>
-                        <span className="ml-1 text-xs font-normal text-slate-500">
-                          · Set {p.setNo}
-                          {p.paperType === "PRACTICAL" && " · Practical"}
-                        </span>
+                        <span className="mr-1 text-xs font-normal tabular-nums text-slate-400">{i + 1}.</span>
+                        {p.subject?.code} <span className="text-xs font-normal text-slate-500">Set {p.setNo}</span>
                       </p>
-                      <p className="mt-0.5 text-xs text-slate-500">
-                        {deptOf(p)} · Semester {p.subject?.semester} · submitted {fmt(p.submittedAt)}
-                        {s.status === "DONE" && ` · scrutinised ${fmt(s.doneAt)} · ${s.removed} removed, ${s.added} added`}
+                      <p className="truncate text-xs text-slate-500">{p.subject?.name}</p>
+                      <p className="text-[11px] text-slate-400">
+                        {deptOf(p)} · Sem {p.subject?.semester} · {fmtShort(p.submittedAt)}
                       </p>
                     </div>
-                    <span className={`self-start rounded-full px-2.5 py-1 text-xs font-semibold sm:self-center ${st.chip}`}>{st.label}</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {p.hasScheme && (
-                        <button onClick={() => showScheme(p)} className={`${btn} border-slate-200 bg-white text-slate-700`}>
-                          Scheme
-                        </button>
-                      )}
-                      {s.status === "IN_PROGRESS" ? (
-                        <>
-                          <a href={s.editUrl} target="_blank" rel="noreferrer" className={`${btn} border-blue-200 bg-blue-50 text-blue-700`}>
-                            Open Google Doc
-                          </a>
-                          <button disabled={working} onClick={() => setFinishing(p)} className={`${btn} border-emerald-600 bg-emerald-600 text-white`}>
-                            Finish
-                          </button>
-                          <button disabled={working} onClick={() => cancel(p)} className={`${btn} border-red-200 bg-red-50 text-red-600`}>
-                            Discard
-                          </button>
-                        </>
-                      ) : (
-                        <button disabled={working} onClick={() => start(p)} className={`${btn} border-slate-950 bg-slate-950 text-white`}>
-                          {working ? "Opening…" : s.status === "DONE" ? "Scrutinise again" : "Start scrutiny"}
-                        </button>
-                      )}
-                      {s.status === "DONE" && (
-                        <button onClick={() => setOpen(open === p._id ? "" : p._id)} className={`${btn} border-slate-200 bg-white text-slate-700`}>
-                          {open === p._id ? "Hide changes" : "Changes"}
-                        </button>
-                      )}
-                    </div>
+                    <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${st.chip}`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${st.dot}`} />
+                      {st.label}
+                    </span>
                   </div>
-                  {open === p._id && s.status === "DONE" && (
-                    <div className="mt-3">
-                      {s.note && <p className="mb-2 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">{s.note}</p>}
-                      <ChangeList changes={s.changes} />
-                    </div>
-                  )}
+                  {actions(p, s, busy === p._id)}
+                  {open === p._id && s.status === "DONE" && changesPanel(s)}
                 </li>
               );
             })}

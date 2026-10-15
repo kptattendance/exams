@@ -3,7 +3,7 @@
 import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
 import { useEffect, useState } from "react";
-import { ROLE_OPTIONS } from "../../components/roles";
+import AccountFilters, { useAccountFilters } from "../../components/AccountFilters";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -33,11 +33,9 @@ export default function ClerkUsersPage() {
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-const [searchText, setSearchText] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
-  const [departmentFilter, setDepartmentFilter] = useState("");
 
   const [selectedUsers, setSelectedUsers] = useState([]);
+  const accountFilters = useAccountFilters(users);
 
   // ==========================================================
   // FETCH CLERK USERS
@@ -76,27 +74,7 @@ const [searchText, setSearchText] = useState("");
   useEffect(() => {
     fetchClerkUsers();
   }, []);
-const filteredUsers = users.filter((user) => {
-  const search = searchText.trim().toLowerCase();
-
-  const matchesSearch =
-    !search ||
-    user.name?.toLowerCase().includes(search) ||
-    user.email?.toLowerCase().includes(search);
-
-  const matchesRole =
-    !roleFilter || user.role === roleFilter;
-
-  const matchesDepartment =
-    !departmentFilter ||
-    user.department === departmentFilter;
-
-  return (
-    matchesSearch &&
-    matchesRole &&
-    matchesDepartment
-  );
-});
+const filteredUsers = accountFilters.filtered;
 
   // ==========================================================
   // SELECT / DESELECT USER
@@ -136,11 +114,6 @@ const filteredUsers = users.filter((user) => {
     }
   };
 
-  const clearFilters = () => {
-  setSearchText("");
-  setRoleFilter("");
-  setDepartmentFilter("");
-};
 
   // ==========================================================
   // DELETE SINGLE USER
@@ -277,75 +250,7 @@ const filteredUsers = users.filter((user) => {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
 
           {/* FILTERS */}
-          <div className="flex flex-col gap-3 sm:flex-row">
-{/* SEARCH */}
-<div className="relative w-full sm:min-w-72">
-  <input
-    type="text"
-    value={searchText}
-    onChange={(e) => setSearchText(e.target.value)}
-    placeholder="Search by name or email..."
-    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 pr-10 text-sm text-slate-700 outline-none transition focus:border-amber-400 focus:bg-white focus:ring-4 focus:ring-amber-50"
-  />
-
-  {searchText && (
-    <button
-      type="button"
-      onClick={() => setSearchText("")}
-      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-amber-700"
-      aria-label="Clear search"
-    >
-      ✕
-    </button>
-  )}
-</div>
-            {/* ROLE */}
-          <select
-  value={roleFilter}
-  onChange={(e) => setRoleFilter(e.target.value)}
-  className="min-w-44 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-700 outline-none focus:border-amber-400 focus:bg-white focus:ring-4 focus:ring-amber-50"
->
-  <option value="">All Roles</option>
-  {ROLE_OPTIONS.map((r) => (
-    <option key={r.value} value={r.value}>
-      {r.label}
-    </option>
-  ))}
-  <option value="staff">Faculty</option>
-</select>
-
-            {/* DEPARTMENT */}
-            <select
-              value={departmentFilter}
-              onChange={(e) =>
-                setDepartmentFilter(e.target.value)
-              }
-              className="min-w-56 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-700 outline-none focus:border-amber-400 focus:bg-white focus:ring-4 focus:ring-amber-50"
-            >
-              <option value="">
-                All Departments
-              </option>
-
-              {departments.map((department) => (
-                <option
-                  key={department.value}
-                  value={department.value}
-                >
-                  {department.label}
-                </option>
-              ))}
-            </select>
-
-            {/* CLEAR */}
-     {(searchText || roleFilter || departmentFilter) && (
-              <button
-                onClick={clearFilters}
-                className="rounded-xl border border-amber-200 bg-white px-4 py-2.5 text-sm font-semibold text-amber-700 hover:bg-amber-50"
-              >
-                Clear Filters
-              </button>
-            )}
-          </div>
+          <AccountFilters users={users} {...accountFilters} />
 
           {/* DELETE SELECTED */}
           <button

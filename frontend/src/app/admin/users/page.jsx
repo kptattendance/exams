@@ -3,9 +3,10 @@
 import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import * as XLSX from "xlsx";
 import { ROLE_OPTIONS, roleLabel } from "../../components/roles";
+import AccountFilters, { useAccountFilters } from "../../components/AccountFilters";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -78,16 +79,7 @@ export default function UsersPage() {
   const [loading, setLoading] =
     useState(true);
 
-  const [searchText, setSearchText] =
-    useState("");
-
-  const [roleFilter, setRoleFilter] =
-    useState("");
-
-  const [
-    departmentFilter,
-    setDepartmentFilter,
-  ] = useState("");
+  const accountFilters = useAccountFilters(users);
 
   const [
     selectedUsers,
@@ -150,46 +142,7 @@ export default function UsersPage() {
   |--------------------------------------------------------------------------
   */
 
-  const filteredUsers =
-    useMemo(() => {
-      const search =
-        searchText
-          .trim()
-          .toLowerCase();
-
-      return users.filter(
-        (user) => {
-          const matchesSearch =
-            !search ||
-            user.name
-              ?.toLowerCase()
-              .includes(search) ||
-            user.email
-              ?.toLowerCase()
-              .includes(search);
-
-          const matchesRole =
-            !roleFilter ||
-            user.role === roleFilter;
-
-          const matchesDepartment =
-            !departmentFilter ||
-            user.department ===
-              departmentFilter;
-
-          return (
-            matchesSearch &&
-            matchesRole &&
-            matchesDepartment
-          );
-        }
-      );
-    }, [
-      users,
-      searchText,
-      roleFilter,
-      departmentFilter,
-    ]);
+  const filteredUsers = accountFilters.filtered;
 
   /*
   |--------------------------------------------------------------------------
@@ -260,11 +213,6 @@ export default function UsersPage() {
   |--------------------------------------------------------------------------
   */
 
-  const clearFilters = () => {
-    setSearchText("");
-    setRoleFilter("");
-    setDepartmentFilter("");
-  };
 
   /*
   |--------------------------------------------------------------------------
@@ -530,98 +478,10 @@ export default function UsersPage() {
 
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
 
-          {/* SEARCH */}
-          <div className="relative min-w-0 flex-1">
-
-            <input
-              type="text"
-              value={searchText}
-              onChange={(e) =>
-                setSearchText(
-                  e.target.value
-                )
-              }
-              placeholder="Search by name or email..."
-              className="h-11 w-full rounded-xl border border-amber-200 bg-white px-4 pr-10 text-sm text-slate-700 outline-none transition focus:border-amber-500 focus:bg-white focus:ring-4 focus:ring-amber-100"
-            />
-
-            {searchText && (
-              <button
-                type="button"
-                onClick={() =>
-                  setSearchText("")
-                }
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-amber-600"
-              >
-                ✕
-              </button>
-            )}
-
+          {/* FILTERS */}
+          <div className="min-w-0 flex-1">
+            <AccountFilters users={users} {...accountFilters} />
           </div>
-
-          {/* ROLE */}
-          <select
-            value={roleFilter}
-            onChange={(e) =>
-              setRoleFilter(
-                e.target.value
-              )
-            }
-            className="h-11 rounded-xl border border-amber-200 bg-white px-4 text-sm text-slate-700 outline-none focus:border-amber-500 focus:bg-white focus:ring-4 focus:ring-amber-100"
-          >
-            <option value="">
-              All Roles
-            </option>
-
-            {roles.map((role) => (
-              <option
-                key={role.value}
-                value={role.value}
-              >
-                {role.label}
-              </option>
-            ))}
-          </select>
-
-          {/* DEPARTMENT */}
-          <select
-            value={departmentFilter}
-            onChange={(e) =>
-              setDepartmentFilter(
-                e.target.value
-              )
-            }
-            className="h-11 rounded-xl border border-amber-200 bg-white px-4 text-sm text-slate-700 outline-none focus:border-amber-500 focus:bg-white focus:ring-4 focus:ring-amber-100"
-          >
-            <option value="">
-              All Departments
-            </option>
-
-            {departments.map(
-              (department) => (
-                <option
-                  key={department.value}
-                  value={
-                    department.value
-                  }
-                >
-                  {department.label}
-                </option>
-              )
-            )}
-          </select>
-
-          {/* CLEAR */}
-          {(searchText ||
-            roleFilter ||
-            departmentFilter) && (
-            <button
-              onClick={clearFilters}
-              className="h-11 rounded-xl border border-amber-200 bg-amber-50 px-4 text-sm font-semibold text-amber-700 transition hover:bg-amber-100"
-            >
-              Clear Filters
-            </button>
-          )}
 
           {/* DELETE */}
           <button

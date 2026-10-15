@@ -6,7 +6,7 @@ import XLSX from "xlsx";
 import axios from "axios";
 
 
-import User, { DESIGNATIONS, normalizeDesignation } from "../models/User.js";
+import User, { DESIGNATIONS, normalizeDesignation, collegeOf } from "../models/User.js";
 import Student from "../models/Student.js";
 import Subject from "../models/Subject.js";
 import { ROLES } from "../config/roles.js";
@@ -183,7 +183,7 @@ export const getClerkUsers = async (req, res) => {
 
     const mongoUsers = await User.find({})
       .select(
-        "clerkId imageUrl imagePublicId phone department role"
+        "clerkId imageUrl imagePublicId phone department role designation collegeCode collegeName"
       )
       .lean();
 
@@ -204,7 +204,7 @@ export const getClerkUsers = async (req, res) => {
 
     const students = await Student.find({})
       .select(
-        "clerkId imageUrl imagePublicId phone department role"
+        "clerkId imageUrl imagePublicId phone department role semester registerNumber"
       )
       .lean();
 
@@ -304,6 +304,15 @@ export const getClerkUsers = async (req, res) => {
           mongoUser?.department ||
           user.publicMetadata?.department ||
           null,
+
+        // Students: semester and register number
+        semester: student?.semester ?? null,
+        registerNumber: student?.registerNumber || "",
+
+        // Staff: designation and college (empty college = ours, 103)
+        designation: mongoUser?.designation || "",
+        collegeCode: role === "student" ? "" : collegeOf(mongoUser).code,
+        collegeName: role === "student" ? "" : collegeOf(mongoUser).name,
 
         createdAt:
           user.createdAt,
