@@ -76,7 +76,8 @@ export default function FacultyPage() {
         }
       );
 
-      const users = response.data || [];
+      // The server answers { success, count, data: [users] }
+      const users = Array.isArray(response.data?.data) ? response.data.data : [];
 
       const facultyUsers = users.filter(
         (user) => user.role?.toLowerCase() === "staff"
@@ -92,7 +93,9 @@ export default function FacultyPage() {
           error.response?.data?.error ||
           (error.response
             ? `Failed to load faculty (error ${error.response.status}).`
-            : `Failed to load faculty: cannot reach the server at ${process.env.NEXT_PUBLIC_API_URL}.`)
+            : error.request
+            ? `Failed to load faculty: cannot reach the server at ${process.env.NEXT_PUBLIC_API_URL}.`
+            : `Failed to load faculty: ${error.message}`)
       );
     } finally {
       setLoading(false);

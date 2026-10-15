@@ -94,7 +94,9 @@ export default function FacultyPage() {
           error.response?.data?.error ||
           (error.response
             ? `Failed to load faculty (error ${error.response.status}).`
-            : `Failed to load faculty: cannot reach the server at ${process.env.NEXT_PUBLIC_API_URL}.`)
+            : error.request
+            ? `Failed to load faculty: cannot reach the server at ${process.env.NEXT_PUBLIC_API_URL}.`
+            : `Failed to load faculty: ${error.message}`)
       );
     } finally {
       setLoading(false);
