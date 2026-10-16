@@ -252,7 +252,7 @@ function Order({ o }) {
     ["QP SETTER NAME", `${o.examiner?.name || ""}${dept ? `, ${dept}` : ""}`],
     ["DESIGNATION", designation],
     ["INST CODE and NAME", internal ? `${INSTITUTION_CODE} — ${INSTITUTION}` : ""],
-    ["QP CODE", `${o.subject?.code || ""}${o.setNo ? ` (Set ${o.setNo})` : ""}`],
+    ["QP CODE", `${o.subject?.code || ""}`],
     ["SUBJECT NAME", `${o.subject?.name || ""}${o.paperType === "PRACTICAL" ? " (Practical)" : ""}`],
     ["LAST DATE TO UPLOAD", lastDate(o.deadline)],
   ];
@@ -309,8 +309,8 @@ function Order({ o }) {
               ಅಧಿಕೃತ ಜ್ಞಾಪನ
             </p>
             <p className="mt-1 text-[11.5px] font-semibold text-[#17365d]">
-              ವಿಷಯ: {months} {year}ರ ಡಿಪ್ಲೋಮಾ ಸೆಮಿಸ್ಟರ್ ಪರೀಕ್ಷೆ — {SCHEME} ಪಠ್ಯಕ್ರಮದ
-              ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆ ರಚನೆಗೆ ನೇಮಕಾತಿ ಮತ್ತು ಸೂಚನೆಗಳ ಪಾಲನೆ ಕುರಿತು.
+              ವಿಷಯ: {months} {year}ರ ಡಿಪ್ಲೋಮಾ ಸೆಮಿಸ್ಟರ್ ಪರೀಕ್ಷೆ — KPT Autonomous {SCHEME} ಪಠ್ಯಕ್ರಮದ
+              ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯನ್ನು ರಚಿಸುವ ಕುರಿತು.
             </p>
           </div>
 
@@ -453,7 +453,7 @@ function Order({ o }) {
             <div className="mt-2 grid grid-cols-[38%_62%] gap-y-1 text-[11px]">
               <span className="font-semibold text-slate-600">Question Paper Code</span>
               <span className="font-bold text-[#8b1e3f]">
-                {o.subject?.code || ""}{o.setNo ? ` (Set ${o.setNo})` : ""}
+                {o.subject?.code || ""}
               </span>
               <span className="font-semibold text-slate-600">Upload Deadline</span>
               <span className="font-bold text-[#8b1e3f]">{lastDate(o.deadline)}</span>
