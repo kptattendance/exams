@@ -10,6 +10,7 @@ import Icon from "../shell/Icon";
 import Modal, { btn, field } from "../ui/Modal";
 import { useConfirm, useToast } from "../ui/Feedback";
 import { downloadBlob, errMsg, useApi } from "./shared";
+import { useIsAdmin } from "../useRole";
 
 const PACKET = {
   PENDING: { label: "Not typed", chip: "bg-slate-100 text-slate-600" },
@@ -307,6 +308,7 @@ function PaperSettings({ paper, onSave }) {
 function Packets({ d, canManage, printBase, busy, onValuer, onSecond, onThird, onReopen }) {
   const [picked, setPicked] = useState([]);
   const [reopen, setReopen] = useState(null);
+  const isAdmin = useIsAdmin(); // reopening wipes entered marks: Admin only
   const [reason, setReason] = useState("");
   const rounds = [1, 2, 3].filter((r) => d.packets.some((p) => p.round === r));
   const secondOf = new Set(d.packets.filter((p) => p.round === 2).map((p) => p.number.replace(/-V2$/, "")));
@@ -347,7 +349,7 @@ function Packets({ d, canManage, printBase, busy, onValuer, onSecond, onThird, o
                     <span className="w-20 text-xs text-slate-500">{p.count} scripts</span>
                     <ValuerInput p={p} onSave={onValuer} disabled={!canManage && false} />
                     <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${PACKET[p.status].chip}`}>{PACKET[p.status].label}</span>
-                    {canManage && p.status === "VERIFIED" && (
+                    {canManage && isAdmin && p.status === "VERIFIED" && (
                       <button onClick={() => setReopen(p)} className="text-xs font-semibold text-slate-500 hover:text-red-600">
                         Reopen
                       </button>

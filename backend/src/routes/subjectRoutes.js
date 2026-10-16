@@ -10,7 +10,7 @@ import {
 } from "../controllers/subjectController.js";
 
 import { authenticateUser } from "../middlewares/authMiddleware.js";
-import { requireRole } from "../middlewares/requireRole.js";
+import { adminOnly, requireRole } from "../middlewares/requireRole.js";
 import { uploadCSV } from "../middlewares/uploadCSV.js";
 
 const router = express.Router();
@@ -52,7 +52,7 @@ router.put(
 router.delete(
   "/deletesubject/:id",
   authenticateUser,
-  CAN_MANAGE,
+  adminOnly,
   deleteSubject
 );
 

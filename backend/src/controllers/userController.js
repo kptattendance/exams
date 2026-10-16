@@ -1587,18 +1587,13 @@ export const deleteUser = async (
     }
 
     /*
-     * Permission
+     * Permission: deleting an account is for the Admin only
      */
-    if (
-      !canManage(
-        requesterRole,
-        user.role
-      )
-    ) {
+    if (requesterRole !== "admin") {
       return res.status(403).json({
         success: false,
         message:
-          "You do not have permission to delete this user.",
+          "Only the Admin can delete users. Please ask the Admin.",
       });
     }
 

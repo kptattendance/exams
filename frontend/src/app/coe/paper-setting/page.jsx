@@ -6,6 +6,7 @@ import axios from "axios";
 
 import { useConfirm, useToast } from "../../components/ui/Feedback";
 import { sortOptions } from "../../components/sortOptions";
+import { useIsAdmin } from "../../components/useRole";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -84,6 +85,7 @@ export default function PaperSettingPage() {
   const [error, setError] = useState("");
   const toast = useToast();
   const confirmDialog = useConfirm();
+  const isAdmin = useIsAdmin();
 
   const [showCreate, setShowCreate] = useState(false);
   const [extending, setExtending] = useState(null);
@@ -267,6 +269,7 @@ export default function PaperSettingPage() {
           Cancel
         </SmallBtn>
       )}
+      {isAdmin && (
       <SmallBtn
         tone="danger"
         disabled={busy}
@@ -291,6 +294,7 @@ ${
       >
         Delete
       </SmallBtn>
+      )}
     </div>
   );
 

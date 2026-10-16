@@ -12,6 +12,7 @@ import * as XLSX from "xlsx";
 
 import Icon from "../shell/Icon";
 import { useConfirm, useToast } from "../ui/Feedback";
+import { useIsAdmin } from "../useRole";
 
 const API = `${process.env.NEXT_PUBLIC_API_URL}/api/student-import`;
 
@@ -119,8 +120,13 @@ function useUndoFlow() {
   const toast = useToast();
   const confirm = useConfirm();
   const [state, setState] = useState(null); // { fileName, removed, total }
+  const isAdmin = useIsAdmin();
 
   const run = async (doc, onDone) => {
+    if (!isAdmin) {
+      toast.error("Only the Admin can undo an import. Please ask the Admin.");
+      return;
+    }
     const created = doc.summary?.created ?? 0;
     const ok = await confirm({
       title: "Undo this import?",

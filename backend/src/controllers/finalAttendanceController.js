@@ -1297,7 +1297,7 @@ export const confirmAttendance = async (
     // ONLY EXAM OFFICER
     // -------------------------------------------------
 
-    if (role !== "office") {
+    if (role !== "office" && role !== "admin") {
       return res.status(403).json({
         success: false,
         message:

@@ -5,6 +5,7 @@ import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { sortOptions } from "../../components/sortOptions";
+import { useIsAdmin } from "../../components/useRole";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -30,6 +31,7 @@ const getDepartmentName = (value) => {
 };
 
 export default function SubjectsPage() {
+  const isAdmin = useIsAdmin(); // deleting is for the Admin only
   const { getToken } = useAuth();
 
   const [subjects, setSubjects] = useState([]);
@@ -654,8 +656,8 @@ export default function SubjectsPage() {
             )}
           </select>
 
-          {/* DELETE SELECTED */}
-          {selectedSubjects.length > 0 && (
+          {/* DELETE SELECTED (Admin only) */}
+          {isAdmin && selectedSubjects.length > 0 && (
             <button
               onClick={handleDeleteSelected}
               disabled={deletingSelected}
@@ -902,7 +904,8 @@ export default function SubjectsPage() {
                               </svg>
                             </button>
 
-                            {/* DELETE */}
+                            {/* DELETE (Admin only) */}
+                            {isAdmin && (
                             <button
                               onClick={() =>
                                 handleDelete(
@@ -927,6 +930,7 @@ export default function SubjectsPage() {
                                 <path d="M14 11v5" />
                               </svg>
                             </button>
+                            )}
 
                           </div>
 

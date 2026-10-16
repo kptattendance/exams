@@ -1,7 +1,7 @@
 import express from "express";
 
 import { authenticateUser } from "../middlewares/authMiddleware.js";
-import { requireRole } from "../middlewares/requireRole.js";
+import { adminOnly, requireRole } from "../middlewares/requireRole.js";
 import { uploadDocx, uploadLimiter } from "../middlewares/uploadDocx.js";
 
 import {
@@ -75,7 +75,8 @@ router.patch("/:id", requireRole(...MANAGERS), updateAssignment);
 router.post("/:id/send-email", requireRole(...MANAGERS), resendEmail);
 router.post("/:id/cancel", requireRole(...MANAGERS), cancelAssignment);
 router.post("/:id/request-scheme", requireRole(...MANAGERS), requestScheme);
-router.delete("/:id", requireRole(...MANAGERS), requireStepUp("qp"), deleteAssignment);
+// Deleting an assignment (with its paper) is for the Admin only; COE can cancel
+router.delete("/:id", adminOnly, requireStepUp("qp"), deleteAssignment);
 router.get("/:id/download", requireRole(...CONTENT_READERS), requireStepUp("qp"), downloadPaper);
 // COE: final PDF after page setting – freezes the paper for good
 router.post("/:id/final-pdf", requireRole(...CONTENT_READERS), requireStepUp("qp"), uploadPdf, uploadFinalPdf);

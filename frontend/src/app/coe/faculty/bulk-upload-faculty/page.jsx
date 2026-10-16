@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { DESIGNATIONS } from "../../../components/designations";
 import { sortOptions } from "../../../components/sortOptions";
+import { useIsAdmin } from "../../../components/useRole";
 const departments = [
   { value: "", label: "Select department" },
   { value: "at", label: "Automobile Engineering" },
@@ -40,6 +41,7 @@ export default function FacultyPage() {
   const [departmentFilter, setDepartmentFilter] = useState("");
 
   const [selectedFaculty, setSelectedFaculty] = useState([]);
+  const isAdmin = useIsAdmin(); // deleting is for the Admin only
   const [deletingSelected, setDeletingSelected] = useState(false);
 
   const [showBulkUpload, setShowBulkUpload] = useState(false);
@@ -810,8 +812,8 @@ const handleBulkUpload = async () => {
             ))}
           </select>
 
-          {/* DELETE SELECTED */}
-          {selectedFaculty.length > 0 && (
+          {/* DELETE SELECTED (Admin only) */}
+          {isAdmin && selectedFaculty.length > 0 && (
             <button
               onClick={handleDeleteSelected}
               disabled={deletingSelected}
@@ -1038,7 +1040,8 @@ const handleBulkUpload = async () => {
                             </svg>
                           </button>
 
-                          {/* DELETE */}
+                          {/* DELETE (Admin only) */}
+                          {isAdmin && (
                           <button
                             onClick={() =>
                               handleDelete(user)
@@ -1061,6 +1064,7 @@ const handleBulkUpload = async () => {
                               <path d="M14 11v5" />
                             </svg>
                           </button>
+                          )}
 
                         </div>
                       </td>

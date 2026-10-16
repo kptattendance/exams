@@ -2,7 +2,7 @@ import express from "express";
 import multer from "multer";
 
 import { authenticateUser } from "../middlewares/authMiddleware.js";
-import { requireRole } from "../middlewares/requireRole.js";
+import { adminOnly, requireRole } from "../middlewares/requireRole.js";
 import {
   listExams,
   createExam,
@@ -71,7 +71,7 @@ router.get("/", VIEW, listExams);
 router.post("/", MANAGE, createExam);
 router.get("/:id", VIEW, getExam);
 router.patch("/:id", MANAGE, updateExam);
-router.delete("/:id", MANAGE, deleteExam);
+router.delete("/:id", adminOnly, deleteExam); // Admin only
 
 router.post("/:id/generate", MANAGE, startGeneration);
 router.post("/:id/process", MANAGE, processGeneration);
@@ -105,7 +105,7 @@ const SECRET = requireRole("coe", "acoe", "admin");
 router.get("/:id/valuation", VALUE, listPapers);
 router.patch("/:id/valuation-settings", MANAGE, updateValuationSettings);
 router.patch("/:id/valuation/packets/:packetId", VALUE, setValuer);
-router.post("/:id/valuation/packets/:packetId/reopen", MANAGE, reopenPacket);
+router.post("/:id/valuation/packets/:packetId/reopen", adminOnly, reopenPacket); // wipes entered marks: Admin only
 router.get("/:id/valuation/:code", VALUE, getPaperDetail);
 router.patch("/:id/valuation/:code", MANAGE, updatePaper);
 router.post("/:id/valuation/:code/attendance", VALUE, saveAttendance);

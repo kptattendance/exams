@@ -1,7 +1,7 @@
 import express from "express";
 import multer from "multer";
 
-import { requireRole } from "../middlewares/requireRole.js";
+import { adminOnly, requireRole } from "../middlewares/requireRole.js";
 
 import {
   createStudent,
@@ -59,6 +59,9 @@ const uploadExcel = multer({
   },
 });
 
+// The same roles that may add students may edit them
+const STUDENT_EDITORS = requireRole("principal", "coe", "acoe", "office", "hod");
+
 // =====================================================
 // CREATE SINGLE STUDENT
 // =====================================================
@@ -108,6 +111,7 @@ router.get(
 router.put(
   "/:id",
   authenticateUser,
+  STUDENT_EDITORS,
   uploadSingleImage,
   updateStudent
 );
@@ -125,14 +129,14 @@ router.get("/purge/log", authenticateUser, requireRole("admin"), purgeLog);
 router.delete(
   "/bulk-delete",
   authenticateUser,
-  requireRole("admin", "coe", "acoe"),
+  adminOnly,
   deleteMultipleStudents
 );
 
 router.delete(
   "/:id",
   authenticateUser,
-  requireRole("admin", "coe", "acoe"),
+  adminOnly,
   deleteStudent
 );
 
@@ -143,6 +147,7 @@ router.delete(
 router.patch(
   "/:id/status",
   authenticateUser,
+  STUDENT_EDITORS,
   updateStudentStatus
 );
 

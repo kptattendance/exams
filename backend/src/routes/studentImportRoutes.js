@@ -2,7 +2,7 @@ import express from "express";
 import multer from "multer";
 
 import { authenticateUser } from "../middlewares/authMiddleware.js";
-import { requireRole } from "../middlewares/requireRole.js";
+import { adminOnly, requireRole } from "../middlewares/requireRole.js";
 import {
   previewImport,
   startImport,
@@ -53,7 +53,7 @@ router.post("/", handleUpload(excel), startImport);
 router.get("/:id", getImport);
 router.post("/:id/process", processImport);
 router.post("/:id/retry", retryFailed);
-router.post("/:id/undo", undoImport);
+router.post("/:id/undo", adminOnly, undoImport); // deletes the imported students: Admin only
 router.get("/:id/export", exportImport);
 
 export default router;

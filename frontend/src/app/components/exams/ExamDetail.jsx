@@ -24,6 +24,7 @@ import {
   errMsg,
   useApi,
 } from "./shared";
+import { useIsAdmin } from "../useRole";
 
 const PAGE_SIZE = 40;
 
@@ -32,6 +33,7 @@ export default function ExamDetail({ id, basePath, canManage = false, canEditSub
   const toast = useToast();
   const confirm = useConfirm();
   const router = useRouter();
+  const isAdmin = useIsAdmin();
 
   const [exam, setExam] = useState(null);
   const [loadError, setLoadError] = useState("");
@@ -221,10 +223,12 @@ export default function ExamDetail({ id, basePath, canManage = false, canEditSub
                 <Icon name="edit" className="h-4 w-4" />
                 <span className="sm:hidden lg:inline">Edit</span>
               </button>
+              {isAdmin && (
               <button onClick={remove} className={btn.danger} title="Delete examination">
                 <Icon name="trash" className="h-4 w-4" />
                 <span className="sm:hidden lg:inline">Delete</span>
               </button>
+              )}
             </>
           )}
         </div>

@@ -10,6 +10,7 @@ import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { sortOptions } from "../../../components/sortOptions";
+import { useIsAdmin } from "../../../components/useRole";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const departments = [
@@ -89,6 +90,7 @@ export default function StudentTable({
   onBulkUpload,
 }) {
   const { getToken } = useAuth();
+  const isAdmin = useIsAdmin(); // deleting is for the Admin only
 
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -901,7 +903,7 @@ const downloadStudentsExcel = () => {
 
           <div className="flex flex-wrap gap-2">
 
-            {selectedStudents.length > 0 && (
+            {isAdmin && selectedStudents.length > 0 && (
               <button
                 onClick={handleBulkDelete}
                 disabled={deletingSelected}
@@ -1150,6 +1152,7 @@ const downloadStudentsExcel = () => {
                               Edit
                             </button>
 
+                            {isAdmin && (
                             <button
                               onClick={() =>
                                 handleDelete(
@@ -1167,6 +1170,7 @@ const downloadStudentsExcel = () => {
                                 ? "..."
                                 : "Delete"}
                             </button>
+                            )}
 
                           </div>
 

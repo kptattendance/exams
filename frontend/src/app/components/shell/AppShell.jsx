@@ -14,6 +14,7 @@ import { UserButton, useClerk, useUser } from "@clerk/nextjs";
 
 import Icon from "./Icon";
 import { FeedbackProvider } from "../ui/Feedback";
+import { useRole } from "../useRole";
 
 function findActive(sections, pathname) {
   let best = null;
@@ -200,9 +201,42 @@ function TodayChip() {
   );
 }
 
+// Admin can open every other workspace and do what that role does
+const WORKSPACES = [
+  { label: "Admin", href: "/admin" },
+  { label: "COE", href: "/coe" },
+  { label: "Office", href: "/office" },
+  { label: "QP scrutiny", href: "/scrutiny" },
+  { label: "Chief examiner", href: "/chief-examiner" },
+  { label: "Exam clerk", href: "/clerk" },
+];
+
+function WorkspaceSwitcher({ current, onClose }) {
+  return (
+    <div className="mb-5 rounded-xl border border-slate-200 bg-slate-50 p-2">
+      <p className="mb-1.5 px-1 text-[11px] font-semibold text-slate-500">Admin · open workspace</p>
+      <div className="grid grid-cols-2 gap-1">
+        {WORKSPACES.map((w) => (
+          <Link
+            key={w.href}
+            href={w.href}
+            onClick={onClose}
+            className={`truncate rounded-lg px-2 py-1.5 text-center text-xs font-semibold ${
+              current === w.href ? "bg-slate-950 text-white" : "bg-white text-slate-600 hover:bg-blue-50 hover:text-blue-800"
+            }`}
+          >
+            {w.label}
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SidebarContent({ menu, activeHref, onClose }) {
   const { user } = useUser();
   const { signOut } = useClerk();
+  const role = useRole();
 
   const name = user?.fullName || user?.firstName || "Signed in";
   const email = user?.primaryEmailAddress?.emailAddress || "";
@@ -245,6 +279,7 @@ function SidebarContent({ menu, activeHref, onClose }) {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 pr-5">
+        {role === "admin" && <WorkspaceSwitcher current={menu.home} onClose={onClose} />}
         {menu.sections.map((section) => (
           <div key={section.title} className="mb-5 last:mb-0">
             <p className="mb-1.5 px-3 text-xs font-semibold text-slate-400">{section.title}</p>
