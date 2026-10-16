@@ -80,7 +80,7 @@ export default function FacultyPage() {
       const users = Array.isArray(response.data?.data) ? response.data.data : [];
 
       const facultyUsers = users.filter(
-        (user) => user.role?.toLowerCase() === "staff"
+        (user) => ["staff", "guest_lecturer"].includes(user.role?.toLowerCase())
       );
 
       setFaculty(facultyUsers);
@@ -242,7 +242,7 @@ export default function FacultyPage() {
       phone: user.phone || "",
       designation: user.designation || "",
       department: user.department || "",
-      role: "staff",
+      role: user.role === "guest_lecturer" ? "guest_lecturer" : "staff",
       image: null,
     });
 
@@ -286,7 +286,7 @@ export default function FacultyPage() {
       formData.append("phone", form.phone);
       formData.append("designation", form.designation);
       formData.append("department", form.department);
-      formData.append("role", "staff");
+      formData.append("role", form.role || "staff");
 
       if (form.image) {
         formData.append("image", form.image);
@@ -976,7 +976,7 @@ const handleBulkUpload = async () => {
                             </p>
 
                             <p className="mt-0.5 truncate text-xs text-slate-400">
-                              {user.designation || "Faculty"}
+                              {user.role === "guest_lecturer" ? "Guest Lecturer" : user.designation || "Faculty"}
                             </p>
                           </div>
 
@@ -1384,7 +1384,21 @@ const handleBulkUpload = async () => {
                 )}
               </div>
 
-              {/* DESIGNATION */}
+              {/* FACULTY TYPE */}
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Type</label>
+                  <select
+                    name="role"
+                    value={form.role}
+                    onChange={handleChange}
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100"
+                  >
+                    <option value="staff">Faculty</option>
+                    <option value="guest_lecturer">Guest Lecturer</option>
+                  </select>
+                </div>
+
+                {/* DESIGNATION */}
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold text-slate-600">Designation</label>
                   <select

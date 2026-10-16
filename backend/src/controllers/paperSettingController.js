@@ -32,7 +32,7 @@ import {
   scrutinyDocUrl,
 } from "../services/driveStorage.js";
 import { changeRecord } from "../services/textDiff.js";
-import { sendPaperSettingEmail } from "../services/mailer.js";
+import { sendPaperSettingEmail, sendSchemeRequestEmail } from "../services/mailer.js";
 import { syllabusAttachments } from "./syllabusController.js";
 
 const isId = (id) => mongoose.Types.ObjectId.isValid(id);
@@ -61,7 +61,7 @@ const POPULATE = [
 //   INTERNAL = our own faculty (college 103), EXTERNAL = any other college
 export const listExaminers = async (req, res) => {
   try {
-    const filter = { role: { $in: ["staff", "hod"] } };
+    const filter = { role: { $in: ["staff", "guest_lecturer", "hod"] } };
     if (req.query.department) filter.department = String(req.query.department).toLowerCase();
     const home = { $in: ["", null, HOME_COLLEGE.code] };
     if (req.query.type === "INTERNAL") filter.collegeCode = home;
@@ -366,6 +366,7 @@ export const downloadPaper = async (req, res) => {
     if (!scheme && paper.scrutiny?.status !== "DONE") {
       return fail(res, 400, "The paper can be downloaded after the scrutiniser finishes scrutiny.");
     }
+    if (scheme && !schemeReady(paper)) return fail(res, 400, "The setter has not submitted the scheme yet.");
     const file = scheme ? paper.schemeFile : paper.scrutiny.file;
 
     const plain = await getDecryptedFile(paper, file);
@@ -442,6 +443,8 @@ const facultyView = (p) => {
     // After submission the examiner sees only that a file was submitted
     currentFile: brief(j.currentFile),
     schemeFile: brief(j.schemeFile),
+    schemeRequested: Boolean(j.schemeRequested),
+    schemeSubmittedAt: j.schemeSubmittedAt || null,
     // What the scrutiniser changed (text only, never the file)
     scrutiny:
       j.scrutiny?.status === "DONE"
@@ -489,10 +492,16 @@ export const uploadPaper = async (req, res) => {
     const paper = await loadOwnPaper(req, res);
     if (!paper) return;
 
-    if (!FACULTY_EDITABLE.includes(paper.status)) {
-      return fail(res, 400, "This paper is already submitted and locked.");
+    const scheme = kind === "schemeFile";
+    // After the paper is submitted only a scheme the COE asked for can still be uploaded
+    const lateScheme = scheme && paper.status === "SUBMITTED" && paper.schemeRequested && !paper.schemeSubmittedAt;
+    if (scheme && !paper.schemeRequested) {
+      return fail(res, 400, "The COE has not asked for the scheme of valuation.");
     }
-    if (new Date() > paper.deadline) {
+    if (!FACULTY_EDITABLE.includes(paper.status) && !lateScheme) {
+      return fail(res, 400, scheme ? "The scheme is already submitted." : "This paper is already submitted and locked.");
+    }
+    if (!lateScheme && new Date() > paper.deadline) {
       return fail(res, 400, "The deadline has passed. Please contact the COE office to extend it.");
     }
     if (!req.file) return fail(res, 400, "Please choose a .docx file.");
@@ -517,10 +526,13 @@ export const uploadPaper = async (req, res) => {
 
     // Conditional update: status must still be editable (prevents races
     // with a submit happening in another tab)
-    const update = { $set: { [kind]: fileRecord, status: "UPLOADED" } };
+    const update = lateScheme ? { $set: { [kind]: fileRecord } } : { $set: { [kind]: fileRecord, status: "UPLOADED" } };
+    const still = lateScheme
+      ? { status: "SUBMITTED", schemeSubmittedAt: null }
+      : { status: { $in: FACULTY_EDITABLE } };
 
     const saved = await PaperSetting.findOneAndUpdate(
-      { _id: paper._id, examinerClerkId: req.user.id, status: { $in: FACULTY_EDITABLE } },
+      { _id: paper._id, examinerClerkId: req.user.id, ...still },
       update,
       { returnDocument: "after" }
     ).populate(POPULATE[0]);
@@ -552,7 +564,8 @@ export const previewMyPaper = async (req, res) => {
     if (!paper) return;
     const kind = fileKind(req);
     if (!paper[kind]) return fail(res, 404, "Nothing uploaded yet.");
-    if (!["UPLOADED", "RETURNED"].includes(paper.status)) {
+    const lateScheme = kind === "schemeFile" && paper.status === "SUBMITTED" && !paper.schemeSubmittedAt;
+    if (!["UPLOADED", "RETURNED"].includes(paper.status) && !lateScheme) {
       return fail(res, 403, "Preview is not available after submission.");
     }
     const plain = await getDecryptedFile(paper, kind);
@@ -574,14 +587,16 @@ export const submitMyPaper = async (req, res) => {
     const paper = await loadOwnPaper(req, res);
     if (!paper) return;
     if (!paper.currentFile) return fail(res, 400, "Upload the paper before submitting.");
-    if (!paper.schemeFile) return fail(res, 400, "Upload the scheme of valuation before submitting.");
+    if (paper.schemeRequested && !paper.schemeFile) {
+      return fail(res, 400, "The COE asked for the scheme of valuation. Upload it before submitting.");
+    }
     if (new Date() > paper.deadline) {
       return fail(res, 400, "The deadline has passed. Please contact the COE office.");
     }
 
     const saved = await PaperSetting.findOneAndUpdate(
       { _id: paper._id, examinerClerkId: req.user.id, status: { $in: ["UPLOADED", "RETURNED"] } },
-      { $set: { status: "SUBMITTED", submittedAt: new Date() } },
+      { $set: { status: "SUBMITTED", submittedAt: new Date(), ...(paper.schemeFile ? { schemeSubmittedAt: new Date() } : {}) } },
       { returnDocument: "after" }
     ).populate(POPULATE[0]);
 
@@ -638,6 +653,9 @@ async function buildPreview(buffer) {
 // SCRUTINY — QP scrutiniser only. The setter's name is never shown here.
 // ======================================================================
 
+// A scheme counts once it is submitted (older papers: uploaded with the paper)
+const schemeReady = (p) => Boolean(p.schemeFile && (p.schemeSubmittedAt || !p.schemeRequested));
+
 const scrutinyView = (p) => ({
   _id: p._id,
   subject: p.subject && { code: p.subject.code, name: p.subject.name, semester: p.subject.semester, department: p.subject.department },
@@ -645,7 +663,7 @@ const scrutinyView = (p) => ({
   setNo: p.setNo,
   paperType: p.paperType,
   submittedAt: p.submittedAt,
-  hasScheme: Boolean(p.schemeFile),
+  hasScheme: schemeReady(p),
   scrutiny: {
     status: p.scrutiny?.status || "PENDING",
     startedAt: p.scrutiny?.startedAt || null,
@@ -684,7 +702,7 @@ export const scrutinyScheme = async (req, res) => {
   try {
     const paper = await loadForScrutiny(req, res);
     if (!paper) return;
-    if (!paper.schemeFile) return fail(res, 404, "The setter did not upload a scheme.");
+    if (!schemeReady(paper)) return fail(res, 404, "The setter has not submitted a scheme.");
     const plain = await getDecryptedFile(paper, "schemeFile");
     const preview = await buildPreview(plain);
     plain.fill(0);
@@ -816,5 +834,52 @@ export const cancelScrutiny = async (req, res) => {
     res.json({ data: scrutinyView(saved) });
   } catch (err) {
     handleError(res, err, "cancelScrutiny");
+  }
+};
+
+// ======================================================================
+// SCHEME OF VALUATION on request
+// ======================================================================
+
+// POST /api/paper-setting/:id/request-scheme   (COE) – asks the setter for the scheme
+export const requestScheme = async (req, res) => {
+  try {
+    if (!isId(req.params.id)) return fail(res, 400, "Invalid id.");
+    const paper = await PaperSetting.findOneAndUpdate(
+      { _id: req.params.id, status: { $ne: "CANCELLED" }, schemeRequested: { $ne: true } },
+      { $set: { schemeRequested: true, schemeRequestedAt: new Date() } },
+      { returnDocument: "after" }
+    ).populate(POPULATE);
+    if (!paper) return fail(res, 400, "The scheme is already asked for, or the assignment is cancelled.");
+    await audit(req, "SCHEME_REQUESTED", paper._id, { subject: paper.subject?.code });
+    let emailed = false;
+    try {
+      emailed = await sendSchemeRequestEmail({ to: paper.examiner?.email, name: paper.examiner?.name, subject: paper.subject, paper });
+    } catch (e) {
+      console.error("Scheme request email failed:", e.message);
+    }
+    res.json({ data: paper, emailed });
+  } catch (err) {
+    handleError(res, err, "requestScheme");
+  }
+};
+
+// POST /api/paper-setting/my/:id/scheme/submit   (setter) – the scheme asked for after submission
+export const submitMyScheme = async (req, res) => {
+  try {
+    const paper = await loadOwnPaper(req, res);
+    if (!paper) return;
+    if (!paper.schemeRequested) return fail(res, 400, "The COE has not asked for the scheme.");
+    if (!paper.schemeFile) return fail(res, 400, "Upload the scheme first.");
+    const saved = await PaperSetting.findOneAndUpdate(
+      { _id: paper._id, examinerClerkId: req.user.id, status: "SUBMITTED", schemeSubmittedAt: null },
+      { $set: { schemeSubmittedAt: new Date() } },
+      { returnDocument: "after" }
+    ).populate(POPULATE[0]);
+    if (!saved) return fail(res, 400, "The scheme cannot be submitted now.");
+    await audit(req, "SCHEME_SUBMITTED", paper._id, { sha256: paper.schemeFile.sha256 });
+    res.json({ data: facultyView(saved) });
+  } catch (err) {
+    handleError(res, err, "submitMyScheme");
   }
 };

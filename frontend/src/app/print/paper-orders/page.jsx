@@ -462,7 +462,7 @@ function Order({ o }) {
             ಪರೀಕ್ಷಾ ನಿಯಂತ್ರಕರು
           </p>
 
-          <div className="mt-5 border-t border-[#d6b36a] pt-3 text-[11px] leading-relaxed">
+          <div className="mt-5 pt-3 text-[11px] leading-relaxed">
             <p className="font-extrabold text-[#8b1e3f]">ಪ್ರತಿ (Copy to):</p>
             <p className="mt-1">
               1. ಪ್ರಾಂಶುಪಾಲರು, ಸಂಸ್ಥೆಯ ಕೋಡ್: {INSTITUTION_CODE}, {INSTITUTION} —

@@ -1,6 +1,7 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import { Hanken_Grotesk } from "next/font/google";
 import "./globals.css";
+import StepUpGate from "./components/StepUpGate";
 
 const uiFont = Hanken_Grotesk({
   subsets: ["latin"],
@@ -105,7 +106,11 @@ export default function RootLayout({ children }) {
           />
         </head>
 
-        <body className="min-h-screen bg-slate-50 text-slate-900 antialiased">{children}</body>
+        <body className="min-h-screen bg-slate-50 text-slate-900 antialiased">
+          {children}
+          {/* Asks for the mobile / email code before sensitive actions, on every page */}
+          <StepUpGate />
+        </body>
       </html>
     </ClerkProvider>
   );

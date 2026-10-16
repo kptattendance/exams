@@ -185,13 +185,31 @@ export default function PaperSettingPage() {
               {p.scrutiny?.status === "IN_PROGRESS" ? "Under scrutiny" : "Waiting for scrutiny"}
             </span>
           )}
-          {p.schemeFile && (
+          {p.schemeFile && (p.schemeSubmittedAt || !p.schemeRequested) && (
             <SmallBtn disabled={busy} onClick={() => download(p, "scheme")}>
               Scheme
             </SmallBtn>
           )}
         </>
       )}
+      {p.status !== "CANCELLED" &&
+        (p.schemeRequested ? (
+          <span className="rounded-lg bg-slate-100 px-2 py-1.5 text-[11px] font-semibold text-slate-500">
+            {p.schemeSubmittedAt ? "Scheme received" : "Scheme asked"}
+          </span>
+        ) : (
+          <SmallBtn
+            disabled={busy}
+            onClick={() =>
+              act(p._id, async () => {
+                const r = await api("post", `/paper-setting/${p._id}/request-scheme`);
+                flash(r.data?.emailed ? "Scheme asked for; the setter got an email." : "Scheme asked for. The email could not be sent.");
+              })
+            }
+          >
+            Ask scheme
+          </SmallBtn>
+        ))}
       <SmallBtn disabled={busy} onClick={() => setAuditFor(p)}>
         Log
       </SmallBtn>

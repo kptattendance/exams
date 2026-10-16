@@ -877,6 +877,7 @@ export const getFinalIA = async (
       ![
         "admin",
         "principal",
+        "vice_principal",
         "coe", "acoe",
         "office",
       ].includes(role)

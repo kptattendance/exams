@@ -19,6 +19,8 @@ import {
   startScrutiny,
   finishScrutiny,
   cancelScrutiny,
+  requestScheme,
+  submitMyScheme,
   downloadPaper,
   getAuditTrail,
   myAssignments,
@@ -29,6 +31,7 @@ import {
 } from "../controllers/paperSettingController.js";
 
 import { listSyllabus, addSyllabus, removeSyllabus, uploadPdf } from "../controllers/syllabusController.js";
+import { requireStepUp } from "../services/stepUp.js";
 
 const router = express.Router();
 
@@ -51,6 +54,7 @@ router.post("/my/:id/upload", uploadLimiter, uploadDocx, uploadPaper);
 router.post("/my/:id/upload/:kind", uploadLimiter, uploadDocx, uploadPaper);
 router.get("/my/:id/preview", previewMyPaper);
 router.post("/my/:id/submit", submitMyPaper);
+router.post("/my/:id/scheme/submit", submitMyScheme);
 
 // ---------------- COE / Exam officer ----------------
 router.get("/examiners", requireRole(...MANAGERS), listExaminers);
@@ -65,13 +69,14 @@ router.post("/", requireRole(...MANAGERS), createAssignment);
 router.patch("/:id", requireRole(...MANAGERS), updateAssignment);
 router.post("/:id/send-email", requireRole(...MANAGERS), resendEmail);
 router.post("/:id/cancel", requireRole(...MANAGERS), cancelAssignment);
-router.delete("/:id", requireRole(...MANAGERS), deleteAssignment);
-router.get("/:id/download", requireRole(...CONTENT_READERS), downloadPaper);
+router.post("/:id/request-scheme", requireRole(...MANAGERS), requestScheme);
+router.delete("/:id", requireRole(...MANAGERS), requireStepUp("qp"), deleteAssignment);
+router.get("/:id/download", requireRole(...CONTENT_READERS), requireStepUp("qp"), downloadPaper);
 router.get("/:id/audit", requireRole(...CONTENT_READERS), getAuditTrail);
 router.get("/:id/order", requireRole(...ORDER_PRINTERS), getOrder);
-router.get("/:id/scrutiny/scheme", SCRUTINY, scrutinyScheme);
-router.post("/:id/scrutiny/start", SCRUTINY, startScrutiny);
-router.post("/:id/scrutiny/finish", SCRUTINY, finishScrutiny);
-router.post("/:id/scrutiny/cancel", SCRUTINY, cancelScrutiny);
+router.get("/:id/scrutiny/scheme", SCRUTINY, requireStepUp("qp"), scrutinyScheme);
+router.post("/:id/scrutiny/start", SCRUTINY, requireStepUp("qp"), startScrutiny);
+router.post("/:id/scrutiny/finish", SCRUTINY, requireStepUp("qp"), finishScrutiny);
+router.post("/:id/scrutiny/cancel", SCRUTINY, requireStepUp("qp"), cancelScrutiny);
 
 export default router;

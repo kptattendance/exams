@@ -92,6 +92,11 @@ const paperSettingSchema = new mongoose.Schema(
     currentFile: { type: fileSchema, default: null },
     // Scheme of valuation (Word), uploaded by the setter with the paper
     schemeFile: { type: fileSchema, default: null },
+    // The scheme is asked for only when the COE wants it (any time, even after
+    // the paper is submitted). schemeSubmittedAt = the setter's final scheme.
+    schemeRequested: { type: Boolean, default: false },
+    schemeRequestedAt: { type: Date, default: null },
+    schemeSubmittedAt: { type: Date, default: null },
 
     // Scrutiny by the QP scrutiniser. While IN_PROGRESS the paper is a Google
     // Doc (docId) shared only with the scrutiniser; when DONE the corrected

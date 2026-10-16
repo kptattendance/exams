@@ -22,6 +22,7 @@ import {
   submitBatch,
   correctMark,
 } from "../controllers/practicalController.js";
+import { requireStepUp } from "../services/stepUp.js";
 
 const router = express.Router();
 
@@ -30,8 +31,8 @@ const router = express.Router();
 // enters the marks; only the Admin corrects them later.
 const ALLOT = requireRole("coe", "acoe", "admin");
 const BATCHES = requireRole("hod", "coe", "acoe", "admin");
-const VIEW = requireRole("hod", "coe", "acoe", "admin", "office", "principal");
-const EXAMINER = requireRole("staff", "hod");
+const VIEW = requireRole("hod", "coe", "acoe", "admin", "office", "principal", "vice_principal");
+const EXAMINER = requireRole("staff", "guest_lecturer", "hod");
 
 router.use(authenticateUser);
 
@@ -47,8 +48,8 @@ router.post("/panels/:panelId/code", ALLOT, reissueCode);
 router.get("/batches/:batchId", getBatch);
 router.post("/batches/:batchId/unlock", EXAMINER, unlockBatch);
 router.put("/batches/:batchId/marks", EXAMINER, saveDraft);
-router.post("/batches/:batchId/submit", EXAMINER, submitBatch);
-router.post("/batches/:batchId/correct", requireRole("admin"), correctMark);
+router.post("/batches/:batchId/submit", EXAMINER, requireStepUp("marks"), submitBatch);
+router.post("/batches/:batchId/correct", requireRole("admin"), requireStepUp("marks"), correctMark);
 
 router.get("/:id/panels", VIEW, listPanels);
 router.post("/:id/panels", ALLOT, addPanel);

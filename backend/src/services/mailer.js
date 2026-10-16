@@ -232,3 +232,26 @@ export async function sendSecurityCodeEmail({ to, code, action, details = [] }) 
   });
   return true;
 }
+
+// The COE asks a setter for the scheme of valuation of his paper
+export async function sendSchemeRequestEmail({ to, name, subject, paper }) {
+  const t = getTransporter();
+  if (!t || !to) return false;
+  const link = `${process.env.FRONTEND_URL}/faculty/paper-setting/${paper._id}`;
+  const html = wrap(
+    "Scheme of valuation requested",
+    `<p>Dear ${esc(name)},</p>
+    <p>Please upload the <b>scheme of valuation</b> (Word file) for the question paper you set:</p>
+    <p style="background:#f1f5f9;padding:12px;border-radius:8px"><b>${esc(subject?.code)} – ${esc(subject?.name)}</b><br/>
+      ${esc(paper.examSession)} examination · Set ${esc(paper.setNo)}</p>
+    <p style="margin:24px 0"><a href="${link}" style="background:#2563eb;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none">Sign in and upload the scheme</a></p>
+    <p style="font-size:13px;color:#475569">Upload only through the website. Do not send it by email or WhatsApp.</p>`
+  );
+  await t.sendMail({
+    from: process.env.MAIL_FROM || process.env.SMTP_USER,
+    to,
+    subject: `Scheme of valuation requested – ${subject?.code}`,
+    html,
+  });
+  return true;
+}

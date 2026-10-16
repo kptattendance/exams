@@ -4,6 +4,7 @@
 export const ROLE_OPTIONS = [
   { value: "admin", label: "Administrator", does: "User accounts, settings, academic year, mark corrections" },
   { value: "principal", label: "Principal", does: "Sees everything, changes nothing" },
+  { value: "vice_principal", label: "Vice-Principal", does: "Sees everything, changes nothing" },
   { value: "coe", label: "COE", does: "Runs the examinations, opens question papers" },
   { value: "acoe", label: "Assistant COE", does: "Everything the COE does except opening question papers" },
   {
@@ -14,6 +15,7 @@ export const ROLE_OPTIONS = [
   { value: "exam_clerk", label: "Exam clerk", does: "Types the valuers' award lists" },
   { value: "qp_scrutinizer", label: "QP scrutiniser", does: "Scrutinises the submitted question papers" },
   { value: "hod", label: "HOD", does: "Department IA, attendance, electives, practical batches" },
+  { value: "guest_lecturer", label: "Guest Lecturer", does: "Same work as faculty: paper setting, practical marks" },
 ];
 
 const LABELS = { ...Object.fromEntries(ROLE_OPTIONS.map((r) => [r.value, r.label])), staff: "Faculty", exam_officer: "Exam section (office)" };

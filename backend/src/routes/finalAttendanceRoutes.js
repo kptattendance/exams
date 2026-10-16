@@ -10,6 +10,7 @@ import {
 
 import {authenticateUser} from "../middlewares/authMiddleware.js";
 import { forceAcademicYear } from "../services/academicYear.js";
+import { requireStepUp } from "../services/stepUp.js";
 
 const router = express.Router();
 
@@ -32,6 +33,7 @@ router.post(
   "/save",
   authenticateUser,
   forceAcademicYear, // running academic year, set by Admin
+  requireStepUp("ia"),
   saveAttendance
 );
 
@@ -54,6 +56,7 @@ router.post(
   "/submit",
   authenticateUser,
   forceAcademicYear, // running academic year, set by Admin
+  requireStepUp("ia"),
   submitAttendance
 );
 
@@ -61,6 +64,7 @@ router.post(
   "/confirm",
   authenticateUser,
   forceAcademicYear, // running academic year, set by Admin
+  requireStepUp("ia"),
   confirmAttendance
 );
 export default router;

@@ -40,12 +40,13 @@ import {
   updateValuationSettings,
 } from "../controllers/valuationController.js";
 import { readiness, listResults, processResults, publishResults } from "../controllers/resultController.js";
+import { requireStepUp } from "../services/stepUp.js";
 
 const router = express.Router();
 
 // COE and Admin run exams; Exam Officer and Principal can look
 const MANAGE = requireRole("coe", "acoe", "admin");
-const VIEW = requireRole("coe", "acoe", "admin", "office", "principal");
+const VIEW = requireRole("coe", "acoe", "admin", "office", "principal", "vice_principal");
 // Fee verification: office staff, COE, Admin
 const FEES = requireRole("office", "coe", "acoe", "admin");
 // Subject changes on hall tickets (back papers added / removed by hand): office too
@@ -85,8 +86,8 @@ router.get("/:id/export", VIEW, exportRegistrations);
 router.get("/:id/fees", VIEW, listFees);
 router.get("/:id/fees/template", FEES, feeTemplate);
 router.get("/:id/fees/export", VIEW, exportFees);
-router.post("/:id/fees/import", FEES, excel, importFees);
-router.post("/:id/registrations/:regId/fee", FEES, recordFee);
+router.post("/:id/fees/import", FEES, requireStepUp("fees"), excel, importFees);
+router.post("/:id/registrations/:regId/fee", FEES, requireStepUp("fees"), recordFee);
 
 // Timetable (written exams)
 router.get("/:id/timetable", VIEW, getTimetable);
@@ -114,13 +115,13 @@ router.get("/:id/valuation/:code/coding-sheet", SECRET, codingSheet);
 router.get("/:id/valuation/:code/slips", requireRole("coe", "acoe", "admin", "office", "exam_clerk"), packetSlips);
 router.post("/:id/valuation/:code/second", MANAGE, sendSecondValuation);
 router.post("/:id/valuation/:code/third", MANAGE, createThirdValuation);
-router.post("/:id/valuation/:code/decode", SECRET, decodePaper);
+router.post("/:id/valuation/:code/decode", SECRET, requireStepUp("results"), decodePaper);
 router.get("/:id/valuation/:code/marks", SECRET, paperMarks);
 
 // Results: marks with names and moderation are for COE / Admin only
 router.get("/:id/results/readiness", SECRET, readiness);
 router.get("/:id/results", SECRET, listResults);
-router.post("/:id/results/process", SECRET, processResults);
-router.post("/:id/results/publish", SECRET, publishResults);
+router.post("/:id/results/process", SECRET, requireStepUp("results"), processResults);
+router.post("/:id/results/publish", SECRET, requireStepUp("results"), publishResults);
 
 export default router;

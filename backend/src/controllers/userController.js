@@ -90,15 +90,15 @@ export const getDashboardStats = async (req, res) => {
 const ALL_ROLES = ROLES;
 
 // Roles that may open the login-accounts list
-const ADMIN_ROLES = ["admin", "principal", "coe", "acoe"];
+const ADMIN_ROLES = ["admin", "principal", "vice_principal", "coe", "acoe"];
 
 // Which roles each role may create, edit and delete
 const rolePermissions = {
   admin: [...ROLES],
-  principal: ["acoe", "office", "exam_clerk", "qp_scrutinizer", "hod", "staff"],
-  coe: ["acoe", "office", "exam_clerk", "qp_scrutinizer", "hod", "staff"],
-  acoe: ["office", "exam_clerk", "hod", "staff"],
-  hod: ["staff"],
+  principal: ["vice_principal", "acoe", "office", "exam_clerk", "qp_scrutinizer", "hod", "staff", "guest_lecturer"],
+  coe: ["acoe", "office", "exam_clerk", "qp_scrutinizer", "hod", "staff", "guest_lecturer"],
+  acoe: ["office", "exam_clerk", "hod", "staff", "guest_lecturer"],
+  hod: ["staff", "guest_lecturer"],
 };
 
 
@@ -1222,7 +1222,7 @@ export const getUsers = async (req, res) => {
       filter.department = requesterDepartment;
 
       // HOD faculty page should show only staff
-      filter.role = "staff";
+      filter.role = { $in: ["staff", "guest_lecturer"] };
     }
 
     // =====================================================

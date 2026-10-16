@@ -17,6 +17,7 @@ import sheetReviewRoutes from "./routes/sheetReviewRoutes.js";
 import settingsRoutes from "./routes/settingsRoutes.js";
 import marksEntryRoutes from "./routes/marksEntryRoutes.js";
 import practicalRoutes from "./routes/practicalRoutes.js";
+import stepUpRoutes from "./routes/stepUpRoutes.js";
 
 
 
@@ -56,6 +57,7 @@ app.use(
     allowedHeaders: [
       "Content-Type",
       "Authorization",
+      "X-Step-Up", // verification passes, see services/stepUp.js
     ],
 
     credentials: true,
@@ -108,6 +110,7 @@ app.use("/api/sheet-review", sheetReviewRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/marks-entry", marksEntryRoutes);
 app.use("/api/practicals", practicalRoutes);
+app.use("/api/otp", stepUpRoutes);
 
 
 

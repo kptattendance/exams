@@ -150,6 +150,7 @@ export const bulkUploadStudents = async (
     const allowedRoles = [
       "admin",
       "principal",
+      "vice_principal",
       "coe", "acoe",
       "office",
       "hod",
@@ -1075,6 +1076,7 @@ export const createStudent = async (req, res) => {
     const allowedRoles = [
       "admin",
       "principal",
+      "vice_principal",
       "coe", "acoe",
       "office",
       "hod",

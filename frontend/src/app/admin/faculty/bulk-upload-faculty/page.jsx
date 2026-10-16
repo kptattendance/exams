@@ -89,7 +89,7 @@ const loadFaculty = async () => {
       : [];
 
     const facultyUsers = users.filter(
-      (user) => user.role?.toLowerCase() === "staff"
+      (user) => ["staff", "guest_lecturer"].includes(user.role?.toLowerCase())
     );
 
     setFaculty(facultyUsers);
@@ -251,7 +251,7 @@ const loadFaculty = async () => {
       phone: user.phone || "",
       designation: user.designation || "",
       department: user.department || "",
-      role: "staff",
+      role: user.role === "guest_lecturer" ? "guest_lecturer" : "staff",
       image: null,
     });
 
@@ -295,7 +295,7 @@ const loadFaculty = async () => {
       formData.append("phone", form.phone);
       formData.append("designation", form.designation);
       formData.append("department", form.department);
-      formData.append("role", "staff");
+      formData.append("role", form.role || "staff");
 
       if (form.image) {
         formData.append("image", form.image);
@@ -1020,7 +1020,7 @@ const loadFaculty = async () => {
                             </p>
 
                             <p className="mt-0.5 truncate text-xs text-amber-600">
-                              {user.designation || "Faculty"}
+                              {user.role === "guest_lecturer" ? "Guest Lecturer" : user.designation || "Faculty"}
                             </p>
 
                           </div>
@@ -1522,7 +1522,21 @@ const loadFaculty = async () => {
 
               </div>
 
-              {/* DESIGNATION */}
+              {/* FACULTY TYPE */}
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Type</label>
+                  <select
+                    name="role"
+                    value={form.role}
+                    onChange={handleChange}
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100"
+                  >
+                    <option value="staff">Faculty</option>
+                    <option value="guest_lecturer">Guest Lecturer</option>
+                  </select>
+                </div>
+
+                {/* DESIGNATION */}
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold text-slate-600">Designation</label>
                   <select

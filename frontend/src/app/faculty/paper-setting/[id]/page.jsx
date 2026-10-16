@@ -126,6 +126,28 @@ export default function PaperUploadPage() {
     }
   };
 
+  // A scheme asked for after the paper was submitted is final once submitted here
+  const submitScheme = async () => {
+    const ok = await confirmDialog({
+      title: "Submit the scheme of valuation?",
+      message: "After this you cannot change or view the scheme again.",
+      confirmText: "Submit scheme",
+    });
+    if (!ok) return;
+    setSchemeBusy(true);
+    setError("");
+    try {
+      const res = await axios.post(`${API_URL}/api/paper-setting/my/${id}/scheme/submit`, {}, { headers: await auth() });
+      setPaper(res.data.data);
+      setSchemePreview(null);
+      toast.success("Scheme submitted. Thank you!");
+    } catch (e) {
+      setError(e.response?.data?.error || "Could not submit the scheme.");
+    } finally {
+      setSchemeBusy(false);
+    }
+  };
+
   const showSchemePreview = async () => {
     try {
       const res = await axios.get(`${API_URL}/api/paper-setting/my/${id}/preview?kind=scheme`, { headers: await auth() });
@@ -170,8 +192,11 @@ export default function PaperUploadPage() {
   if (!paper) return <p className="text-sm text-slate-500">Loading…</p>;
 
   const editable = ["ASSIGNED", "UPLOADED", "RETURNED"].includes(paper.status) && !paper.isPastDeadline;
+  // The scheme is needed only when the COE asks for it – before or after the paper is submitted
+  const schemeNeeded = paper.schemeRequested && !paper.schemeFile;
+  const lateScheme = paper.status === "SUBMITTED" && paper.schemeRequested && !paper.schemeSubmittedAt;
   const canSubmit =
-    ["UPLOADED", "RETURNED"].includes(paper.status) && paper.currentFile && paper.schemeFile && !paper.isPastDeadline;
+    ["UPLOADED", "RETURNED"].includes(paper.status) && paper.currentFile && !schemeNeeded && !paper.isPastDeadline;
 
   return (
     <div className="space-y-5">
@@ -306,13 +331,13 @@ export default function PaperUploadPage() {
         </div>
       )}
 
-      {/* SCHEME OF VALUATION */}
-      {editable && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="font-semibold text-slate-900">Scheme of valuation</h2>
+      {/* SCHEME OF VALUATION – only when the COE asks for it */}
+      {paper.schemeRequested && (editable || lateScheme) && (
+        <div className={`rounded-2xl border bg-white p-5 shadow-sm ${lateScheme ? "border-blue-300" : "border-slate-200"}`}>
+          <h2 className="font-semibold text-slate-900">Scheme of valuation{lateScheme ? " – asked by the COE" : ""}</h2>
           <p className="mt-1 text-xs text-slate-500">
-            Upload the scheme of valuation (answers and marks for each question) as a Word file (.docx). It is required before
-            final submit and is encrypted like the paper.
+            The COE has asked for the scheme of valuation (answers and marks for each question). Upload it as a Word file (.docx); it
+            is encrypted like the paper.
           </p>
           {paper.schemeFile && (
             <p className="mt-3 text-sm text-slate-700">
@@ -350,7 +375,24 @@ export default function PaperUploadPage() {
               dangerouslySetInnerHTML={{ __html: schemePreview.html || "" }}
             />
           )}
+          {lateScheme && paper.schemeFile && (
+            <div className="mt-4 flex justify-end">
+              <button
+                disabled={schemeBusy}
+                onClick={submitScheme}
+                className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+              >
+                Submit scheme
+              </button>
+            </div>
+          )}
         </div>
+      )}
+
+      {paper.status === "SUBMITTED" && paper.schemeSubmittedAt && paper.schemeFile && (
+        <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          Scheme of valuation received on {fmt(paper.schemeSubmittedAt)}.
+        </p>
       )}
 
       {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
@@ -389,9 +431,9 @@ export default function PaperUploadPage() {
             dangerouslySetInnerHTML={{ __html: preview?.html || "<p>Loading preview…</p>" }}
           />
 
-          {!paper.schemeFile && paper.status !== "SUBMITTED" && (
+          {schemeNeeded && paper.status !== "SUBMITTED" && (
             <p className="border-t border-slate-100 px-5 py-4 text-sm font-medium text-orange-700">
-              Upload the scheme of valuation as well. Final submit opens once both files are uploaded.
+              The COE asked for the scheme of valuation. Upload it as well; final submit opens once both files are uploaded.
             </p>
           )}
 
