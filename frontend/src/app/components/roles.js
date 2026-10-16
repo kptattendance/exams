@@ -13,6 +13,7 @@ export const ROLE_OPTIONS = [
   },
   { value: "exam_clerk", label: "Exam clerk", does: "Types the valuers' award lists" },
   { value: "qp_scrutinizer", label: "QP scrutiniser", does: "Scrutinises the submitted question papers" },
+  { value: "chief_examiner", label: "Chief Examiner", does: "On the exam date only, opens and prints the frozen question paper" },
   { value: "hod", label: "HOD", does: "Department IA, attendance, electives, practical batches" },
 ];
 

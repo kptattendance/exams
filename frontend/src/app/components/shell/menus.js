@@ -14,6 +14,7 @@ export const HOME_BY_ROLE = {
   exam_officer: "/office", // old name of office
   exam_clerk: "/clerk",
   qp_scrutinizer: "/scrutiny",
+  chief_examiner: "/chief-examiner",
   hod: "/hod",
   staff: "/faculty",
 };
@@ -192,6 +193,17 @@ export const MENUS = {
       {
         title: "Question papers",
         items: [{ label: "Papers to scrutinise", href: "/scrutiny", icon: "lock", pinned: true }],
+      },
+    ],
+  },
+
+  chiefExaminer: {
+    role: "Chief Examiner",
+    home: "/chief-examiner",
+    sections: [
+      {
+        title: "Exam day",
+        items: [{ label: "Question papers today", href: "/chief-examiner", icon: "lock", pinned: true }],
       },
     ],
   },

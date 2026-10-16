@@ -102,6 +102,17 @@ const paperSettingSchema = new mongoose.Schema(
     // Doc (docId) shared only with the scrutiniser; when DONE the corrected
     // paper is stored encrypted in `file` and the Doc is deleted. The setter
     // sees the note and the list of changed lines, never the file.
+    // Final PDF uploaded by the COE after scrutiny and page setting. Once it is
+    // there the paper is FROZEN: nobody opens it again except the Chief Examiner,
+    // on the exam date, from 1 hour before the session (see services/examDay.js).
+    finalPdf: { type: fileSchema, default: null },
+    frozenAt: { type: Date, default: null },
+    frozenBy: { type: String, default: "" },
+    prints: {
+      type: [new mongoose.Schema({ at: Date, by: String, ip: String, copy: Number }, { _id: false })],
+      default: [],
+    },
+
     scrutiny: {
       status: { type: String, enum: ["PENDING", "IN_PROGRESS", "DONE"], default: "PENDING" },
       docId: { type: String, default: "" },
@@ -154,6 +165,7 @@ paperSettingSchema.set("toJSON", {
       };
     ret.currentFile = strip(ret.currentFile);
     ret.schemeFile = strip(ret.schemeFile);
+    ret.finalPdf = strip(ret.finalPdf);
     if (ret.scrutiny) {
       ret.scrutiny.file = strip(ret.scrutiny.file);
       delete ret.scrutiny.docId;

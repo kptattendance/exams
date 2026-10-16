@@ -11,6 +11,7 @@
 //                    marking absentees, paper-setter orders
 //   exam_clerk     – types the valuers' award lists (sees dummy numbers only)
 //   qp_scrutinizer – scrutinises the submitted question papers
+//   chief_examiner – on the exam date only, opens and prints the frozen question paper
 //   hod            – department: IA, attendance, electives, practical batches
 //   staff          – faculty: question paper setting, practical marks
 //
@@ -24,6 +25,7 @@ export const ROLE_LABELS = {
   office: "Exam section (office)",
   exam_clerk: "Exam clerk",
   qp_scrutinizer: "QP scrutiniser",
+  chief_examiner: "Chief Examiner",
   hod: "Head of Department",
   staff: "Faculty",
 };

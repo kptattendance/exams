@@ -21,6 +21,9 @@ import {
   cancelScrutiny,
   requestScheme,
   submitMyScheme,
+  uploadFinalPdf,
+  examDayList,
+  examDayPrint,
   downloadPaper,
   getAuditTrail,
   myAssignments,
@@ -60,6 +63,8 @@ router.post("/my/:id/scheme/submit", submitMyScheme);
 router.get("/examiners", requireRole(...MANAGERS), listExaminers);
 router.get("/orders", requireRole(...ORDER_PRINTERS), listOrders);
 router.get("/scrutiny", SCRUTINY, listForScrutiny);
+// Chief Examiner: today's frozen papers (before "/:id")
+router.get("/exam-day", requireRole("chief_examiner"), examDayList);
 // Syllabus / scheme PDFs sent with the email (before "/:id")
 router.get("/syllabus", requireRole(...MANAGERS), listSyllabus);
 router.post("/syllabus", requireRole(...MANAGERS), uploadPdf, addSyllabus);
@@ -72,6 +77,10 @@ router.post("/:id/cancel", requireRole(...MANAGERS), cancelAssignment);
 router.post("/:id/request-scheme", requireRole(...MANAGERS), requestScheme);
 router.delete("/:id", requireRole(...MANAGERS), requireStepUp("qp"), deleteAssignment);
 router.get("/:id/download", requireRole(...CONTENT_READERS), requireStepUp("qp"), downloadPaper);
+// COE: final PDF after page setting – freezes the paper for good
+router.post("/:id/final-pdf", requireRole(...CONTENT_READERS), requireStepUp("qp"), uploadPdf, uploadFinalPdf);
+// Chief Examiner: open and print on the exam date, from 1 hour before the session
+router.get("/:id/exam-print", requireRole("chief_examiner"), requireStepUp("qp"), examDayPrint);
 router.get("/:id/audit", requireRole(...CONTENT_READERS), getAuditTrail);
 router.get("/:id/order", requireRole(...ORDER_PRINTERS), getOrder);
 router.get("/:id/scrutiny/scheme", SCRUTINY, requireStepUp("qp"), scrutinyScheme);

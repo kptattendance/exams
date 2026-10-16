@@ -17,6 +17,8 @@ import { cleanHtml } from "../services/cleanHtml.js";
 
 import PaperSetting from "../models/PaperSetting.js";
 import Subject from "../models/Subject.js";
+import Exam from "../models/Exam.js";
+import { todayIST, sessionOfDate, printWindow, windowState, stampPdf } from "../services/examDay.js";
 import User, { HOME_COLLEGE, collegeOf } from "../models/User.js";
 import AuditLog, { audit } from "../models/AuditLog.js";
 
@@ -308,7 +310,7 @@ export const updateAssignment = async (req, res) => {
 
 // Deletes the record and its encrypted files in Drive
 async function removePaper(paper) {
-  for (const f of [paper.currentFile, paper.schemeFile, paper.scrutiny?.file, ...(paper.fileHistory || [])]) {
+  for (const f of [paper.currentFile, paper.schemeFile, paper.scrutiny?.file, paper.finalPdf, ...(paper.fileHistory || [])]) {
     if (f?.driveFileId) await deleteEncrypted(f.driveFileId);
   }
   if (paper.scrutiny?.docId) await deleteEncrypted(paper.scrutiny.docId);
@@ -363,6 +365,17 @@ export const downloadPaper = async (req, res) => {
       return fail(res, 400, "The paper can be downloaded only after the examiner submits it.");
     }
     // The question paper is released to the COE only after scrutiny, in its scrutinised form
+    // Once the final PDF is uploaded nobody downloads the paper again
+    if (!scheme && paper.frozenAt) {
+      return fail(res, 403, "This paper is frozen. It opens only for the Chief Examiner on the exam date.");
+    }
+    // The scheme of a frozen paper (it often contains the questions) waits until the exam has started
+    if (scheme && paper.frozenAt) {
+      const slot = await scheduleFor(paper.subject?.code, paper.examSession);
+      if (!slot || new Date() < printWindow(slot.entry, slot.sessions).startsAt) {
+        return fail(res, 403, "The paper is frozen; its scheme can be downloaded once the exam has started.");
+      }
+    }
     if (!scheme && paper.scrutiny?.status !== "DONE") {
       return fail(res, 400, "The paper can be downloaded after the scrutiniser finishes scrutiny.");
     }
@@ -721,6 +734,8 @@ export const startScrutiny = async (req, res) => {
   try {
     const paper = await loadForScrutiny(req, res);
     if (!paper) return;
+    // Finished scrutiny is final
+    if (paper.scrutiny?.status === "DONE") return fail(res, 400, "Scrutiny of this paper is finished and cannot be reopened.");
     if (paper.scrutiny?.status === "IN_PROGRESS" && paper.scrutiny.docId) {
       return res.json({ data: scrutinyView(paper), url: scrutinyDocUrl(paper.scrutiny.docId) });
     }
@@ -881,5 +896,146 @@ export const submitMyScheme = async (req, res) => {
     res.json({ data: facultyView(saved) });
   } catch (err) {
     handleError(res, err, "submitMyScheme");
+  }
+};
+
+// ======================================================================
+// FREEZE (COE uploads the final PDF) and EXAM-DAY PRINT (Chief Examiner)
+// ======================================================================
+
+// The published time table entry of a paper: { entry, sessions } or null
+async function scheduleFor(code, examSession) {
+  if (!code) return null;
+  const exams = await Exam.find({ "timetable.published": true, "timetable.entries.code": code })
+    .select("timetable createdAt")
+    .sort({ createdAt: -1 })
+    .lean();
+  for (const e of exams) {
+    const entry = e.timetable.entries.find((x) => x.code === code);
+    if (entry && sessionOfDate(entry.date) === String(examSession || "").toUpperCase()) return { entry, sessions: e.timetable.sessions };
+  }
+  return null;
+}
+
+// POST /api/paper-setting/:id/final-pdf   (COE; multipart "file") – freezes the paper
+export const uploadFinalPdf = async (req, res) => {
+  let driveFileId = null;
+  try {
+    if (!isId(req.params.id)) return fail(res, 400, "Invalid id.");
+    if (!req.file) return fail(res, 400, "Choose the final PDF.");
+    const buf = req.file.buffer;
+    if (buf.subarray(0, 5).toString("latin1") !== "%PDF-") return fail(res, 400, "This is not a PDF file.");
+    const paper = await PaperSetting.findById(req.params.id).populate(POPULATE[0]);
+    if (!paper || paper.status !== "SUBMITTED") return fail(res, 404, "Submitted paper not found.");
+    if (paper.scrutiny?.status !== "DONE") return fail(res, 400, "The scrutiniser has not finished this paper yet.");
+    if (paper.frozenAt) return fail(res, 409, "This paper is already frozen.");
+
+    const { ciphertext, meta } = encryptPaper(buf, paper._id);
+    buf.fill(0);
+    driveFileId = await uploadEncrypted(ciphertext);
+    const file = {
+      driveFileId,
+      ...meta,
+      originalName: `${paper.subject.code}_${paper.examSession}_SET${paper.setNo}_final.pdf`,
+      uploadedBy: req.user.id,
+      uploadedAt: new Date(),
+    };
+    const saved = await PaperSetting.findOneAndUpdate(
+      { _id: paper._id, frozenAt: null },
+      { $set: { finalPdf: file, frozenAt: new Date(), frozenBy: req.user.email || req.user.id } },
+      { returnDocument: "after" }
+    ).populate(POPULATE);
+    if (!saved) {
+      await deleteEncrypted(driveFileId);
+      return fail(res, 409, "This paper was frozen in another window.");
+    }
+    await audit(req, "QP_FROZEN", paper._id, { sha256: meta.sha256, size: meta.size });
+    res.json({ data: saved });
+  } catch (err) {
+    if (driveFileId) await deleteEncrypted(driveFileId);
+    handleError(res, err, "uploadFinalPdf");
+  }
+};
+
+// GET /api/paper-setting/exam-day   (Chief Examiner) – today's frozen papers and when each opens
+export const examDayList = async (req, res) => {
+  try {
+    const today = todayIST();
+    const exams = await Exam.find({ "timetable.published": true, "timetable.entries.date": today }).select("name timetable").lean();
+    const slots = new Map();
+    for (const e of exams) {
+      for (const entry of e.timetable.entries) {
+        if (entry.date === today) slots.set(entry.code, { entry, sessions: e.timetable.sessions, exam: e.name });
+      }
+    }
+    const subjects = await Subject.find({ code: { $in: [...slots.keys()] } }).select("_id").lean();
+    const papers = await PaperSetting.find({
+      subject: { $in: subjects.map((s) => s._id) },
+      frozenAt: { $ne: null },
+      examSession: sessionOfDate(today),
+    })
+      .populate(POPULATE[0])
+      .lean();
+    const now = new Date();
+    const data = papers
+      .map((p) => {
+        const slot = slots.get(p.subject?.code);
+        const w = printWindow(slot.entry, slot.sessions);
+        return {
+          _id: p._id,
+          subject: p.subject && { code: p.subject.code, name: p.subject.name, semester: p.subject.semester, department: p.subject.department },
+          setNo: p.setNo,
+          paperType: p.paperType,
+          exam: slot.exam,
+          session: slot.entry.session,
+          opensAt: w.opensAt,
+          startsAt: w.startsAt,
+          closesAt: w.closesAt,
+          state: windowState(w, now),
+          prints: (p.prints || []).length,
+        };
+      })
+      .sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt) || a.subject.code.localeCompare(b.subject.code) || a.setNo - b.setNo);
+    res.json({ data, today });
+  } catch (err) {
+    handleError(res, err, "examDayList");
+  }
+};
+
+// GET /api/paper-setting/:id/exam-print   (Chief Examiner, in the print window) – stamped PDF
+export const examDayPrint = async (req, res) => {
+  try {
+    if (!isId(req.params.id)) return fail(res, 400, "Invalid id.");
+    const paper = await PaperSetting.findById(req.params.id).populate(POPULATE[0]);
+    if (!paper?.frozenAt || !paper.finalPdf) return fail(res, 404, "Frozen paper not found.");
+    const slot = await scheduleFor(paper.subject?.code, paper.examSession);
+    if (!slot || slot.entry.date !== todayIST()) return fail(res, 403, "This paper is not scheduled for today.");
+    const w = printWindow(slot.entry, slot.sessions);
+    const state = windowState(w);
+    const time = (d) => d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
+    if (state === "BEFORE") return fail(res, 403, `This paper opens at ${time(w.opensAt)}.`);
+    if (state === "CLOSED") return fail(res, 403, "The session is over; the paper is closed.");
+
+    const copy = (paper.prints || []).length + 1;
+    const when = new Date().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" });
+    const plain = await getDecryptedFile(paper, paper.finalPdf);
+    const stamped = await stampPdf(
+      plain,
+      `KPT Mangaluru - ${paper.subject.code} Set ${paper.setNo} - opened by ${req.user.email} - ${when} IST - copy ${copy}`,
+      `KPT CONFIDENTIAL - ${req.user.email}`
+    );
+    plain.fill(0);
+    const ip = (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.socket?.remoteAddress || "";
+    await PaperSetting.updateOne({ _id: paper._id }, { $push: { prints: { at: new Date(), by: req.user.email || req.user.id, ip, copy } } });
+    await audit(req, "QP_PRINTED", paper._id, { copy, subject: paper.subject.code, setNo: paper.setNo });
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `inline; filename="${paper.subject.code}_SET${paper.setNo}.pdf"`,
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+    });
+    res.send(stamped);
+  } catch (err) {
+    handleError(res, err, "examDayPrint");
   }
 };

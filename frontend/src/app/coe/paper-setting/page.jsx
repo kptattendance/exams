@@ -155,6 +155,30 @@ export default function PaperSettingPage() {
     });
   };
 
+  // Final PDF after page setting: freezes the paper for good
+  const freeze = (p) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "application/pdf,.pdf";
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      if (!/\.pdf$/i.test(file.name)) return toast.error("Choose a PDF file.");
+      const ok = await confirmDialog({
+        title: "Freeze this question paper?",
+        message: `${p.subject?.code} – Set ${p.setNo}: "${file.name}"\n\nAfter this NOBODY, including you, can open or download the paper. Only the Chief Examiner can open and print it on the exam date, from 1 hour before the session.\n\nCheck the PDF carefully before you continue.`,
+        confirmText: "Freeze paper",
+        tone: "danger",
+        requireText: "FREEZE",
+      });
+      if (!ok) return;
+      const body = new FormData();
+      body.append("file", file);
+      act(p._id, () => api("post", `/paper-setting/${p._id}/final-pdf`, body), "Paper frozen.");
+    };
+    input.click();
+  };
+
   const renderActions = (p, busy) => (
     <div className="flex flex-wrap gap-1.5">
       {["ASSIGNED", "UPLOADED", "RETURNED"].includes(p.status) && (
@@ -177,11 +201,21 @@ export default function PaperSettingPage() {
       )}
       {p.status === "SUBMITTED" && (
         <>
-          {/* The paper is released after the scrutiniser finishes, in its scrutinised form */}
-          {p.scrutiny?.status === "DONE" ? (
-            <SmallBtn tone="dark" disabled={busy} onClick={() => download(p)}>
-              Download
-            </SmallBtn>
+          {/* After scrutiny: download the Word file, set the pages, upload the final PDF.
+              Once the PDF is uploaded the paper is frozen – nobody opens it before the exam. */}
+          {p.frozenAt ? (
+            <span className="rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700" title="Opens only for the Chief Examiner on the exam date">
+              🔒 Frozen {fmtDate(p.frozenAt)}
+            </span>
+          ) : p.scrutiny?.status === "DONE" ? (
+            <>
+              <SmallBtn tone="dark" disabled={busy} onClick={() => download(p)}>
+                Download Word
+              </SmallBtn>
+              <SmallBtn disabled={busy} onClick={() => freeze(p)}>
+                Upload final PDF
+              </SmallBtn>
+            </>
           ) : (
             <span className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-700">
               {p.scrutiny?.status === "IN_PROGRESS" ? "Under scrutiny" : "Waiting for scrutiny"}

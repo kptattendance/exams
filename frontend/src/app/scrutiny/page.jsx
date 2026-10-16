@@ -6,7 +6,7 @@
 //            shown the note and the changed lines, and the Doc is deleted
 // The setter's name is never shown here.
 
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 
 import Modal from "../components/ui/Modal";
 import { useConfirm, useToast } from "../components/ui/Feedback";
@@ -39,6 +39,29 @@ export default function ScrutinyPage() {
   const [note, setNote] = useState("");
   const [scheme, setScheme] = useState(null);
   const [open, setOpen] = useState("");
+  // Google Docs tabs opened from here: paper id -> window. Finish waits until the tab is closed.
+  const tabs = useRef({});
+  const [openTabs, setOpenTabs] = useState([]);
+  const [closedConfirmed, setClosedConfirmed] = useState(false);
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      const still = Object.entries(tabs.current)
+        .filter(([, w]) => w && !w.closed)
+        .map(([id]) => id);
+      for (const id of Object.keys(tabs.current)) if (!still.includes(id)) delete tabs.current[id];
+      setOpenTabs((prev) => (prev.length === still.length && prev.every((x) => still.includes(x)) ? prev : still));
+    }, 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Opens only when the user clicks the button – never on its own
+  const openDoc = (p) => {
+    const w = window.open(p.scrutiny.editUrl, "_blank");
+    if (!w) return toast.error("Your browser blocked the new tab. Allow pop-ups for this site and click again.");
+    tabs.current[p._id] = w;
+    setOpenTabs((prev) => [...new Set([...prev, p._id])]);
+  };
   const [department, setDepartment] = useState("");
   const [semester, setSemester] = useState("");
   const [status, setStatus] = useState("");
@@ -60,18 +83,16 @@ export default function ScrutinyPage() {
 
   const replace = (p) => setPapers((list) => list.map((x) => (x._id === p._id ? p : x)));
 
+  // Prepares the Google Doc. Nothing opens here: the verification code box stays in
+  // front, and the doc opens only when "Open Google Doc" is clicked.
   const start = async (p) => {
-    // Open the tab now: browsers block tabs opened after a slow request
-    const tab = window.open("", "_blank");
     setBusy(p._id);
     try {
       const r = await api("post", `/paper-setting/${p._id}/scrutiny/start`);
       replace(r.data.data);
-      if (tab) tab.location.href = r.data.url;
-      else window.location.href = r.data.url;
+      toast.success("The paper is ready. Click “Open Google Doc” to edit it.");
     } catch (e) {
-      tab?.close();
-      toast.error(errMsg(e, "Could not open the paper."));
+      toast.error(errMsg(e, "Could not prepare the paper."));
     } finally {
       setBusy("");
     }
@@ -156,10 +177,22 @@ export default function ScrutinyPage() {
       )}
       {s.status === "IN_PROGRESS" ? (
         <>
-          <a href={s.editUrl} target="_blank" rel="noreferrer" className={`${pill} border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100`}>
-            Open doc
-          </a>
-          <button disabled={working} onClick={() => setFinishing(p)} className={`${pill} border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700`}>
+          <button onClick={() => openDoc(p)} className={`${pill} border-blue-600 bg-blue-600 text-white hover:bg-blue-700`}>
+            Open Google Doc
+          </button>
+          <button
+            disabled={working || openTabs.includes(p._id)}
+            onClick={() => {
+              setClosedConfirmed(false);
+              setFinishing(p);
+            }}
+            title={openTabs.includes(p._id) ? "Close the Google Doc tab first" : "Finish scrutiny"}
+            className={`${pill} ${
+              openTabs.includes(p._id)
+                ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
+                : "border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700"
+            }`}
+          >
             Finish
           </button>
           <button
@@ -171,10 +204,25 @@ export default function ScrutinyPage() {
             <Icon name="close" className="h-3.5 w-3.5" />
           </button>
         </>
-      ) : (
+      ) : s.status === "DONE" ? null /* finished scrutiny is final */ : (
         <button disabled={working} onClick={() => start(p)} className={`${pill} border-slate-900 bg-slate-900 text-white hover:bg-slate-700`}>
-          {working ? "Opening…" : s.status === "DONE" ? "Re-open" : "Scrutinise"}
+          {working ? "Opening…" : "Scrutinise"}
         </button>
+      )}
+      {s.status === "IN_PROGRESS" && (
+        <p
+          className={`basis-full rounded-lg px-2.5 py-1.5 text-right text-[11px] font-semibold ${
+            openTabs.includes(p._id) ? "bg-amber-100 text-amber-900" : "bg-blue-50 text-blue-800"
+          }`}
+        >
+          {openTabs.includes(p._id) ? (
+            <>
+              Google Doc is open. Make your changes, then <span className="underline decoration-2">CLOSE that tab</span> to enable Finish.
+            </>
+          ) : (
+            "Edit in the Google Doc, close its tab, then press Finish."
+          )}
+        </p>
       )}
       {s.status === "DONE" && (
         <button
@@ -404,7 +452,7 @@ export default function ScrutinyPage() {
             </button>
             <button
               onClick={finish}
-              disabled={Boolean(busy)}
+              disabled={Boolean(busy) || !closedConfirmed}
               className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
             >
               {busy ? "Saving…" : "Finish scrutiny"}
@@ -412,9 +460,18 @@ export default function ScrutinyPage() {
           </>
         }
       >
-        <p className="text-sm text-slate-600">
-          The Google Doc becomes the final paper and is then deleted. Close the Google Docs tab after pressing Finish.
+        <p className="rounded-xl bg-amber-100 px-3 py-2 text-sm font-semibold text-amber-900">
+          First CLOSE the Google Doc tab. Finishing is final: the paper cannot be opened for scrutiny again.
         </p>
+        <label className="mt-3 flex items-start gap-2 text-sm text-slate-700">
+          <input
+            type="checkbox"
+            checked={closedConfirmed}
+            onChange={(e) => setClosedConfirmed(e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-emerald-600"
+          />
+          I have closed the Google Doc and my corrections are complete.
+        </label>
         <label className="mt-4 block text-sm font-medium text-slate-700">
           Note for the setter (optional)
           <textarea

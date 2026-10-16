@@ -96,7 +96,7 @@ export default function PaperUploadPage() {
       setWarnings(res.data.warnings || []);
       setFile(null);
       setConfirmed(false);
-      toast.success("Paper uploaded. Check the preview below before you submit.");
+      toast.success("Paper uploaded – but NOT submitted yet. Check it below and press Final submit.", 8000);
       if (inputRef.current) inputRef.current.value = "";
     } catch (e) {
       setError(e.response?.data?.error || "Upload failed. Please try again.");
@@ -237,6 +237,28 @@ export default function PaperUploadPage() {
           <p className="font-semibold">Returned by COE for correction</p>
           <p className="mt-1 whitespace-pre-line">{paper.returnRemarks}</p>
           <p className="mt-2 text-xs">Correct your Word file, upload it again and submit.</p>
+        </div>
+      )}
+
+      {/* Reminder: uploaded is not submitted */}
+      {["UPLOADED", "RETURNED"].includes(paper.status) && paper.currentFile && (
+        <div className="rounded-2xl border-2 border-amber-400 bg-amber-50 p-4 sm:flex sm:items-center sm:gap-4">
+          <div className="flex-1">
+            <p className="text-base font-bold text-amber-900">⚠ Your paper is uploaded but NOT submitted yet</p>
+            <p className="mt-1 text-sm text-amber-900">
+              The COE receives it only after you press <b>Final submit</b>. Check the preview, tick the confirmation and submit
+              {paper.deadline ? ` before ${fmt(paper.deadline)}` : ""}.
+            </p>
+          </div>
+          {canSubmit && (
+            <button
+              type="button"
+              onClick={() => document.getElementById("final-submit")?.scrollIntoView({ behavior: "smooth", block: "center" })}
+              className="mt-3 shrink-0 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-amber-600 sm:mt-0"
+            >
+              Go to Final submit ↓
+            </button>
+          )}
         </div>
       )}
 
@@ -438,7 +460,7 @@ export default function PaperUploadPage() {
           )}
 
           {canSubmit && (
-            <div className="border-t border-slate-100 px-5 py-4">
+            <div id="final-submit" className="border-t-2 border-amber-300 bg-amber-50/60 px-5 py-4">
               <label className="flex items-start gap-3 text-sm text-slate-700">
                 <input
                   type="checkbox"
