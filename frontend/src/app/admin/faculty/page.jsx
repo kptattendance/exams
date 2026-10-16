@@ -1089,18 +1089,26 @@ const loadFaculty = async () => {
               {/* FACULTY TYPE */}
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold text-slate-600">Role</label>
-                  <select
-                    name="role"
-                    value={form.role}
-                    onChange={handleChange}
-                    className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100"
-                  >
-                    {STAFF_ROLE_OPTIONS.map((r) => (
-                      <option key={r.value} value={r.value}>
-                        {r.label}
-                      </option>
-                    ))}
-                  </select>
+                  {/* All roles visible at once: Faculty, Guest Lecturer, HOD, Principal, Vice-Principal */}
+                  <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Role">
+                    {STAFF_ROLE_OPTIONS.map((r) => {
+                      const on = (form.role || "staff") === r.value;
+                      return (
+                        <button
+                          key={r.value}
+                          type="button"
+                          role="radio"
+                          aria-checked={on}
+                          onClick={() => handleChange({ target: { name: "role", value: r.value } })}
+                          className={`rounded-xl border px-3.5 py-2 text-sm font-semibold transition ${
+                            on ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-400"
+                          }`}
+                        >
+                          {r.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* DESIGNATION */}
