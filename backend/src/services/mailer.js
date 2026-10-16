@@ -69,7 +69,7 @@ export async function sendPaperSettingEmail({ to, name, subject, paper, isRemind
     ${paper.instructions ? `<p><b>Instructions:</b><br/>${esc(paper.instructions).replace(/\n/g, "<br/>")}</p>` : ""}
     ${
       attachments.length
-        ? `<p>We have attached the syllabus of this subject and the scheme of setting the question paper
+        ? `<p>We have attached the syllabus of this subject and the table of specification of the question paper
            (${attachments.map((a) => esc(a.filename)).join(", ")}). Please set the paper as per these.</p>`
         : ""
     }
@@ -84,6 +84,11 @@ export async function sendPaperSettingEmail({ to, name, subject, paper, isRemind
       This link works only after you sign in with your college account.
       This is a confidential communication.
     </p>
+
+  <p style="font-size:13px; color:#475569; margin:24px 0;">
+  The formal appointment order will be issued separately
+  and sent to you by post.
+</p>
   </div>`;
 
   await t.sendMail({
