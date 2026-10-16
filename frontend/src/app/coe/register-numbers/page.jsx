@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
+import { sortOptions } from "../../components/sortOptions";
 
 const COLLEGE_CODE = "103";
 
@@ -15,6 +16,7 @@ const DEPARTMENTS = [
   { code: "ME", name: "Mechanical Engineering" },
   { code: "PS", name: "Polymer Science Engineering" },
 ];
+DEPARTMENTS.sort(sortOptions); // alphabetical in every drop-down
 
 const ADMISSION_TYPES = [
   {

@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import * as XLSX from "xlsx";
 import { ROLE_OPTIONS, roleLabel } from "../../components/roles";
 import AccountFilters, { useAccountFilters } from "../../components/AccountFilters";
+import { sortOptions } from "../../components/sortOptions";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -52,6 +53,7 @@ const departments = [
     label: "Others",
   },
 ];
+departments.sort(sortOptions); // alphabetical in every drop-down
 
 const roles = ROLE_OPTIONS;
 

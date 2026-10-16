@@ -9,7 +9,7 @@ import axios from "axios";
 import User, { DESIGNATIONS, normalizeDesignation, collegeOf } from "../models/User.js";
 import Student from "../models/Student.js";
 import Subject from "../models/Subject.js";
-import { ROLES } from "../config/roles.js";
+import { ROLES, STAFF_ROLES, normalizeStaffRole } from "../config/roles.js";
 // import Attendance from "../models/Attendance.js";
 // import IAMarks from "../models/IAMarks.js";
 
@@ -96,7 +96,7 @@ const ADMIN_ROLES = ["admin", "principal", "vice_principal", "coe", "acoe"];
 const rolePermissions = {
   admin: [...ROLES],
   principal: ["vice_principal", "acoe", "office", "exam_clerk", "qp_scrutinizer", "hod", "staff", "guest_lecturer"],
-  coe: ["acoe", "office", "exam_clerk", "qp_scrutinizer", "hod", "staff", "guest_lecturer"],
+  coe: ["principal", "vice_principal", "acoe", "office", "exam_clerk", "qp_scrutinizer", "hod", "staff", "guest_lecturer"],
   acoe: ["office", "exam_clerk", "hod", "staff", "guest_lecturer"],
   hod: ["staff", "guest_lecturer"],
 };
@@ -600,6 +600,9 @@ export const bulkUploadFaculty = async (
 
       const designation = normalizeDesignation(row.Designation ?? row.designation);
 
+      // Role column (optional): Faculty, Guest Lecturer, HOD, Principal, Vice-Principal
+      const role = normalizeStaffRole(row.Role ?? row.role);
+
       const photo = String(
         row.Photo ||
           row.photo ||
@@ -644,6 +647,22 @@ export const bulkUploadFaculty = async (
           email,
           message:
             "Invalid email address.",
+        });
+
+        continue;
+      }
+
+      if (role === null || !canManage(requesterRole, role)) {
+        results.failed++;
+
+        results.errors.push({
+          row: excelRow,
+          name,
+          email,
+          message:
+            role === null
+              ? "Invalid role. Use Faculty, Guest Lecturer, HOD, Principal or Vice-Principal."
+              : `You cannot add a user with the role ${role}.`,
         });
 
         continue;
@@ -750,7 +769,7 @@ export const bulkUploadFaculty = async (
               firstName: name,
 
               publicMetadata: {
-                role: "staff",
+                role,
                 department,
               },
             }
@@ -770,7 +789,7 @@ export const bulkUploadFaculty = async (
           collegeCode,
           collegeName,
           designation,
-          role: "staff",
+          role,
 
           clerkId:
             clerkUser.id,

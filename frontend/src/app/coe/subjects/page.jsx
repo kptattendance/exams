@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
 import * as XLSX from "xlsx";
+import { sortOptions } from "../../components/sortOptions";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -18,6 +19,7 @@ const departments = [
   { value: "ps", label: "Polymer Engineering" },
   { value: "sc", label: "Science & English" },
 ];
+departments.sort(sortOptions); // alphabetical in every drop-down
 
 const getDepartmentName = (value) => {
   return (

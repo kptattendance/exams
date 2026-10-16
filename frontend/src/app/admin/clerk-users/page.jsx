@@ -4,6 +4,7 @@ import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
 import { useEffect, useState } from "react";
 import AccountFilters, { useAccountFilters } from "../../components/AccountFilters";
+import { sortOptions } from "../../components/sortOptions";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -19,6 +20,7 @@ const departments = [
   { value: "sc", label: "Science & English" },
   { value: "ot", label: "Others" },
 ];
+departments.sort(sortOptions); // alphabetical in every drop-down
 
 const getDepartmentName = (value) => {
   return (

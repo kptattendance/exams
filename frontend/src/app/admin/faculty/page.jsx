@@ -6,6 +6,8 @@ import axios from "axios";
 import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { DESIGNATIONS } from "../../components/designations";
+import { sortOptions } from "../../components/sortOptions";
+import { STAFF_ROLE_OPTIONS, STAFF_ROLE_VALUES, roleLabel } from "../../components/roles";
 
 const departments = [
   { value: "", label: "Select department" },
@@ -20,6 +22,7 @@ const departments = [
   { value: "sc", label: "Science & English" },
   { value: "ot", label: "Others" },
 ];
+departments.sort(sortOptions); // alphabetical in every drop-down
 
 const getDepartmentName = (code) => {
   const department = departments.find(
@@ -91,7 +94,7 @@ const loadFaculty = async () => {
       : [];
 
     const facultyUsers = users.filter(
-      (user) => ["staff", "guest_lecturer"].includes(user.role?.toLowerCase())
+      (user) => STAFF_ROLE_VALUES.includes(user.role?.toLowerCase())
     );
 
     setFaculty(facultyUsers);
@@ -257,7 +260,7 @@ const loadFaculty = async () => {
       collegeCode: user.collegeCode || "",
       collegeName: user.collegeName || "",
       department: user.department || "",
-      role: user.role === "guest_lecturer" ? "guest_lecturer" : "staff",
+      role: STAFF_ROLE_VALUES.includes(user.role) ? user.role : "staff",
       image: null,
     });
 
@@ -835,7 +838,7 @@ const loadFaculty = async () => {
                             </p>
 
                             <p className="mt-0.5 truncate text-xs text-amber-600">
-                              {user.role === "guest_lecturer" ? "Guest Lecturer" : user.designation || "Faculty"}
+                              {user.role === "staff" ? user.designation || "Faculty" : roleLabel(user.role)}
                             </p>
 
                           </div>
@@ -1085,15 +1088,18 @@ const loadFaculty = async () => {
               {/* PHONE + DEPARTMENT */}
               {/* FACULTY TYPE */}
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Type</label>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Role</label>
                   <select
                     name="role"
                     value={form.role}
                     onChange={handleChange}
                     className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100"
                   >
-                    <option value="staff">Faculty</option>
-                    <option value="guest_lecturer">Guest Lecturer</option>
+                    {STAFF_ROLE_OPTIONS.map((r) => (
+                      <option key={r.value} value={r.value}>
+                        {r.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
 

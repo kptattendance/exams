@@ -5,6 +5,8 @@ import axios from "axios";
 import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { DESIGNATIONS } from "../../../components/designations";
+import { sortOptions } from "../../../components/sortOptions";
+import { STAFF_ROLE_OPTIONS, STAFF_ROLE_VALUES, roleLabel } from "../../../components/roles";
 const departments = [
   { value: "", label: "Select department" },
   { value: "at", label: "Automobile Engineering" },
@@ -18,6 +20,7 @@ const departments = [
   { value: "sc", label: "Science & English" },
   { value: "ot", label: "Others" },
 ];
+departments.sort(sortOptions); // alphabetical in every drop-down
 
 const getDepartmentName = (code) => {
   const department = departments.find((item) => item.value === code);
@@ -80,7 +83,7 @@ export default function FacultyPage() {
       const users = Array.isArray(response.data?.data) ? response.data.data : [];
 
       const facultyUsers = users.filter(
-        (user) => ["staff", "guest_lecturer"].includes(user.role?.toLowerCase())
+        (user) => STAFF_ROLE_VALUES.includes(user.role?.toLowerCase())
       );
 
       setFaculty(facultyUsers);
@@ -242,7 +245,7 @@ export default function FacultyPage() {
       phone: user.phone || "",
       designation: user.designation || "",
       department: user.department || "",
-      role: user.role === "guest_lecturer" ? "guest_lecturer" : "staff",
+      role: STAFF_ROLE_VALUES.includes(user.role) ? user.role : "staff",
       image: null,
     });
 
@@ -493,6 +496,7 @@ const downloadBulkTemplate = () => {
       "College Code",
       "College Name",
       "Designation",
+      "Role",
     ],
 
     [
@@ -504,6 +508,7 @@ const downloadBulkTemplate = () => {
       "",
       "",
       "Lecturer",
+      "Faculty",
     ],
 
     [
@@ -515,6 +520,7 @@ const downloadBulkTemplate = () => {
       "",
       "",
       "Senior Grade Lecturer",
+      "HOD",
     ],
 
     [
@@ -526,6 +532,7 @@ const downloadBulkTemplate = () => {
       "135",
       "Government Polytechnic, Udupi",
       "Selection Grade Lecturer",
+      "Guest Lecturer",
     ],
   ];
 
@@ -542,6 +549,7 @@ const downloadBulkTemplate = () => {
     { wch: 14 }, // College Code
     { wch: 40 }, // College Name
     { wch: 26 }, // Designation
+    { wch: 18 }, // Role
   ];
 
   // Make Phone column text
@@ -976,7 +984,7 @@ const handleBulkUpload = async () => {
                             </p>
 
                             <p className="mt-0.5 truncate text-xs text-slate-400">
-                              {user.role === "guest_lecturer" ? "Guest Lecturer" : user.designation || "Faculty"}
+                              {user.role === "staff" ? user.designation || "Faculty" : roleLabel(user.role)}
                             </p>
                           </div>
 
@@ -1137,7 +1145,7 @@ const handleBulkUpload = async () => {
                       Step 1 — Download template
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
-                      Required columns: Name, Email, Phone, Department. Designation: Lecturer, Senior Grade Lecturer or Selection Grade Lecturer. External examiners: also fill College Code and College Name (leave both empty for our own faculty, college 103).
+                      Required columns: Name, Email, Phone, Department. Designation: Lecturer, Senior Grade Lecturer or Selection Grade Lecturer. Role (optional, default Faculty): Faculty, Guest Lecturer, HOD, Principal or Vice-Principal. External examiners: also fill College Code and College Name (leave both empty for our own faculty, college 103).
                     </p>
                   </div>
 
@@ -1386,15 +1394,18 @@ const handleBulkUpload = async () => {
 
               {/* FACULTY TYPE */}
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Type</label>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Role</label>
                   <select
                     name="role"
                     value={form.role}
                     onChange={handleChange}
                     className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100"
                   >
-                    <option value="staff">Faculty</option>
-                    <option value="guest_lecturer">Guest Lecturer</option>
+                    {STAFF_ROLE_OPTIONS.map((r) => (
+                      <option key={r.value} value={r.value}>
+                        {r.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
 

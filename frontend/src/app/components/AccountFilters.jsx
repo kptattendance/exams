@@ -8,6 +8,7 @@ import { useMemo, useState } from "react";
 
 import { ROLE_OPTIONS } from "./roles";
 import { DESIGNATIONS } from "./designations";
+import { sortOptions } from "./sortOptions";
 
 const DEPARTMENTS = [
   ["at", "Automobile"],
@@ -23,6 +24,8 @@ const DEPARTMENTS = [
 ];
 
 const ROLES = [...ROLE_OPTIONS.map((r) => [r.value, r.label]), ["staff", "Faculty"], ["student", "Student"]];
+ROLES.sort(sortOptions);
+DEPARTMENTS.sort(sortOptions);
 
 const EMPTY = { search: "", role: "", department: "", semester: "", designation: "", college: "" };
 const lower = (v) => String(v ?? "").trim().toLowerCase();

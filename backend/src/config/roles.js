@@ -43,5 +43,19 @@ export const normalizeRole = (role) => {
 
 // Roles that teach: may set question papers and be practical examiners
 export const FACULTY_ROLES = ["staff", "guest_lecturer", "hod"];
+
+// Roles that can be added from the Faculty pages (single or Excel)
+export const STAFF_ROLES = ["staff", "guest_lecturer", "hod", "principal", "vice_principal"];
+
+// "Guest Lecturer" / "HOD" / "Vice Principal" / "" -> role value; null if unknown
+export function normalizeStaffRole(value) {
+  const v = String(value ?? "").trim().toLowerCase().replace(/[\s_-]+/g, " ");
+  if (!v || v === "faculty" || v === "staff" || v === "lecturer") return "staff";
+  if (v === "guest lecturer" || v === "guest") return "guest_lecturer";
+  if (v === "hod" || v === "head of department") return "hod";
+  if (v === "principal") return "principal";
+  if (v === "vice principal" || v === "vp") return "vice_principal";
+  return null;
+}
 // Read-only heads of the institution
 export const HEAD_ROLES = ["principal", "vice_principal"];

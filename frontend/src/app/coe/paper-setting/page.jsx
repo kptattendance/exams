@@ -5,6 +5,7 @@ import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
 
 import { useConfirm, useToast } from "../../components/ui/Feedback";
+import { sortOptions } from "../../components/sortOptions";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -20,6 +21,7 @@ const departments = [
   { value: "sc", label: "Science & English" },
   { value: "ot", label: "Other / External" },
 ];
+departments.sort(sortOptions); // alphabetical in every drop-down
 
 const STATUS_STYLE = {
   ASSIGNED: "bg-slate-100 text-slate-700",

@@ -3,6 +3,7 @@
 import { useCallback, useRef } from "react";
 import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
+import { sortOptions } from "../sortOptions";
 
 const BASE = `${process.env.NEXT_PUBLIC_API_URL}/api`;
 
@@ -32,6 +33,7 @@ export const DEPARTMENTS = [
   { value: "me", label: "Mechanical" },
   { value: "ps", label: "Polymer" },
 ];
+DEPARTMENTS.sort(sortOptions); // alphabetical in every drop-down
 export const deptLabel = (d) => DEPARTMENTS.find((x) => x.value === String(d).toLowerCase())?.label || String(d).toUpperCase();
 
 export const ADMISSION_SHORT = {

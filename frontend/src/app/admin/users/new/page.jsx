@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ROLE_OPTIONS } from "../../../components/roles";
+import { sortOptions } from "../../../components/sortOptions";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -55,6 +56,7 @@ const departments = [
     label: "Others",
   },
 ];
+departments.sort(sortOptions); // alphabetical in every drop-down
 
 const roles = [
   { value: "", label: "Select Role" },
