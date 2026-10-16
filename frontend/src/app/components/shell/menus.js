@@ -8,7 +8,6 @@
 export const HOME_BY_ROLE = {
   admin: "/admin",
   principal: "/coe", // view only; the server refuses changes
-  vice_principal: "/coe", // view only
   coe: "/coe",
   acoe: "/coe",
   office: "/office",
@@ -17,7 +16,6 @@ export const HOME_BY_ROLE = {
   qp_scrutinizer: "/scrutiny",
   hod: "/hod",
   staff: "/faculty",
-  guest_lecturer: "/faculty",
 };
 
 export const MENUS = {

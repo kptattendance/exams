@@ -31,8 +31,8 @@ const router = express.Router();
 // enters the marks; only the Admin corrects them later.
 const ALLOT = requireRole("coe", "acoe", "admin");
 const BATCHES = requireRole("hod", "coe", "acoe", "admin");
-const VIEW = requireRole("hod", "coe", "acoe", "admin", "office", "principal", "vice_principal");
-const EXAMINER = requireRole("staff", "guest_lecturer", "hod");
+const VIEW = requireRole("hod", "coe", "acoe", "admin", "office", "principal");
+const EXAMINER = requireRole("staff", "hod");
 
 router.use(authenticateUser);
 

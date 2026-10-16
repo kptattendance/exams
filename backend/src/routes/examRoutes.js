@@ -46,7 +46,7 @@ const router = express.Router();
 
 // COE and Admin run exams; Exam Officer and Principal can look
 const MANAGE = requireRole("coe", "acoe", "admin");
-const VIEW = requireRole("coe", "acoe", "admin", "office", "principal", "vice_principal");
+const VIEW = requireRole("coe", "acoe", "admin", "office", "principal");
 // Fee verification: office staff, COE, Admin
 const FEES = requireRole("office", "coe", "acoe", "admin");
 // Subject changes on hall tickets (back papers added / removed by hand): office too

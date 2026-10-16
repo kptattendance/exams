@@ -1,2 +1,10 @@
 // Faculty designations – keep in step with backend models/User.js
-export const DESIGNATIONS = ["Lecturer", "Senior Grade Lecturer", "Selection Grade Lecturer"];
+export const DESIGNATIONS = [
+  "Guest Lecturer",
+  "HOD",
+  "Lecturer",
+  "Principal",
+  "Selection Grade Lecturer",
+  "Senior Grade Lecturer",
+  "Vice-Principal",
+]; // alphabetical

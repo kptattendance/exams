@@ -58,7 +58,7 @@ const userSchema = new mongoose.Schema(
       default: "",
     },
 
-    // Lecturer / Senior Grade Lecturer / Selection Grade Lecturer (see DESIGNATIONS)
+    // Lecturer, Senior / Selection Grade Lecturer, HOD, Vice-Principal, Principal, Guest Lecturer (see DESIGNATIONS)
     designation: { type: String, trim: true, default: "" },
 
     // The examiner's institution. Empty = our own college (see collegeOf)
@@ -81,16 +81,28 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-export const DESIGNATIONS = ["Lecturer", "Senior Grade Lecturer", "Selection Grade Lecturer"];
+export const DESIGNATIONS = [
+  "Lecturer",
+  "Senior Grade Lecturer",
+  "Selection Grade Lecturer",
+  "HOD",
+  "Vice-Principal",
+  "Principal",
+  "Guest Lecturer",
+];
 
 // "SELECTION GRADE LECTURER" / "selection grade" -> "Selection Grade Lecturer";
 // "" stays ""; anything else -> null (invalid)
 export function normalizeDesignation(value) {
-  const v = String(value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+  const v = String(value ?? "").trim().toLowerCase().replace(/[\s_-]+/g, " ");
   if (!v) return "";
-  if (v.startsWith("selection")) return DESIGNATIONS[2];
-  if (v.startsWith("senior")) return DESIGNATIONS[1];
-  if (v === "lecturer") return DESIGNATIONS[0];
+  if (v.startsWith("selection")) return "Selection Grade Lecturer";
+  if (v.startsWith("senior")) return "Senior Grade Lecturer";
+  if (v === "lecturer") return "Lecturer";
+  if (v === "hod" || v === "head of department" || v === "head of the department") return "HOD";
+  if (v === "vice principal" || v === "vp") return "Vice-Principal";
+  if (v === "principal") return "Principal";
+  if (v === "guest lecturer" || v === "guest faculty") return "Guest Lecturer";
   return null;
 }
 

@@ -6,7 +6,6 @@ import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { DESIGNATIONS } from "../../../components/designations";
 import { sortOptions } from "../../../components/sortOptions";
-import { STAFF_ROLE_OPTIONS, STAFF_ROLE_VALUES, roleLabel } from "../../../components/roles";
 
 const departments = [
   { value: "", label: "Select department" },
@@ -92,7 +91,7 @@ const loadFaculty = async () => {
       : [];
 
     const facultyUsers = users.filter(
-      (user) => STAFF_ROLE_VALUES.includes(user.role?.toLowerCase())
+      (user) => user.role?.toLowerCase() === "staff"
     );
 
     setFaculty(facultyUsers);
@@ -254,7 +253,7 @@ const loadFaculty = async () => {
       phone: user.phone || "",
       designation: user.designation || "",
       department: user.department || "",
-      role: STAFF_ROLE_VALUES.includes(user.role) ? user.role : "staff",
+      role: "staff",
       image: null,
     });
 
@@ -504,7 +503,6 @@ const loadFaculty = async () => {
         "College Code",
         "College Name",
         "Designation",
-        "Role",
       ],
 
       [
@@ -516,7 +514,6 @@ const loadFaculty = async () => {
         "",
         "",
         "Lecturer",
-        "Faculty",
       ],
 
       [
@@ -528,7 +525,6 @@ const loadFaculty = async () => {
         "",
         "",
         "Senior Grade Lecturer",
-        "HOD",
       ],
 
       [
@@ -540,7 +536,6 @@ const loadFaculty = async () => {
         "135",
         "Government Polytechnic, Udupi",
         "Selection Grade Lecturer",
-        "Guest Lecturer",
       ],
     ];
 
@@ -557,7 +552,6 @@ const loadFaculty = async () => {
       { wch: 14 }, // College Code
       { wch: 40 }, // College Name
       { wch: 26 }, // Designation
-      { wch: 18 }, // Role
     ];
 
     // Make Phone column text
@@ -1028,7 +1022,7 @@ const loadFaculty = async () => {
                             </p>
 
                             <p className="mt-0.5 truncate text-xs text-amber-600">
-                              {user.role === "staff" ? user.designation || "Faculty" : roleLabel(user.role)}
+                              {user.designation || "Faculty"}
                             </p>
 
                           </div>
@@ -1224,7 +1218,7 @@ const loadFaculty = async () => {
                     </p>
 
                     <p className="mt-1 text-xs text-amber-700">
-                      Required columns: Name, Email, Phone, Department. Designation: Lecturer, Senior Grade Lecturer or Selection Grade Lecturer. Role (optional, default Faculty): Faculty, Guest Lecturer, HOD, Principal or Vice-Principal. External examiners: also fill College Code and College Name (leave both empty for our own faculty, college 103).
+                      Required columns: Name, Email, Phone, Department. Designation: Lecturer, Senior Grade Lecturer, Selection Grade Lecturer, HOD, Vice-Principal, Principal or Guest Lecturer. External examiners: also fill College Code and College Name (leave both empty for our own faculty, college 103).
                     </p>
 
                   </div>
@@ -1530,32 +1524,7 @@ const loadFaculty = async () => {
 
               </div>
 
-              {/* FACULTY TYPE */}
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Role</label>
-                  {/* All roles visible at once: Faculty, Guest Lecturer, HOD, Principal, Vice-Principal */}
-                  <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Role">
-                    {STAFF_ROLE_OPTIONS.map((r) => {
-                      const on = (form.role || "staff") === r.value;
-                      return (
-                        <button
-                          key={r.value}
-                          type="button"
-                          role="radio"
-                          aria-checked={on}
-                          onClick={() => handleChange({ target: { name: "role", value: r.value } })}
-                          className={`rounded-xl border px-3.5 py-2 text-sm font-semibold transition ${
-                            on ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-400"
-                          }`}
-                        >
-                          {r.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* DESIGNATION */}
+              {/* DESIGNATION */}
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold text-slate-600">Designation</label>
                   <select

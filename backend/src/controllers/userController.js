@@ -9,7 +9,7 @@ import axios from "axios";
 import User, { DESIGNATIONS, normalizeDesignation, collegeOf } from "../models/User.js";
 import Student from "../models/Student.js";
 import Subject from "../models/Subject.js";
-import { ROLES, STAFF_ROLES, normalizeStaffRole } from "../config/roles.js";
+import { ROLES } from "../config/roles.js";
 // import Attendance from "../models/Attendance.js";
 // import IAMarks from "../models/IAMarks.js";
 
@@ -90,15 +90,15 @@ export const getDashboardStats = async (req, res) => {
 const ALL_ROLES = ROLES;
 
 // Roles that may open the login-accounts list
-const ADMIN_ROLES = ["admin", "principal", "vice_principal", "coe", "acoe"];
+const ADMIN_ROLES = ["admin", "principal", "coe", "acoe"];
 
 // Which roles each role may create, edit and delete
 const rolePermissions = {
   admin: [...ROLES],
-  principal: ["vice_principal", "acoe", "office", "exam_clerk", "qp_scrutinizer", "hod", "staff", "guest_lecturer"],
-  coe: ["principal", "vice_principal", "acoe", "office", "exam_clerk", "qp_scrutinizer", "hod", "staff", "guest_lecturer"],
-  acoe: ["office", "exam_clerk", "hod", "staff", "guest_lecturer"],
-  hod: ["staff", "guest_lecturer"],
+  principal: ["acoe", "office", "exam_clerk", "qp_scrutinizer", "hod", "staff"],
+  coe: ["acoe", "office", "exam_clerk", "qp_scrutinizer", "hod", "staff"],
+  acoe: ["office", "exam_clerk", "hod", "staff"],
+  hod: ["staff"],
 };
 
 
@@ -600,9 +600,6 @@ export const bulkUploadFaculty = async (
 
       const designation = normalizeDesignation(row.Designation ?? row.designation);
 
-      // Role column (optional): Faculty, Guest Lecturer, HOD, Principal, Vice-Principal
-      const role = normalizeStaffRole(row.Role ?? row.role);
-
       const photo = String(
         row.Photo ||
           row.photo ||
@@ -647,22 +644,6 @@ export const bulkUploadFaculty = async (
           email,
           message:
             "Invalid email address.",
-        });
-
-        continue;
-      }
-
-      if (role === null || !canManage(requesterRole, role)) {
-        results.failed++;
-
-        results.errors.push({
-          row: excelRow,
-          name,
-          email,
-          message:
-            role === null
-              ? "Invalid role. Use Faculty, Guest Lecturer, HOD, Principal or Vice-Principal."
-              : `You cannot add a user with the role ${role}.`,
         });
 
         continue;
@@ -769,7 +750,7 @@ export const bulkUploadFaculty = async (
               firstName: name,
 
               publicMetadata: {
-                role,
+                role: "staff",
                 department,
               },
             }
@@ -789,7 +770,7 @@ export const bulkUploadFaculty = async (
           collegeCode,
           collegeName,
           designation,
-          role,
+          role: "staff",
 
           clerkId:
             clerkUser.id,
@@ -1241,7 +1222,7 @@ export const getUsers = async (req, res) => {
       filter.department = requesterDepartment;
 
       // HOD faculty page should show only staff
-      filter.role = { $in: ["staff", "guest_lecturer"] };
+      filter.role = "staff";
     }
 
     // =====================================================

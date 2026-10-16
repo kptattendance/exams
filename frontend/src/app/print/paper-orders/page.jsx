@@ -42,6 +42,10 @@ const DESIGNATION_KN = {
   "Senior Grade Lecturer": "ಹಿರಿಯ ಶ್ರೇಣಿ ಉಪನ್ಯಾಸಕರು",
   "Senior Lecturer": "ಹಿರಿಯ ಉಪನ್ಯಾಸಕರು",
   "Selection Grade Lecturer": "ಆಯ್ಕೆ ಶ್ರೇಣಿ ಉಪನ್ಯಾಸಕರು",
+  HOD: "ವಿಭಾಗ ಮುಖ್ಯಸ್ಥರು",
+  "Vice-Principal": "ಉಪ ಪ್ರಾಂಶುಪಾಲರು",
+  Principal: "ಪ್ರಾಂಶುಪಾಲರು",
+  "Guest Lecturer": "ಅತಿಥಿ ಉಪನ್ಯಾಸಕರು",
 };
 
 function sessionParts(session) {

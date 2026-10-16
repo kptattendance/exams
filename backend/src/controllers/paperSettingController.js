@@ -61,7 +61,7 @@ const POPULATE = [
 //   INTERNAL = our own faculty (college 103), EXTERNAL = any other college
 export const listExaminers = async (req, res) => {
   try {
-    const filter = { role: { $in: ["staff", "guest_lecturer", "hod"] } };
+    const filter = { role: { $in: ["staff", "hod"] } };
     if (req.query.department) filter.department = String(req.query.department).toLowerCase();
     const home = { $in: ["", null, HOME_COLLEGE.code] };
     if (req.query.type === "INTERNAL") filter.collegeCode = home;

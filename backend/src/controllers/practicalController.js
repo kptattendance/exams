@@ -210,7 +210,7 @@ export const practicalExams = async (req, res) => {
 
 // GET /api/practicals/examiners – staff who can be an internal examiner
 export const listExaminers = async (req, res) => {
-  const users = await User.find({ role: { $in: ["staff", "guest_lecturer", "hod"] } }).select("name email phone department role").sort({ department: 1, name: 1 }).lean();
+  const users = await User.find({ role: { $in: ["staff", "hod"] } }).select("name email phone department role").sort({ department: 1, name: 1 }).lean();
   res.json({ data: users });
 };
 
@@ -257,7 +257,7 @@ export const listPanels = async (req, res) => {
 async function readExaminers(req) {
   if (!isId(req.body?.internalId)) return { error: "Choose the internal examiner." };
   const user = await User.findById(req.body.internalId).select("name email phone role clerkId").lean();
-  if (!user?.clerkId || !["staff", "guest_lecturer", "hod"].includes(user.role)) return { error: "The internal examiner must be a staff member with a login." };
+  if (!user?.clerkId || !["staff", "hod"].includes(user.role)) return { error: "The internal examiner must be a staff member with a login." };
   const ext = req.body?.external || {};
   const external = {
     name: String(ext.name || "").trim().slice(0, 80),

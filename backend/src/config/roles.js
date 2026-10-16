@@ -4,7 +4,6 @@
 //
 //   admin          – user accounts, settings, academic year, mark corrections
 //   principal      – sees everything, changes nothing
-//   vice_principal – same as the principal
 //   coe            – Controller of Examinations: runs the exams, opens question papers
 //   acoe           – Assistant COE: everything the COE does except opening question papers
 //   office         – exam section: fee verification, freezing IA and attendance,
@@ -14,14 +13,12 @@
 //   qp_scrutinizer – scrutinises the submitted question papers
 //   hod            – department: IA, attendance, electives, practical batches
 //   staff          – faculty: question paper setting, practical marks
-//   guest_lecturer – same work as faculty
 //
 // Students do not sign in; results are looked up publicly.
 
 export const ROLE_LABELS = {
   admin: "Administrator",
   principal: "Principal",
-  vice_principal: "Vice-Principal",
   coe: "Controller of Examinations",
   acoe: "Assistant COE",
   office: "Exam section (office)",
@@ -29,7 +26,6 @@ export const ROLE_LABELS = {
   qp_scrutinizer: "QP scrutiniser",
   hod: "Head of Department",
   staff: "Faculty",
-  guest_lecturer: "Guest Lecturer",
 };
 
 export const ROLES = Object.keys(ROLE_LABELS);
@@ -41,21 +37,3 @@ export const normalizeRole = (role) => {
   return LEGACY[r] || r || null;
 };
 
-// Roles that teach: may set question papers and be practical examiners
-export const FACULTY_ROLES = ["staff", "guest_lecturer", "hod"];
-
-// Roles that can be added from the Faculty pages (single or Excel)
-export const STAFF_ROLES = ["staff", "guest_lecturer", "hod", "principal", "vice_principal"];
-
-// "Guest Lecturer" / "HOD" / "Vice Principal" / "" -> role value; null if unknown
-export function normalizeStaffRole(value) {
-  const v = String(value ?? "").trim().toLowerCase().replace(/[\s_-]+/g, " ");
-  if (!v || v === "faculty" || v === "staff" || v === "lecturer") return "staff";
-  if (v === "guest lecturer" || v === "guest") return "guest_lecturer";
-  if (v === "hod" || v === "head of department") return "hod";
-  if (v === "principal") return "principal";
-  if (v === "vice principal" || v === "vp") return "vice_principal";
-  return null;
-}
-// Read-only heads of the institution
-export const HEAD_ROLES = ["principal", "vice_principal"];

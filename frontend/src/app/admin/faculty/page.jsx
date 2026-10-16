@@ -7,7 +7,6 @@ import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { DESIGNATIONS } from "../../components/designations";
 import { sortOptions } from "../../components/sortOptions";
-import { STAFF_ROLE_OPTIONS, STAFF_ROLE_VALUES, roleLabel } from "../../components/roles";
 
 const departments = [
   { value: "", label: "Select department" },
@@ -94,7 +93,7 @@ const loadFaculty = async () => {
       : [];
 
     const facultyUsers = users.filter(
-      (user) => STAFF_ROLE_VALUES.includes(user.role?.toLowerCase())
+      (user) => user.role?.toLowerCase() === "staff"
     );
 
     setFaculty(facultyUsers);
@@ -260,7 +259,7 @@ const loadFaculty = async () => {
       collegeCode: user.collegeCode || "",
       collegeName: user.collegeName || "",
       department: user.department || "",
-      role: STAFF_ROLE_VALUES.includes(user.role) ? user.role : "staff",
+      role: "staff",
       image: null,
     });
 
@@ -838,7 +837,7 @@ const loadFaculty = async () => {
                             </p>
 
                             <p className="mt-0.5 truncate text-xs text-amber-600">
-                              {user.role === "staff" ? user.designation || "Faculty" : roleLabel(user.role)}
+                              {user.designation || "Faculty"}
                             </p>
 
                           </div>
@@ -1086,32 +1085,7 @@ const loadFaculty = async () => {
               </div>
 
               {/* PHONE + DEPARTMENT */}
-              {/* FACULTY TYPE */}
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Role</label>
-                  {/* All roles visible at once: Faculty, Guest Lecturer, HOD, Principal, Vice-Principal */}
-                  <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Role">
-                    {STAFF_ROLE_OPTIONS.map((r) => {
-                      const on = (form.role || "staff") === r.value;
-                      return (
-                        <button
-                          key={r.value}
-                          type="button"
-                          role="radio"
-                          aria-checked={on}
-                          onClick={() => handleChange({ target: { name: "role", value: r.value } })}
-                          className={`rounded-xl border px-3.5 py-2 text-sm font-semibold transition ${
-                            on ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-400"
-                          }`}
-                        >
-                          {r.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* DESIGNATION */}
+              {/* DESIGNATION */}
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold text-slate-600">Designation</label>
                   <select

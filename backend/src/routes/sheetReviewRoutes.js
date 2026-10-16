@@ -8,7 +8,7 @@ import { requireStepUp } from "../services/stepUp.js";
 const router = express.Router();
 
 // Exam Officer freezes; COE can also freeze (and Admin can look)
-const VIEW = requireRole("office", "coe", "acoe", "admin", "principal", "vice_principal");
+const VIEW = requireRole("office", "coe", "acoe", "admin", "principal");
 const DECIDE = requireRole("office", "coe", "acoe");
 
 router.use(authenticateUser);
