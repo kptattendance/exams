@@ -29,7 +29,53 @@ function getTransporter() {
     secure: port === 465,
     auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
   });
+
+  // Every email: a sender that matches the signed-in account, replies to the
+  // MAIL_FROM address, and a plain-text copy next to the HTML (spam filters
+  // distrust HTML-only mail).
+  const send = transporter.sendMail.bind(transporter);
+  transporter.sendMail = (msg) => {
+    const { from, replyTo } = senderFor();
+    return send({ ...msg, from, replyTo: msg.replyTo || replyTo, text: msg.text || htmlToText(msg.html) });
+  };
   return transporter;
+}
+
+// Gmail sends only as the signed-in account (SMTP_USER). A From address that is
+// a different mailbox looks forged and lands in spam, so only the display name
+// is taken from MAIL_FROM and its address is used for replies. If that address is
+// added in Gmail under "Send mail as" (verified), set MAIL_FROM_VERIFIED=true.
+export function senderFor(env = process.env) {
+  const user = String(env.SMTP_USER || "").trim();
+  const m = String(env.MAIL_FROM || "").match(/^\s*"?([^"<]*?)"?\s*<\s*([^>\s]+)\s*>\s*$/);
+  const name = (m?.[1] || "COE, KPT Mangaluru").trim();
+  const wanted = (m?.[2] || "").trim();
+  const same = !wanted || wanted.toLowerCase() === user.toLowerCase();
+  const address = same || env.MAIL_FROM_VERIFIED === "true" ? wanted || user : user;
+  return {
+    from: { name, address },
+    replyTo: !same && address !== wanted ? wanted : undefined,
+  };
+}
+
+// Plain-text version of an HTML email
+export function htmlToText(html) {
+  if (!html) return undefined;
+  return String(html)
+    .replace(/<a\b[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi, (_, href, label) => `${label.replace(/<[^>]+>/g, "").trim()}: ${href}`)
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|h[1-6]|li|tr)>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/[ \t]+/g, " ")
+    .replace(/ *\n */g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 const esc = (s) =>
