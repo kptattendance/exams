@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { errMsg, useApi } from "../../components/exams/shared";
 
-const REF_PREFIX = "ಕೆಪಿಎಂ/29/ಸ್ವಾಯತ್ತತೆ (ಪರೀಕ್ಷೆ)";
+const REF_PREFIX = "ಕೆಪಿಎಂ/35/ಸ್ವಾಯತ್ತತೆ (ಪರೀಕ್ಷೆ)";
 const SCHEME = "C-25";
 const HELP_PHONES = "9448104224, 9481115003";
 const INSTITUTION = "Karnataka (Govt.) Polytechnic, Mangaluru";
@@ -15,7 +15,7 @@ const INSTITUTION_CODE = "103";
 const FOOTER_KN = [
   "ಕರ್ನಾಟಕ (ಸರ್ಕಾರಿ) ಪಾಲಿಟೆಕ್ನಿಕ್ (ಸ್ವಾಯತ್ತ), ಮಂಗಳೂರು",
   "ಕದ್ರಿ ಹಿಲ್ಸ್, ಮಂಗಳೂರು - 575004, ದಕ್ಷಿಣ ಕನ್ನಡ, ಕರ್ನಾಟಕ",
-  "Phone No. 0824 – 3516910 / 2211636, E-Mail: kptmng@gmail.com",
+  "Phone No. 0824 – 3516910 / 2211636, E-Mail: kptmng@gmail.com / coekpt25@gmail.com",
 ];
 
 const SESSION_KN = {

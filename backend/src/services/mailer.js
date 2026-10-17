@@ -127,7 +127,7 @@ export async function sendPaperSettingEmail({ to, name, subject, paper, isRemind
     <p style="font-size:13px;color:#475569">
       Please upload the paper only through the website (Word .docx format).
       <b>Do not send the question paper by email or WhatsApp.</b>
-      This link works only after you sign in with your college account.
+      This link works only after you sign in with your mail account.
       This is a confidential communication.
     </p>
 
