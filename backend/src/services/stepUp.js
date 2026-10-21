@@ -14,8 +14,10 @@
 // Env:
 //   STEP_UP_SECRET          signing key for the passes (falls back to a hash of CLERK_SECRET_KEY)
 //   STEP_UP_DISABLED=true   switch the whole thing off (testing only)
-//   MSG91_AUTH_KEY          MSG91 account key            ┐ when both are set,
-//   MSG91_OTP_TEMPLATE_ID   DLT-approved OTP template id ┘ codes go by SMS
+//   TWOFACTOR_API_KEY       2Factor.in API key – when set, codes go by SMS through 2Factor
+//   TWOFACTOR_OTP_TEMPLATE  name of the approved OTP template in 2Factor (optional; default template if blank)
+//   MSG91_AUTH_KEY          MSG91 account key            ┐ used instead when both are set
+//   MSG91_OTP_TEMPLATE_ID   DLT-approved OTP template id ┘ and no 2Factor key
 //   MSG91_OTP_VAR           name of the code variable in the template (default "otp")
 
 import crypto from "node:crypto";
@@ -67,7 +69,9 @@ export const requireStepUp = (scope) => (req, res, next) => {
 
 // ------------------------------------------------------------------ SMS
 
-export const smsReady = () => Boolean(process.env.MSG91_AUTH_KEY && process.env.MSG91_OTP_TEMPLATE_ID);
+const twoFactorReady = () => Boolean(process.env.TWOFACTOR_API_KEY);
+const msg91Ready = () => Boolean(process.env.MSG91_AUTH_KEY && process.env.MSG91_OTP_TEMPLATE_ID);
+export const smsReady = () => twoFactorReady() || msg91Ready();
 
 // "98450 12345" / "+91-9845012345" -> "919845012345"; null if not an Indian mobile
 export function indianMobile(phone) {
@@ -76,9 +80,22 @@ export function indianMobile(phone) {
   return /^[6-9]\d{9}$/.test(ten) ? `91${ten}` : null;
 }
 
+export const sendOtpSms = (mobile, code) => (twoFactorReady() ? sendOtp2Factor(mobile, code) : sendOtpMsg91(mobile, code));
+
+// 2Factor.in "custom OTP" API – we generate and check the code ourselves, 2Factor only delivers it:
+//   GET https://2factor.in/API/V1/{api_key}/SMS/{10-digit mobile}/{otp}/{template_name}
+//   → { Status: "Success", Details: "<session id>" } or { Status: "Error", Details: "<reason>" }
+async function sendOtp2Factor(mobile, code) {
+  const parts = [process.env.TWOFACTOR_API_KEY, "SMS", String(mobile).slice(-10), code, process.env.TWOFACTOR_OTP_TEMPLATE];
+  const url = `https://2factor.in/API/V1/${parts.filter(Boolean).map(encodeURIComponent).join("/")}`;
+  const r = await axios.get(url, { timeout: 8000, validateStatus: () => true });
+  if (r.data?.Status !== "Success") throw new Error(`2Factor: ${r.data?.Details || `HTTP ${r.status}`}`);
+  return true;
+}
+
 // MSG91 "Flow" API with a DLT-approved template, e.g.
 //   "##otp## is your KPT Exams verification code. Valid for 10 minutes. -KPTMNG"
-export async function sendOtpSms(mobile, code) {
+async function sendOtpMsg91(mobile, code) {
   const variable = process.env.MSG91_OTP_VAR || "otp";
   const r = await axios.post(
     "https://control.msg91.com/api/v5/flow",

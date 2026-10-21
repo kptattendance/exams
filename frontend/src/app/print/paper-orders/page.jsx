@@ -155,52 +155,52 @@ function PrintOrders() {
         @media screen {
           .sheet {
             margin: 18px auto;
-            box-shadow: 0 3px 12px rgba(15, 23, 42, 0.16);
+            box-shadow: 0 3px 12px rgba(19, 15, 46, 0.16);
           }
         }
 
         .official-blue {
-          color: #17365d;
+          color: #1d1842;
         }
 
         .official-maroon {
-          color: #8b1e3f;
+          color: #8e0d3c;
         }
 
         .official-gold {
-          color: #a36b08;
+          color: #ef3b33;
         }
 
         .official-rule {
-          border-color: #17365d;
+          border-color: #1d1842;
         }
 
         .official-table th {
-          background: #17365d;
+          background: #1d1842;
           color: #ffffff;
           font-weight: 700;
-          border: 1px solid #17365d;
+          border: 1px solid #1d1842;
           padding: 8px;
         }
 
         .official-table td {
-          border: 1px solid #8a9bb0;
+          border: 1px solid #a7a2c4;
           padding: 8px 10px;
         }
 
         .official-table tr:nth-child(even) td {
-          background: #f1f5f9;
+          background: #f6f5fa;
         }
 
         .important-box {
-          background: #fff7e6;
-          border-left: 4px solid #c28a16;
+          background: #fff5f5;
+          border-left: 4px solid #ef3b33;
           padding: 7px 10px;
         }
 
         .official-footer {
-          border-top: 2px solid #17365d;
-          color: #8b1e3f;
+          border-top: 2px solid #1d1842;
+          color: #8e0d3c;
         }
 
         .instruction-list li {
@@ -209,7 +209,7 @@ function PrintOrders() {
         }
 
         .instruction-list li::marker {
-          color: #8b1e3f;
+          color: #8e0d3c;
           font-weight: 700;
         }
       `}</style>
@@ -221,7 +221,7 @@ function PrintOrders() {
         <button
           onClick={() => window.print()}
           disabled={!orders.length}
-          className="h-10 rounded-xl bg-[#17365d] px-5 text-sm font-semibold text-white disabled:opacity-40"
+          className="h-10 rounded-xl bg-[#1d1842] px-5 text-sm font-semibold text-white disabled:opacity-40"
         >
           Print / Save as PDF
         </button>
@@ -262,7 +262,7 @@ function Order({ o }) {
       {/* PAGE 1: OFFICIAL APPOINTMENT ORDER */}
       <div className="sheet">
         <div className="flex-1">
-          <div className="flex items-center justify-between gap-3 border-b-[3px] border-[#17365d] pb-3">
+          <div className="flex items-center justify-between gap-3 border-b-[3px] border-[#1d1842] pb-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.jpg" alt="Institution logo" className="h-[21mm] w-auto" />
 
@@ -270,16 +270,16 @@ function Order({ o }) {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/logo3.png" alt="" className="mx-auto mb-1 h-[14mm] w-auto" />
 
-              <p className="text-[13px] font-bold leading-tight tracking-wide text-[#17365d]">
+              <p className="text-[13px] font-bold leading-tight tracking-wide text-[#1d1842]">
                 GOVERNMENT OF KARNATAKA
               </p>
-              <p className="text-[11.5px] font-bold leading-tight text-[#475569]">
+              <p className="text-[11.5px] font-bold leading-tight text-[#524c76]">
                 DEPARTMENT OF TECHNICAL EDUCATION
               </p>
-              <p className="mt-1 text-[16px] font-extrabold leading-tight text-[#8b1e3f]">
+              <p className="mt-1 text-[16px] font-extrabold leading-tight text-[#8e0d3c]">
                 KARNATAKA (GOVT.) POLYTECHNIC, MANGALURU
               </p>
-              <p className="text-[10.5px] font-semibold text-[#a36b08]">
+              <p className="text-[10.5px] font-semibold text-[#ef3b33]">
                 (First Autonomous Polytechnic in India from AICTE New Delhi)
               </p>
               <p className="text-[10px] leading-tight text-slate-600">
@@ -292,11 +292,11 @@ function Order({ o }) {
           </div>
 
           <div className="mt-4 flex justify-between gap-5 text-[11.5px]">
-            <p className="font-semibold text-[#17365d]">
+            <p className="font-semibold text-[#1d1842]">
               ನಂ: {REF_PREFIX}/{academicYear(date)}
             </p>
-            <p className="text-right leading-relaxed text-[#475569]">
-              <span className="font-bold text-[#17365d]">ಪರೀಕ್ಷಾ ನಿಯಂತ್ರಕರ ಕಛೇರಿ</span>
+            <p className="text-right leading-relaxed text-[#524c76]">
+              <span className="font-bold text-[#1d1842]">ಪರೀಕ್ಷಾ ನಿಯಂತ್ರಕರ ಕಛೇರಿ</span>
               <br />
               ಕರ್ನಾಟಕ (ಸರ್ಕಾರಿ) ಪಾಲಿಟೆಕ್ನಿಕ್ (ಸ್ವಾಯತ್ತತೆ)
               <br />
@@ -304,11 +304,11 @@ function Order({ o }) {
             </p>
           </div>
 
-          <div className="mt-4 rounded-md border border-[#d6b36a] bg-[#fff8e8] px-3 py-2 text-center">
-            <p className="text-[16px] font-extrabold tracking-wide text-[#8b1e3f]">
+          <div className="mt-4 rounded-md border border-[#fda1a2] bg-[#fff5f5] px-3 py-2 text-center">
+            <p className="text-[16px] font-extrabold tracking-wide text-[#8e0d3c]">
               ಅಧಿಕೃತ ಜ್ಞಾಪನ
             </p>
-            <p className="mt-1 text-[11.5px] font-semibold text-[#17365d]">
+            <p className="mt-1 text-[11.5px] font-semibold text-[#1d1842]">
               ವಿಷಯ: {months} {year}ರ ಡಿಪ್ಲೋಮಾ ಸೆಮಿಸ್ಟರ್ ಪರೀಕ್ಷೆ — KPT Autonomous {SCHEME} ಪಠ್ಯಕ್ರಮದ
               ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯನ್ನು ರಚಿಸುವ ಕುರಿತು.
             </p>
@@ -317,8 +317,8 @@ function Order({ o }) {
           <p className="mt-4 text-justify indent-10">
             ಮೇಲ್ಕಂಡ ವಿಷಯಕ್ಕೆ ಸಂಬಂಧಿಸಿದಂತೆ, {year}ರ {months} ಡಿಪ್ಲೋಮಾ ಸೆಮಿಸ್ಟರ್
             ಪರೀಕ್ಷೆಗೆ ಸಂಬಂಧಿಸಿದಂತೆ, ಕೆಳಕಂಡ ವಿಷಯದ ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯನ್ನು ರಚಿಸಲು{" "}
-            <b className="text-[#17365d]">{o.examiner?.name || ""}</b>,{" "}
-            <b className="text-[#8b1e3f]">{designationKn}</b>
+            <b className="text-[#1d1842]">{o.examiner?.name || ""}</b>,{" "}
+            <b className="text-[#8e0d3c]">{designationKn}</b>
             {dept ? `, ${dept}` : ""} ಇವರನ್ನು ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆ ರಚನಕಾರರಾಗಿ
             ನೇಮಿಸಲಾಗಿದೆ.
           </p>
@@ -328,7 +328,7 @@ function Order({ o }) {
             ಸ್ಟಡೀಸ್, ಸಂಬಂಧಿತ ಬ್ಲೂಪ್ರಿಂಟ್ ಹಾಗೂ ಅನ್ವಯವಾಗುವ ಮಾರ್ಗಸೂಚಿಗಳಿಗೆ ಅನುಗುಣವಾಗಿ
             ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯನ್ನು ಸಿದ್ಧಪಡಿಸಬೇಕು. ಸಿದ್ಧಪಡಿಸಿದ ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯನ್ನು MS
             Word ರೂಪದಲ್ಲಿ ಸಾಫ್ಟ್ ಕಾಪಿಯಾಗಿ ಸಿದ್ಧಪಡಿಸಿ, ನಿಗದಿತ ಅವಧಿಯೊಳಗೆ{" "}
-            <b className="text-[#17365d]">exams.kptmangaluru.in</b> ವೆಬ್‌ಸೈಟ್
+            <b className="text-[#1d1842]">exams.kptmangaluru.in</b> ವೆಬ್‌ಸೈಟ್
             ಮೂಲಕ ಅಪ್‌ಲೋಡ್ ಮಾಡಬೇಕು. ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯನ್ನು Word ಡಾಕ್ಯುಮೆಂಟ್
             ರೂಪದಲ್ಲಿಯೇ ಅಪ್‌ಲೋಡ್ ಮಾಡತಕ್ಕದ್ದು.
           </p>
@@ -340,7 +340,7 @@ function Order({ o }) {
           </p>
 
           <div className="important-box mt-3 rounded-r-md text-justify">
-            <p className="font-bold text-[#8b1e3f]">ಗೌಪ್ಯತೆ ಮತ್ತು ಜವಾಬ್ದಾರಿ</p>
+            <p className="font-bold text-[#8e0d3c]">ಗೌಪ್ಯತೆ ಮತ್ತು ಜವಾಬ್ದಾರಿ</p>
             <p className="mt-1">
               ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆ ರಚನೆಯ ಕಾರ್ಯವನ್ನು ಅತ್ಯಂತ ಜವಾಬ್ದಾರಿ, ನಿಖರತೆ, ಎಚ್ಚರಿಕೆ
               ಮತ್ತು ಸಂಪೂರ್ಣ ಗೌಪ್ಯತೆಯಿಂದ ನಿರ್ವಹಿಸಬೇಕು. ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯಲ್ಲಿ ಯಾವುದೇ
@@ -352,8 +352,8 @@ function Order({ o }) {
             <tbody>
               {tableRows.map(([k, v]) => (
                 <tr key={k}>
-                  <td className="w-[34%] font-bold text-[#17365d]">{k}</td>
-                  <td className={k === "LAST DATE TO UPLOAD" ? "font-bold text-[#8b1e3f]" : ""}>
+                  <td className="w-[34%] font-bold text-[#1d1842]">{k}</td>
+                  <td className={k === "LAST DATE TO UPLOAD" ? "font-bold text-[#8e0d3c]" : ""}>
                     {v}
                   </td>
                 </tr>
@@ -370,19 +370,19 @@ function Order({ o }) {
         <footer className="official-footer mt-3 pt-2 text-center text-[9.5px] leading-snug">
           <p className="font-extrabold">{FOOTER_KN[0]}</p>
           <p className="text-slate-600">{FOOTER_KN[1]}</p>
-          <p className="font-semibold text-[#17365d]">{FOOTER_KN[2]}</p>
+          <p className="font-semibold text-[#1d1842]">{FOOTER_KN[2]}</p>
         </footer>
       </div>
 
       {/* PAGE 2: INSTRUCTIONS AND COPY TO */}
       <div className="sheet">
-        <header className="mb-4 border-b-[3px] border-[#17365d] pb-2">
+        <header className="mb-4 border-b-[3px] border-[#1d1842] pb-2">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-[13px] font-extrabold text-[#17365d]">
+              <p className="text-[13px] font-extrabold text-[#1d1842]">
                 KARNATAKA (GOVT.) POLYTECHNIC, MANGALURU
               </p>
-              <p className="text-[10.5px] font-semibold text-[#8b1e3f]">
+              <p className="text-[10.5px] font-semibold text-[#8e0d3c]">
                 OFFICE OF THE CONTROLLER OF EXAMINATION
               </p>
             </div>
@@ -395,8 +395,8 @@ function Order({ o }) {
         </header>
 
         <div className="flex-1">
-          <div className="rounded-md border border-[#d6b36a] bg-[#fff8e8] px-3 py-2">
-            <p className="text-[14px] font-extrabold text-[#8b1e3f]">
+          <div className="rounded-md border border-[#fda1a2] bg-[#fff5f5] px-3 py-2">
+            <p className="text-[14px] font-extrabold text-[#8e0d3c]">
               ಪಾಲಿಸಬೇಕಾದ ಸೂಚನೆಗಳು
             </p>
             <p className="mt-1 text-justify">
@@ -426,14 +426,14 @@ function Order({ o }) {
               ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯ ಬ್ಲೂಪ್ರಿಂಟ್, ಪಠ್ಯಕ್ರಮ, ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆ ಕೋಡ್ ಅಥವಾ
               ಇತರ ತಾಂತ್ರಿಕ ವಿವರಗಳಿಗೆ ಸಂಬಂಧಿಸಿದಂತೆ ಸ್ಪಷ್ಟನೆ ಅಗತ್ಯವಿದ್ದಲ್ಲಿ,
               ಸಂಬಂಧಿತ ವಿಷಯ ಸಮಿತಿಯ ಅಧ್ಯಕ್ಷರನ್ನು ಸಂಪರ್ಕಿಸಬೇಕು. ಅಗತ್ಯ ಮಾಹಿತಿಗಾಗಿ{" "}
-              <b className="text-[#17365d]">{HELP_PHONES}</b> ದೂರವಾಣಿ ಸಂಖ್ಯೆಗಳನ್ನು
+              <b className="text-[#1d1842]">{HELP_PHONES}</b> ದೂರವಾಣಿ ಸಂಖ್ಯೆಗಳನ್ನು
               ಸಂಪರ್ಕಿಸಬಹುದು.
             </li>
             <li>
               ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆಯನ್ನು MS Word ನಲ್ಲಿ ಸಿದ್ಧಪಡಿಸಿ, ಸಂಬಂಧಿತ ವಿಷಯ ಸಮಿತಿಯ
               ಅಧ್ಯಕ್ಷರು ಹಾಗೂ KPT ಪರೀಕ್ಷಾ ನಿಯಂತ್ರಕರೊಂದಿಗೆ ಸಮನ್ವಯ ಸಾಧಿಸಿ,
               ನಿಗದಿಪಡಿಸಿದ ಕೊನೆಯ ದಿನಾಂಕ ಮತ್ತು ಸಮಯದೊಳಗೆ{" "}
-              <b className="text-[#17365d]">exams.kptmangaluru.in</b> ವೆಬ್‌ಸೈಟ್‌ನಲ್ಲಿ
+              <b className="text-[#1d1842]">exams.kptmangaluru.in</b> ವೆಬ್‌ಸೈಟ್‌ನಲ್ಲಿ
               ಅಪ್‌ಲೋಡ್ ಮಾಡಬೇಕು. Word ಡಾಕ್ಯುಮೆಂಟ್ ಹೊರತುಪಡಿಸಿ ಇತರ ಫೈಲ್ ರೂಪಗಳನ್ನು
               ಅಪ್‌ಲೋಡ್ ಮಾಡಬಾರದು.
             </li>
@@ -448,26 +448,26 @@ function Order({ o }) {
 </li>
           </ol>
 
-          <div className="mt-5 rounded-md border border-[#cbd5e1] bg-slate-50 p-3">
-            <p className="font-bold text-[#17365d]">ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆ ಅಪ್‌ಲೋಡ್ ವಿವರಗಳು</p>
+          <div className="mt-5 rounded-md border border-[#c8c3da] bg-slate-50 p-3">
+            <p className="font-bold text-[#1d1842]">ಪ್ರಶ್ನೆ ಪತ್ರಿಕೆ ಅಪ್‌ಲೋಡ್ ವಿವರಗಳು</p>
             <div className="mt-2 grid grid-cols-[38%_62%] gap-y-1 text-[11px]">
               <span className="font-semibold text-slate-600">Question Paper Code</span>
-              <span className="font-bold text-[#8b1e3f]">
+              <span className="font-bold text-[#8e0d3c]">
                 {o.subject?.code || ""}
               </span>
               <span className="font-semibold text-slate-600">Upload Deadline</span>
-              <span className="font-bold text-[#8b1e3f]">{lastDate(o.deadline)}</span>
+              <span className="font-bold text-[#8e0d3c]">{lastDate(o.deadline)}</span>
               <span className="font-semibold text-slate-600">Upload Website</span>
-              <span className="font-bold text-[#17365d]">exams.kptmangaluru.in</span>
+              <span className="font-bold text-[#1d1842]">exams.kptmangaluru.in</span>
             </div>
           </div>
 
-          <p className="mt-7 text-right font-bold text-[#17365d]">
+          <p className="mt-7 text-right font-bold text-[#1d1842]">
             ಪರೀಕ್ಷಾ ನಿಯಂತ್ರಕರು
           </p>
 
           <div className="mt-5 pt-3 text-[11px] leading-relaxed">
-            <p className="font-extrabold text-[#8b1e3f]">ಪ್ರತಿ (Copy to):</p>
+            <p className="font-extrabold text-[#8e0d3c]">ಪ್ರತಿ (Copy to):</p>
             <p className="mt-1">
               1. ಪ್ರಾಂಶುಪಾಲರು, ಸಂಸ್ಥೆಯ ಕೋಡ್: {INSTITUTION_CODE}, {INSTITUTION} —
               ಮಾಹಿತಿಗಾಗಿ.

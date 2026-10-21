@@ -1,93 +1,111 @@
 @import "tailwindcss";
 
 /* =====================================================================
-   KPT EXAMINATIONS – DESIGN TOKENS  ("answer booklet")
-   Paper whites, navy ink, royal-blue pen, red answer-sheet margin.
+   KPT EXAMINATIONS – DESIGN TOKENS
+   Brand palette:
+     Deep red      #8E0D3C  – primary accent (buttons, active states)
+     Blackcurrant  #1D1842  – ink, headings, dark surfaces
+     Orange        #EF3B33  – alerts / danger and the margin rule
+     Rose pink     #FDA1A2  – soft highlights and accent tints
 
-   Every page uses Tailwind's slate / gray / blue / amber colours.
-   Re-defining those scales here re-themes the whole site at once,
-   without touching any page logic.
+   Every page uses Tailwind's slate / gray / blue / amber / red / orange
+   colours. Re-defining those scales here re-themes the whole site at
+   once, without touching any page logic.
    ===================================================================== */
 
 @theme {
   --font-sans: var(--font-ui), ui-sans-serif, system-ui, "Segoe UI", sans-serif;
 
-  /* Ink – navy-tinted neutrals (replaces slate + gray) */
-  --color-slate-50: #f4f6fa;
-  --color-slate-100: #ebeff5;
-  --color-slate-200: #dce2ec;
-  --color-slate-300: #c3ccda;
-  --color-slate-400: #8e9ab0;
-  --color-slate-500: #66738c;
-  --color-slate-600: #4c5870;
-  --color-slate-700: #374259;
-  --color-slate-800: #232d45;
-  --color-slate-900: #172036;
-  --color-slate-950: #0e162b;
+  /* Ink – blackcurrant-tinted neutrals (replaces slate + gray) */
+  --color-slate-50: #f6f5fa;
+  --color-slate-100: #eeecf5;
+  --color-slate-200: #e0ddec;
+  --color-slate-300: #c8c3da;
+  --color-slate-400: #9690b2;
+  --color-slate-500: #6c6690;
+  --color-slate-600: #524c76;
+  --color-slate-700: #3d375f;
+  --color-slate-800: #2a2552;
+  --color-slate-900: #1d1842;
+  --color-slate-950: #130f2e;
 
-  --color-gray-50: #f4f6fa;
-  --color-gray-100: #ebeff5;
-  --color-gray-200: #dce2ec;
-  --color-gray-300: #c3ccda;
-  --color-gray-400: #8e9ab0;
-  --color-gray-500: #66738c;
-  --color-gray-600: #4c5870;
-  --color-gray-700: #374259;
-  --color-gray-800: #232d45;
-  --color-gray-900: #172036;
-  --color-gray-950: #0e162b;
+  --color-gray-50: #f6f5fa;
+  --color-gray-100: #eeecf5;
+  --color-gray-200: #e0ddec;
+  --color-gray-300: #c8c3da;
+  --color-gray-400: #9690b2;
+  --color-gray-500: #6c6690;
+  --color-gray-600: #524c76;
+  --color-gray-700: #3d375f;
+  --color-gray-800: #2a2552;
+  --color-gray-900: #1d1842;
+  --color-gray-950: #130f2e;
 
-  /* Pen – royal blue accent (replaces blue, and amber which was the old
-     admin/HOD accent, so every role now shares one accent colour) */
-  --color-blue-50: #eff2fd;
-  --color-blue-100: #dee4fb;
-  --color-blue-200: #c2cdf7;
-  --color-blue-300: #98aaf0;
-  --color-blue-400: #6a80e5;
-  --color-blue-500: #4560d8;
-  --color-blue-600: #2b45c4;
-  --color-blue-700: #2236a0;
-  --color-blue-800: #1e2e80;
-  --color-blue-900: #1c2a66;
-  --color-blue-950: #131b40;
+  /* Accent – deep red with rose-pink tints (replaces blue, and amber
+     which was the old admin/HOD accent, so every role shares one accent) */
+  --color-blue-50: #fff5f5;
+  --color-blue-100: #ffe8e8;
+  --color-blue-200: #fecbcc;
+  --color-blue-300: #fda1a2;
+  --color-blue-400: #e05a72;
+  --color-blue-500: #b52350;
+  --color-blue-600: #8e0d3c;
+  --color-blue-700: #770a33;
+  --color-blue-800: #62092b;
+  --color-blue-900: #4d0823;
+  --color-blue-950: #2c0414;
 
-  --color-amber-50: #eff2fd;
-  --color-amber-100: #dee4fb;
-  --color-amber-200: #c2cdf7;
-  --color-amber-300: #98aaf0;
-  --color-amber-400: #6a80e5;
-  --color-amber-500: #2b45c4;
-  --color-amber-600: #2236a0;
-  --color-amber-700: #2236a0;
-  --color-amber-800: #1e2e80;
-  --color-amber-900: #1c2a66;
-  --color-amber-950: #131b40;
+  --color-amber-50: #fff5f5;
+  --color-amber-100: #ffe8e8;
+  --color-amber-200: #fecbcc;
+  --color-amber-300: #fda1a2;
+  --color-amber-400: #e05a72;
+  --color-amber-500: #8e0d3c;
+  --color-amber-600: #770a33;
+  --color-amber-700: #770a33;
+  --color-amber-800: #62092b;
+  --color-amber-900: #4d0823;
+  --color-amber-950: #2c0414;
 
-  /* Margin red – danger actions and the answer-sheet margin line */
-  --color-red-50: #fdf1f3;
-  --color-red-100: #fbe1e6;
-  --color-red-200: #f6c2cc;
-  --color-red-300: #ee96a7;
-  --color-red-400: #e2627c;
-  --color-red-500: #d43a58;
-  --color-red-600: #c42a47;
-  --color-red-700: #a2203a;
-  --color-red-800: #861d33;
-  --color-red-900: #6f1b2f;
-  --color-red-950: #3e0a16;
+  /* Alert orange-red – danger actions and the answer-sheet margin line */
+  --color-red-50: #fef3f2;
+  --color-red-100: #fde4e2;
+  --color-red-200: #fbc8c4;
+  --color-red-300: #f7a19b;
+  --color-red-400: #f36c64;
+  --color-red-500: #ef3b33;
+  --color-red-600: #d92a22;
+  --color-red-700: #b5211a;
+  --color-red-800: #931e19;
+  --color-red-900: #791d19;
+  --color-red-950: #420b08;
 
-  /* Softer, ink-tinted shadows */
-  --shadow-sm: 0 1px 2px rgb(14 22 43 / 0.05), 0 1px 1px rgb(14 22 43 / 0.03);
-  --shadow-md: 0 4px 12px -2px rgb(14 22 43 / 0.08), 0 2px 4px -2px rgb(14 22 43 / 0.05);
-  --shadow-lg: 0 12px 28px -6px rgb(14 22 43 / 0.12), 0 4px 8px -4px rgb(14 22 43 / 0.06);
-  --shadow-xl: 0 24px 48px -12px rgb(14 22 43 / 0.18);
-  --shadow-2xl: 0 32px 64px -16px rgb(14 22 43 / 0.25);
+  /* Warm orange – warnings / pending states (kept apart from danger) */
+  --color-orange-50: #fff6ed;
+  --color-orange-100: #ffead3;
+  --color-orange-200: #fed1a6;
+  --color-orange-300: #fdb06e;
+  --color-orange-400: #fb8a3c;
+  --color-orange-500: #f56d17;
+  --color-orange-600: #e0560d;
+  --color-orange-700: #b9400d;
+  --color-orange-800: #933413;
+  --color-orange-900: #772d13;
+  --color-orange-950: #401406;
+
+  /* Softer, blackcurrant-tinted shadows */
+  --shadow-sm: 0 1px 2px rgb(19 15 46 / 0.05), 0 1px 1px rgb(19 15 46 / 0.03);
+  --shadow-md: 0 4px 12px -2px rgb(19 15 46 / 0.08), 0 2px 4px -2px rgb(19 15 46 / 0.05);
+  --shadow-lg: 0 12px 28px -6px rgb(19 15 46 / 0.12), 0 4px 8px -4px rgb(19 15 46 / 0.06);
+  --shadow-xl: 0 24px 48px -12px rgb(19 15 46 / 0.18);
+  --shadow-2xl: 0 32px 64px -16px rgb(19 15 46 / 0.25);
 
   /* Signature colours used directly by the shell */
-  --color-margin: #d43a58;
-  --color-paper: #f4f6fa;
-  --color-ink: #0e162b;
-  --color-pen: #2b45c4;
+  --color-margin: #ef3b33;
+  --color-paper: #f6f5fa;
+  --color-ink: #130f2e;
+  --color-pen: #8e0d3c;
+  --color-rose: #fda1a2;
 }
 
 /* ---------------------------------------------------------------- base */
@@ -115,7 +133,7 @@
   }
 
   ::selection {
-    background: var(--color-blue-200);
+    background: var(--color-rose);
     color: var(--color-ink);
   }
 
@@ -184,8 +202,8 @@
       to bottom,
       transparent 0,
       transparent 31px,
-      rgb(43 69 196 / 0.07) 31px,
-      rgb(43 69 196 / 0.07) 32px
+      rgb(142 13 60 / 0.06) 31px,
+      rgb(142 13 60 / 0.06) 32px
     );
   }
 
