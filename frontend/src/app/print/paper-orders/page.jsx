@@ -243,7 +243,11 @@ function PrintOrders() {
 function Order({ o }) {
   const { months, year } = sessionParts(o.examSession);
   const date = o.assignedAt || new Date();
-  const internal = o.examinerType !== "EXTERNAL";
+  // The examiner's own college (external setters come from other institutes)
+  const college = o.examiner?.college?.code
+    ? o.examiner.college
+    : { code: INSTITUTION_CODE, name: INSTITUTION };
+  const collegeLine = [college.code, college.name].filter(Boolean).join(" — ");
   const dept = DEPT[String(o.examiner?.department || "").toLowerCase()];
   const designation = o.examiner?.designation || "Lecturer";
   const designationKn = DESIGNATION_KN[designation] || "ಉಪನ್ಯಾಸಕರು";
@@ -251,7 +255,7 @@ function Order({ o }) {
   const tableRows = [
     ["QP SETTER NAME", `${o.examiner?.name || ""}${dept ? `, ${dept}` : ""}`],
     ["DESIGNATION", designation],
-    ["INST CODE and NAME", internal ? `${INSTITUTION_CODE} — ${INSTITUTION}` : ""],
+    ["INST CODE and NAME", collegeLine],
     ["QP CODE", `${o.subject?.code || ""}`],
     ["SUBJECT NAME", `${o.subject?.name || ""}${o.paperType === "PRACTICAL" ? " (Practical)" : ""}`],
     ["LAST DATE TO UPLOAD", lastDate(o.deadline)],
@@ -469,7 +473,8 @@ function Order({ o }) {
           <div className="mt-5 pt-3 text-[11px] leading-relaxed">
             <p className="font-extrabold text-[#8e0d3c]">ಪ್ರತಿ (Copy to):</p>
             <p className="mt-1">
-              1. ಪ್ರಾಂಶುಪಾಲರು, ಸಂಸ್ಥೆಯ ಕೋಡ್: {INSTITUTION_CODE}, {INSTITUTION} —
+              1. ಪ್ರಾಂಶುಪಾಲರು, ಸಂಸ್ಥೆಯ ಕೋಡ್: {college.code}
+              {college.name ? `, ${college.name}` : ""} —
               ಮಾಹಿತಿಗಾಗಿ.
             </p>
           </div>
