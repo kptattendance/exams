@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { useAuth } from "@clerk/nextjs";
+import ExcelFormatHelp, { excelInstructionsSheet } from "../../components/ExcelFormatHelp";
 import { batchFor, useAcademicYear } from "../../components/academicYear";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -719,6 +720,12 @@ export default function FinalIAPage() {
           workbook,
           worksheet,
           "Final IA"
+        );
+
+        XLSX.utils.book_append_sheet(
+          workbook,
+          excelInstructionsSheet("ia", subjects),
+          "Instructions"
         );
 
         const filename =
@@ -1486,7 +1493,7 @@ export default function FinalIAPage() {
                   }
                   className="rounded-lg border border-green-600 bg-white px-3 py-2 text-xs font-semibold text-green-700 hover:bg-green-50 disabled:border-gray-300 disabled:text-gray-400"
                 >
-                  ↓ Download Excel
+                  ↓ Download Template
                 </button>
 
                 <input
@@ -1518,6 +1525,8 @@ export default function FinalIAPage() {
               </div>
 
             </div>
+
+            <ExcelFormatHelp kind="ia" subjects={subjects} />
 
           </div>
         )}
@@ -1843,7 +1852,14 @@ export default function FinalIAPage() {
       {students.length > 0 &&
         subjects.length > 0 && (
 
-          <div className="mt-3 flex justify-end gap-2 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+          <div className="mt-3 flex flex-wrap items-center justify-end gap-2 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+
+            {/* Show the reason here too – the top message is out of view at the bottom of a long sheet */}
+            {error && (
+              <p className="mr-auto rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+                {error}
+              </p>
+            )}
 
             <button
               type="button"
