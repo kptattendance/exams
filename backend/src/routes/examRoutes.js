@@ -19,7 +19,16 @@ import {
   listBridgeCourses,
   saveBridgeCourses,
 } from "../controllers/examController.js";
-import { listFees, recordFee, feeTemplate, importFees, exportFees } from "../controllers/feeController.js";
+import {
+  listFees,
+  recordFee,
+  feeTemplate,
+  importFees,
+  exportFees,
+  markPaidBulk,
+  addPayment,
+  deletePayment,
+} from "../controllers/feeController.js";
 import { getTimetable, saveTimetable, suggest, publishTimetable } from "../controllers/timetableController.js";
 import { listHallTickets } from "../controllers/hallTicketController.js";
 import {
@@ -87,7 +96,10 @@ router.get("/:id/fees", VIEW, listFees);
 router.get("/:id/fees/template", FEES, feeTemplate);
 router.get("/:id/fees/export", VIEW, exportFees);
 router.post("/:id/fees/import", FEES, requireStepUp("fees"), excel, importFees);
-router.post("/:id/registrations/:regId/fee", FEES, requireStepUp("fees"), recordFee);
+router.post("/:id/registrations/:regId/fee", FEES, recordFee); // no OTP – the office marks hundreds of students one by one
+router.post("/:id/fees/mark-paid", FEES, markPaidBulk);
+router.post("/:id/registrations/:regId/payments", FEES, addPayment);
+router.delete("/:id/registrations/:regId/payments/:paymentId", FEES, deletePayment);
 
 // Timetable (written exams)
 router.get("/:id/timetable", VIEW, getTimetable);

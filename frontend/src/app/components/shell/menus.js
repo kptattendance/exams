@@ -173,6 +173,14 @@ export const MENUS = {
         ],
       },
       {
+        title: "Practical exam",
+        items: [
+          { label: "Room diary", href: "/office/practical/room-diary", icon: "list" },
+          { label: "ML entry sheets", href: "/office/practical/mark-sheets", icon: "paper" },
+          { label: "Marks status report", href: "/office/practical/report", icon: "chart" },
+        ],
+      },
+      {
         title: "After the exam",
         items: [{ label: "Absentees & packets", href: "/office/valuation", icon: "valuation" }],
       },

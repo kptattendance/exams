@@ -21,6 +21,7 @@ import {
   saveDraft,
   submitBatch,
   correctMark,
+  officeOverview,
 } from "../controllers/practicalController.js";
 import { requireStepUp } from "../services/stepUp.js";
 
@@ -58,5 +59,6 @@ router.get("/:id/subjects/:code", BATCHES, getSubject);
 router.post("/:id/subjects/:code/split", BATCHES, splitBatches);
 router.put("/:id/subjects/:code/batches", BATCHES, saveBatches);
 router.get("/:id/batches", VIEW, listBatches);
+router.get("/:id/office", VIEW, officeOverview); // room diary, mark-entry sheets, marks status
 
 export default router;

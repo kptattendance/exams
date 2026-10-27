@@ -16,8 +16,8 @@ const KINDS = {
   },
   attendance: {
     what: "attendance",
-    maxLabel: "Maximum Classes",
-    fill: "number of classes the student attended",
+    maxLabel: "Maximum (%) – keep 100",
+    fill: "attendance percentage (0–100); below 75% is shortage",
   },
 };
 
@@ -28,7 +28,9 @@ function rules(kind) {
   return [
     "Always start from \"Download Template\". It already has your students, subject columns and saved entries.",
     "Do not rename, delete or reorder the header row (row 1). Column names must stay exactly as given.",
-    `Row 2 is the MAX row (${k.maxLabel}). You may change a subject's maximum here.`,
+    kind === "ia"
+      ? `Row 2 is the MAX row (${k.maxLabel}). You may change a subject's maximum here.`
+      : "Row 2 is the MAX row. Leave it as 100 – attendance is entered as a percentage.",
     `From row 3, enter the ${k.fill} under each subject code column.`,
     "Only the \"Register Number\" and subject code columns are read. Sl No, Name, Phone and Photo are for reference only.",
     "Do not change register numbers. Rows with an unknown register number are skipped.",
@@ -109,7 +111,7 @@ export default function ExcelFormatHelp({ kind, subjects = [] }) {
                 <td className="border border-slate-300 bg-white px-2 py-1" />
                 {subjects.map((s) => (
                   <td key={s.subjectId || s.code} className="border border-slate-300 bg-white px-2 py-1 text-slate-500">
-                    {kind === "ia" ? "marks" : "classes"}
+                    {kind === "ia" ? "marks" : "%"}
                   </td>
                 ))}
               </tr>

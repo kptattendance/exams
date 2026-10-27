@@ -23,6 +23,19 @@ const feeSchema = new mongoose.Schema(
   { _id: false }
 );
 
+// A money transaction the student made (bank / UPI / counter). Kept apart
+// from the paid / not-paid flags above, so the office can mark fees paid at
+// once and add these details whenever they are free – or never.
+const paymentSchema = new mongoose.Schema({
+  txnNo: { type: String, default: "", trim: true },
+  amount: { type: Number, default: null, min: 0 },
+  paidOn: { type: Date, default: null },
+  note: { type: String, default: "", trim: true },
+  source: { type: String, enum: ["MANUAL", "SCAN"], default: "MANUAL" },
+  by: { type: String, default: "" },
+  at: { type: Date, default: Date.now },
+});
+
 const regSubjectSchema = new mongoose.Schema(
   {
     subject: { type: mongoose.Schema.Types.ObjectId, ref: "Subject", required: true },
@@ -145,6 +158,9 @@ const examRegistrationSchema = new mongoose.Schema(
     //   UNPAID  – nothing paid yet
     //   NONE    – nothing to pay
     feeStatus: { type: String, enum: ["PAID", "PARTIAL", "UNPAID", "NONE"], default: "UNPAID", index: true },
+
+    // Transactions (a student may pay in two or more parts)
+    payments: { type: [paymentSchema], default: [] },
 
     // Filled when the COE processes the results
     result: {

@@ -637,6 +637,81 @@ export const listBatches = async (req, res) => {
   });
 };
 
+// GET /api/practicals/:id/office – exam section (office): every batch with its
+// students (room diary, blank mark-entry sheets) and, per subject, how far the
+// marks entry has gone. Marks appear only after the examiners submit.
+export const officeOverview = async (req, res) => {
+  const exam = await loadExam(req, res);
+  if (!exam) return;
+  const filter = { exam: exam._id };
+  await syncOpen(req, filter);
+
+  const [batches, counts] = await Promise.all([
+    PracticalBatch.find(filter).lean(),
+    ExamRegistration.aggregate([
+      { $match: { exam: exam._id } },
+      { $unwind: "$subjects" },
+      { $match: { "subjects.hasPractical": true } },
+      { $group: { _id: "$subjects.code", registered: { $sum: 1 } } },
+    ]),
+  ]);
+  batches.sort(
+    (a, b) =>
+      (a.date || "9").localeCompare(b.date || "9") ||
+      (b.session || "").localeCompare(a.session || "") ||
+      (a.lab || "").localeCompare(b.lab || "") ||
+      a.label.localeCompare(b.label, undefined, { numeric: true })
+  );
+  const pm = await panelMap(batches);
+  const info = await subjectInfo([...new Set([...counts.map((c) => c._id), ...batches.map((b) => b.code)])]);
+
+  // Per subject: registered, in batches, entered (submitted batches), pending
+  const subjects = new Map();
+  const row = (code) => {
+    if (!subjects.has(code)) {
+      const i = info.get(code) || {};
+      subjects.set(code, {
+        code,
+        name: i.name || "",
+        department: i.department || "",
+        semester: i.semester ?? null,
+        registered: 0,
+        batches: 0,
+        submittedBatches: 0,
+        inBatches: 0,
+        entered: 0,
+      });
+    }
+    return subjects.get(code);
+  };
+  for (const c of counts) if (info.has(c._id)) row(c._id).registered = c.registered;
+  for (const b of batches) {
+    const r = row(b.code);
+    if (!r.name) r.name = b.name;
+    if (!r.department) r.department = b.department;
+    r.batches++;
+    r.inBatches += b.students.length;
+    if (b.status === "SUBMITTED") {
+      r.submittedBatches++;
+      r.entered += b.students.length;
+    }
+  }
+  const list = [...subjects.values()]
+    .map((r) => {
+      const total = Math.max(r.registered, r.inBatches);
+      const pending = Math.max(total - r.entered, 0);
+      const status = !r.batches ? "NOT_SCHEDULED" : pending === 0 ? "ENTERED" : r.submittedBatches ? "PARTLY" : "PENDING";
+      return { ...r, notInBatch: Math.max(r.registered - r.inBatches, 0), pending, status };
+    })
+    .sort((a, b) => a.department.localeCompare(b.department) || (a.semester ?? 9) - (b.semester ?? 9) || a.code.localeCompare(b.code));
+
+  res.json({
+    exam: examView(exam),
+    batches: batches.map((b) => batchView(b, pm.get(String(b.panel)), { marks: b.status === "SUBMITTED" })),
+    subjects: list,
+  });
+};
+
 // ------------------------------------------------------------------ marks entry (examiners)
 
 // GET /api/practicals/my – batches of the sets where I am the internal examiner

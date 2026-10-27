@@ -5,16 +5,21 @@
 //   Exam Officer          : view only (who has not paid)
 //
 // Each student has a "Regular fee" (current-semester subjects) and one fee per
-// back paper, ticked separately with a receipt number.
+// back paper, ticked separately. "✓ Paid" (or ticking many students and
+// "Mark as paid") marks them at once without any details, so the exam is
+// never held up. Transactions (txn no., amount, date – two or more if the
+// student paid in parts) can be added later, typed or read from a scanned
+// receipt.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 
 import Icon from "../shell/Icon";
 import Modal, { btn, field } from "../ui/Modal";
-import { useToast } from "../ui/Feedback";
+import { useConfirm, useToast } from "../ui/Feedback";
 import { ADMISSION_SHORT, downloadBlob, errMsg, useApi } from "./shared";
 import { T } from "../ui/table";
+import { scanReceipt } from "./receiptScan";
 
 const FEE = {
   PAID: { label: "Paid", dot: "bg-emerald-500", text: "text-emerald-700" },
@@ -23,11 +28,13 @@ const FEE = {
 };
 
 const today = () => new Date().toISOString().slice(0, 10);
+const rupees = (n) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "");
 
 export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref, initialStatus = "" }) {
   const api = useApi();
   const toast = useToast();
+  const confirm = useConfirm();
 
   const [exams, setExams] = useState(null);
   const [examId, setExamId] = useState(fixedExamId || "");
@@ -39,6 +46,8 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
   const [page, setPage] = useState(1);
   const [paying, setPaying] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [picked, setPicked] = useState(() => new Set()); // registration ids ticked for "Mark as paid"
+  const [bulkBusy, setBulkBusy] = useState(false);
   const searchRef = useRef(null);
 
   // exam list (for picking an exam and for class names)
@@ -61,6 +70,7 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
     return () => clearTimeout(t);
   }, [q]);
   useEffect(() => setPage(1), [query, status, cls, examId]);
+  useEffect(() => setPicked(new Set()), [query, status, cls, examId, page]);
 
   const params = useMemo(() => {
     const p = { page, limit: 40 };
@@ -103,6 +113,48 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
     setData((d) => ({ ...d, data: d.data.map((x) => (x._id === reg._id ? reg : x)) }));
   };
 
+  // One click: every unpaid fee of this student, details can come later
+  const quickPaid = async (reg) => {
+    const keys = reg.items.filter((i) => !i.paid).map((i) => i.key);
+    if (!keys.length) return;
+    try {
+      const r = await api("post", `/exams/${examId}/registrations/${reg._id}/fee`, { keys, paid: true, paidOn: today() });
+      toast.success(r.data.message || "Marked as paid.");
+      replace(r.data.data);
+      load();
+    } catch (e) {
+      toast.error(errMsg(e, "Could not mark as paid."));
+    }
+  };
+
+  const markPickedPaid = async () => {
+    const regIds = [...picked];
+    const ok = await confirm({
+      title: `Mark ${regIds.length} student${regIds.length === 1 ? "" : "s"} as paid?`,
+      message: "All their unpaid fees will be marked paid. Transaction details can be added later from each student's Details.",
+      confirmText: "Mark as paid",
+    });
+    if (!ok) return;
+    setBulkBusy(true);
+    try {
+      const r = await api("post", `/exams/${examId}/fees/mark-paid`, { regIds });
+      toast.success(r.data.message);
+      setPicked(new Set());
+      load();
+    } catch (e) {
+      toast.error(errMsg(e, "Could not mark as paid."));
+    }
+    setBulkBusy(false);
+  };
+
+  const togglePick = (id) =>
+    setPicked((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+
   const download = async (path, name, extra = {}) => {
     const classFilter = {};
     if (params.department) classFilter.department = params.department;
@@ -117,6 +169,8 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
   const counts = data?.counts || {};
   const total = (counts.PAID || 0) + (counts.PARTIAL || 0) + (counts.UNPAID || 0);
   const items = data?.data || [];
+  const pickable = items.filter((r) => r.items.some((i) => !i.paid)).map((r) => r._id);
+  const allPicked = pickable.length > 0 && pickable.every((id) => picked.has(id));
   const sel = "h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-slate-400";
 
   return (
@@ -214,6 +268,26 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
             </div>
           </div>
 
+          {canEdit && (
+            <p className="mt-3 text-xs text-slate-500">
+              Tick students and click <b>Mark as paid</b>, or use <b>✓ Paid</b> on a row. Transaction no., amount and date can be added
+              later under <b>Details</b> (type them or scan the receipt).
+            </p>
+          )}
+
+          {canEdit && picked.size > 0 && (
+            <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm">
+              <span className="font-semibold text-blue-900">{picked.size} selected</span>
+              <button onClick={() => setPicked(new Set())} className="text-xs font-semibold text-blue-700 hover:underline">
+                Clear
+              </button>
+              <button onClick={markPickedPaid} disabled={bulkBusy} className={`${btn.primary} ml-auto py-2`}>
+                <Icon name="check" className="h-4 w-4" />
+                {bulkBusy ? "Saving…" : "Mark as paid"}
+              </button>
+            </div>
+          )}
+
           {/* list */}
           <div className={`mt-4 ${T.wrap}`}>
             {data === null && <div className="h-48 animate-pulse" />}
@@ -226,6 +300,18 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
               <table className={T.table}>
                 <thead>
                   <tr className={T.headRow}>
+                    {canEdit && (
+                      <th className={`${T.th} w-8`}>
+                        <input
+                          type="checkbox"
+                          aria-label="Select all not-paid students on this page"
+                          checked={allPicked}
+                          disabled={!pickable.length}
+                          onChange={() => setPicked(allPicked ? new Set() : new Set(pickable))}
+                          className="h-4 w-4 accent-blue-600"
+                        />
+                      </th>
+                    )}
                     <th className={T.thNum}>Sl.</th>
                     <th className={T.th}>Student</th>
                     <th className={T.th}>Class</th>
@@ -236,7 +322,16 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
                 </thead>
                 <tbody className={T.body}>
                   {items.map((r, i) => (
-                    <FeeRow key={r._id} sl={(page - 1) * 40 + i + 1} reg={r} canEdit={canEdit} onPay={() => setPaying(r)} />
+                    <FeeRow
+                      key={r._id}
+                      sl={(page - 1) * 40 + i + 1}
+                      reg={r}
+                      canEdit={canEdit}
+                      picked={picked.has(r._id)}
+                      onPick={() => togglePick(r._id)}
+                      onQuickPaid={() => quickPaid(r)}
+                      onPay={() => setPaying(r)}
+                    />
                   ))}
                 </tbody>
               </table>
@@ -264,6 +359,10 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
           examId={examId}
           reg={paying}
           onClose={() => setPaying(null)}
+          onChanged={(reg) => {
+            replace(reg);
+            load();
+          }}
           onSaved={(reg) => {
             replace(reg);
             setPaying(null);
@@ -312,11 +411,20 @@ const initials = (name = "") =>
     .slice(0, 2)
     .toUpperCase();
 
-function FeeRow({ sl, reg, canEdit, onPay }) {
+function FeeRow({ sl, reg, canEdit, picked, onPick, onQuickPaid, onPay }) {
   const st = FEE[reg.feeStatus] || FEE.UNPAID;
   const unpaid = reg.items.filter((i) => !i.paid).length;
+  const [busy, setBusy] = useState(false);
+  const payments = reg.payments || [];
   return (
-    <tr className={T.row}>
+    <tr className={`${T.row} ${picked ? "bg-blue-50/50" : ""}`}>
+      {canEdit && (
+        <td className={T.td}>
+          {unpaid > 0 && (
+            <input type="checkbox" aria-label={`Select ${reg.name}`} checked={picked} onChange={onPick} className="h-4 w-4 accent-blue-600" />
+          )}
+        </td>
+      )}
       <td className={T.tdNum}>{sl}</td>
       <td className={T.td}>
         <div className="flex items-center gap-2.5">
@@ -346,11 +454,11 @@ function FeeRow({ sl, reg, canEdit, onPay }) {
               className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-semibold ${
                 i.paid ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-dashed border-slate-300 bg-white text-slate-600"
               }`}
-              title={i.paid ? `Receipt ${i.receiptNo}, ${fmtDate(i.paidOn)} (${i.by})` : "Not paid"}
+              title={i.paid ? (i.receiptNo ? `Receipt ${i.receiptNo}, ${fmtDate(i.paidOn)} (${i.by})` : `Paid · ${fmtDate(i.paidOn)} (${i.by})`) : "Not paid"}
             >
               {i.paid ? <Icon name="check" className="h-3 w-3" strokeWidth={2.5} /> : <span className="h-1.5 w-1.5 rounded-full bg-red-500" />}
               {i.type === "REGULAR" ? "Regular" : `Back ${i.code}`}
-              {i.paid && <span className="font-normal text-emerald-700/80">· {i.receiptNo}</span>}
+              {i.paid && i.receiptNo && <span className="font-normal text-emerald-700/80">· {i.receiptNo}</span>}
               {(i.eligibility === "ANS" || i.eligibility === "NE") && i.type === "SUBJECT" && (
                 <span className="font-normal text-red-600">· {i.eligibility}</span>
               )}
@@ -363,27 +471,44 @@ function FeeRow({ sl, reg, canEdit, onPay }) {
           <span className={`${T.dot} ${st.dot}`} />
           {st.label}
         </span>
+        {payments.length > 0 && (
+          <p className="mt-1 text-[11px] font-semibold tabular-nums text-slate-600">
+            {rupees(reg.amountPaid)} · {payments.length} txn{payments.length === 1 ? "" : "s"}
+          </p>
+        )}
       </td>
       {canEdit && (
         <td className={`${T.td} text-right`}>
-          {unpaid ? (
+          <div className="flex justify-end gap-1.5">
+            {unpaid > 0 && (
+              <button
+                onClick={async () => {
+                  setBusy(true);
+                  await onQuickPaid();
+                  setBusy(false);
+                }}
+                disabled={busy}
+                title="Mark every unpaid fee of this student as paid"
+                className="inline-flex items-center gap-1 rounded-lg border border-emerald-600 bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-40"
+              >
+                <Icon name="check" className="h-3.5 w-3.5" strokeWidth={2.5} />
+                {busy ? "…" : "Paid"}
+              </button>
+            )}
             <button onClick={onPay} className={btn.small}>
-              Record payment
+              Details
             </button>
-          ) : (
-            <button onClick={onPay} className={`${btn.small} text-slate-500`}>
-              View / correct
-            </button>
-          )}
+          </div>
         </td>
       )}
     </tr>
   );
 }
 
-function PayModal({ examId, reg, onClose, onSaved }) {
+function PayModal({ examId, reg: initialReg, onClose, onSaved, onChanged }) {
   const api = useApi();
   const toast = useToast();
+  const [reg, setReg] = useState(initialReg); // updated as transactions are added
   const unpaid = reg.items.filter((i) => !i.paid);
   const paid = reg.items.filter((i) => i.paid);
   const [keys, setKeys] = useState(() => unpaid.map((i) => i.key));
@@ -394,6 +519,12 @@ function PayModal({ examId, reg, onClose, onSaved }) {
   const [busy, setBusy] = useState(false);
 
   const toggle = (k) => setKeys((ks) => (ks.includes(k) ? ks.filter((x) => x !== k) : [...ks, k]));
+  const openKeys = keys.filter((k) => unpaid.some((i) => i.key === k));
+
+  const changed = (r) => {
+    setReg(r);
+    onChanged?.(r);
+  };
 
   const send = async (body, ok) => {
     setBusy(true);
@@ -434,11 +565,11 @@ function PayModal({ examId, reg, onClose, onSaved }) {
               Cancel
             </button>
             <button
-              onClick={() => send({ keys, paid: true, receiptNo, paidOn }, "Payment recorded.")}
-              disabled={busy || !keys.length || !receiptNo.trim()}
+              onClick={() => send({ keys: openKeys, paid: true, receiptNo, paidOn }, "Payment recorded.")}
+              disabled={busy || !openKeys.length}
               className={btn.primary}
             >
-              {busy ? "Saving…" : `Mark ${keys.length} as paid`}
+              {busy ? "Saving…" : `Mark ${openKeys.length} as paid`}
             </button>
           </>
         ) : (
@@ -451,7 +582,8 @@ function PayModal({ examId, reg, onClose, onSaved }) {
       {removing ? (
         <div>
           <p className="text-sm text-slate-700">
-            Remove the payment for <b>{removing.label}</b> (receipt {removing.receiptNo})? Use this only if it was recorded by mistake.
+            Remove the payment for <b>{removing.label}</b>
+            {removing.receiptNo ? ` (receipt ${removing.receiptNo})` : ""}? Use this only if it was recorded by mistake.
           </p>
           <label className="mt-4 block">
             <span className="text-sm font-semibold text-slate-800">Reason (kept in the record)</span>
@@ -479,7 +611,9 @@ function PayModal({ examId, reg, onClose, onSaved }) {
               </div>
               <div className="mt-5 grid grid-cols-2 gap-3">
                 <label className="block">
-                  <span className="text-sm font-semibold text-slate-800">Receipt no.</span>
+                  <span className="text-sm font-semibold text-slate-800">
+                    Receipt no. <span className="font-normal text-slate-400">(optional)</span>
+                  </span>
                   <input value={receiptNo} onChange={(e) => setReceiptNo(e.target.value)} autoFocus className={`${field} mt-1.5`} />
                 </label>
                 <label className="block">
@@ -499,7 +633,8 @@ function PayModal({ examId, reg, onClose, onSaved }) {
                     <span className="min-w-0 flex-1">
                       <span className="font-medium text-slate-900">{i.label}</span>
                       <span className="block text-xs text-slate-600">
-                        Receipt {i.receiptNo} · {fmtDate(i.paidOn)} · {i.by}
+                        {i.receiptNo ? `Receipt ${i.receiptNo} · ` : ""}
+                        {fmtDate(i.paidOn)} · {i.by}
                       </span>
                     </span>
                     <button onClick={() => setRemoving(i)} className="text-xs font-semibold text-red-600 hover:underline">
@@ -510,9 +645,154 @@ function PayModal({ examId, reg, onClose, onSaved }) {
               </ul>
             </div>
           )}
+          <Payments examId={examId} reg={reg} markKeys={openKeys} onChanged={changed} />
         </>
       )}
     </Modal>
+  );
+}
+
+// Transactions of one student: add (typed or read from a scanned receipt) / remove
+function Payments({ examId, reg, markKeys, onChanged }) {
+  const api = useApi();
+  const toast = useToast();
+  const confirm = useConfirm();
+  const blank = { txnNo: "", amount: "", paidOn: today(), note: "" };
+  const [form, setForm] = useState(blank);
+  const [source, setSource] = useState("MANUAL");
+  const [alsoMark, setAlsoMark] = useState(true);
+  const [scan, setScan] = useState(null); // null | number (progress) | "done"
+  const [busy, setBusy] = useState(false);
+  const fileRef = useRef(null);
+  const payments = reg.payments || [];
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const onScan = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setScan(0);
+    try {
+      const r = await scanReceipt(file, (p) => setScan(p));
+      setForm((f) => ({
+        ...f,
+        txnNo: r.txnNo || f.txnNo,
+        amount: r.amount || f.amount,
+        paidOn: r.paidOn || f.paidOn,
+      }));
+      setSource("SCAN");
+      setScan("done");
+      if (!r.txnNo && !r.amount) toast.info("Could not read the details clearly. Please type them.");
+    } catch {
+      setScan(null);
+      toast.error("Could not read the image. Please type the details.");
+    }
+  };
+
+  const add = async () => {
+    setBusy(true);
+    try {
+      const body = { ...form, source, keys: alsoMark ? markKeys : [] };
+      const r = await api("post", `/exams/${examId}/registrations/${reg._id}/payments`, body);
+      toast.success(r.data.message);
+      if (r.data.warning) toast.error(r.data.warning);
+      onChanged(r.data.data);
+      setForm(blank);
+      setSource("MANUAL");
+      setScan(null);
+    } catch (e) {
+      toast.error(errMsg(e, "Could not add the payment."));
+    }
+    setBusy(false);
+  };
+
+  const remove = async (p) => {
+    const ok = await confirm({
+      title: "Remove this transaction?",
+      message: `${p.txnNo || "No txn no."} · ${p.amount != null ? rupees(p.amount) : "no amount"}\n\nPaid / not paid status is not changed.`,
+      confirmText: "Remove",
+      tone: "danger",
+    });
+    if (!ok) return;
+    try {
+      const r = await api("delete", `/exams/${examId}/registrations/${reg._id}/payments/${p._id}`);
+      toast.success(r.data.message);
+      onChanged(r.data.data);
+    } catch (e) {
+      toast.error(errMsg(e, "Could not remove."));
+    }
+  };
+
+  return (
+    <div className="mt-6 border-t border-slate-100 pt-4">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-sm font-semibold text-slate-800">
+          Transactions <span className="font-normal text-slate-400">(optional – add any time)</span>
+        </p>
+        {payments.length > 0 && <p className="text-sm font-bold tabular-nums text-slate-900">Total {rupees(reg.amountPaid)}</p>}
+      </div>
+
+      {payments.length > 0 && (
+        <ul className="mt-2 divide-y divide-slate-100 rounded-xl border border-slate-200">
+          {payments.map((p) => (
+            <li key={p._id} className="flex items-center gap-3 px-3 py-2 text-sm">
+              <span className="min-w-0 flex-1">
+                <span className="font-semibold tabular-nums text-slate-900">{p.txnNo || "—"}</span>
+                <span className="block text-xs text-slate-500">
+                  {fmtDate(p.paidOn)} · {p.by}
+                  {p.source === "SCAN" ? " · scanned" : ""}
+                </span>
+              </span>
+              <span className="font-semibold tabular-nums text-slate-900">{p.amount != null ? rupees(p.amount) : ""}</span>
+              <button onClick={() => remove(p)} className="text-xs font-semibold text-red-600 hover:underline">
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="mt-3 rounded-xl bg-slate-50 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-semibold text-slate-600">Add a transaction</p>
+          <button type="button" onClick={() => fileRef.current?.click()} disabled={typeof scan === "number"} className={btn.small}>
+            <Icon name="ticket" className="h-3.5 w-3.5" />
+            {typeof scan === "number" ? `Reading… ${scan}%` : "Scan receipt"}
+          </button>
+          <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onScan} />
+        </div>
+        {scan === "done" && (
+          <p className="mt-2 text-xs font-medium text-emerald-700">Filled from the receipt – please check before adding.</p>
+        )}
+        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <label className="block">
+            <span className="text-xs font-semibold text-slate-700">Txn / UTR / receipt no.</span>
+            <input value={form.txnNo} onChange={set("txnNo")} className={`${field} mt-1 h-10`} />
+          </label>
+          <label className="block">
+            <span className="text-xs font-semibold text-slate-700">Amount (₹)</span>
+            <input type="number" min="0" inputMode="decimal" value={form.amount} onChange={set("amount")} className={`${field} mt-1 h-10`} />
+          </label>
+          <label className="block">
+            <span className="text-xs font-semibold text-slate-700">Paid on</span>
+            <input type="date" value={form.paidOn} max={today()} onChange={set("paidOn")} className={`${field} mt-1 h-10`} />
+          </label>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          {markKeys.length > 0 ? (
+            <label className="flex items-center gap-2 text-xs text-slate-700">
+              <input type="checkbox" checked={alsoMark} onChange={(e) => setAlsoMark(e.target.checked)} className="h-4 w-4 accent-blue-600" />
+              Also mark the ticked fee{markKeys.length === 1 ? "" : "s"} as paid
+            </label>
+          ) : (
+            <span />
+          )}
+          <button onClick={add} disabled={busy || (!form.txnNo.trim() && form.amount === "")} className={`${btn.primary} py-2`}>
+            {busy ? "Adding…" : "Add transaction"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

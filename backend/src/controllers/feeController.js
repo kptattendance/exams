@@ -90,8 +90,20 @@ function feeView(r) {
     overall: r.overall,
     feeStatus: r.feeStatus,
     items,
+    payments: (r.payments || []).map((p) => ({
+      _id: p._id,
+      txnNo: p.txnNo,
+      amount: p.amount,
+      paidOn: p.paidOn,
+      note: p.note,
+      source: p.source,
+      by: p.by,
+    })),
+    amountPaid: amountPaid(r),
   };
 }
+
+const amountPaid = (r) => (r.payments || []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
 function baseFilter(examId, query) {
   const filter = { exam: new mongoose.Types.ObjectId(examId), feeStatus: { $ne: "NONE" } };
@@ -183,8 +195,9 @@ export const recordFee = async (req, res) => {
   let receiptNo = "";
   let paidOn = null;
   if (paid) {
+    // Receipt number is optional: the office may just mark "paid" now and
+    // add the transaction details later (Payments)
     receiptNo = String(req.body?.receiptNo || "").trim();
-    if (!receiptNo) return fail(res, 400, "Enter the receipt number.");
     if (receiptNo.length > 40) return fail(res, 400, "Receipt number is too long.");
     paidOn = parseDate(req.body?.paidOn);
     if (!paidOn) return fail(res, 400, "Payment date is not valid.");
@@ -207,6 +220,92 @@ export const recordFee = async (req, res) => {
     data: feeView(reg.toObject()),
     message: paid ? `Recorded ${changed.join(", ")} for ${reg.registerNumber}.` : `Removed ${changed.join(", ")} for ${reg.registerNumber}.`,
   });
+};
+
+// POST /api/exams/:id/fees/mark-paid   { regIds: [...] }
+// Quick bulk "Paid": every unpaid fee of the chosen students, no receipt
+// details (they can be added later under Payments).
+export const markPaidBulk = async (req, res) => {
+  const { id } = req.params;
+  if (!isId(id)) return fail(res, 400, "Invalid exam id.");
+  const regIds = (Array.isArray(req.body?.regIds) ? req.body.regIds : []).map(String).filter(isId);
+  if (!regIds.length) return fail(res, 400, "Select at least one student.");
+  if (regIds.length > 500) return fail(res, 400, "Select at most 500 students at a time.");
+
+  const regs = await ExamRegistration.find({ _id: { $in: regIds }, exam: id });
+  const by = who(req);
+  const paidOn = new Date();
+  let students = 0;
+  for (const reg of regs) {
+    const keys = feeItems(reg.toObject()).filter((i) => !i.paid).map((i) => i.key);
+    if (!keys.length) continue;
+    const changed = applyFee(reg, keys, { paid: true, receiptNo: "", paidOn, by });
+    if (!changed.length) continue;
+    await reg.save();
+    students++;
+  }
+  await logAction(req, "EXAM_FEE_PAID_BULK", id, { registrations: regIds.length, marked: students });
+  res.json({ marked: students, message: `${students} student${students === 1 ? "" : "s"} marked as paid.` });
+};
+
+// POST /api/exams/:id/registrations/:regId/payments
+//   { txnNo, amount, paidOn, note, source: "MANUAL" | "SCAN", keys?: [...] }
+// Adds one transaction. With keys, those fees are also marked paid.
+export const addPayment = async (req, res) => {
+  const { id, regId } = req.params;
+  if (!isId(id) || !isId(regId)) return fail(res, 400, "Invalid id.");
+  const reg = await ExamRegistration.findOne({ _id: regId, exam: id });
+  if (!reg) return fail(res, 404, "Registration not found.");
+
+  const txnNo = String(req.body?.txnNo || "").trim();
+  const amount = req.body?.amount === "" || req.body?.amount == null ? null : Number(req.body.amount);
+  const note = String(req.body?.note || "").trim().slice(0, 200);
+  if (!txnNo && amount === null) return fail(res, 400, "Enter the transaction number or the amount.");
+  if (txnNo.length > 60) return fail(res, 400, "Transaction number is too long.");
+  if (amount !== null && (!Number.isFinite(amount) || amount < 0 || amount > 1000000)) return fail(res, 400, "Amount is not valid.");
+  const paidOn = parseDate(req.body?.paidOn);
+  if (!paidOn) return fail(res, 400, "Payment date is not valid.");
+  if (paidOn.getTime() > Date.now() + 86400000) return fail(res, 400, "Payment date cannot be in the future.");
+
+  // Same transaction number already used for another student in this exam?
+  const duplicate = txnNo
+    ? await ExamRegistration.findOne({ exam: id, _id: { $ne: reg._id }, "payments.txnNo": txnNo }).select("registerNumber").lean()
+    : null;
+
+  const by = who(req);
+  reg.payments.push({ txnNo, amount, paidOn, note, source: req.body?.source === "SCAN" ? "SCAN" : "MANUAL", by, at: new Date() });
+
+  const keys = Array.isArray(req.body?.keys) ? req.body.keys.map(String) : [];
+  const changed = keys.length ? applyFee(reg, keys, { paid: true, receiptNo: txnNo.slice(0, 40), paidOn, by }) : [];
+  await reg.save();
+  await logAction(req, "EXAM_FEE_PAYMENT_ADDED", reg.exam, {
+    registration: reg._id,
+    registerNumber: reg.registerNumber,
+    txnNo,
+    amount,
+    items: changed,
+  });
+  res.json({
+    data: feeView(reg.toObject()),
+    message: `Payment added for ${reg.registerNumber}${changed.length ? ` · ${changed.join(", ")} marked paid` : ""}.`,
+    warning: duplicate ? `Transaction ${txnNo} is also entered for ${duplicate.registerNumber}. Please check.` : "",
+  });
+};
+
+// DELETE /api/exams/:id/registrations/:regId/payments/:paymentId
+// Removes a wrongly entered transaction. Paid / not-paid is not changed.
+export const deletePayment = async (req, res) => {
+  const { id, regId, paymentId } = req.params;
+  if (!isId(id) || !isId(regId) || !isId(paymentId)) return fail(res, 400, "Invalid id.");
+  const reg = await ExamRegistration.findOne({ _id: regId, exam: id });
+  if (!reg) return fail(res, 404, "Registration not found.");
+  const p = reg.payments.id(paymentId);
+  if (!p) return fail(res, 404, "Payment not found.");
+  const removed = { txnNo: p.txnNo, amount: p.amount };
+  p.deleteOne();
+  await reg.save();
+  await logAction(req, "EXAM_FEE_PAYMENT_REMOVED", reg.exam, { registration: reg._id, registerNumber: reg.registerNumber, ...removed });
+  res.json({ data: feeView(reg.toObject()), message: "Payment removed." });
 };
 
 // ------------------------------------------------------------------ Excel
@@ -378,11 +477,15 @@ export const exportFees = async (req, res) => {
         "Receipt No": i.fee.receiptNo || "",
         "Paid On": i.fee.paidOn ? new Date(i.fee.paidOn).toLocaleDateString("en-IN") : "",
         "Recorded By": i.fee.by || "",
+        "Amount Paid (all transactions)": amountPaid(r) || "",
+        Transactions: (r.payments || [])
+          .map((p) => [p.txnNo, p.amount != null ? `Rs.${p.amount}` : "", p.paidOn ? new Date(p.paidOn).toLocaleDateString("en-IN") : ""].filter(Boolean).join(" "))
+          .join("; "),
       });
     }
   }
   const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [{ Note: "Nothing to show." }]);
-  ws["!cols"] = [16, 30, 11, 9, 22, 22, 10, 14, 12, 28].map((wch) => ({ wch }));
+  ws["!cols"] = [16, 30, 11, 9, 22, 22, 10, 14, 12, 28, 14, 50].map((wch) => ({ wch }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Fees");
   const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });

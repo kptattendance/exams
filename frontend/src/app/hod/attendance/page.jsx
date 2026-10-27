@@ -9,6 +9,29 @@ import { batchFor, useAcademicYear } from "../../components/academicYear";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
+// HODs enter attendance as a percentage. It is stored as "classes attended"
+// out of a maximum of 100, so exam eligibility (attended ÷ max × 100) and
+// every report keep working unchanged.
+const PERCENT_MAX = 100;
+const SHORTAGE_BELOW = 75;
+
+// Older sheets saved real class counts (e.g. 38 of 45) – show them as %
+function asPercentSheet(subjects, students) {
+  const maxOf = new Map(subjects.map((s) => [String(s.subjectId), Number(s.maxClasses)]));
+  return {
+    subjects: subjects.map((s) => ({ ...s, maxClasses: PERCENT_MAX })),
+    students: students.map((st) => ({
+      ...st,
+      attendance: (st.attendance || []).map((a) => {
+        const max = maxOf.get(String(a.subjectId));
+        const v = a.classesAttended;
+        if (v === "" || v === null || v === undefined || !(max > 0) || max === PERCENT_MAX) return a;
+        return { ...a, classesAttended: Math.round((Number(v) / max) * 10000) / 100 };
+      }),
+    })),
+  };
+}
+
 export default function AttendancePage() {
   const {
     getToken,
@@ -221,8 +244,9 @@ export default function AttendancePage() {
         }
       );
 
-      setStudents(sortedStudents);
-      setSubjects(sortedSubjects);
+      const sheet = asPercentSheet(sortedSubjects, sortedStudents);
+      setStudents(sheet.students);
+      setSubjects(sheet.subjects);
 
       setStatus(
         data.status || "draft"
@@ -261,39 +285,6 @@ export default function AttendancePage() {
     setStatus("draft");
     setMessage("");
     setError("");
-  };
-
-  // ============================================================
-  // MAXIMUM CLASSES CHANGE
-  // ============================================================
-
-  const handleMaxClassesChange = (
-    subjectId,
-    value
-  ) => {
-    if (status !== "draft") {
-      return;
-    }
-
-    setSubjects(
-      (previousSubjects) =>
-        previousSubjects.map(
-          (subject) =>
-            String(
-              subject.subjectId
-            ) ===
-              String(subjectId)
-              ? {
-                ...subject,
-
-                maxClasses:
-                  value === ""
-                    ? ""
-                    : Number(value),
-              }
-              : subject
-        )
-    );
   };
 
   // ============================================================
@@ -497,7 +488,7 @@ export default function AttendancePage() {
             attended === null ||
             attended === undefined
           ) {
-            return `Enter attendance for ${student.studentName} - ${subject.code}.`;
+            return `Enter attendance % for ${student.studentName} - ${subject.code}.`;
           }
 
           const numericAttended =
@@ -519,14 +510,14 @@ export default function AttendancePage() {
           if (
             numericAttended < 0
           ) {
-            return `Classes attended cannot be negative for ${student.studentName} - ${subject.code}.`;
+            return `Attendance % cannot be negative for ${student.studentName} - ${subject.code}.`;
           }
 
           if (
             numericAttended >
             maxClasses
           ) {
-            return `${student.studentName}: Classes attended cannot exceed ${maxClasses} for ${subject.code}.`;
+            return `${student.studentName}: Attendance cannot exceed ${maxClasses}% for ${subject.code}.`;
           }
         }
       }
@@ -819,14 +810,13 @@ export default function AttendancePage() {
         const maxRow = [
           "",
           "MAX",
-          "Maximum Classes",
+          "Maximum (%) – keep 100",
           "",
           "",
 
           ...subjects.map(
             (subject) =>
-              subject.maxClasses ??
-              ""
+              PERCENT_MAX
           ),
         ];
 
@@ -1351,13 +1341,11 @@ export default function AttendancePage() {
           importedCount++;
         }
 
-        setSubjects(
-          updatedSubjects
-        );
+        const sheet = asPercentSheet(updatedSubjects, updatedStudents);
 
-        setStudents(
-          updatedStudents
-        );
+        setSubjects(sheet.subjects);
+
+        setStudents(sheet.students);
 
         setMessage(
           `Excel imported successfully. ${importedCount} student(s) updated${skippedCount > 0
@@ -1412,6 +1400,14 @@ export default function AttendancePage() {
   const subjectCount =
     subjects.length;
 
+  // Students below 75% in at least one subject
+  const shortageCount = students.filter((student) =>
+    subjects.some((subject) => {
+      const pct = getAttendancePercentage(student, subject);
+      return pct !== null && pct < SHORTAGE_BELOW;
+    })
+  ).length;
+
   // ============================================================
   // UI
   // ============================================================
@@ -1449,7 +1445,7 @@ export default function AttendancePage() {
           </h1>
 
           <p className="text-xs text-gray-500 md:text-sm">
-            Enter classes attended or upload the Excel template.
+            Enter attendance percentage (0–100) or upload the Excel template. Below 75% is shortage of attendance.
           </p>
         </div>
 
@@ -1664,6 +1660,16 @@ export default function AttendancePage() {
                   </span>
                 </div>
 
+                <div className={`rounded-lg px-3 py-1.5 ${shortageCount ? "bg-red-50" : "bg-white"}`}>
+                  <span className="text-[11px] text-gray-500">
+                    Shortage (&lt;{SHORTAGE_BELOW}%)
+                  </span>
+
+                  <span className={`ml-1.5 text-sm font-bold ${shortageCount ? "text-red-700" : "text-gray-800"}`}>
+                    {shortageCount}
+                  </span>
+                </div>
+
                 <div className="rounded-lg bg-white px-3 py-1.5">
                   <span className="text-[11px] text-gray-500">
                     Sem
@@ -1757,7 +1763,7 @@ export default function AttendancePage() {
                 </h2>
 
                 <p className="hidden text-[11px] text-gray-500 sm:block">
-                  Enter classes attended for each subject.
+                  Enter attendance % for each subject. Below 75% = shortage.
                 </p>
               </div>
 
@@ -1813,54 +1819,6 @@ export default function AttendancePage() {
                           <div className="mt-1 line-clamp-2 text-[10px] font-normal leading-tight text-amber-50">
                             {subject.name}
                           </div>
-
-                        </th>
-                      )
-                    )}
-
-                  </tr>
-
-                  {/* =================================================
-                      MAXIMUM CLASSES ROW
-                  ================================================= */}
-
-                  <tr className="bg-amber-50">
-
-                    <th className="sticky left-0 z-30 border-r border-amber-200 bg-amber-50" />
-
-                    <th className="sticky left-[45px] z-30 border-r border-amber-200 bg-amber-50 px-3 py-2 text-right text-xs font-bold text-gray-700">
-                      Maximum Classes
-                    </th>
-
-                    {subjects.map(
-                      (subject) => (
-                        <th
-                          key={
-                            subject.subjectId
-                          }
-                          className="w-[115px] min-w-[115px] border-r border-amber-200 bg-amber-50 px-1.5 py-1.5"
-                        >
-
-                          <input
-                            type="number"
-                            min="1"
-                            value={
-                              subject.maxClasses ??
-                              ""
-                            }
-                            onChange={(e) =>
-                              handleMaxClassesChange(
-                                subject.subjectId,
-                                e.target.value
-                              )
-                            }
-                            disabled={
-                              status !==
-                              "draft"
-                            }
-                            className="no-spinner h-8 w-full rounded-md border border-amber-300 bg-white px-1 text-center text-sm font-bold text-gray-800 outline-none focus:border-amber-500 disabled:bg-gray-100"
-                            placeholder="Max"
-                          />
 
                         </th>
                       )
@@ -1993,7 +1951,7 @@ export default function AttendancePage() {
                                   subject.subjectId
                                 }
                                 className={`w-[115px] min-w-[115px] border-r border-b border-amber-200 px-1.5 py-1.5 ${percentage !== null &&
-                                    percentage < 75
+                                    percentage < SHORTAGE_BELOW
                                     ? "bg-red-50"
                                     : ""
                                   }`}
@@ -2002,10 +1960,8 @@ export default function AttendancePage() {
                                 <input
                                   type="number"
                                   min="0"
-                                  max={
-                                    max ||
-                                    undefined
-                                  }
+                                  max={PERCENT_MAX}
+                                  step="0.01"
                                   value={
                                     attended
                                   }
@@ -2022,25 +1978,19 @@ export default function AttendancePage() {
                                   }
                                   className={`no-spinner h-8 w-full rounded-md border px-1 text-center text-sm outline-none ${invalid ||
                                       (percentage !== null &&
-                                        percentage < 75)
+                                        percentage < SHORTAGE_BELOW)
                                       ? "border-red-500 bg-red-100 text-red-700 font-semibold focus:border-red-500"
                                       : "border-amber-200 bg-white focus:border-amber-500"
                                     } disabled:bg-gray-100`}
-                                  placeholder="0"
+                                  placeholder="%"
                                 />
 
                                 {/* PERCENTAGE */}
 
                              
-{percentage !== null && (
-  <div
-    className={`mt-1 text-center text-[10px] font-semibold ${
-      percentage < 75
-        ? "rounded bg-red-100 px-1 py-0.5 text-red-700"
-        : "text-green-600"
-    }`}
-  >
-    {percentage}%
+{percentage !== null && percentage < SHORTAGE_BELOW && (
+  <div className="mt-1 rounded bg-red-100 px-1 py-0.5 text-center text-[10px] font-semibold text-red-700">
+    Shortage
   </div>
 )}
 

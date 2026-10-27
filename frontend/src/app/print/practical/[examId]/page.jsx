@@ -5,6 +5,11 @@
 //                                   with the marks after the examiners submit
 //   ?sheet=timetable&department=cs  time table and examiners (notice board / file);
 //                                   department = the department that conducts the exams
+//   Exam section (office), with optional &department= &date= (&status= for the report):
+//   ?sheet=room-diary               one room diary per lab and session
+//   ?sheet=ml                       blank ML (mark list) entry sheets, one batch per page
+//   ?sheet=status                   practical marks entered / pending, subject-wise
+//   &auto=1                         opens the print (Save as PDF) dialog by itself
 
 import { Suspense, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
@@ -12,6 +17,10 @@ import { useAuth } from "@clerk/nextjs";
 
 import { errMsg, useApi } from "../../../components/exams/shared";
 import { branches, dept } from "../../../components/exams/practicalShared";
+import { STATUS, filterOffice, roomsOf } from "../../../components/exams/OfficePractical";
+import Letterhead from "../../../components/print/Letterhead";
+
+const OFFICE_SHEETS = ["room-diary", "ml", "status"];
 
 const th = "border border-slate-700 px-2 py-1 text-left";
 const td = "border border-slate-700 px-2 py-1";
@@ -36,6 +45,9 @@ function PrintPractical() {
   const batchId = search.get("batch");
   const department = search.get("department") || "";
   const branch = search.get("branch") || ""; // a HOD's view: his own exams + his students elsewhere
+  const sheet = search.get("sheet") || "";
+  const office = OFFICE_SHEETS.includes(sheet);
+  const auto = search.get("auto") === "1";
   const { isLoaded, isSignedIn } = useAuth();
   const api = useApi();
   const [data, setData] = useState(null);
@@ -44,9 +56,20 @@ function PrintPractical() {
   useEffect(() => {
     if (!isLoaded) return;
     if (!isSignedIn) return setError("Please sign in.");
-    const call = batchId ? api("get", `/practicals/batches/${batchId}`) : api("get", `/practicals/${examId}/batches`, undefined, { params: branch ? { branch } : department ? { department } : {} });
+    const call = office
+      ? api("get", `/practicals/${examId}/office`)
+      : batchId
+        ? api("get", `/practicals/batches/${batchId}`)
+        : api("get", `/practicals/${examId}/batches`, undefined, { params: branch ? { branch } : department ? { department } : {} });
     call.then((r) => setData(r.data)).catch((e) => setError(errMsg(e, "Could not load.")));
-  }, [api, examId, batchId, department, branch, isLoaded, isSignedIn]);
+  }, [api, examId, batchId, department, branch, office, isLoaded, isSignedIn]);
+
+  // "PDF" button of the office pages: open the print dialog once the sheet is drawn
+  useEffect(() => {
+    if (!auto || !data) return;
+    const t = setTimeout(() => window.print(), 800);
+    return () => clearTimeout(t);
+  }, [auto, data]);
 
   if (error) return <p className="p-8 text-sm text-red-700">{error}</p>;
   if (!data) return <p className="p-8 text-sm text-slate-500">Loading…</p>;
@@ -60,7 +83,13 @@ function PrintPractical() {
           Print
         </button>
       </div>
-      {batchId ? <MarkList b={data.data} /> : <TimeTable exam={data.exam} batches={data.data} department={department} branch={branch} />}
+      {office ? (
+        <OfficeSheet sheet={sheet} data={data} department={department} date={search.get("date") || ""} status={search.get("status") || ""} />
+      ) : batchId ? (
+        <MarkList b={data.data} />
+      ) : (
+        <TimeTable exam={data.exam} batches={data.data} department={department} branch={branch} />
+      )}
     </div>
   );
 }
@@ -195,6 +224,266 @@ function TimeTable({ exam, batches, department, branch }) {
         <span>Head of the Department</span>
         <span>Controller of Examinations</span>
       </div>
+    </div>
+  );
+}
+
+// ------------------------------------------------------------------ office sheets
+
+function OfficeSheet({ sheet, data, department, date, status }) {
+  const { batches, subjects } = filterOffice(data, { department, date, status });
+  const exam = data.exam?.name || "";
+  const empty = <p className="mt-6 text-sm text-slate-500">Nothing to print for this selection.</p>;
+  if (sheet === "status") return <StatusSheet exam={exam} subjects={subjects} department={department} />;
+  if (!batches.length) return empty;
+  if (sheet === "ml")
+    return batches.map((b, i) => (
+      <div key={b._id} className={i ? "break-before-page pt-2" : ""}>
+        <BlankMarkList exam={exam} b={b} />
+      </div>
+    ));
+  return roomsOf(batches).map((r, i) => (
+    <div key={r.key} className={i ? "break-before-page pt-2" : ""}>
+      <RoomDiary exam={exam} room={r} />
+    </div>
+  ));
+}
+
+function Signatures({ who }) {
+  return (
+    <div className="mt-12 grid gap-4 text-center text-[11px] font-semibold" style={{ gridTemplateColumns: `repeat(${who.length}, 1fr)` }}>
+      {who.map((w) => (
+        <span key={w} className="border-t border-slate-700 pt-1">
+          {w}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function RoomDiary({ exam, room }) {
+  const students = room.batches.flatMap((b) => b.students.map((s) => ({ ...s, batch: b.label })));
+  const done = room.batches.every((b) => b.status === "SUBMITTED");
+  const count = (a) => students.filter((s) => s.attendance === a).length;
+  return (
+    <div>
+      <Letterhead />
+      <div className="mt-2 text-center">
+        <p className="text-[12px] font-semibold">{exam}</p>
+        <p className="mt-1 text-[13px] font-bold tracking-[0.15em]">PRACTICAL EXAMINATION – ROOM DIARY</p>
+      </div>
+      <table className="mt-3 w-full border-collapse">
+        <tbody>
+          <tr>
+            <td className={`${td} w-24 font-semibold`}>Date</td>
+            <td className={td}>{day(room.date)}</td>
+            <td className={`${td} w-24 font-semibold`}>Session</td>
+            <td className={td}>{session(room.session)}</td>
+            <td className={`${td} w-24 font-semibold`}>Lab / Room</td>
+            <td className={td}>{room.lab || "__________"}</td>
+          </tr>
+        </tbody>
+      </table>
+      <table className="mt-3 w-full border-collapse">
+        <thead>
+          <tr className="bg-slate-100">
+            <th className={th}>Batch</th>
+            <th className={th}>Subject</th>
+            <th className={`${th} w-16`}>Students</th>
+            <th className={th}>Internal examiner</th>
+            <th className={th}>External examiner</th>
+          </tr>
+        </thead>
+        <tbody>
+          {room.batches.map((b) => (
+            <tr key={b._id}>
+              <td className={`${td} font-semibold`}>{b.label}</td>
+              <td className={td}>
+                <b>{b.code}</b> {b.name}
+                <span className="block text-[10px]">Conducted by {dept(b.department)}</span>
+              </td>
+              <td className={`${td} text-center`}>{b.count}</td>
+              <td className={td}>{b.internal.name || "________________"}</td>
+              <td className={td}>
+                {b.external.name || "________________"}
+                {b.external.college && <span className="block text-[10px]">{b.external.college}</span>}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <table className="mt-3 w-full border-collapse">
+        <thead>
+          <tr className="bg-slate-100">
+            <th className={`${th} w-8`}>#</th>
+            <th className={`${th} w-28`}>Register No.</th>
+            <th className={th}>Name</th>
+            <th className={`${th} w-12`}>Branch</th>
+            <th className={`${th} w-24`}>Batch</th>
+            <th className={`${th} w-16`}>P / AB</th>
+            <th className={`${th} w-32`}>Signature of candidate</th>
+          </tr>
+        </thead>
+        <tbody>
+          {students.map((s, i) => (
+            <tr key={`${s.batch}-${s.registerNumber}`} className="h-[7mm]">
+              <td className={td}>{i + 1}</td>
+              <td className={`${td} font-semibold`}>{s.registerNumber}</td>
+              <td className={td}>{s.name}</td>
+              <td className={td}>{String(s.department || "").toUpperCase()}</td>
+              <td className={td}>{s.batch}</td>
+              <td className={`${td} text-center font-semibold`}>
+                {s.attendance === "PRESENT" ? "P" : s.attendance === "ABSENT" ? "AB" : s.attendance === "MALPRACTICE" ? "MP" : ""}
+              </td>
+              <td className={td} />
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="mt-3 text-[11px]">
+        Allotted: {students.length} &nbsp;·&nbsp; Present: {done ? count("PRESENT") : "______"} &nbsp;·&nbsp; Absent:{" "}
+        {done ? count("ABSENT") : "______"} &nbsp;·&nbsp; Malpractice: {done ? count("MALPRACTICE") : "______"}
+        <br />
+        Absentees (register numbers): {done ? students.filter((s) => s.attendance === "ABSENT").map((s) => s.registerNumber).join(", ") || "Nil" : "______________________________________________"}
+        <br />
+        Remarks: ____________________________________________________________________________
+      </p>
+      <Signatures who={["Internal Examiner", "External Examiner", "HOD", "COE"]} />
+    </div>
+  );
+}
+
+function BlankMarkList({ exam, b }) {
+  return (
+    <div>
+      <Letterhead />
+      <div className="mt-2 text-center">
+        <p className="text-[12px] font-semibold">{exam}</p>
+        <p className="mt-1 text-[13px] font-bold tracking-[0.15em]">PRACTICAL EXAMINATION – MARK LIST (ML) ENTRY SHEET</p>
+        <p className="text-[12px]">
+          {b.code} – {b.name}
+        </p>
+      </div>
+      <div className="mt-3 flex items-end justify-between">
+        <p className="text-[11px] leading-5">
+          Conducted by: {dept(b.department)} &nbsp;·&nbsp; Semester: {b.semester ?? "–"} &nbsp;·&nbsp; Maximum marks: {b.max}
+          <br />
+          Date: {day(b.date)} &nbsp;·&nbsp; Session: {session(b.session)} &nbsp;·&nbsp; Lab: {b.lab || "__________"}
+        </p>
+        <p className="border-2 border-slate-900 px-3 py-1 text-[15px] font-bold tracking-wide">{b.label}</p>
+      </div>
+      <table className="mt-3 w-full border-collapse">
+        <thead>
+          <tr className="bg-slate-100">
+            <th className={`${th} w-8`}>#</th>
+            <th className={`${th} w-28`}>Register No.</th>
+            <th className={th}>Name</th>
+            <th className={`${th} w-12`}>Branch</th>
+            <th className={`${th} w-24`}>Marks (figures)</th>
+            <th className={`${th} w-36`}>Marks (words)</th>
+            <th className={`${th} w-20`}>Remarks</th>
+          </tr>
+        </thead>
+        <tbody>
+          {b.students.map((s, i) => (
+            <tr key={s.registerNumber} className="h-[7.5mm]">
+              <td className={td}>{i + 1}</td>
+              <td className={`${td} font-semibold`}>{s.registerNumber}</td>
+              <td className={td}>
+                {s.name}
+                {s.kind === "BACKLOG" && <span className="ml-1 text-[9px]">(B)</span>}
+              </td>
+              <td className={td}>{String(s.department || "").toUpperCase()}</td>
+              <td className={td} />
+              <td className={td} />
+              <td className={td} />
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="mt-3 text-[11px]">Students: {b.count} &nbsp;·&nbsp; Present: ______ &nbsp;·&nbsp; Absent: ______ &nbsp;·&nbsp; Write AB for absent.</p>
+      <div className="mt-12 grid grid-cols-3 gap-4 text-[11px]">
+        <div>
+          <p className="border-t border-slate-700 pt-1 font-semibold">Internal Examiner</p>
+          <p>{b.internal.name || "Name: ________________"}</p>
+        </div>
+        <div>
+          <p className="border-t border-slate-700 pt-1 font-semibold">External Examiner</p>
+          <p>
+            {b.external.name || "Name: ________________"}
+            {b.external.college && `, ${b.external.college}`}
+          </p>
+        </div>
+        <div>
+          <p className="border-t border-slate-700 pt-1 font-semibold">HOD</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatusSheet({ exam, subjects, department }) {
+  const sum = (k) => subjects.reduce((n, s) => n + (s[k] || 0), 0);
+  return (
+    <div>
+      <Letterhead />
+      <div className="mt-2 text-center">
+        <p className="text-[12px] font-semibold">{exam}</p>
+        <p className="mt-1 text-[13px] font-bold tracking-[0.15em]">PRACTICAL MARKS ENTRY – STATUS REPORT</p>
+        <p className="text-[11px]">
+          {department ? `Conducted by the ${dept(department)} department` : "All departments"} · as on{" "}
+          {new Date().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
+        </p>
+      </div>
+      <table className="mt-4 w-full border-collapse">
+        <thead>
+          <tr className="bg-slate-100">
+            <th className={`${th} w-8`}>#</th>
+            <th className={th}>Subject</th>
+            <th className={`${th} w-28`}>Department</th>
+            <th className={`${th} w-16`}>Regd.</th>
+            <th className={`${th} w-20`}>Batches (done)</th>
+            <th className={`${th} w-16`}>Entered</th>
+            <th className={`${th} w-16`}>Pending</th>
+            <th className={`${th} w-24`}>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {subjects.map((s, i) => (
+            <tr key={s.code}>
+              <td className={td}>{i + 1}</td>
+              <td className={td}>
+                <b>{s.code}</b> {s.name}
+              </td>
+              <td className={td}>
+                {dept(s.department)}
+                {s.semester ? ` · ${s.semester}` : ""}
+              </td>
+              <td className={`${td} text-right`}>{s.registered}</td>
+              <td className={`${td} text-right`}>
+                {s.batches} ({s.submittedBatches})
+              </td>
+              <td className={`${td} text-right font-semibold`}>{s.entered}</td>
+              <td className={`${td} text-right font-semibold`}>{s.pending}</td>
+              <td className={td}>{STATUS[s.status]?.label || s.status}</td>
+            </tr>
+          ))}
+          <tr className="bg-slate-100 font-semibold">
+            <td className={td} colSpan={3}>
+              Total ({subjects.length} subjects)
+            </td>
+            <td className={`${td} text-right`}>{sum("registered")}</td>
+            <td className={`${td} text-right`}>
+              {sum("batches")} ({sum("submittedBatches")})
+            </td>
+            <td className={`${td} text-right`}>{sum("entered")}</td>
+            <td className={`${td} text-right`}>{sum("pending")}</td>
+            <td className={td} />
+          </tr>
+        </tbody>
+      </table>
+      {subjects.length === 0 && <p className="mt-4 text-sm text-slate-500">No practical subjects for this selection.</p>}
+      <Signatures who={["Exam Section", "COE"]} />
     </div>
   );
 }

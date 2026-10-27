@@ -204,7 +204,7 @@ export default function SheetReview({ type }) {
                         Review
                       </button>
                       {s.status === "submitted" && (
-                        <button onClick={() => freeze(s)} className={`${btn.small} border-slate-900 bg-slate-900 text-white hover:bg-slate-700`}>
+                        <button onClick={() => freeze(s)} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-900 bg-slate-900 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-700 disabled:opacity-40">
                           <Icon name="lock" className="h-3.5 w-3.5" />
                           Freeze
                         </button>
