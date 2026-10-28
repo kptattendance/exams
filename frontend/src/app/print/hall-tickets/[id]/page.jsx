@@ -8,7 +8,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 
-import { deptLabel, errMsg, useApi } from "../../../components/exams/shared";
+import { errMsg, programmeName, useApi } from "../../../components/exams/shared";
 import Letterhead from "../../../components/print/Letterhead";
 
 const fmtDate = (iso) =>
@@ -99,7 +99,7 @@ function Ticket({ t, exam }) {
                 ["Register No.", <b key="r" className="text-[12px] tracking-wide">{t.registerNumber}</b>],
                 ["Name", <b key="n">{t.name}</b>],
                 ["Father’s name", t.fatherName || "—"],
-                ["Programme", t.backPapersOnly ? `${deptLabel(t.department)} (back papers)` : deptLabel(t.department)],
+                ["Programme", t.backPapersOnly ? `${programmeName(t.department)} (back papers)` : programmeName(t.department)],
                 [
                   "Semester / Admission",
                   `${t.backPapersOnly ? "—" : t.semester}${t.admissionLabel ? ` · ${t.admissionLabel}` : ""}`,

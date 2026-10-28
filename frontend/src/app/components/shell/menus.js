@@ -85,7 +85,7 @@ export const MENUS = {
         title: "Marks & results",
         items: [
           { label: "IA marks", href: "/coe/ia-marks", icon: "marks", soon: true },
-          { label: "Practical exam marks", href: "/coe/practical-exam-marks", icon: "paper" },
+          { label: "Practical Examiners", href: "/coe/practical-exam-marks", icon: "paper" },
           { label: "Valuation", href: "/coe/valuation", icon: "valuation" },
           { label: "Marks entry", href: "/coe/marks-entry", icon: "marks" },
           { label: "Results", href: "/coe/results", icon: "results" },

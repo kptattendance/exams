@@ -34,6 +34,19 @@ export const DEPARTMENTS = [
   { value: "ps", label: "Polymer" },
 ];
 DEPARTMENTS.sort(sortOptions); // alphabetical in every drop-down
+// Full programme names for printed documents (hall tickets)
+export const PROGRAMMES = {
+  at: "Automobile Engineering",
+  ch: "Chemical Engineering",
+  ce: "Civil Engineering",
+  cs: "Computer Science and Engineering",
+  ec: "Electronics and Communication Engineering",
+  ee: "Electrical and Electronics Engineering",
+  me: "Mechanical Engineering",
+  ps: "Polymer Technology",
+};
+export const programmeName = (d) => PROGRAMMES[String(d).toLowerCase()] || deptLabel(d);
+
 export const deptLabel = (d) => DEPARTMENTS.find((x) => x.value === String(d).toLowerCase())?.label || String(d).toUpperCase();
 
 export const ADMISSION_SHORT = {
