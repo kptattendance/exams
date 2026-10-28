@@ -9,6 +9,7 @@ import mongoose from "mongoose";
 import Exam from "../models/Exam.js";
 import ExamRegistration from "../models/ExamRegistration.js";
 import Student from "../models/Student.js";
+import Subject from "../models/Subject.js";
 import AuditLog from "../models/AuditLog.js";
 import { ticketFor } from "../services/exams/hallTicket.js";
 import { ADMISSION_LABEL } from "../services/exams/rules.js";
@@ -60,6 +61,22 @@ export const listHallTickets = async (req, res) => {
     .select("imageUrl fatherName")
     .lean();
   const info = new Map(students.map((s) => [String(s._id), s]));
+
+  // Print subjects in the order of their sequence number (e.g. 3CS01, 3CS02 …).
+  // A common subject may have a sequence per department: the student's own wins.
+  const codes = [...new Set(pageItems.flatMap((t) => t.subjects.map((s) => s.code)))];
+  const seqDocs = await Subject.find({ code: { $in: codes } }).select("code department sequence").lean();
+  const seqOf = (code, department) => {
+    const docs = seqDocs.filter((d) => d.code === code);
+    const own = String(department || "").toUpperCase();
+    return (docs.find((d) => String(d.department).toUpperCase() === own) || docs[0])?.sequence || "";
+  };
+  for (const t of pageItems) {
+    t.subjects = t.subjects
+      .map((s, i) => ({ s, i, seq: seqOf(s.code, t.reg.department) }))
+      .sort((a, b) => (!a.seq - !b.seq) || a.seq.localeCompare(b.seq, undefined, { numeric: true }) || a.i - b.i)
+      .map((x) => x.s);
+  }
 
   if (req.query.print === "1") {
     AuditLog.create({
