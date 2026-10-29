@@ -234,7 +234,7 @@ export default function PracticalTimetable() {
 
           <p className="mt-3 text-xs text-slate-500">
             Need the subject-wise list or your students in other boards&apos; exams?{" "}
-            <a href="/hod/practical" className="font-semibold text-blue-700 underline">
+            <a href="/hod/practical/subjects" className="font-semibold text-blue-700 underline">
               Open the subject-wise view
             </a>
           </p>

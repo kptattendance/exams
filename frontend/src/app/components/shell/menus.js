@@ -133,7 +133,7 @@ export const MENUS = {
       {
         title: "Practical exams",
         items: [
-          { label: "Practical batches & time table", href: "/hod/practical-timetable", icon: "calendar" },
+          { label: "Practical batches & time table", href: "/hod/practical", icon: "calendar" },
           { label: "Practical marks entry", href: "/hod/practical-marks", icon: "marks" },
         ],
       },

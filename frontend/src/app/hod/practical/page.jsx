@@ -1,8 +1,9 @@
 "use client";
 
-import PracticalBatches from "../../components/exams/PracticalBatches";
+import PracticalTimetable from "../../components/exams/PracticalTimetable";
 
-// HOD forms the practical batches of his own department (the server enforces it too)
+// HOD: practical batches and time table on one screen (same as /hod/practical-timetable).
+// The older subject-wise view is at /hod/practical/subjects.
 export default function HodPracticalBatchesPage() {
-  return <PracticalBatches />;
+  return <PracticalTimetable />;
 }

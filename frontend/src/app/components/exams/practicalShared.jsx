@@ -84,7 +84,7 @@ export function ExamSelect({ exams, examId, setExamId }) {
 // HOD: the three steps of the practical exams, with where he is now.
 //   done: { batches: bool, timetable: bool }   here: 1 | 2 (the page he is on)
 const STEPS = [
-  { n: 1, title: "Make batches", text: "Open each subject, choose how many batches, Save.", href: "/hod/practical" },
+  { n: 1, title: "Make batches", text: "Open each subject, choose how many batches, Save.", href: "/hod/practical/subjects" },
   { n: 2, title: "Fix the time table", text: "Put each batch on a date and time, choose lab and examiners, Save.", href: "/hod/practical-timetable" },
   { n: 3, title: "Print and share", text: "Download the PDF for students and the PDF of examiners.", href: "/hod/practical-timetable" },
 ];
