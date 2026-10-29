@@ -82,6 +82,7 @@ export const MENUS = {
         title: "Theory exam",
         items: [
           { label: "Paper setting", href: "/coe/paper-setting", icon: "lock", pinned: true },
+          { label: "Exam sessions (rooms & absentees)", href: "/coe/exam-sessions", icon: "list" },
           { label: "Valuation", href: "/coe/valuation", icon: "valuation" },
           { label: "Marks entry", href: "/coe/marks-entry", icon: "marks" },
         ],
@@ -213,7 +214,10 @@ export const MENUS = {
     sections: [
       {
         title: "Exam day",
-        items: [{ label: "Question papers today", href: "/chief-examiner", icon: "lock", pinned: true }],
+        items: [
+          { label: "Question papers today", href: "/chief-examiner", icon: "lock", pinned: true },
+          { label: "Rooms & absentees", href: "/chief-examiner/sessions", icon: "list", pinned: true },
+        ],
       },
     ],
   },

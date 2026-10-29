@@ -38,3 +38,12 @@ test("every page of a printed copy is stamped", async () => {
   assert.equal(again.getPageCount(), 2);
   assert.ok(stamped.length > 0);
 });
+
+test("absentees: from 30 minutes after the start until the session ends", async () => {
+  const { absentWindow } = await import("../src/services/examDay.js");
+  const w = absentWindow({ date: "2026-11-16", session: "FN" }, { FN: { start: "10:00", end: "13:00" } });
+  assert.equal(windowState(w, new Date("2026-11-16T10:20:00+05:30")), "BEFORE");
+  assert.equal(windowState(w, new Date("2026-11-16T10:30:00+05:30")), "OPEN");
+  assert.equal(windowState(w, new Date("2026-11-16T12:59:00+05:30")), "OPEN");
+  assert.equal(windowState(w, new Date("2026-11-16T13:01:00+05:30")), "CLOSED");
+});

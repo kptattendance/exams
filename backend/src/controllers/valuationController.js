@@ -50,7 +50,7 @@ async function loadExam(req, res) {
   return exam;
 }
 
-async function getPaper(exam, code) {
+export async function getPaper(exam, code) {
   let paper = await ValuationPaper.findOne({ exam: exam._id, code });
   if (paper) return paper;
   const subject = await Subject.findOne({ code }).select("name theoryExamMax theoryExamMin").lean();
@@ -134,7 +134,7 @@ export const listPapers = async (req, res) => {
 };
 
 // Create / update the list of scripts from who is permitted to write
-async function syncCandidates(exam, paper) {
+export async function syncCandidates(exam, paper) {
   const regs = await ExamRegistration.find({ exam: exam._id, "subjects.code": paper.code })
     .select("student registerNumber name department semester regularFee subjects")
     .lean();

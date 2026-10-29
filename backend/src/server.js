@@ -17,6 +17,7 @@ import sheetReviewRoutes from "./routes/sheetReviewRoutes.js";
 import settingsRoutes from "./routes/settingsRoutes.js";
 import marksEntryRoutes from "./routes/marksEntryRoutes.js";
 import practicalRoutes from "./routes/practicalRoutes.js";
+import examSessionRoutes from "./routes/examSessionRoutes.js";
 import stepUpRoutes from "./routes/stepUpRoutes.js";
 
 
@@ -110,6 +111,7 @@ app.use("/api/sheet-review", sheetReviewRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/marks-entry", marksEntryRoutes);
 app.use("/api/practicals", practicalRoutes);
+app.use("/api/exam-sessions", examSessionRoutes);
 app.use("/api/otp", stepUpRoutes);
 
 

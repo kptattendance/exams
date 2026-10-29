@@ -35,6 +35,14 @@ export function printWindow(entry, sessions) {
   };
 }
 
+// The Chief Examiner marks absentees from 30 minutes after the session starts
+// (once the absent lists come from the rooms) until the session ends.
+export const ABSENT_AFTER_MINUTES = 30;
+export function absentWindow(entry, sessions) {
+  const w = printWindow(entry, sessions);
+  return { opensAt: new Date(w.startsAt.getTime() + ABSENT_AFTER_MINUTES * 60 * 1000), startsAt: w.startsAt, closesAt: w.closesAt };
+}
+
 // "BEFORE" | "OPEN" | "CLOSED"
 export function windowState(w, now = new Date()) {
   if (now < w.opensAt) return "BEFORE";
