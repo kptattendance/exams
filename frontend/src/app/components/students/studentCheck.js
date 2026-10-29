@@ -1,6 +1,7 @@
 // Every detail of a student, in one list – used by the HOD's students page
 // (on screen) and its Excel, so that the HOD and the students can check them.
-// Aadhaar is always masked (only the last 4 digits) because the Excel is shared.
+// Aadhaar: the HOD sees the full number on screen (to cross-check); the Excel,
+// which is shared with students, keeps it masked (only the last 4 digits).
 
 const ADMISSION = {
   regular: "Regular",
@@ -20,10 +21,13 @@ export const maskAadhaar = (a) => {
   return digits.length >= 4 ? `XXXX XXXX ${digits.slice(-4)}` : "";
 };
 
+const spaced = (a) => String(a).replace(/(\d{4})(?=\d)/g, "$1 ");
+
 const phoneOk = (v) => /^\d{10}$/.test(String(v || "").replace(/[\s-]/g, "").replace(/^(\+91|91)(?=\d{10}$)/, ""));
 const emailOk = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || ""));
 
-// key, label, value (as shown), required (empty = missing), check (wrong format)
+// key, label, value (as shown), excel (if different in the Excel),
+// required (empty = missing), check (wrong format)
 export const STUDENT_FIELDS = [
   { key: "registerNumber", label: "Register No.", value: (s) => s.registerNumber, required: true },
   { key: "rollNumber", label: "Roll No.", value: (s) => s.rollNumber, required: true },
@@ -38,7 +42,13 @@ export const STUDENT_FIELDS = [
   { key: "category", label: "Category", value: (s) => s.category, required: true },
   { key: "caste", label: "Caste", value: (s) => s.caste },
   { key: "satsNumber", label: "SATS No.", value: (s) => s.satsNumber, required: true },
-  { key: "aadhaar", label: "Aadhaar (last 4)", value: (s) => maskAadhaar(s.aadhaarNumber), required: true },
+  {
+    key: "aadhaar",
+    label: "Aadhaar",
+    value: (s) => (s.aadhaarFull ? spaced(s.aadhaarFull) : maskAadhaar(s.aadhaarNumber)),
+    excel: (s) => maskAadhaar(s.aadhaarFull || s.aadhaarNumber),
+    required: true,
+  },
   { key: "admissionType", label: "Admission type", value: (s) => ADMISSION[s.admissionType] || cap(s.admissionType) },
   { key: "admissionYear", label: "Admission year", value: (s) => s.admissionYear, required: true },
   { key: "batch", label: "Batch", value: (s) => s.batch },

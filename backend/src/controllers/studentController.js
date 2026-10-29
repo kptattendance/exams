@@ -1,4 +1,5 @@
 import Student from "../models/Student.js";
+import { decryptAadhaar } from "../services/studentCrypto.js";
 import ExamRegistration from "../models/ExamRegistration.js";
 import CourseResult from "../models/CourseResult.js";
 import { clerkClient } from "@clerk/express";
@@ -1654,12 +1655,30 @@ export const getStudents = async (req, res) => {
 
     const students =
       await Student.find(filter)
+        .select(requesterRole === "hod" ? "+aadhaarEncrypted" : "")
         .sort({
           semester: 1,
           registerNumber: 1,
           name: 1,
         })
         .lean();
+
+    // The HOD cross-checks his own students' details, so he gets the full
+    // Aadhaar number (decrypted here; the encrypted value never leaves the server).
+    if (requesterRole === "hod") {
+      for (const s of students) {
+        let full = "";
+        try {
+          full = decryptAadhaar(s.aadhaarEncrypted);
+        } catch {
+          full = "";
+        }
+        // older records may still hold the plain number
+        if (!full && /^\d{12}$/.test(String(s.aadhaarNumber || ""))) full = s.aadhaarNumber;
+        s.aadhaarFull = full;
+        delete s.aadhaarEncrypted;
+      }
+    }
 
     return res.status(200).json({
       success: true,

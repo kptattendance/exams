@@ -231,7 +231,7 @@ export default function HODStudentsPage() {
     // every detail, and two empty columns for the student to confirm / correct
     const excelData = filteredStudents.map((student, index) => {
       const row = { "Sl. No.": index + 1 };
-      for (const f of STUDENT_FIELDS) row[f.label] = f.value(student) ?? "";
+      for (const f of STUDENT_FIELDS) row[f.label] = (f.excel ? f.excel(student) : f.value(student)) ?? "";
       const problems = problemsOf(student);
       row["Missing / check"] = Object.entries(problems)
         .map(([key, why]) => `${STUDENT_FIELDS.find((f) => f.key === key)?.label}: ${why}`)
