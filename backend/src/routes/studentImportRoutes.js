@@ -46,6 +46,10 @@ const handleUpload = (mw) => (req, res, next) =>
 router.use(authenticateUser, requireRole("admin", "coe", "acoe"));
 
 router.post("/preview", handleUpload(excel), previewImport);
+// 2nd / 3rd-year students with their register numbers: Admin only
+const existingMode = (req, res, next) => ((req.importMode = "EXISTING"), next());
+router.post("/existing/preview", adminOnly, existingMode, handleUpload(excel), previewImport);
+router.post("/existing", adminOnly, existingMode, handleUpload(excel), startImport);
 router.post("/photo", handleUpload(photo), uploadStudentPhoto);
 router.post("/numbering/repair", repairNumbering);
 router.get("/", listImports);

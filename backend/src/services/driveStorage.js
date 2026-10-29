@@ -129,3 +129,17 @@ export async function exportAsDocx(fileId) {
 }
 
 export const scrutinyDocUrl = (fileId) => `https://docs.google.com/document/d/${fileId}/edit`;
+
+// ------------------------------------------------------------------ activity log archives
+// Logs older than 2 years are kept as Excel files in the "Activity logs" folder.
+
+export async function uploadLogArchive(buffer, name) {
+  const type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  const res = await getDrive().files.create({
+    requestBody: { name, parents: [await subFolderId("Activity logs")], mimeType: type },
+    media: { mimeType: type, body: Readable.from(buffer) },
+    fields: "id",
+    supportsAllDrives: true,
+  });
+  return res.data.id;
+}

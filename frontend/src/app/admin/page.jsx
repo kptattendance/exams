@@ -5,6 +5,8 @@ import axios from "axios";
 import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 
+import ActivityLog from "../components/admin/ActivityLog";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const dashboardItems = [
@@ -235,6 +237,8 @@ export default function AdminDashboard() {
 
       </div>
 
+      {/* who did what and when */}
+      <ActivityLog />
 
     </div>
   );

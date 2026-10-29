@@ -14,6 +14,11 @@
 //
 //  POST /photo             Upload one photo named by roll / register number
 //                          (e.g. AT26001.jpg) to set or replace a photo.
+//
+//  EXISTING STUDENTS (2nd / 3rd year, Admin only): POST /existing/preview and
+//  POST /existing – the same Excel with a "Register Number" column. Those
+//  numbers are used as they are (nothing is reserved), any semester 1–6.
+//  Processing / retry / export are the same as above.
 
 import { Readable } from "stream";
 import mongoose from "mongoose";
@@ -29,6 +34,8 @@ import AuditLog from "../models/AuditLog.js";
 import { encryptAadhaar, hashAadhaar } from "../services/studentCrypto.js";
 import {
   ADMISSION_TYPES,
+  COLLEGE_CODE,
+  DEPARTMENTS,
   mapHeaders,
   cleanRow,
   findDuplicatesInFile,
@@ -102,9 +109,14 @@ async function clerkEmailsInUse(emails) {
  * Full check of an uploaded Excel. Returns cleaned rows with problems and
  * TENTATIVE register numbers (based on numbers already used).
  */
-async function analyse(buffer) {
+async function analyse(buffer, { existing = false } = {}) {
   const { headers, rows } = readWorkbook(buffer);
-  const { map, missing } = mapHeaders(headers);
+  const { map, missing: missingNew } = mapHeaders(headers);
+  // existing students: the register number is required, the admission type is
+  // optional (regular when empty)
+  const missing = existing
+    ? [...missingNew.filter((m) => m !== "admissionType"), ...(Object.values(map).includes("registerNumberGiven") ? [] : ["registerNumber"])]
+    : missingNew;
   if (missing.length) {
     throw Object.assign(new Error(`These columns are missing in the Excel: ${missing.join(", ")}.`), {
       status: 400,
@@ -115,7 +127,11 @@ async function analyse(buffer) {
   const cleaned = rows
     .map((raw, i) => ({ raw, rowNumber: i + 2 }))
     .filter(({ raw }) => Object.values(raw).some((v) => String(v ?? "").trim() !== ""))
-    .map(({ raw, rowNumber }) => cleanRow(raw, map, rowNumber));
+    .map(({ raw, rowNumber }) => {
+      const row = cleanRow(raw, map, rowNumber);
+      if (existing) checkExistingRow(row, raw, map);
+      return row;
+    });
 
   if (!cleaned.length) throw Object.assign(new Error("No student rows found in the Excel."), { status: 400 });
   if (cleaned.length > 600) throw Object.assign(new Error("Please import at most 600 students at a time."), { status: 400 });
@@ -151,6 +167,21 @@ async function analyse(buffer) {
     const rk = `${s.rollNumber}|${s.department}|${s.admissionYear}`;
     if (rollTaken.has(rk))
       row.problems.push({ level: "error", field: "rollNumber", message: `Already imported as ${rollTaken.get(rk)}.` });
+  }
+
+  // ---- existing students keep the register numbers given in the Excel
+  if (existing) {
+    const given = cleaned.map((r) => r.student.registerNumber).filter(Boolean);
+    const inDb = new Set((await Student.find({ registerNumber: { $in: given } }).select("registerNumber").lean()).map((s) => s.registerNumber));
+    const seen = new Map();
+    for (const row of cleaned) {
+      const n = row.student.registerNumber;
+      if (!n) continue;
+      if (inDb.has(n)) row.problems.push({ level: "error", field: "registerNumber", message: `Register number ${n} already belongs to a student.` });
+      else if (seen.has(n)) row.problems.push({ level: "error", field: "registerNumber", message: `Same register number as row ${seen.get(n)}.` });
+      else seen.set(n, row.student.rowNumber);
+    }
+    return { rows: cleaned, groups: [] };
   }
 
   // ---- tentative register numbers for rows without errors
@@ -233,12 +264,44 @@ const excelError = (res, e, where) => {
   return fail(res, 500, "Could not read the Excel file. Please check it and try again.");
 };
 
-// POST /api/student-import/preview
+// Existing students: the given register number and any semester 1–6.
+// (cleanRow is made for 1st-year admissions, so its semester rule is relaxed here.)
+const REGNO_RE = new RegExp(`^${COLLEGE_CODE}(${DEPARTMENTS.map((d) => d.toUpperCase()).join("|")})(\\d{2})(\\d{3})$`);
+function checkExistingRow(row, raw, map) {
+  const s = row.student;
+  const header = Object.keys(map).find((h) => map[h] === "registerNumberGiven");
+  s.registerNumber = String(raw[header] ?? "").replace(/\s+/g, "").toUpperCase();
+  // admission type: regular when empty
+  if (!s.admissionType) {
+    s.admissionType = "regular";
+    row.problems = row.problems.filter((p) => p.field !== "admissionType");
+  }
+  // any semester 1–6 (the 1st-year rule "regular starts in semester 1" does not apply)
+  row.problems = row.problems.filter((p) => p.field !== "semester");
+  const semRaw = parseInt(String(raw[Object.keys(map).find((h) => map[h] === "semester")] ?? "").replace(/\D/g, ""), 10);
+  if (!semRaw) row.problems.push({ level: "error", field: "semester", message: "Semester is missing (1–6)." });
+  else if (semRaw < 1 || semRaw > 6) row.problems.push({ level: "error", field: "semester", message: "Semester must be 1 to 6." });
+  else s.semester = semRaw;
+
+  const m = s.registerNumber.match(REGNO_RE);
+  if (!s.registerNumber) row.problems.push({ level: "error", field: "registerNumber", message: "Register number is missing." });
+  else if (!m) row.problems.push({ level: "error", field: "registerNumber", message: `Register number ${s.registerNumber} does not look like ${COLLEGE_CODE}CS25001.` });
+  else if (s.department && m[1].toLowerCase() !== s.department)
+    row.problems.push({ level: "error", field: "registerNumber", message: `Register number is for ${m[1]} but the department is ${s.department.toUpperCase()}.` });
+  else if (s.admissionYear && Number(m[2]) !== s.admissionYear % 100)
+    row.problems.push({ level: "warning", field: "registerNumber", message: `Register number year (20${m[2]}) differs from the admission year ${s.admissionYear}.` });
+}
+
+// POST /api/student-import/preview            (1st year)
+// POST /api/student-import/existing/preview   (2nd / 3rd year)
 export const previewImport = async (req, res) => {
   try {
     if (!req.file) return fail(res, 400, "Please choose the Excel file.");
-    const { rows, groups } = await analyse(req.file.buffer);
-    res.json(previewPayload(req.file.originalname, rows, groups));
+    const existing = req.importMode === "EXISTING";
+    const { rows, groups } = await analyse(req.file.buffer, { existing });
+    const payload = previewPayload(req.file.originalname, rows, groups);
+    if (existing) payload.rows.forEach((r, i) => (r.registerNumber = rows[i].student.registerNumber));
+    res.json(payload);
   } catch (e) {
     excelError(res, e, "preview");
   }
@@ -270,11 +333,53 @@ async function reserveSeries(group) {
   return first;
 }
 
-// POST /api/student-import
+// One student of the Excel -> one row of the import record
+function importRowOf(s, registerNumber) {
+  const aad = encryptAadhaar(s.aadhaar);
+  return {
+    rowNumber: s.rowNumber,
+    registerNumber,
+    rollNumber: s.rollNumber,
+    name: s.name,
+    department: s.department,
+    admissionType: s.admissionType,
+    photoUrl: s.photoUrl,
+    photoState: s.photoUrl ? "PENDING" : "NONE",
+    data: {
+      registerNumber,
+      rollNumber: s.rollNumber,
+      name: s.name,
+      fatherName: s.fatherName,
+      motherName: s.motherName,
+      dob: s.dob,
+      gender: s.gender,
+      email: s.email,
+      phone: s.phone,
+      parentPhone: s.parentPhone,
+      caste: s.caste,
+      category: s.category,
+      aadhaarNumber: aad.aadhaarNumber,
+      aadhaarEncrypted: aad.aadhaarEncrypted,
+      aadhaarHash: aad.aadhaarHash,
+      satsNumber: s.satsNumber,
+      department: s.department,
+      admissionYear: s.admissionYear,
+      batch: s.batch,
+      batchNumber: s.batchNumber,
+      semester: s.semester,
+      status: s.status,
+      admissionType: s.admissionType,
+    },
+  };
+}
+
+// POST /api/student-import            (1st year: register numbers are given now)
+// POST /api/student-import/existing   (2nd / 3rd year: register numbers from the Excel)
 export const startImport = async (req, res) => {
+  const existing = req.importMode === "EXISTING";
   try {
     if (!req.file) return fail(res, 400, "Please choose the Excel file.");
-    const { rows, groups } = await analyse(req.file.buffer);
+    const { rows, groups } = await analyse(req.file.buffer, { existing });
 
     if (rows.some(hasErrors)) {
       return fail(res, 400, "Fix the errors in the Excel and upload it again. Nothing was imported.", {
@@ -282,54 +387,17 @@ export const startImport = async (req, res) => {
       });
     }
 
-    // Reserve real numbers (they may differ from the preview if someone
-    // else imported the same department in between)
     const importRows = [];
     const reserved = [];
+    if (existing) {
+      for (const row of rows) importRows.push(importRowOf(row.student, row.student.registerNumber));
+    }
+    // Reserve real numbers (they may differ from the preview if someone
+    // else imported the same department in between)
     for (const g of groups) {
       const first = await reserveSeries(g);
       reserved.push({ key: g.key, first, last: first + g.rows.length - 1 });
-      g.rows.forEach((row, i) => {
-        const s = row.student;
-        const serial = first + i;
-        const registerNumber = formatRegisterNumber(g.department, g.yy, serial);
-        const aad = encryptAadhaar(s.aadhaar);
-        importRows.push({
-          rowNumber: s.rowNumber,
-          registerNumber,
-          rollNumber: s.rollNumber,
-          name: s.name,
-          department: s.department,
-          admissionType: s.admissionType,
-          photoUrl: s.photoUrl,
-          photoState: s.photoUrl ? "PENDING" : "NONE",
-          data: {
-            registerNumber,
-            rollNumber: s.rollNumber,
-            name: s.name,
-            fatherName: s.fatherName,
-            motherName: s.motherName,
-            dob: s.dob,
-            gender: s.gender,
-            email: s.email,
-            phone: s.phone,
-            parentPhone: s.parentPhone,
-            caste: s.caste,
-            category: s.category,
-            aadhaarNumber: aad.aadhaarNumber,
-            aadhaarEncrypted: aad.aadhaarEncrypted,
-            aadhaarHash: aad.aadhaarHash,
-            satsNumber: s.satsNumber,
-            department: s.department,
-            admissionYear: s.admissionYear,
-            batch: s.batch,
-            batchNumber: s.batchNumber,
-            semester: s.semester,
-            status: s.status,
-            admissionType: s.admissionType,
-          },
-        });
-      });
+      g.rows.forEach((row, i) => importRows.push(importRowOf(row.student, formatRegisterNumber(g.department, g.yy, first + i))));
     }
     importRows.sort((a, b) => a.registerNumber.localeCompare(b.registerNumber));
 
@@ -337,15 +405,16 @@ export const startImport = async (req, res) => {
       fileName: req.file.originalname.slice(0, 200),
       createdBy: req.user.id,
       createdByEmail: req.user.email || "",
-      departments: [...new Set(groups.map((g) => g.department))],
+      departments: [...new Set(existing ? rows.map((r) => r.student.department) : groups.map((g) => g.department))],
       reserved,
       rows: importRows,
     });
 
-    await logAction(req, "STUDENT_IMPORT_STARTED", doc._id, {
+    await logAction(req, existing ? "EXISTING_STUDENT_IMPORT_STARTED" : "STUDENT_IMPORT_STARTED", doc._id, {
       fileName: doc.fileName,
       students: importRows.length,
-      series: groups.map((g) => `${g.key} x${g.rows.length}`),
+      series: existing ? undefined : groups.map((g) => `${g.key} x${g.rows.length}`),
+      semesters: existing ? [...new Set(rows.map((r) => r.student.semester))] : undefined,
     });
 
     res.status(201).json({ data: importView(doc) });
