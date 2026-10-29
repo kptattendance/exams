@@ -18,7 +18,7 @@ import AnswerScript from "../models/AnswerScript.js";
 import ValuationPaper from "../models/ValuationPaper.js";
 import AuditLog from "../models/AuditLog.js";
 import { getPaper, syncCandidates } from "./valuationController.js";
-import { absentWindow, printWindow, todayIST, windowState } from "../services/examDay.js";
+import { ABSENT_AFTER_MINUTES, printWindow, todayIST, windowState } from "../services/examDay.js";
 
 const isId = (id) => mongoose.Types.ObjectId.isValid(id);
 const fail = (res, status, error, extra = {}) => res.status(status).json({ error, ...extra });
@@ -37,9 +37,14 @@ const log = (req, action, examId, details = {}) =>
     details,
   }).catch(() => {});
 
-const timesOf = (entry, sessions) => {
-  const p = printWindow(entry, sessions);
-  const a = absentWindow(entry, sessions);
+// A session can have normal and drawing papers: it runs from the earliest
+// start to the latest end of its papers.
+const timesOf = (entries, sessions) => {
+  const ws = entries.map((e) => printWindow(e, sessions));
+  const min = (k) => new Date(Math.min(...ws.map((w) => w[k].getTime())));
+  const max = (k) => new Date(Math.max(...ws.map((w) => w[k].getTime())));
+  const p = { opensAt: min("opensAt"), startsAt: min("startsAt"), closesAt: max("closesAt") };
+  const a = { opensAt: new Date(p.startsAt.getTime() + ABSENT_AFTER_MINUTES * 60 * 1000), startsAt: p.startsAt, closesAt: p.closesAt };
   const now = new Date();
   return {
     printOpensAt: p.opensAt,
@@ -61,11 +66,12 @@ export const listSessions = async (req, res) => {
     for (const entry of e.timetable?.entries || []) {
       if (!entry.date || !entry.session) continue;
       const k = `${entry.date}|${entry.session}`;
-      if (!bySlot.has(k)) bySlot.set(k, { entry, codes: [] });
+      if (!bySlot.has(k)) bySlot.set(k, { entry, codes: [], list: [] });
       bySlot.get(k).codes.push(entry.code);
+      bySlot.get(k).list.push(entry);
     }
-    for (const { entry, codes } of bySlot.values())
-      out.push({ examId: e._id, exam: e.name, date: entry.date, session: entry.session, papers: codes.sort(), today: entry.date === today, ...timesOf(entry, e.timetable.sessions) });
+    for (const { entry, codes, list } of bySlot.values())
+      out.push({ examId: e._id, exam: e.name, date: entry.date, session: entry.session, papers: codes.sort(), today: entry.date === today, ...timesOf(list, e.timetable.sessions) });
   }
   out.sort((a, b) => a.date.localeCompare(b.date) || a.session.localeCompare(b.session) || a.exam.localeCompare(b.exam));
   res.json({ today, data: out });
@@ -78,7 +84,7 @@ async function loadSession(req, res) {
   if (!exam) return fail(res, 404, "Exam not found."), null;
   const entries = (exam.timetable?.entries || []).filter((e) => e.date === date && e.session === session);
   if (!entries.length) return fail(res, 404, "No paper is written in this session."), null;
-  return { exam, date, session, entries, times: timesOf(entries[0], exam.timetable.sessions) };
+  return { exam, date, session, entries, times: timesOf(entries, exam.timetable.sessions) };
 }
 
 // GET /api/exam-sessions/:examId/:date/:session – papers, candidates, rooms
@@ -92,7 +98,7 @@ export const getSession = async (req, res) => {
     const paper = await getPaper(exam, code);
     if (!paper) continue;
     if (!paper.coded) await syncCandidates(exam, paper); // follows eligibility / fee until coding
-    papers.push({ code, name: paper.name, coded: Boolean(paper.coded) });
+    papers.push({ code, name: paper.name, coded: Boolean(paper.coded), drawing: Boolean(entries.find((e) => e.code === code)?.drawing) });
   }
   const [scripts, rooms] = await Promise.all([
     AnswerScript.find({ exam: exam._id, code: { $in: codes } }).select("code registerNumber name department semester kind attendance").sort({ registerNumber: 1 }).lean(),

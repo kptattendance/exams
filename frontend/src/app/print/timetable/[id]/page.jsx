@@ -51,6 +51,12 @@ export default function PrintTimetable() {
   if (!data) return <p className="p-8 text-sm text-slate-500">Loading…</p>;
 
   const s = data.sessions;
+  // drawing papers get one hour more (morning ends later, afternoon starts earlier)
+  const drawing = new Set(data.entries.filter((e) => e.drawing).map((e) => e.code));
+  const addH = (hhmm, h) => {
+    const [a, b] = hhmm.split(":").map(Number);
+    return `${String(a + h).padStart(2, "0")}:${String(b).padStart(2, "0")}`;
+  };
   return (
     <div className="mx-auto max-w-4xl bg-white px-6 py-8 text-slate-900 print:max-w-none print:px-0 print:py-0">
       <style>{`@page{size:A4;margin:14mm} @media print{body{background:#fff}}`}</style>
@@ -114,6 +120,12 @@ export default function PrintTimetable() {
                   {slot[k].map((p) => (
                     <p key={p.code} className="py-0.5">
                       <b>{p.code}</b> – {p.name}
+                      {drawing.has(p.code) && (
+                        <span className="font-semibold">
+                          {" "}
+                          [Drawing: {k === "AN" ? `${t12(addH(s.AN.start, -1))} – ${t12(s.AN.end)}` : `${t12(s.FN.start)} – ${t12(addH(s.FN.end, 1))}`}]
+                        </span>
+                      )}
                       <span className="text-slate-600">
                         {" "}
                         ({p.departments.length ? p.departments.map((d) => d.toUpperCase()).join(", ") : "back paper"}

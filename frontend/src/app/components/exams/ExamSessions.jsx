@@ -161,6 +161,7 @@ function Session({ id, qpHref, codingHref }) {
               <tr key={p.code} className={`border-t border-slate-100 ${PAPER_TINTS[tint[p.code]]}`}>
                 <td className="px-3 py-2">
                   <b>{p.code}</b> <span className="text-slate-600">{p.name}</span>
+                  {p.drawing && <span className="ml-2 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold text-violet-800">Drawing · 4 hours</span>}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums">{p.candidates}</td>
                 <td className={`px-3 py-2 text-right tabular-nums ${p.absent ? "font-bold text-red-700" : ""}`}>{p.absent}</td>

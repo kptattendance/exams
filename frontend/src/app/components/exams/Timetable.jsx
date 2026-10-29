@@ -92,7 +92,7 @@ export default function Timetable({ examId: fixedExamId, canManage = false, back
 
   const apply = (d) => {
     setData(d);
-    setRows(Object.fromEntries(d.entries.map((e) => [e.code, { date: e.date, session: e.session }])));
+    setRows(Object.fromEntries(d.entries.map((e) => [e.code, { date: e.date, session: e.session, drawing: Boolean(e.drawing) }])));
     setSessions(d.sessions);
   };
 
@@ -112,7 +112,7 @@ export default function Timetable({ examId: fixedExamId, canManage = false, back
   }, [load]);
 
   const entries = useMemo(
-    () => Object.entries(rows).filter(([, v]) => v.date).map(([code, v]) => ({ code, date: v.date, session: v.session || "FN" })),
+    () => Object.entries(rows).filter(([, v]) => v.date).map(([code, v]) => ({ code, date: v.date, session: v.session || "FN", drawing: Boolean(v.drawing) })),
     [rows]
   );
   const problems = useMemo(() => (data ? check(entries, data.papers, data.studentCodes) : null), [entries, data]);
@@ -304,7 +304,8 @@ export default function Timetable({ examId: fixedExamId, canManage = false, back
               examId={examId}
               entries={entries}
               onFilled={(list) => {
-                setRows(Object.fromEntries(list.map((e) => [e.code, { date: e.date, session: e.session }])));
+                // the "drawing" ticks stay as they were
+                setRows((old) => Object.fromEntries(list.map((e) => [e.code, { date: e.date, session: e.session, drawing: Boolean(old[e.code]?.drawing) }])));
                 setAutoOpen(false);
               }}
             />
@@ -362,6 +363,9 @@ export default function Timetable({ examId: fixedExamId, canManage = false, back
                         <th className={`${T.th} text-right`}>Students</th>
                         <th className={T.th}>Date</th>
                         <th className={T.th}>Session</th>
+                        <th className={T.th} title="A drawing paper gets one hour more: 9–1 in the morning, 1–5 in the afternoon">
+                          Drawing (+1 h)
+                        </th>
                       </tr>
                     </thead>
                     <tbody className={T.body}>
@@ -413,6 +417,23 @@ export default function Timetable({ examId: fixedExamId, canManage = false, back
                                   </button>
                                 ))}
                               </div>
+                            </td>
+                            <td className={T.td}>
+                              <label className="inline-flex items-center gap-1.5 text-xs text-slate-600">
+                                <input
+                                  type="checkbox"
+                                  checked={Boolean(v.drawing)}
+                                  disabled={locked || published || !v.date}
+                                  onChange={(e) => setRow(p.code, { drawing: e.target.checked })}
+                                  className="h-4 w-4"
+                                  aria-label={`${p.code} is a drawing paper`}
+                                />
+                                {v.drawing && v.date ? (
+                                  <span className="font-semibold text-violet-700">{(v.session || "FN") === "AN" ? "1–5 PM" : "9 AM–1 PM"}</span>
+                                ) : (
+                                  ""
+                                )}
+                              </label>
                             </td>
                           </tr>
                         );

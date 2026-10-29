@@ -47,3 +47,13 @@ test("absentees: from 30 minutes after the start until the session ends", async 
   assert.equal(windowState(w, new Date("2026-11-16T12:59:00+05:30")), "OPEN");
   assert.equal(windowState(w, new Date("2026-11-16T13:01:00+05:30")), "CLOSED");
 });
+
+test("written paper times: 9–12 / 2–5, a drawing paper one hour more (9–1 / 1–5)", async () => {
+  const { paperTimes } = await import("../src/services/examDay.js");
+  assert.deepEqual(paperTimes({ session: "FN" }, {}), { start: "09:00", end: "12:00" });
+  assert.deepEqual(paperTimes({ session: "AN" }, {}), { start: "14:00", end: "17:00" });
+  assert.deepEqual(paperTimes({ session: "FN", drawing: true }, {}), { start: "09:00", end: "13:00" });
+  assert.deepEqual(paperTimes({ session: "AN", drawing: true }, {}), { start: "13:00", end: "17:00" });
+  // the exam's own session times are used when set
+  assert.deepEqual(paperTimes({ session: "FN", drawing: true }, { FN: { start: "10:00", end: "13:00" } }), { start: "10:00", end: "14:00" });
+});

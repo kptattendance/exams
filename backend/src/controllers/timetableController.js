@@ -43,13 +43,13 @@ async function load(examId) {
 function view(exam, papers, studentCodes, entries) {
   const tt = exam.timetable || {};
   const sessions = {
-    FN: { start: tt.sessions?.FN?.start || "10:00", end: tt.sessions?.FN?.end || "13:00" },
+    FN: { start: tt.sessions?.FN?.start || "09:00", end: tt.sessions?.FN?.end || "12:00" },
     AN: { start: tt.sessions?.AN?.start || "14:00", end: tt.sessions?.AN?.end || "17:00" },
   };
   return {
     exam: { _id: exam._id, name: exam.name, academicYear: exam.academicYear, semesters: exam.semesters },
     sessions,
-    entries,
+    entries: entries.map((e) => ({ code: e.code, date: e.date, session: e.session, drawing: Boolean(e.drawing) })),
     published: Boolean(tt.published),
     publishedAt: tt.publishedAt || null,
     papers,
@@ -83,7 +83,7 @@ function readEntries(body, papers) {
     if (!["FN", "AN"].includes(e.session)) throw new Error(`Choose morning or afternoon for ${code}.`);
     if (seen.has(code)) throw new Error(`${code} appears twice.`);
     seen.add(code);
-    out.push({ code, date: e.date, session: e.session });
+    out.push({ code, date: e.date, session: e.session, drawing: Boolean(e.drawing) });
   }
   return out;
 }

@@ -10,6 +10,7 @@
 // A hall ticket can be printed when the timetable is published, nothing is
 // still "waiting" (IA / attendance / elective), and at least one subject is permitted.
 
+import { paperTimes } from "../examDay.js";
 import { effectiveOf, subjectFeePaid, isIncomplete } from "./rules.js";
 
 const NOT_PERMITTED = {
@@ -36,7 +37,7 @@ export function ticketFor(reg, { entries = [], sessions = {}, published = false 
     let note = "";
     if (eff !== "ELIGIBLE") note = NOT_PERMITTED[eff] || NOT_PERMITTED.PENDING;
     else if (!feePaid) note = NOT_PERMITTED.FEE;
-    const sess = e ? sessions[e.session] : null;
+    const sess = e ? paperTimes(e, sessions) : null; // a drawing paper is an hour longer
     return {
       code: s.code,
       name: s.name,

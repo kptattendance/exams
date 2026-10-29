@@ -24,9 +24,26 @@ export function sessionOfDate(date) {
   return `MAY-${y}`;
 }
 
-// entry: { date, session: "FN" | "AN" }, sessions: { FN: { start, end }, AN: { … } }
+// Written exam: morning 9–12, afternoon 2–5 (the exam's own times when set).
+// A drawing paper gets one hour more: the morning one ends an hour later
+// (9–1), the afternoon one starts an hour earlier (1–5).
+export const DEFAULT_SESSIONS = { FN: { start: "09:00", end: "12:00" }, AN: { start: "14:00", end: "17:00" } };
+export const DRAWING_EXTRA_MINUTES = 60;
+const shift = (hhmm, minutes) => {
+  const [h, m] = String(hhmm).split(":").map(Number);
+  const t = h * 60 + m + minutes;
+  return `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
+};
+// entry: { session: "FN" | "AN", drawing } -> { start, end } ("09:00")
+export function paperTimes(entry, sessions) {
+  const s = sessions?.[entry.session]?.start ? sessions[entry.session] : DEFAULT_SESSIONS[entry.session] || DEFAULT_SESSIONS.FN;
+  if (!entry.drawing) return { start: s.start, end: s.end };
+  return entry.session === "AN" ? { start: shift(s.start, -DRAWING_EXTRA_MINUTES), end: s.end } : { start: s.start, end: shift(s.end, DRAWING_EXTRA_MINUTES) };
+}
+
+// entry: { date, session: "FN" | "AN", drawing }, sessions: { FN: { start, end }, AN: { … } }
 export function printWindow(entry, sessions) {
-  const s = sessions?.[entry.session] || { start: entry.session === "AN" ? "14:00" : "10:00", end: entry.session === "AN" ? "17:00" : "13:00" };
+  const s = paperTimes(entry, sessions);
   const startsAt = atIST(entry.date, s.start);
   return {
     opensAt: new Date(startsAt.getTime() - OPEN_BEFORE_MINUTES * 60 * 1000),

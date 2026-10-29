@@ -40,7 +40,7 @@ export const listHallTickets = async (req, res) => {
   const tt = {
     entries: exam.timetable?.entries || [],
     sessions: {
-      FN: exam.timetable?.sessions?.FN || { start: "10:00", end: "13:00" },
+      FN: exam.timetable?.sessions?.FN || { start: "09:00", end: "12:00" },
       AN: exam.timetable?.sessions?.AN || { start: "14:00", end: "17:00" },
     },
     published: Boolean(exam.timetable?.published),

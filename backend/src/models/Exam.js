@@ -57,7 +57,7 @@ const examSchema = new mongoose.Schema(
     // writing that code sits the same paper at the same time.
     timetable: {
       sessions: {
-        FN: { start: { type: String, default: "10:00" }, end: { type: String, default: "13:00" } },
+        FN: { start: { type: String, default: "09:00" }, end: { type: String, default: "12:00" } },
         AN: { start: { type: String, default: "14:00" }, end: { type: String, default: "17:00" } },
       },
       entries: {
@@ -67,6 +67,8 @@ const examSchema = new mongoose.Schema(
               code: { type: String, required: true },
               date: { type: String, required: true }, // "2026-11-16"
               session: { type: String, enum: ["FN", "AN"], required: true },
+              // drawing paper: one hour more (see services/examDay.js paperTimes)
+              drawing: { type: Boolean, default: false },
             },
             { _id: false }
           ),
