@@ -467,8 +467,10 @@ function RoomDiary({ exam, room }) {
             <th className={th}>Name</th>
             <th className={`${th} w-12`}>Branch</th>
             <th className={`${th} w-24`}>Batch</th>
-            <th className={`${th} w-16`}>P / AB</th>
-            <th className={`${th} w-32`}>Signature of candidate</th>
+            <th className={`${th} w-14`}>P / AB</th>
+            {/* written by the candidate: the number printed on his answer script */}
+            <th className={`${th} w-28`}>Answer script No.</th>
+            <th className={`${th} w-28`}>Signature of candidate</th>
           </tr>
         </thead>
         <tbody>
@@ -482,6 +484,7 @@ function RoomDiary({ exam, room }) {
               <td className={`${td} text-center font-semibold`}>
                 {s.attendance === "PRESENT" ? "P" : s.attendance === "ABSENT" ? "AB" : s.attendance === "MALPRACTICE" ? "MP" : ""}
               </td>
+              <td className={td} />
               <td className={td} />
             </tr>
           ))}

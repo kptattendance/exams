@@ -135,6 +135,7 @@ export default function OfficePractical({ view }) {
               Name: s.name,
               Branch: String(s.department || "").toUpperCase(),
               "Present / Absent": attendanceText(s),
+              "Answer script No.": "",
               "Signature of candidate": "",
             })
           );
