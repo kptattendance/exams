@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { useAuth } from "@clerk/nextjs";
-import ExcelFormatHelp, { excelInstructionsSheet } from "../../components/ExcelFormatHelp";
+import { excelInstructionsSheet } from "../../components/ExcelFormatHelp";
+import ExcelDialog from "../../components/ExcelDialog";
 import { batchFor, useAcademicYear } from "../../components/academicYear";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -82,6 +83,9 @@ export default function AttendancePage() {
 
   const [status, setStatus] =
     useState("draft");
+
+  // the Excel window (download template / upload)
+  const [excelOpen, setExcelOpen] = useState(false);
 
   // Note from the Exam Officer when a sheet is sent back
   const [returnedReason, setReturnedReason] = useState("");
@@ -804,23 +808,6 @@ export default function AttendancePage() {
         ];
 
         // ------------------------------------------------------
-        // MAXIMUM CLASSES
-        // ------------------------------------------------------
-
-        const maxRow = [
-          "",
-          "MAX",
-          "Maximum (%) – keep 100",
-          "",
-          "",
-
-          ...subjects.map(
-            (subject) =>
-              PERCENT_MAX
-          ),
-        ];
-
-        // ------------------------------------------------------
         // STUDENTS
         // ------------------------------------------------------
 
@@ -857,9 +844,9 @@ export default function AttendancePage() {
               ]
           );
 
+        // no MAX row: attendance is entered directly as a percentage
         const data = [
           headers,
-          maxRow,
           ...studentRows,
         ];
 
@@ -906,7 +893,7 @@ export default function AttendancePage() {
 
         worksheet["!freeze"] = {
           xSplit: 5,
-          ySplit: 2,
+          ySplit: 1,
         };
 
         const workbook =
@@ -1009,7 +996,7 @@ export default function AttendancePage() {
 
         if (
           !rows ||
-          rows.length < 3
+          rows.length < 2
         ) {
           throw new Error(
             "Excel file does not contain enough data."
@@ -1022,9 +1009,6 @@ export default function AttendancePage() {
 
         const headerRow =
           rows[0];
-
-        const maxRow =
-          rows[1];
 
         // ------------------------------------------------------
         // REGISTER NUMBER COLUMN
@@ -1046,6 +1030,14 @@ export default function AttendancePage() {
             "Register Number column is missing."
           );
         }
+
+        // Older templates have a MAX row (row 2); the present one starts
+        // with the students right after the header.
+        const hasMaxRow =
+          String(rows[1]?.[registerIndex] ?? "").trim().toUpperCase() === "MAX";
+
+        const maxRow =
+          hasMaxRow ? rows[1] : null;
 
         // ------------------------------------------------------
         // SUBJECT COLUMNS
@@ -1199,7 +1191,7 @@ export default function AttendancePage() {
         // ------------------------------------------------------
 
         for (
-          let rowIndex = 2;
+          let rowIndex = hasMaxRow ? 2 : 1;
           rowIndex < rows.length;
           rowIndex++
         ) {
@@ -1415,6 +1407,30 @@ export default function AttendancePage() {
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-white p-3 md:p-5">
 
+      <ExcelDialog
+        open={excelOpen}
+        onClose={() => setExcelOpen(false)}
+        kind="attendance"
+        subjects={subjects}
+        semester={semester}
+        onSemester={(value) => {
+          // same as choosing the semester on the page (its students load by themselves)
+          setSemester(value);
+          setBatch(batchFor(academicYear, value));
+          clearTable();
+        }}
+        loading={loading}
+        ready={students.length > 0 && subjects.length > 0}
+        locked={students.length > 0 && status !== "draft"}
+        studentCount={students.length}
+        importing={excelLoading}
+        onDownload={downloadExcelTemplate}
+        onUpload={() => {
+          setExcelOpen(false);
+          fileInputRef.current?.click();
+        }}
+      />
+
 
 <style jsx>{`
   /* Hide number input spinner - Chrome / Edge / Safari */
@@ -1456,7 +1472,15 @@ export default function AttendancePage() {
           </div>
         )}
 
-        <div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setExcelOpen(true)}
+            className="rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-700"
+          >
+            Excel – download / upload
+          </button>
+
           {status === "draft" && (
             <span className="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-700">
               Draft
@@ -1696,19 +1720,6 @@ export default function AttendancePage() {
 
               <div className="flex flex-col gap-2 sm:flex-row">
 
-                <button
-                  type="button"
-                  onClick={
-                    downloadExcelTemplate
-                  }
-                  disabled={
-                    status !== "draft"
-                  }
-                  className="rounded-lg border border-amber-600 bg-white px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50 disabled:border-amber-300 disabled:text-gray-400"
-                >
-                  ↓ Download Template
-                </button>
-
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -1721,9 +1732,7 @@ export default function AttendancePage() {
 
                 <button
                   type="button"
-                  onClick={() =>
-                    fileInputRef.current?.click()
-                  }
+                  onClick={() => setExcelOpen(true)}
                   disabled={
                     excelLoading ||
                     status !== "draft"
@@ -1739,7 +1748,6 @@ export default function AttendancePage() {
 
             </div>
 
-            <ExcelFormatHelp kind="attendance" subjects={subjects} />
 
           </div>
         )}
@@ -1797,7 +1805,7 @@ export default function AttendancePage() {
 
                     {/* STUDENT DETAILS */}
 
-                    <th className="sticky left-[45px] z-40 w-[245px] min-w-[245px] border-r border-amber-500 bg-amber-600 px-3 py-2 text-left">
+                    <th className="sticky left-[45px] z-40 w-[150px] min-w-[150px] sm:w-[245px] sm:min-w-[245px] border-r border-amber-500 bg-amber-600 px-3 py-2 text-left">
                       Student Details
                     </th>
 
@@ -1861,7 +1869,7 @@ export default function AttendancePage() {
                             STUDENT DETAILS
                         ================================================= */}
 
-                        <td className="sticky left-[45px] z-20 w-[245px] min-w-[245px] border-r border-b border-amber-200 bg-inherit px-2 py-1.5">
+                        <td className="sticky left-[45px] z-20 w-[150px] min-w-[150px] sm:w-[245px] sm:min-w-[245px] border-r border-b border-amber-200 bg-inherit px-2 py-1.5">
 
                           <div className="flex items-center gap-2">
 
@@ -1873,10 +1881,10 @@ export default function AttendancePage() {
                                   student.imageUrl
                                 }
                                 alt=""
-                                className="h-9 w-9 flex-shrink-0 rounded-full border border-amber-300 object-cover"
+                                className="hidden h-9 w-9 flex-shrink-0 rounded-full border border-amber-300 object-cover sm:block"
                               />
                             ) : (
-                              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-bold text-gray-500">
+                              <div className="hidden h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-bold text-gray-500 sm:flex">
                                 {student.studentName
                                   ?.charAt(
                                     0

@@ -137,7 +137,7 @@ function MarkList({ b }) {
                 {s.kind === "BACKLOG" && <span className="ml-1 text-[9px]">(B)</span>}
               </td>
               <td className={td}>{String(s.department || "").toUpperCase()}</td>
-              <td className={`${td} text-center text-[13px] font-bold`}>{done ? (s.attendance === "PRESENT" ? s.marks : s.attendance === "ABSENT" ? "AB" : "MP") : ""}</td>
+              <td className={`${td} text-center text-[13px] font-bold`}>{done && s.attendance ? (s.attendance === "PRESENT" ? s.marks : s.attendance === "ABSENT" ? "AB" : "MP") : ""}</td>
               <td className={td}>{done && s.attendance !== "PRESENT" ? (s.attendance === "ABSENT" ? "Absent" : "Malpractice") : ""}</td>
             </tr>
           ))}

@@ -1,435 +1,104 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
-import axios from "axios";
+// HOD dashboard: who he is (photo, designation, department) and the real
+// number of students and subjects of his department.
+
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+import { useApi, programmeName } from "../components/exams/shared";
+
+const same = (a, b) => String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
 
 export default function HODDashboard() {
-  const { getToken } = useAuth();
-
+  const api = useApi();
   const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  const [stats, setStats] = useState({
-    faculty: 0,
-    subjects: 0,
-    students: 0,
-    iaRecords: 0,
-    attendanceRecords: 0,
-  });
+  const [stats, setStats] = useState(null); // { students, subjects }
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    loadDashboard();
-  }, []);
-
-  const loadDashboard = async () => {
-    try {
-      setLoading(true);
-
-      const token = await getToken();
-
-      /*
-       * IMPORTANT:
-       * These endpoints are kept separate so the HOD
-       * dashboard never receives another department's data.
-       *
-       * Backend should derive department from req.user.department.
-       */
-
-      const config = {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      };
-
-      const [profileRes, facultyRes, subjectRes, studentRes] =
-        await Promise.allSettled([
-          axios.get(`${API_URL}/api/users/me`, config),
-
-          axios.get(`${API_URL}/api/users?role=staff`, config),
-
-          axios.get(`${API_URL}/api/subjects`, config),
-
-          axios.get(`${API_URL}/api/students`, config),
-        ]);
-
-      let department = "";
-
-      if (profileRes.status === "fulfilled") {
-        const data = profileRes.value?.data?.data;
-
-        if (data) {
-          setProfile(data);
-          department = data.department || "";
-        }
+    (async () => {
+      try {
+        const me = (await api("get", "/users/me")).data?.data;
+        setProfile(me || {});
+        const department = me?.department || "";
+        // the server already limits a HOD to his own department's students
+        const [st, sub] = await Promise.allSettled([api("get", "/students"), api("get", "/subjects/getsubjects")]);
+        const list = (r) => (r.status === "fulfilled" ? r.value?.data?.data || r.value?.data?.students || r.value?.data?.subjects || [] : null);
+        const students = list(st);
+        const subjects = list(sub);
+        setStats({
+          students: students ? students.filter((s) => !department || same(s.department, department)).length : null,
+          subjects: subjects ? subjects.filter((s) => !department || same(s.department, department)).length : null,
+        });
+      } catch {
+        setError("Could not load your details. Please refresh the page.");
+        setStats({ students: null, subjects: null });
       }
+    })();
+  }, [api]);
 
-      if (facultyRes.status === "fulfilled") {
-        const data =
-          facultyRes.value?.data?.data ||
-          facultyRes.value?.data?.users ||
-          [];
-
-        const filtered = department
-          ? data.filter(
-              (item) =>
-                String(item.department || "")
-                  .toLowerCase() ===
-                String(department).toLowerCase()
-            )
-          : data;
-
-        setStats((prev) => ({
-          ...prev,
-          faculty: filtered.length,
-        }));
-      }
-
-      if (subjectRes.status === "fulfilled") {
-        const data =
-          subjectRes.value?.data?.data || [];
-
-        const filtered = department
-          ? data.filter(
-              (item) =>
-                String(item.department || "")
-                  .toLowerCase() ===
-                String(department).toLowerCase()
-            )
-          : data;
-
-        setStats((prev) => ({
-          ...prev,
-          subjects: filtered.length,
-        }));
-      }
-
-      if (studentRes.status === "fulfilled") {
-        const data =
-          studentRes.value?.data?.data ||
-          studentRes.value?.data?.students ||
-          [];
-
-        const filtered = department
-          ? data.filter(
-              (item) =>
-                String(item.department || "")
-                  .toLowerCase() ===
-                String(department).toLowerCase()
-            )
-          : data;
-
-        setStats((prev) => ({
-          ...prev,
-          students: filtered.length,
-        }));
-      }
-
-    } catch (error) {
-      console.error(
-        "HOD Dashboard Error:",
-        error
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const departmentName =
-    profile?.departmentName ||
-    profile?.department ||
-    "Department";
+  const initials = String(profile?.name || "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0].toUpperCase())
+    .join("");
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
+    <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:px-8">
+      <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">HOD Dashboard</p>
 
-      {/* Header */}
-      <div className="mb-7">
-
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
-          <div>
-
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-600">
-              HOD Dashboard
-            </p>
-
-            <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
-              Department Overview
-            </h1>
-
-            <p className="mt-1 text-sm text-slate-500">
-              Manage faculty, subjects, students and academic records.
-            </p>
-
-          </div>
-
-          <div className="rounded-xl border border-amber-200 bg-white px-4 py-3">
-
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              Department
-            </p>
-
-            <p className="mt-1 text-sm font-bold text-slate-900">
-              {departmentName}
-            </p>
-
-          </div>
-
-        </div>
-
+      {/* who */}
+      <div className="mt-3 flex flex-col items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 text-center shadow-sm sm:flex-row sm:text-left">
+        {profile === null ? (
+          <div className="h-24 w-full animate-pulse rounded-xl bg-slate-100" />
+        ) : (
+          <>
+            {profile.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={profile.imageUrl} alt={profile.name || "Photo"} className="h-20 w-20 shrink-0 rounded-2xl object-cover ring-1 ring-slate-200" />
+            ) : (
+              <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-2xl font-bold text-white">{initials || "HOD"}</span>
+            )}
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold tracking-tight text-slate-950 sm:text-2xl">{profile.name || "Head of Department"}</h1>
+              <p className="mt-0.5 text-sm font-semibold text-slate-700">{profile.designation || "Head of Department"}</p>
+              <p className="text-sm text-slate-500">{profile.department ? `${programmeName(profile.department)} department` : "Department not set"}</p>
+            </div>
+          </>
+        )}
       </div>
 
-      {/* Statistics */}
-      <div className="grid grid-cols-2 gap-4 xl:grid-cols-5">
+      {error && <p className="mt-3 text-sm text-red-700">{error}</p>}
 
-        <StatCard
-          title="Faculty"
-          value={stats.faculty}
-          description="Department faculty"
-          href="/hod/faculty"
-        />
-
-        <StatCard
-          title="Subjects"
-          value={stats.subjects}
-          description="Department subjects"
-          href="/hod/subjects"
-        />
-
-        <StatCard
-          title="Students"
-          value={stats.students}
-          description="Department students"
-          href="/hod/students"
-        />
-
-        <StatCard
-          title="IA Records"
-          value={stats.iaRecords}
-          description="Finalised IA"
-          href="/hod/ia-marks"
-        />
-
-        <StatCard
-          title="Attendance"
-          value={stats.attendanceRecords}
-          description="Finalised records"
-          href="/hod/attendance"
-        />
-
+      {/* counts */}
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-4">
+        <Stat label="Students" hint="in your department" value={stats?.students} href="/hod/students" />
+        <Stat label="Subjects" hint="of your department" value={stats?.subjects} />
       </div>
-
-      {/* Main cards */}
-      <div className="mt-7 grid gap-6 xl:grid-cols-2">
-
-        {/* IA */}
-        <DashboardCard
-          title="IA Marks"
-          description="Upload the finalised IA marks for the department."
-          href="/hod/ia-marks"
-          button="Open IA Marks"
-        >
-          <div className="grid grid-cols-3 gap-3">
-
-            <MiniInfo
-              label="Upload"
-              value="Excel"
-            />
-
-            <MiniInfo
-              label="Validation"
-              value="Required"
-            />
-
-            <MiniInfo
-              label="Status"
-              value="Frozen"
-            />
-
-          </div>
-        </DashboardCard>
-
-        {/* Attendance */}
-        <DashboardCard
-          title="Attendance"
-          description="Upload the finalised attendance records for the department."
-          href="/hod/attendance"
-          button="Open Attendance"
-        >
-          <div className="grid grid-cols-3 gap-3">
-
-            <MiniInfo
-              label="Upload"
-              value="Excel"
-            />
-
-            <MiniInfo
-              label="Records"
-              value="Final"
-            />
-
-            <MiniInfo
-              label="Review"
-              value="Available"
-            />
-
-          </div>
-        </DashboardCard>
-
-      </div>
-
-      {/* Quick access */}
-      <div className="mt-7 rounded-2xl border border-amber-200 bg-white p-5 shadow-sm">
-
-        <div className="mb-5">
-
-          <h2 className="text-base font-bold text-slate-950">
-            Department Data
-          </h2>
-
-          <p className="mt-1 text-xs text-slate-500">
-            View department information with filters and Excel reports.
-          </p>
-
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-3">
-
-          <QuickLink
-            href="/hod/faculty"
-            title="Faculty"
-            description="View department faculty"
-          />
-
-          <QuickLink
-            href="/hod/subjects"
-            title="Subjects"
-            description="View assigned subjects"
-          />
-
-          <QuickLink
-            href="/hod/students"
-            title="Students"
-            description="View department students"
-          />
-
-        </div>
-
-      </div>
-
     </div>
   );
 }
 
-function StatCard({
-  title,
-  value,
-  description,
-  href,
-}) {
-  return (
-    <Link
-      href={href}
-      className="rounded-2xl border border-amber-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md"
-    >
-      <p className="text-xs font-semibold text-slate-500">
-        {title}
-      </p>
-
-      <p className="mt-2 text-2xl font-bold text-slate-950">
-        {value}
-      </p>
-
-      <p className="mt-1 text-[11px] text-slate-400">
-        {description}
-      </p>
+function Stat({ label, hint, value, href }) {
+  const body = (
+    <>
+      <p className="text-sm font-semibold text-slate-500">{label}</p>
+      {value === undefined ? (
+        <p className="mt-2 text-sm font-semibold text-slate-400">Loading… please wait</p>
+      ) : (
+        <p className="mt-1 text-3xl font-bold tabular-nums text-slate-950">{value === null ? "–" : value}</p>
+      )}
+      <p className="mt-0.5 text-xs text-slate-400">{hint}</p>
+    </>
+  );
+  const cls = "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5";
+  return href ? (
+    <Link href={href} className={`${cls} transition hover:border-slate-400`}>
+      {body}
     </Link>
-  );
-}
-
-function DashboardCard({
-  title,
-  description,
-  href,
-  button,
-  children,
-}) {
-  return (
-    <div className="rounded-2xl border border-amber-200 bg-white p-5 shadow-sm">
-
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-
-        <div>
-
-          <h2 className="text-base font-bold text-slate-950">
-            {title}
-          </h2>
-
-          <p className="mt-1 max-w-lg text-xs leading-5 text-slate-500">
-            {description}
-          </p>
-
-        </div>
-
-        <Link
-          href={href}
-          className="inline-flex shrink-0 items-center justify-center rounded-lg bg-amber-500 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-amber-600"
-        >
-          {button}
-        </Link>
-
-      </div>
-
-      <div className="mt-5">
-        {children}
-      </div>
-
-    </div>
-  );
-}
-
-function MiniInfo({
-  label,
-  value,
-}) {
-  return (
-    <div className="rounded-xl bg-amber-50 p-3">
-
-      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-        {label}
-      </p>
-
-      <p className="mt-1 text-sm font-bold text-slate-800">
-        {value}
-      </p>
-
-    </div>
-  );
-}
-
-function QuickLink({
-  href,
-  title,
-  description,
-}) {
-  return (
-    <Link
-      href={href}
-      className="rounded-xl border border-amber-200 p-4 transition hover:border-amber-300 hover:bg-amber-50"
-    >
-
-      <p className="text-sm font-bold text-slate-900">
-        {title}
-      </p>
-
-      <p className="mt-1 text-xs text-slate-500">
-        {description}
-      </p>
-
-    </Link>
+  ) : (
+    <div className={cls}>{body}</div>
   );
 }

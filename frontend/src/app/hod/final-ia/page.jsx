@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { useAuth } from "@clerk/nextjs";
-import ExcelFormatHelp, { excelInstructionsSheet } from "../../components/ExcelFormatHelp";
+import { excelInstructionsSheet } from "../../components/ExcelFormatHelp";
+import ExcelDialog from "../../components/ExcelDialog";
 import { batchFor, useAcademicYear } from "../../components/academicYear";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -47,6 +48,9 @@ export default function FinalIAPage() {
 
   const [status, setStatus] =
     useState("draft");
+
+  // the Excel window (download template / upload)
+  const [excelOpen, setExcelOpen] = useState(false);
 
   // Note from the Exam Officer when a sheet is sent back
   const [returnedReason, setReturnedReason] = useState("");
@@ -1221,6 +1225,30 @@ export default function FinalIAPage() {
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-gray-50 p-3 md:p-5">
 
+      <ExcelDialog
+        open={excelOpen}
+        onClose={() => setExcelOpen(false)}
+        kind="ia"
+        subjects={subjects}
+        semester={semester}
+        onSemester={(value) => {
+          // same as choosing the semester on the page (its students load by themselves)
+          setSemester(value);
+          setBatch(batchFor(academicYear, value));
+          clearTable();
+        }}
+        loading={loading}
+        ready={students.length > 0 && subjects.length > 0}
+        locked={students.length > 0 && status !== "draft"}
+        studentCount={students.length}
+        importing={excelLoading}
+        onDownload={downloadExcelTemplate}
+        onUpload={() => {
+          setExcelOpen(false);
+          fileInputRef.current?.click();
+        }}
+      />
+
 <style jsx>{`
   .no-spinner::-webkit-outer-spin-button,
   .no-spinner::-webkit-inner-spin-button {
@@ -1256,7 +1284,15 @@ export default function FinalIAPage() {
           </div>
         )}
 
-        <div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setExcelOpen(true)}
+            className="rounded-lg bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700"
+          >
+            Excel – download / upload
+          </button>
+
           {status === "draft" && (
             <span className="rounded-full bg-yellow-100 px-3 py-1.5 text-xs font-semibold text-yellow-700">
               Draft
@@ -1483,19 +1519,6 @@ export default function FinalIAPage() {
 
               <div className="flex flex-col gap-2 sm:flex-row">
 
-                <button
-                  type="button"
-                  onClick={
-                    downloadExcelTemplate
-                  }
-                  disabled={
-                    status !== "draft"
-                  }
-                  className="rounded-lg border border-green-600 bg-white px-3 py-2 text-xs font-semibold text-green-700 hover:bg-green-50 disabled:border-gray-300 disabled:text-gray-400"
-                >
-                  ↓ Download Template
-                </button>
-
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -1508,9 +1531,7 @@ export default function FinalIAPage() {
 
                 <button
                   type="button"
-                  onClick={() =>
-                    fileInputRef.current?.click()
-                  }
+                  onClick={() => setExcelOpen(true)}
                   disabled={
                     excelLoading ||
                     status !== "draft"
@@ -1526,7 +1547,6 @@ export default function FinalIAPage() {
 
             </div>
 
-            <ExcelFormatHelp kind="ia" subjects={subjects} />
 
           </div>
         )}
@@ -1587,7 +1607,7 @@ export default function FinalIAPage() {
                     {/* STUDENT DETAILS */}
 
                     <th
-                      className="sticky left-[45px] z-40 w-[245px] min-w-[245px] border-r border-slate-600 bg-slate-800 px-3 py-2 text-left"
+                      className="sticky left-[45px] z-40 w-[150px] min-w-[150px] sm:w-[245px] sm:min-w-[245px] border-r border-slate-600 bg-slate-800 px-3 py-2 text-left"
                     >
                       Student Details
                     </th>
@@ -1688,7 +1708,7 @@ export default function FinalIAPage() {
                         ================================================= */}
 
                         <td
-                          className={`sticky left-[45px] z-20 w-[245px] min-w-[245px] border-r border-b border-gray-200 bg-inherit px-2 py-1.5`}
+                          className={`sticky left-[45px] z-20 w-[150px] min-w-[150px] sm:w-[245px] sm:min-w-[245px] border-r border-b border-gray-200 bg-inherit px-2 py-1.5`}
                         >
 
                           <div className="flex items-center gap-2">
@@ -1701,10 +1721,10 @@ export default function FinalIAPage() {
                                   student.imageUrl
                                 }
                                 alt=""
-                                className="h-9 w-9 flex-shrink-0 rounded-full border border-gray-300 object-cover"
+                                className="hidden h-9 w-9 flex-shrink-0 rounded-full border border-gray-300 object-cover sm:block"
                               />
                             ) : (
-                              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-bold text-gray-500">
+                              <div className="hidden h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-bold text-gray-500 sm:flex">
                                 {student.studentName
                                   ?.charAt(
                                     0

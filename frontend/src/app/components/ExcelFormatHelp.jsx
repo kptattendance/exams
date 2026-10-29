@@ -8,7 +8,7 @@
 
 import * as XLSX from "xlsx";
 
-const KINDS = {
+export const KINDS = {
   ia: {
     what: "IA marks",
     maxLabel: "Maximum IA Marks",
@@ -21,7 +21,7 @@ const KINDS = {
   },
 };
 
-const BASE_COLUMNS = ["Sl No", "Register Number", "Student Name", "Phone Number", "Photo"];
+export const BASE_COLUMNS = ["Sl No", "Register Number", "Student Name", "Phone Number", "Photo"];
 
 function rules(kind) {
   const k = KINDS[kind];
@@ -29,9 +29,9 @@ function rules(kind) {
     "Always start from \"Download Template\". It already has your students, subject columns and saved entries.",
     "Do not rename, delete or reorder the header row (row 1). Column names must stay exactly as given.",
     kind === "ia"
-      ? `Row 2 is the MAX row (${k.maxLabel}). You may change a subject's maximum here.`
-      : "Row 2 is the MAX row. Leave it as 100 – attendance is entered as a percentage.",
-    `From row 3, enter the ${k.fill} under each subject code column.`,
+      ? `Row 2 is the MAX row (${k.maxLabel}) – already filled in. You may change a subject's maximum here.`
+      : "There is no maximum row – attendance is entered directly as a percentage.",
+    `From row ${kind === "ia" ? 3 : 2}, enter the ${k.fill} under each subject code column.`,
     "Only the \"Register Number\" and subject code columns are read. Sl No, Name, Phone and Photo are for reference only.",
     "Do not change register numbers. Rows with an unknown register number are skipped.",
     "A blank cell leaves that entry unchanged. Enter numbers only (no text such as AB or -).",
@@ -89,21 +89,24 @@ export default function ExcelFormatHelp({ kind, subjects = [] }) {
               </tr>
             </thead>
             <tbody>
+              {/* attendance has no MAX row (percentages) */}
+              {kind === "ia" && (
+                <tr>
+                  <td className="border border-slate-300 bg-white px-2 py-1 font-semibold text-slate-500">2</td>
+                  <td className="border border-slate-300 bg-white px-2 py-1" />
+                  <td className="border border-slate-300 bg-white px-2 py-1 font-semibold">MAX</td>
+                  <td className="whitespace-nowrap border border-slate-300 bg-white px-2 py-1">{k.maxLabel}</td>
+                  <td className="border border-slate-300 bg-white px-2 py-1" />
+                  <td className="border border-slate-300 bg-white px-2 py-1" />
+                  {subjects.map((s) => (
+                    <td key={s.subjectId || s.code} className="border border-slate-300 bg-white px-2 py-1 font-semibold">
+                      {s.maxMarks ?? ""}
+                    </td>
+                  ))}
+                </tr>
+              )}
               <tr>
-                <td className="border border-slate-300 bg-white px-2 py-1 font-semibold text-slate-500">2</td>
-                <td className="border border-slate-300 bg-white px-2 py-1" />
-                <td className="border border-slate-300 bg-white px-2 py-1 font-semibold">MAX</td>
-                <td className="whitespace-nowrap border border-slate-300 bg-white px-2 py-1">{k.maxLabel}</td>
-                <td className="border border-slate-300 bg-white px-2 py-1" />
-                <td className="border border-slate-300 bg-white px-2 py-1" />
-                {subjects.map((s) => (
-                  <td key={s.subjectId || s.code} className="border border-slate-300 bg-white px-2 py-1 font-semibold">
-                    {kind === "ia" ? s.maxMarks ?? "" : s.maxClasses ?? ""}
-                  </td>
-                ))}
-              </tr>
-              <tr>
-                <td className="border border-slate-300 bg-white px-2 py-1 font-semibold text-slate-500">3…</td>
+                <td className="border border-slate-300 bg-white px-2 py-1 font-semibold text-slate-500">{kind === "ia" ? "3…" : "2…"}</td>
                 <td className="border border-slate-300 bg-white px-2 py-1">1</td>
                 <td className="whitespace-nowrap border border-slate-300 bg-white px-2 py-1">Register No.</td>
                 <td className="border border-slate-300 bg-white px-2 py-1">Name</td>

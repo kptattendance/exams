@@ -367,7 +367,7 @@ function SubjectBatches({ examId, code, onClose }) {
                   {b.students.length} student{b.students.length === 1 ? "" : "s"}
                 </span>
                 <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${st.chip}`}>{st.label}</span>
-                {!b.isNew && (
+                {!b.isNew && !done && (
                   <a href={`/print/practical/${examId}?batch=${b._id}`} target="_blank" rel="noreferrer" className={`${btn.small} ml-auto`}>
                     <Icon name="download" className="h-4 w-4" />
                     Print mark list
@@ -439,7 +439,17 @@ function SubjectBatches({ examId, code, onClose }) {
                       current={b.number}
                       batches={done ? [] : open}
                       onMove={(to) => move(id, to)}
-                      result={done && old ? (old.attendance === "PRESENT" ? `${old.marks} / ${subject.max}` : old.attendance === "ABSENT" ? "Absent" : "Malpractice") : ""}
+                      result={
+                        done && old
+                          ? !old.attendance
+                            ? "Marks entered"
+                            : old.attendance === "PRESENT"
+                            ? `${old.marks} / ${subject.max}`
+                            : old.attendance === "ABSENT"
+                            ? "Absent"
+                            : "Malpractice"
+                          : ""
+                      }
                     />
                   );
                 })}

@@ -116,12 +116,7 @@ export const MENUS = {
       },
       {
         title: "Department",
-        items: [
-          { label: "Faculty", href: "/hod/faculty", icon: "faculty" },
-          { label: "Subjects", href: "/hod/subjects", icon: "subjects" },
-          { label: "Students", href: "/hod/students", icon: "students", pinned: true },
-          { label: "Electives", href: "/hod/electives", icon: "layers" },
-        ],
+        items: [{ label: "Students", href: "/hod/students", icon: "students", pinned: true }],
       },
       {
         title: "Academic records",
@@ -134,7 +129,7 @@ export const MENUS = {
         title: "Practical exams",
         items: [
           { label: "Practical batches & time table", href: "/hod/practical", icon: "calendar" },
-          { label: "Practical marks entry", href: "/hod/practical-marks", icon: "marks" },
+          { label: "Track practical marks", href: "/hod/practical-marks", icon: "marks" },
         ],
       },
       {

@@ -1,8 +1,8 @@
 "use client";
 
-import PracticalEntry from "../../components/exams/PracticalEntry";
+import PracticalMarkStatus from "../../components/exams/PracticalMarkStatus";
 
-// A HOD can also be allotted as an internal examiner
+// HOD tracks whether the practical marks are entered (never the marks)
 export default function HodPracticalMarksPage() {
-  return <PracticalEntry />;
+  return <PracticalMarkStatus />;
 }
