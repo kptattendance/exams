@@ -61,11 +61,23 @@ export default function ExistingStudentImport() {
   const [show, setShow] = useState("ALL");
   const [q, setQ] = useState("");
 
+  // the template explains itself: an empty "Students" sheet with the column
+  // names and a "How to fill" sheet with every column and an example row
   const template = () => {
+    const example = ["103CS25001", "CS25001", "STUDENT NAME", "FATHER NAME", "MOTHER NAME", "15-06-2009", "male", "student@gmail.com", "9876543210", "cs", 2025, "2025-2028", 1, 3, "regular", "9876500000", "", "GM", "", "", "active", ""];
     const ws = XLSX.utils.aoa_to_sheet([COLUMNS.map(([c]) => c)]);
     ws["!cols"] = COLUMNS.map(([c]) => ({ wch: Math.max(14, c.length + 2) }));
+    const help = XLSX.utils.aoa_to_sheet([
+      ["How to fill the student sheet"],
+      ["Fill one row per student on the \"Students\" sheet, from row 2. Keep the column names in row 1 as they are."],
+      [],
+      ["Column", "Must have?", "How to fill", "Example"],
+      ...COLUMNS.map(([c, hint, req], i) => [c, req ? "Yes" : "Optional", hint, example[i] ?? ""]),
+    ]);
+    help["!cols"] = [{ wch: 18 }, { wch: 11 }, { wch: 70 }, { wch: 22 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Students");
+    XLSX.utils.book_append_sheet(wb, help, "How to fill");
     XLSX.writeFile(wb, "existing_students_template.xlsx");
   };
 
@@ -202,17 +214,7 @@ export default function ExistingStudentImport() {
           className="mt-3 block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
         />
         {file && <p className="mt-2 text-xs text-slate-500">File: {file.name}</p>}
-        <details className="mt-3 text-xs text-slate-600">
-          <summary className="cursor-pointer font-semibold text-slate-700">Columns (any order; bold = must have)</summary>
-          <ul className="mt-2 grid gap-x-6 gap-y-0.5 sm:grid-cols-2">
-            {COLUMNS.map(([c, hint, req]) => (
-              <li key={c}>
-                <span className={req ? "font-bold text-slate-900" : ""}>{c}</span>
-                {hint && <span className="text-slate-500"> – {hint}</span>}
-              </li>
-            ))}
-          </ul>
-        </details>
+        <p className="mt-2 text-xs text-slate-500">The template’s “How to fill” sheet explains every column with an example.</p>
       </section>
 
       {busy === "check" && <p className="mt-4 rounded-xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600">Checking every row… please wait</p>}

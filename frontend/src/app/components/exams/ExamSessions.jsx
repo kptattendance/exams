@@ -335,12 +335,6 @@ function Rooms({ d, path, tint, onSaved }) {
         <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${free.length ? "bg-orange-100 text-orange-800" : "bg-emerald-100 text-emerald-800"}`}>
           {free.length ? `${free.length} of ${d.candidates.length} not allotted` : `All ${d.candidates.length} allotted ✓`}
         </span>
-        {!dirty && rooms.some((r) => r.students.length) && (
-          <a href={print("")} target="_blank" rel="noreferrer" className={btn.small}>
-            <Icon name="download" className="h-3.5 w-3.5" />
-            Print all room diaries
-          </a>
-        )}
         {dirty && <span className="text-xs text-orange-700">Save the rooms to print the room diaries.</span>}
       </div>
 
@@ -405,6 +399,29 @@ function Rooms({ d, path, tint, onSaved }) {
         extraHead="Room"
         rowClass={(c) => (roomOf.has(c.registerNumber) ? "" : "!bg-orange-50/70")}
       />
+
+      {/* printing – at the end of the page */}
+      {rooms.some((r) => r.students.length) && (
+        <div className="mt-4 flex flex-wrap items-center justify-end gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+          <p className="mr-auto text-sm text-slate-600">
+            {dirty
+              ? "Save the rooms first, then print."
+              : `${rooms.filter((r) => r.students.length).length} room diaries · ${d.candidates.length - free.length} students`}
+            {free.length > 0 && !dirty && <span className="font-semibold text-orange-700"> · {free.length} not allotted yet</span>}
+          </p>
+          {dirty ? (
+            <span className={`${btn.primary} pointer-events-none opacity-40`}>
+              <Icon name="download" className="h-4 w-4" />
+              Print all room diaries
+            </span>
+          ) : (
+            <a href={print("")} target="_blank" rel="noreferrer" className={btn.primary}>
+              <Icon name="download" className="h-4 w-4" />
+              Print all room diaries
+            </a>
+          )}
+        </div>
+      )}
 
       {dirty && (
         <div className="fixed inset-x-0 bottom-20 z-40 px-4 lg:bottom-6 lg:left-[268px]">
