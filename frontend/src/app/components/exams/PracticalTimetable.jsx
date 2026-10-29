@@ -13,7 +13,7 @@ import Icon from "../shell/Icon";
 import { btn, field } from "../ui/Modal";
 import { useToast } from "../ui/Feedback";
 import { errMsg, useApi } from "./shared";
-import { ExamSelect, NoExam, SLOTS, dept, sessionLabel, usePracticalExams } from "./practicalShared";
+import { ExamSelect, NoExam, PracticalSteps, SLOTS, dept, sessionLabel, usePracticalExams } from "./practicalShared";
 
 const iso = (d) => d.toISOString().slice(0, 10);
 const addDays = (s, n) => {
@@ -124,6 +124,8 @@ export default function PracticalTimetable() {
       {department && <p className="mt-1 text-sm text-slate-500">Practical exams conducted by the {dept(department)} department</p>}
 
       {examId && data === null && <div className="mt-6 h-64 animate-pulse rounded-2xl bg-white" />}
+
+      {data && <PracticalSteps here={2} done={{ batches: batches.length > 0, timetable: batches.length > 0 && unplaced.length === 0 && !dirty }} />}
 
       {data && (
         <>

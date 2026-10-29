@@ -231,3 +231,17 @@
 .qp-preview img { max-width: 100%; height: auto; }
 .qp-preview h1, .qp-preview h2, .qp-preview h3 { font-weight: 700; margin: 8px 0; }
 .qp-preview ol, .qp-preview ul { padding-left: 1.5rem; list-style: revert; }
+
+/* Loading placeholders: every large grey "pulse" block that is still empty
+   says so in words, so that a slow page never looks stuck. */
+.animate-pulse:empty:is(.h-20, .h-24, .h-40, .h-48, .h-64, .h-72) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.animate-pulse:empty:is(.h-20, .h-24, .h-40, .h-48, .h-64, .h-72)::after {
+  content: "Loading… please wait";
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-slate-500);
+}

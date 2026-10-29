@@ -77,7 +77,58 @@ export function ExamSelect({ exams, examId, setExamId }) {
         ))}
       </select>
     );
+  if (exams === null) return <p className="mt-1 text-sm font-semibold text-slate-500">Loading… please wait</p>;
   return <p className="mt-1 text-sm text-slate-500">{exams?.[0] ? `${exams[0].name} · ${exams[0].academicYear}` : " "}</p>;
+}
+
+// HOD: the three steps of the practical exams, with where he is now.
+//   done: { batches: bool, timetable: bool }   here: 1 | 2 (the page he is on)
+const STEPS = [
+  { n: 1, title: "Make batches", text: "Open each subject, choose how many batches, Save.", href: "/hod/practical" },
+  { n: 2, title: "Fix the time table", text: "Put each batch on a date and time, choose lab and examiners, Save.", href: "/hod/practical-timetable" },
+  { n: 3, title: "Print and share", text: "Download the PDF for students and the PDF of examiners.", href: "/hod/practical-timetable" },
+];
+export function PracticalSteps({ done = {}, here }) {
+  const ok = [Boolean(done.batches), Boolean(done.batches && done.timetable), false];
+  const next = ok.indexOf(false) + 1; // the step to do now
+  return (
+    <ol className="mt-4 grid gap-2 sm:grid-cols-3">
+      {STEPS.map((s, i) => {
+        const isDone = ok[i];
+        const isNext = s.n === next;
+        const body = (
+          <>
+            <span
+              className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                isDone ? "bg-emerald-600 text-white" : isNext ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-600"
+              }`}
+            >
+              {isDone ? "✓" : s.n}
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-slate-900">
+                Step {s.n}: {s.title}
+                {isNext && <span className="ml-1.5 rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-blue-800">Do this now</span>}
+              </span>
+              <span className="block text-xs leading-5 text-slate-600">{s.text}</span>
+            </span>
+          </>
+        );
+        const cls = `flex gap-2.5 rounded-xl border p-3 ${isDone ? "border-emerald-200 bg-emerald-50/60" : isNext ? "border-blue-300 bg-blue-50/60" : "border-slate-200 bg-white"}`;
+        return (
+          <li key={s.n}>
+            {s.n === here || (s.n === 3 && here === 2) ? (
+              <div className={cls}>{body}</div>
+            ) : (
+              <a href={s.href} className={`${cls} hover:border-slate-400`}>
+                {body}
+              </a>
+            )}
+          </li>
+        );
+      })}
+    </ol>
+  );
 }
 
 export const NoExam = () => (

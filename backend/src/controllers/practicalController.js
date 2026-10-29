@@ -305,7 +305,11 @@ async function notifyAllotment(exam, panel, code) {
   const results = await Promise.allSettled(jobs.map((j) => sendPracticalAllotmentEmail({ ...j, exam, panel, code })));
   const sent = (role) => jobs.some((j, i) => j.role === role && results[i].status === "fulfilled" && results[i].value === true);
   const orderSent = Boolean(orderPdf) && sent("EXTERNAL");
-  if (orderSent) await PracticalPanel.updateOne({ _id: panel._id }, { $set: { orderSentAt: new Date() } });
+  if (orderSent) {
+    // a new set is saved only after this (issueCode), so mark the document too
+    panel.orderSentAt = new Date();
+    await PracticalPanel.updateOne({ _id: panel._id }, { $set: { orderSentAt: panel.orderSentAt } });
+  }
   return { internal: sent("INTERNAL"), external: sent("EXTERNAL"), hod: sent("HOD"), order: orderSent };
 }
 

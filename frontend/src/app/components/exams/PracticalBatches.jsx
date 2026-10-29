@@ -12,7 +12,7 @@ import Icon from "../shell/Icon";
 import { btn, field } from "../ui/Modal";
 import { useConfirm, useToast } from "../ui/Feedback";
 import { errMsg, useApi } from "./shared";
-import { ExamSelect, NoExam, SLOTS, batchState, branches, dept, examinersOf, usePracticalExams, when } from "./practicalShared";
+import { ExamSelect, NoExam, PracticalSteps, SLOTS, batchState, branches, dept, examinersOf, usePracticalExams, when } from "./practicalShared";
 
 export default function PracticalBatches() {
   const api = useApi();
@@ -67,6 +67,16 @@ export default function PracticalBatches() {
       {exams && exams.length === 0 && <NoExam />}
       {examId && data === null && <div className="mt-6 h-64 animate-pulse rounded-2xl bg-white" />}
 
+      {list && list.length > 0 && (
+        <PracticalSteps
+          here={1}
+          done={{
+            batches: list.every((s) => s.batches > 0),
+            timetable: list.every((s) => s.batches > 0 && s.dated === s.batches),
+          }}
+        />
+      )}
+
       {data && (
         <div className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${panels.length ? "border-slate-200 bg-white text-slate-600" : "border-orange-200 bg-orange-50 text-orange-900"}`}>
           {panels.length === 0 ? (
@@ -94,7 +104,10 @@ export default function PracticalBatches() {
       {list && (
         <>
           {list.length > 0 && (
-            <h3 className="mt-7 text-lg font-bold tracking-tight text-slate-950">Practical exams you conduct</h3>
+            <>
+              <h3 className="mt-7 text-lg font-bold tracking-tight text-slate-950">Practical exams you conduct</h3>
+              <p className="mt-1 text-sm text-slate-500">Click a subject to make its batches.</p>
+            </>
           )}
           <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
             {list.length === 0 && <p className="px-4 py-10 text-center text-sm text-slate-500">No practical exams for your board. Students must be registered for the examination first.</p>}
@@ -133,6 +146,14 @@ export default function PracticalBatches() {
               })}
             </ul>
           </div>
+
+          {list.length > 0 && list.some((s) => s.batches > 0) && (
+            <a href="/hod/practical-timetable" className={`${btn.primary} mt-4 mr-3`}>
+              <Icon name="calendar" className="h-4 w-4" />
+              Next: fix the practical time table
+              <Icon name="chevronRight" className="h-4 w-4" />
+            </a>
+          )}
 
           {(list.length > 0 || elsewhere.length > 0) && (
             <a href={`/print/practical/${examId}?sheet=timetable&branch=${department}`} target="_blank" rel="noreferrer" className={`${btn.secondary} mt-4`}>
