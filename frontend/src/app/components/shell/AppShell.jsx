@@ -280,7 +280,11 @@ function SidebarContent({ menu, activeHref, onClose }) {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 pr-5">
         {role === "admin" && <WorkspaceSwitcher current={menu.home} onClose={onClose} />}
-        {menu.sections.map((section) => (
+        {/* pages not built yet ("soon") are not shown; a heading with nothing left goes too */}
+        {menu.sections
+          .map((section) => ({ ...section, items: section.items.filter((item) => !item.soon) }))
+          .filter((section) => section.items.length > 0)
+          .map((section) => (
           <div key={section.title} className="mb-5 last:mb-0">
             <p className="mb-1.5 px-3 text-xs font-semibold text-slate-400">{section.title}</p>
             <ul className="space-y-0.5">

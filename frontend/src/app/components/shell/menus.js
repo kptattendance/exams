@@ -1,7 +1,7 @@
 // Navigation for every role.
 //
 //  pinned: true  -> also shown in the phone's bottom tab bar (max 4)
-//  soon:   true  -> page not built yet; shown with a "Soon" tag, not clickable
+//  soon:   true  -> page not built yet; NOT shown in the sidebar
 //                   (remove `soon` when you create the page)
 
 // Where each role lands after signing in (see backend config/roles.js)
