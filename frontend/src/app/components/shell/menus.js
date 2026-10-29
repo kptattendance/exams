@@ -165,6 +165,7 @@ export const MENUS = {
         title: "Before the exam",
         items: [
           { label: "Fee verification", href: "/office/fees", icon: "money", pinned: true },
+          { label: "Fee transactions", href: "/office/fees/transactions", icon: "report" },
           { label: "Final IA", href: "/office/final-ia", icon: "marks" },
           { label: "Final attendance", href: "/office/final-attendance", icon: "attendance" },
           { label: "Examinations", href: "/office/examinations", icon: "paper" },

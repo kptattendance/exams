@@ -130,7 +130,11 @@ export const listFees = async (req, res) => {
 
   const { status } = req.query;
   if (status === "PENDING") filter.feeStatus = { $in: ["PARTIAL", "UNPAID"] };
+  else if (status === "ANY_PAID") filter.feeStatus = { $in: ["PAID", "PARTIAL"] };
   else if (["PAID", "PARTIAL", "UNPAID"].includes(status)) filter.feeStatus = status;
+  // ?txn=none – marked paid but no transaction details yet; ?txn=some – details added
+  if (req.query.txn === "none") filter["payments.0"] = { $exists: false };
+  else if (req.query.txn === "some") filter["payments.0"] = { $exists: true };
 
   const limit = Math.min(Number(req.query.limit) || 40, 200);
   const page = Math.max(Number(req.query.page) || 1, 1);
@@ -228,11 +232,21 @@ export const recordFee = async (req, res) => {
 export const markPaidBulk = async (req, res) => {
   const { id } = req.params;
   if (!isId(id)) return fail(res, 400, "Invalid exam id.");
+  //   { regIds }                       – ticked on the page
+  //   { registerNumbers: [...] }       – pasted list (e.g. from the bank statement)
+  //   { allPending: true, department, semester } – every not-fully-paid student of a class
   const regIds = (Array.isArray(req.body?.regIds) ? req.body.regIds : []).map(String).filter(isId);
-  if (!regIds.length) return fail(res, 400, "Select at least one student.");
-  if (regIds.length > 500) return fail(res, 400, "Select at most 500 students at a time.");
+  const numbers = [...new Set((Array.isArray(req.body?.registerNumbers) ? req.body.registerNumbers : []).map((n) => String(n).trim().toUpperCase()).filter(Boolean))];
+  let filter;
+  if (regIds.length) filter = { _id: { $in: regIds }, exam: id };
+  else if (numbers.length) filter = { exam: id, registerNumber: { $in: numbers } };
+  else if (req.body?.allPending) filter = { ...baseFilter(id, { department: req.body.department, semester: req.body.semester }), feeStatus: { $in: ["PARTIAL", "UNPAID"] } };
+  else return fail(res, 400, "Select at least one student.");
+  if (regIds.length > 500 || numbers.length > 2000) return fail(res, 400, "Too many students at a time.");
 
-  const regs = await ExamRegistration.find({ _id: { $in: regIds }, exam: id });
+  const regs = await ExamRegistration.find(filter);
+  if (regs.length > 2000) return fail(res, 400, "Too many students at a time – choose a class.");
+  const notFound = numbers.length ? numbers.filter((n) => !regs.some((r) => r.registerNumber === n)) : [];
   const by = who(req);
   const paidOn = new Date();
   let students = 0;
@@ -244,8 +258,17 @@ export const markPaidBulk = async (req, res) => {
     await reg.save();
     students++;
   }
-  await logAction(req, "EXAM_FEE_PAID_BULK", id, { registrations: regIds.length, marked: students });
-  res.json({ marked: students, message: `${students} student${students === 1 ? "" : "s"} marked as paid.` });
+  await logAction(req, "EXAM_FEE_PAID_BULK", id, {
+    registrations: regs.length,
+    marked: students,
+    by: regIds.length ? "selection" : numbers.length ? "register numbers" : "class",
+    notFound: notFound.slice(0, 50),
+  });
+  res.json({
+    marked: students,
+    notFound,
+    message: `${students} student${students === 1 ? "" : "s"} marked as paid.${notFound.length ? ` ${notFound.length} register number${notFound.length === 1 ? " was" : "s were"} not found in this exam.` : ""}`,
+  });
 };
 
 // POST /api/exams/:id/registrations/:regId/payments

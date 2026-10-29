@@ -10,6 +10,10 @@
 // never held up. Transactions (txn no., amount, date – two or more if the
 // student paid in parts) can be added later, typed or read from a scanned
 // receipt.
+//
+//   mode="transactions" : students already marked paid, to add their
+//                         transaction details later (office "Fee transactions")
+//   transactionsHref    : where that page is (shown after marking paid)
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -31,7 +35,8 @@ const today = () => new Date().toISOString().slice(0, 10);
 const rupees = (n) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "");
 
-export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref, initialStatus = "" }) {
+export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref, initialStatus = "", mode = "", transactionsHref = "" }) {
+  const txnMode = mode === "transactions";
   const api = useApi();
   const toast = useToast();
   const confirm = useConfirm();
@@ -48,6 +53,9 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
   const [uploading, setUploading] = useState(false);
   const [picked, setPicked] = useState(() => new Set()); // registration ids ticked for "Mark as paid"
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  // transaction details: "none" = not added yet, "some" = added, "" = all
+  const [txn, setTxn] = useState(txnMode ? "none" : "");
   const searchRef = useRef(null);
 
   // exam list (for picking an exam and for class names)
@@ -69,12 +77,13 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
     const t = setTimeout(() => setQuery(q.trim()), 300);
     return () => clearTimeout(t);
   }, [q]);
-  useEffect(() => setPage(1), [query, status, cls, examId]);
-  useEffect(() => setPicked(new Set()), [query, status, cls, examId, page]);
+  useEffect(() => setPage(1), [query, status, cls, examId, txn]);
+  useEffect(() => setPicked(new Set()), [query, status, cls, examId, page, txn]);
 
   const params = useMemo(() => {
     const p = { page, limit: 40 };
     if (status) p.status = status;
+    if (txn) p.txn = txn;
     if (query) p.q = query;
     if (cls === "backlog") p.department = "backlog";
     else if (cls) {
@@ -83,7 +92,7 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
       p.semester = s;
     }
     return p;
-  }, [page, status, query, cls]);
+  }, [page, status, query, cls, txn]);
 
   const load = useCallback(async () => {
     if (!examId) return;
@@ -183,7 +192,10 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
       )}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0">
-          <h2 className="text-2xl font-bold tracking-tight text-slate-950">Fee verification</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-950">{txnMode ? "Fee transactions" : "Fee verification"}</h2>
+          {txnMode && (
+            <p className="mt-1 text-sm text-slate-500">Students already marked paid – add the transaction no., amount and date (type them or scan the receipt).</p>
+          )}
           {fixedExamId || !exams || exams.length <= 1 ? (
             <p className="mt-1 text-sm text-slate-500">{exam ? `${exam.name} · ${exam.academicYear}` : " "}</p>
           ) : (
@@ -198,7 +210,13 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
         </div>
         {examId && (
           <div className="flex flex-wrap gap-2">
-            {canEdit && (
+            {canEdit && !txnMode && (
+              <button onClick={() => setBulkOpen(true)} className={btn.primary}>
+                <Icon name="check" className="h-4 w-4" />
+                Bulk mark as paid
+              </button>
+            )}
+            {canEdit && !txnMode && (
               <button onClick={() => setUploading(true)} className={btn.secondary}>
                 <Icon name="report" className="h-4 w-4" />
                 Upload Excel
@@ -258,8 +276,16 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
                   </option>
                 ))}
               </select>
+              {txnMode && (
+                <select value={txn} onChange={(e) => setTxn(e.target.value)} className={T.field} aria-label="Transaction details">
+                  <option value="none">Transaction details not added</option>
+                  <option value="some">Transaction details added</option>
+                  <option value="">All</option>
+                </select>
+              )}
               <select value={status} onChange={(e) => setStatus(e.target.value)} className={T.field}>
                 <option value="">Any status</option>
+                <option value="ANY_PAID">Paid or partly paid</option>
                 <option value="PENDING">Not fully paid</option>
                 <option value="UNPAID">Not paid</option>
                 <option value="PARTIAL">Partly paid</option>
@@ -268,10 +294,25 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
             </div>
           </div>
 
-          {canEdit && (
+          {canEdit && !txnMode && (
             <p className="mt-3 text-xs text-slate-500">
-              Tick students and click <b>Mark as paid</b>, or use <b>✓ Paid</b> on a row. Transaction no., amount and date can be added
-              later under <b>Details</b> (type them or scan the receipt).
+              Tick students and click <b>Mark as paid</b>, use <b>✓ Paid</b> on a row, or <b>Bulk mark as paid</b> (paste register numbers or a whole
+              class). Transaction no., amount and date can be added later
+              {transactionsHref ? (
+                <>
+                  {" "}
+                  in{" "}
+                  <Link href={transactionsHref} className="font-semibold text-blue-700 underline">
+                    Fee transactions
+                  </Link>
+                </>
+              ) : (
+                <>
+                  {" "}
+                  under <b>Details</b>
+                </>
+              )}{" "}
+              (type them or scan the receipt).
             </p>
           )}
 
@@ -372,6 +413,19 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
           }}
         />
       )}
+      {bulkOpen && (
+        <BulkPaidModal
+          examId={examId}
+          cls={cls}
+          clsLabel={classOptions.find(([v]) => v === cls)?.[1] || ""}
+          pendingInClass={(counts.PARTIAL || 0) + (counts.UNPAID || 0)}
+          onClose={() => setBulkOpen(false)}
+          onDone={() => {
+            setBulkOpen(false);
+            load();
+          }}
+        />
+      )}
       {uploading && (
         <UploadModal
           examId={examId}
@@ -384,6 +438,94 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
         />
       )}
     </div>
+  );
+}
+
+// Mark many students paid at once: a pasted list of register numbers, or every
+// not-fully-paid student of the chosen class. Details can be added later.
+function BulkPaidModal({ examId, cls, clsLabel, pendingInClass, onClose, onDone }) {
+  const api = useApi();
+  const toast = useToast();
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState(null); // { marked, notFound }
+  const numbers = [...new Set(text.split(/[\s,;]+/).map((x) => x.trim().toUpperCase()).filter(Boolean))];
+  const classChosen = cls && cls !== "backlog";
+
+  const send = async (body) => {
+    setBusy(true);
+    try {
+      const r = await api("post", `/exams/${examId}/fees/mark-paid`, body);
+      toast.success(r.data.message, 6000);
+      if (r.data.notFound?.length) setResult(r.data);
+      else onDone();
+    } catch (e) {
+      toast.error(errMsg(e, "Could not mark as paid."));
+    }
+    setBusy(false);
+  };
+
+  return (
+    <Modal
+      open
+      wide
+      onClose={onClose}
+      busy={busy}
+      title="Bulk mark as paid"
+      subtitle="All their unpaid fees are marked paid. Transaction details can be added later."
+      footer={
+        <button onClick={result ? onDone : onClose} disabled={busy} className={btn.secondary}>
+          {result ? "Done" : "Cancel"}
+        </button>
+      }
+    >
+      {result ? (
+        <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-orange-900">
+          <p className="font-semibold">
+            {result.marked} marked as paid. These {result.notFound.length} register number{result.notFound.length === 1 ? " is" : "s are"} not in this exam:
+          </p>
+          <p className="mt-1 break-words font-mono text-xs">{result.notFound.join(", ")}</p>
+        </div>
+      ) : (
+        <>
+          <p className="text-sm font-semibold text-slate-800">1. Paste register numbers</p>
+          <p className="text-xs text-slate-500">One per line, or separated by commas / spaces – e.g. copied from Excel or the bank list.</p>
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={6}
+            placeholder={"103CS26001\n103CS26002\n103ME26015"}
+            className={`${field} mt-2 font-mono text-sm`}
+          />
+          <button onClick={() => send({ registerNumbers: numbers })} disabled={busy || !numbers.length} className={`${btn.primary} mt-2`}>
+            {busy ? "Saving…" : `Mark ${numbers.length} as paid`}
+          </button>
+
+          <div className="my-5 border-t border-slate-100" />
+
+          <p className="text-sm font-semibold text-slate-800">2. A whole class</p>
+          {classChosen ? (
+            <>
+              <p className="text-xs text-slate-500">
+                Every student of <b>{clsLabel}</b> who has not fully paid ({pendingInClass}).
+              </p>
+              <button
+                onClick={() => {
+                  const [department, semester] = cls.split("-");
+                  send({ allPending: true, department, semester });
+                }}
+                disabled={busy || !pendingInClass}
+                className={`${btn.secondary} mt-2`}
+              >
+                Mark all {pendingInClass} of {clsLabel} as paid
+              </button>
+            </>
+          ) : (
+            <p className="text-xs text-slate-500">Close this window, choose a class in “All classes” on the page, then open it again.</p>
+          )}
+        </>
+      )}
+    </Modal>
   );
 }
 
