@@ -24,7 +24,7 @@ import PracticalBatch from "../models/PracticalBatch.js";
 import PracticalPanel from "../models/PracticalPanel.js";
 import AuditLog from "../models/AuditLog.js";
 import { sendPracticalAllotmentEmail, sendPracticalOrderEmail, sendPracticalScheduleEmail } from "../services/mailer.js";
-import { practicalOrderHtml } from "../services/practicalOrder.js";
+import { SIGNATURE_CID, practicalOrderHtml, signatureDataUri } from "../services/practicalOrder.js";
 import {
   batchLabel,
   boardDepartment,
@@ -295,13 +295,15 @@ async function notifyAllotment(exam, panel, code) {
     { to: panel.internal.email, name: panel.internal.name, role: "INTERNAL" },
     ...hods.filter((h) => h.email && h.email !== panel.internal.email).map((h) => ({ to: h.email, name: h.name, role: "HOD" })),
   ];
-  if (code && panel.external.email) jobs.push({ to: panel.external.email, name: panel.external.name, role: "EXTERNAL" });
+  // A new external examiner gets the appointment, his code and the office order
+  // for his Principal in ONE email
+  const order = code && panel.external.email ? await orderFor(exam, panel).catch(() => null) : null;
+  if (code && panel.external.email) jobs.push({ to: panel.external.email, name: panel.external.name, role: "EXTERNAL", order });
   const results = await Promise.allSettled(jobs.map((j) => sendPracticalAllotmentEmail({ ...j, exam, panel, code })));
   const sent = (role) => jobs.some((j, i) => j.role === role && results[i].status === "fulfilled" && results[i].value === true);
-  // A new external examiner also gets the office order for his Principal (a
-  // separate email, so that the secret code is never forwarded with it)
-  const order = code && panel.external.email ? await sendOrder(exam, panel).catch(() => false) : false;
-  return { internal: sent("INTERNAL"), external: sent("EXTERNAL"), hod: sent("HOD"), order };
+  const orderSent = Boolean(order) && sent("EXTERNAL");
+  if (orderSent) await PracticalPanel.updateOne({ _id: panel._id }, { $set: { orderSentAt: new Date() } });
+  return { internal: sent("INTERNAL"), external: sent("EXTERNAL"), hod: sent("HOD"), order: orderSent };
 }
 
 // Dates for the office order: the practical examinations of the exam (first to
@@ -313,13 +315,18 @@ async function orderDates(examId, panelId) {
   return { from: all[0] || "", to: all[all.length - 1] || "", start: mine[0] || "" };
 }
 
-async function orderOf(exam, panel) {
-  return practicalOrderHtml({ exam, panel, date: panel.allottedAt || new Date(), ...(await orderDates(panel.exam, panel._id)) });
+async function orderOf(exam, panel, extra = {}) {
+  return practicalOrderHtml({ exam, panel, date: panel.allottedAt || new Date(), ...(await orderDates(panel.exam, panel._id)), ...extra });
 }
 
-// Emails the office order to the external examiner; true when sent
+// The order for an email: { email: signature as cid, print: signature as data URI }
+async function orderFor(exam, panel) {
+  return { email: await orderOf(exam, panel, { signature: signatureDataUri() ? `cid:${SIGNATURE_CID}` : "" }), print: await orderOf(exam, panel) };
+}
+
+// Emails the office order alone (the "Email order" button); true when sent
 async function sendOrder(exam, panel) {
-  const ok = await sendPracticalOrderEmail({ to: panel.external.email, name: panel.external.name, exam, html: await orderOf(exam, panel) });
+  const ok = await sendPracticalOrderEmail({ to: panel.external.email, name: panel.external.name, exam, order: await orderFor(exam, panel) });
   if (ok) await PracticalPanel.updateOne({ _id: panel._id }, { $set: { orderSentAt: new Date() } });
   return ok;
 }
@@ -374,7 +381,7 @@ const allotReply = (panel, mail, code) => {
   const told = [mail.internal && "internal examiner", mail.external && "external examiner", mail.hod && "HOD"].filter(Boolean);
   return {
     message: `Examiner set ${panel.number} of ${panel.department.toUpperCase()} saved. ${told.length ? `Email sent to: ${told.join(", ")}.` : "No email could be sent – please inform them."}${
-      mail.order ? " The office order was emailed to the external examiner." : ""
+      mail.order ? " The office order went with the external examiner's email." : ""
     }`,
     // The code is shown to the COE only when it could not be emailed to the external examiner
     code: code && !mail.external ? code : null,

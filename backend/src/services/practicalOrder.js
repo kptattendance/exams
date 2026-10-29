@@ -6,6 +6,25 @@
 // and printed by the COE office (Print → Save as PDF). Inline styles only, so
 // that it looks the same in Gmail / Outlook and on paper.
 
+import { readFileSync } from "node:fs";
+
+// The COE's signature with the office seal text (src/assets/coe-signature.png).
+//   In an email it is attached and shown with cid:coe-sign (Gmail does not show
+//   data: images); in the printed order and the attached copy it is a data URI.
+export const SIGNATURE_PATH = new URL("../assets/coe-signature.png", import.meta.url);
+export const SIGNATURE_CID = "coe-sign";
+let signatureUri = null;
+export const signatureDataUri = () => {
+  if (signatureUri === null) {
+    try {
+      signatureUri = `data:image/png;base64,${readFileSync(SIGNATURE_PATH).toString("base64")}`;
+    } catch {
+      signatureUri = ""; // no file: the typed signature block is printed instead
+    }
+  }
+  return signatureUri;
+};
+
 const LOGO = {
   // Cloudinary copies of the college logos (resized so the email stays small)
   crest: "https://res.cloudinary.com/dnreqxbdw/image/upload/w_220/v1757932916/logo3_vptob4.jpg",
@@ -55,10 +74,15 @@ const REFERENCES = [
 const FONT = "'Noto Sans Kannada','Nirmala UI','Tunga',Arial,sans-serif";
 const cell = "border:1px solid #333;padding:6px 8px;font-size:13px;vertical-align:top";
 
+// A complete page (for the attached copy that the examiner prints)
+export const orderDocument = (html, title = "Office order") =>
+  `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>@page{size:A4;margin:10mm 12mm}body{margin:0;padding:16px}@media print{body{padding:0}}</style></head><body>${html}</body></html>`;
+
 // order: { exam: { name }, panel, date, from, to, start }
 //   from / to  – first and last day of the practical examinations ("" if not fixed)
 //   start      – first day this examiner is needed ("" if not fixed)
-export function practicalOrderHtml({ exam, panel, date = new Date(), from = "", to = "", start = "" }) {
+//   signature  – image source of the COE's signature (default: data URI)
+export function practicalOrderHtml({ exam, panel, date = new Date(), from = "", to = "", start = "", signature = signatureDataUri() }) {
   const ext = panel.external || {};
   const college = ext.college || "";
   const later = "ಮುಂದೆ ತಿಳಿಸಲಾಗುವುದು";
@@ -136,12 +160,15 @@ export function practicalOrderHtml({ exam, panel, date = new Date(), from = "", 
   <table role="presentation" width="100%" style="border-collapse:collapse;margin-top:36px">
     <tr>
       <td></td>
-      <td width="320" style="text-align:center;line-height:1.35">
-        <div style="height:40px"></div>
+      <td width="320" style="text-align:center;line-height:1.35">${
+        signature
+          ? `<img src="${signature}" width="300" alt="Controller of Examination, Karnataka (Govt.) Polytechnic (Autonomous), Kadri Hills, Mangaluru - 575004" style="display:block;margin:0 auto;max-width:100%;height:auto"/>`
+          : `<div style="height:40px"></div>
         <div>ಪರೀಕ್ಷಾ ನಿಯಂತ್ರಕರು</div>
         <div style="font-weight:bold;color:#1d1842">CONTROLLER OF EXAMINATION</div>
         <div style="font-size:12.5px">Karnataka (Govt.) Polytechnic (Autonomous)</div>
-        <div style="font-size:12.5px">Kadri Hills, Mangaluru - 575004</div>
+        <div style="font-size:12.5px">Kadri Hills, Mangaluru - 575004</div>`
+      }
       </td>
     </tr>
   </table>
