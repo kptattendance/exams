@@ -104,8 +104,8 @@ export default function PracticalAllotment({ mode = "coe" }) {
   };
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-7">
-      <h2 className="text-2xl font-bold tracking-tight text-slate-950">{admin ? "Practical marks – corrections" : "Practical exam marks"}</h2>
+    <div className={`mx-auto ${admin ? "max-w-5xl" : "max-w-7xl"} px-4 py-6 sm:px-6 lg:px-7`}>
+      <h2 className="text-2xl font-bold tracking-tight text-slate-950">{admin ? "Practical marks – corrections" : "Practical Examiners"}</h2>
       <ExamSelect exams={exams} examId={examId} setExamId={setExamId} />
 
       <p className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-600">
@@ -119,92 +119,14 @@ export default function PracticalAllotment({ mode = "coe" }) {
 
       {/* ------------------------------------------------ examiner sets (COE) */}
       {!admin && batches && depts && (
-        <>
-          <div className="mt-7 flex flex-wrap items-center gap-3">
-            <h3 className="flex-1 text-lg font-bold tracking-tight text-slate-950">Examiners of each department</h3>
-            {depts.some((d) => d.panels.length) && (
-              <a href={`/print/practical-orders/${examId}`} target="_blank" rel="noreferrer" className={btn.small}>
-                <Icon name="download" className="h-4 w-4" />
-                Print all office orders
-              </a>
-            )}
-          </div>
-          <div className="mt-3 space-y-3">
-            {depts.map((d) => (
-              <section key={d.department} className={`overflow-hidden rounded-2xl border bg-white ${d.subjects > 0 && d.panels.length === 0 ? "border-orange-200" : "border-slate-200"}`}>
-                <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-slate-950">{dept(d.department)}</p>
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      {d.subjects === 0
-                        ? "No practical exams in this examination"
-                        : `${d.subjects} practical subject${d.subjects > 1 ? "s" : ""} · ${d.students} student entries · ${d.batches} batch${d.batches === 1 ? "" : "es"} made${
-                            d.batches ? `, ${d.submitted} submitted` : ""
-                          }`}
-                    </p>
-                  </div>
-                  {d.subjects > 0 && d.panels.length === 0 && <span className="self-start rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700 sm:self-center">No examiners yet</span>}
-                  {(d.subjects > 0 || d.panels.length > 0) && (
-                    <button onClick={() => setAllot({ department: d.department })} className={d.panels.length ? btn.small : `${btn.primary} !px-3 !py-1.5 !text-xs`}>
-                      <Icon name="plus" className="h-4 w-4" />
-                      {d.panels.length ? "Add another set" : "Allot examiners"}
-                    </button>
-                  )}
-                </div>
-                {d.panels.length > 0 && (
-                  <ul className="divide-y divide-slate-100 border-t border-slate-100">
-                    {d.panels.map((p) => (
-                      <li key={p._id} className="flex flex-col gap-2 px-4 py-3 lg:flex-row lg:items-center">
-                        <div className="min-w-0 flex-1 text-sm text-slate-700">
-                          <p>
-                            <b className="text-slate-950">Set {p.number}</b> · Internal: <b>{p.internal.name}</b> · External: <b>{p.external.name}</b>
-                            {p.external.college && `, ${p.external.college}`}
-                          </p>
-                          <p className="mt-0.5 text-xs text-slate-500">
-                            {[p.external.phone, p.external.email].filter(Boolean).join(" · ")}
-                            {(p.external.phone || p.external.email) && " · "}
-                            {p.codeLocked ? (
-                              <span className="font-semibold text-red-700">Code locked after wrong tries – issue a new code</span>
-                            ) : p.codeSentTo ? (
-                              `Code emailed to ${p.codeSentTo}`
-                            ) : (
-                              "Code given by the COE office"
-                            )}
-                            {p.orderSentAt && ` · Office order emailed ${new Date(p.orderSentAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`}
-                          </p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <button onClick={() => setAllot({ department: d.department, panel: p })} className={btn.small}>
-                            <Icon name="edit" className="h-4 w-4" />
-                            Change
-                          </button>
-                          <a href={`/print/practical-orders/${examId}?panel=${p._id}`} target="_blank" rel="noreferrer" className={btn.small}>
-                            <Icon name="download" className="h-4 w-4" />
-                            Office order
-                          </a>
-                          {p.external.email && (
-                            <button onClick={() => sendOrder(p)} className={btn.small}>
-                              <Icon name="paper" className="h-4 w-4" />
-                              Email order
-                            </button>
-                          )}
-                          <button onClick={() => newCode(p)} className={btn.small}>
-                            <Icon name="key" className="h-4 w-4" />
-                            New code
-                          </button>
-                          <button onClick={() => remove(p)} className={btn.small}>
-                            <Icon name="trash" className="h-4 w-4" />
-                            Remove
-                          </button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-            ))}
-          </div>
-        </>
+        <ExaminerTable
+          examId={examId}
+          depts={depts}
+          onAllot={(department, panel) => setAllot({ department, panel })}
+          onOrder={sendOrder}
+          onCode={newCode}
+          onRemove={remove}
+        />
       )}
 
       {/* ------------------------------------------------ time table and marks */}
@@ -302,6 +224,204 @@ export default function PracticalAllotment({ mode = "coe" }) {
 
       {marks && <MarksModal id={marks} admin={admin} onClose={() => setMarks(null)} onChanged={load} />}
     </div>
+  );
+}
+
+// COE: every department in one table – its practical work and its examiner sets.
+// One row per examiner set (a department without a set has one row).
+const STATES = {
+  NEEDS: { label: "No examiners yet", chip: "bg-orange-100 text-orange-800", row: "bg-orange-50/70" },
+  DONE: { label: "Allotted", chip: "bg-emerald-100 text-emerald-800", row: "" },
+  NONE: { label: "No practical exams", chip: "bg-slate-100 text-slate-500", row: "bg-slate-50/80 text-slate-400" },
+};
+const stateOf = (d) => (d.panels.length ? "DONE" : d.subjects > 0 ? "NEEDS" : "NONE");
+// alternate allotted departments get a light tint so that their rows stand apart
+const ZEBRA = ["bg-white", "bg-blue-50/40"];
+
+function ExaminerTable({ examId, depts, onAllot, onOrder, onCode, onRemove }) {
+  const [q, setQ] = useState("");
+  const [show, setShow] = useState("ALL");
+
+  const counts = { ALL: depts.length, NEEDS: 0, DONE: 0, NONE: 0 };
+  for (const d of depts) counts[stateOf(d)]++;
+
+  const text = q.trim().toLowerCase();
+  const list = depts.filter((d) => {
+    if (show !== "ALL" && stateOf(d) !== show) return false;
+    if (!text) return true;
+    const hay = [dept(d.department), d.department, ...d.panels.flatMap((p) => [p.internal.name, p.external.name, p.external.college, p.external.email, p.external.phone])]
+      .join(" ")
+      .toLowerCase();
+    return hay.includes(text);
+  });
+
+  const th = "border-b border-slate-200 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-600";
+  const td = "border-b border-slate-100 px-3 py-2.5 align-top";
+  const act = "inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50";
+
+  return (
+    <>
+      <div className="mt-7 flex flex-wrap items-center gap-3">
+        <h3 className="flex-1 text-lg font-bold tracking-tight text-slate-950">Examiners of each department</h3>
+        {depts.some((d) => d.panels.length) && (
+          <a href={`/print/practical-orders/${examId}`} target="_blank" rel="noreferrer" className={btn.small}>
+            <Icon name="download" className="h-4 w-4" />
+            Print all office orders
+          </a>
+        )}
+      </div>
+
+      {/* filters */}
+      <div className="mt-3 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-3 sm:flex-row sm:items-center">
+        <label className="relative flex-1">
+          <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search department, examiner, college, phone…" aria-label="Search" className={`${field} pl-9`} />
+        </label>
+        <div className="flex flex-wrap gap-1.5">
+          {[
+            ["ALL", "All"],
+            ["NEEDS", "No examiners yet"],
+            ["DONE", "Allotted"],
+            ["NONE", "No practical exams"],
+          ].map(([k, label]) => (
+            <button
+              key={k}
+              onClick={() => setShow(k)}
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold ${show === k ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+            >
+              {label} ({counts[k]})
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-3 overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+        <table className="w-full min-w-[1000px] border-collapse text-sm">
+          <thead className="bg-slate-100">
+            <tr>
+              <th className={`${th} w-12`}>Sl. No</th>
+              <th className={`${th} w-48`}>Department</th>
+              <th className={`${th} w-40`}>Practical work</th>
+              <th className={`${th} w-14`}>Set</th>
+              <th className={th}>Internal examiner</th>
+              <th className={th}>External examiner</th>
+              <th className={`${th} w-44`}>Code / order</th>
+              <th className={`${th} w-56`}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {list.map((d, i) => {
+              const st = STATES[stateOf(d)];
+              const tint = st.row || ZEBRA[i % 2];
+              const rows = Math.max(d.panels.length, 1);
+              const head = (
+                <>
+                  <td rowSpan={rows} className={`${td} font-semibold tabular-nums text-slate-500`}>
+                    {i + 1}
+                  </td>
+                  <td rowSpan={rows} className={td}>
+                    <p className="font-semibold text-slate-950">{dept(d.department)}</p>
+                    <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${st.chip}`}>{st.label}</span>
+                    {(d.subjects > 0 || d.panels.length > 0) && (
+                      <button onClick={() => onAllot(d.department)} className={`mt-2 ${d.panels.length ? act : "inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-700"}`}>
+                        <Icon name="plus" className="h-3.5 w-3.5" />
+                        {d.panels.length ? "Add another set" : "Allot examiners"}
+                      </button>
+                    )}
+                  </td>
+                  <td rowSpan={rows} className={`${td} text-xs leading-5 text-slate-600`}>
+                    {d.subjects === 0 ? (
+                      "—"
+                    ) : (
+                      <>
+                        {d.subjects} subject{d.subjects > 1 ? "s" : ""}
+                        <br />
+                        {d.students} student entries
+                        <br />
+                        {d.batches} batch{d.batches === 1 ? "" : "es"}
+                        {d.batches ? `, ${d.submitted} submitted` : ""}
+                      </>
+                    )}
+                  </td>
+                </>
+              );
+              if (!d.panels.length)
+                return (
+                  <tr key={d.department} className={tint}>
+                    {head}
+                    <td colSpan={5} className={`${td} text-xs ${d.subjects ? "font-semibold text-orange-700" : ""}`}>
+                      {d.subjects ? "Allot the internal and external examiners." : "Nothing to allot."}
+                    </td>
+                  </tr>
+                );
+              return d.panels.map((p, k) => (
+                <tr key={p._id} className={tint}>
+                  {k === 0 && head}
+                  <td className={`${td} text-center font-bold text-slate-800`}>{p.number}</td>
+                  <td className={td}>
+                    <p className="font-semibold text-slate-900">{p.internal.name}</p>
+                    {p.internal.phone && <p className="text-xs text-slate-500">{p.internal.phone}</p>}
+                  </td>
+                  <td className={td}>
+                    <p className="font-semibold text-slate-900">{p.external.name}</p>
+                    {p.external.college && <p className="text-xs text-slate-600">{p.external.college}</p>}
+                    {(p.external.phone || p.external.email) && <p className="text-xs text-slate-500">{[p.external.phone, p.external.email].filter(Boolean).join(" · ")}</p>}
+                  </td>
+                  <td className={`${td} text-xs leading-5`}>
+                    {p.codeLocked ? (
+                      <span className="font-semibold text-red-700">Code locked – issue a new code</span>
+                    ) : p.codeSentTo ? (
+                      <span className="text-emerald-700">Code emailed</span>
+                    ) : (
+                      <span className="text-slate-600">Code given by COE office</span>
+                    )}
+                    <br />
+                    {p.orderSentAt ? (
+                      <span className="text-emerald-700">Order emailed {new Date(p.orderSentAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span>
+                    ) : (
+                      <span className="text-orange-700">Order not emailed</span>
+                    )}
+                  </td>
+                  <td className={td}>
+                    <div className="flex flex-wrap gap-1.5">
+                      <button onClick={() => onAllot(d.department, p)} className={act}>
+                        <Icon name="edit" className="h-3.5 w-3.5" />
+                        Change
+                      </button>
+                      <a href={`/print/practical-orders/${examId}?panel=${p._id}`} target="_blank" rel="noreferrer" className={act}>
+                        <Icon name="download" className="h-3.5 w-3.5" />
+                        Order
+                      </a>
+                      {p.external.email && (
+                        <button onClick={() => onOrder(p)} className={act}>
+                          <Icon name="paper" className="h-3.5 w-3.5" />
+                          Email order
+                        </button>
+                      )}
+                      <button onClick={() => onCode(p)} className={act}>
+                        <Icon name="key" className="h-3.5 w-3.5" />
+                        New code
+                      </button>
+                      <button onClick={() => onRemove(p)} className={`${act} text-red-700 hover:bg-red-50`}>
+                        <Icon name="trash" className="h-3.5 w-3.5" />
+                        Remove
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ));
+            })}
+            {list.length === 0 && (
+              <tr>
+                <td colSpan={8} className="px-4 py-10 text-center text-sm text-slate-500">
+                  No department matches the filter.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
 
