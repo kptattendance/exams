@@ -96,11 +96,16 @@ const cleanMeta = (m) => ({
   keepYears: asNumber(m?.keepYears) || 2,
 });
 
+const EMPTY_META = cleanMeta(null);
+
 function ActivityLogPanel() {
   const api = useApi();
   const toast = useToast();
   const confirm = useConfirm();
-  const [meta, setMeta] = useState(null);
+  // never null: the React Compiler may read meta.* before any "meta &&" check
+  const [metaRaw, setMeta] = useState(null);
+  const metaLoaded = metaRaw !== null;
+  const meta = metaRaw || EMPTY_META;
   const [data, setData] = useState(null);
   const [f, setF] = useState({ q: "", action: "", role: "", from: "", to: "" });
   const [query, setQuery] = useState(f);
@@ -181,7 +186,7 @@ function ActivityLogPanel() {
             )}
           </h2>
           <p className="text-xs text-slate-500">
-            {meta ? `${meta.total.toLocaleString("en-IN")} entries in all · ${meta.today} today · kept for ${meta.keepYears} years` : "Loading… please wait"}
+            {metaLoaded ? `${meta.total.toLocaleString("en-IN")} entries in all · ${meta.today} today · kept for ${meta.keepYears} years` : "Loading… please wait"}
           </p>
         </div>
         <label className="flex items-center gap-1.5 text-xs text-slate-600">
@@ -192,7 +197,7 @@ function ActivityLogPanel() {
           <Icon name="download" className="h-4 w-4" />
           Download Excel
         </button>
-        {meta?.olderThanKeep > 0 && (
+        {meta.olderThanKeep > 0 && (
           <button onClick={archive} className={btn.small}>
             Archive {meta.olderThanKeep} older than {meta.keepYears} years
           </button>
@@ -206,7 +211,7 @@ function ActivityLogPanel() {
         <input value={f.q} onChange={set("q")} placeholder="Search email, action, code, register no…" className={`${sel} lg:col-span-2`} />
         <select value={f.action} onChange={set("action")} className={sel}>
           <option value="">All actions</option>
-          {(meta?.actions || []).map((a) => (
+          {meta.actions.map((a) => (
             <option key={a.value} value={a.value}>
               {a.label}
             </option>
@@ -214,7 +219,7 @@ function ActivityLogPanel() {
         </select>
         <select value={f.role} onChange={set("role")} className={sel}>
           <option value="">Everybody</option>
-          {(meta?.roles || []).map((r) => (
+          {meta.roles.map((r) => (
             <option key={r} value={r}>
               {r}
             </option>
