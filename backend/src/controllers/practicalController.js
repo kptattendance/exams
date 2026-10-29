@@ -19,11 +19,12 @@ import mongoose from "mongoose";
 import Exam from "../models/Exam.js";
 import ExamRegistration from "../models/ExamRegistration.js";
 import Subject from "../models/Subject.js";
-import User from "../models/User.js";
+import User, { collegeOf } from "../models/User.js";
 import PracticalBatch from "../models/PracticalBatch.js";
 import PracticalPanel from "../models/PracticalPanel.js";
 import AuditLog from "../models/AuditLog.js";
-import { sendPracticalAllotmentEmail, sendPracticalScheduleEmail } from "../services/mailer.js";
+import { sendPracticalAllotmentEmail, sendPracticalOrderEmail, sendPracticalScheduleEmail } from "../services/mailer.js";
+import { practicalOrderHtml } from "../services/practicalOrder.js";
 import {
   batchLabel,
   boardDepartment,
@@ -40,6 +41,8 @@ import {
   sheetSummary,
   prune,
   MAX_CODE_TRIES,
+  SESSION_CODES,
+  sessionRank,
 } from "../services/exams/practical.js";
 
 const isId = (id) => mongoose.Types.ObjectId.isValid(id);
@@ -70,7 +73,7 @@ function departmentFor(req, requested) {
 
 async function loadExam(req, res) {
   if (!isId(req.params.id)) return fail(res, 400, "Invalid exam id."), null;
-  const exam = await Exam.findById(req.params.id).select("name academicYear status timetable.entries").lean();
+  const exam = await Exam.findById(req.params.id).select("name academicYear status timetable.entries timetable.sessions").lean();
   if (!exam) return fail(res, 404, "Exam not found."), null;
   return exam;
 }
@@ -110,7 +113,16 @@ function panelView(p) {
     department: p.department,
     number: p.number,
     internal: { user: p.internal?.user || null, name: p.internal?.name || "", email: p.internal?.email || "", phone: p.internal?.phone || "" },
-    external: { name: p.external?.name || "", college: p.external?.college || "", phone: p.external?.phone || "", email: p.external?.email || "" },
+    external: {
+      user: p.external?.user || null,
+      name: p.external?.name || "",
+      designation: p.external?.designation || "",
+      department: p.external?.department || "",
+      college: p.external?.college || "",
+      phone: p.external?.phone || "",
+      email: p.external?.email || "",
+    },
+    orderSentAt: p.orderSentAt || null,
     codeIssued: Boolean(p.access?.hash),
     codeLocked: (p.access?.fails || 0) >= MAX_CODE_TRIES,
     codeSentTo: p.access?.sentTo || "",
@@ -208,10 +220,11 @@ export const practicalExams = async (req, res) => {
   res.json({ data: exams, department: req.user?.role === "hod" ? lower(req.user.department) : "" });
 };
 
-// GET /api/practicals/examiners – staff who can be an internal examiner
+// GET /api/practicals/examiners – staff who can be an internal examiner, and
+// (college.external) faculty of other colleges for the external examiner
 export const listExaminers = async (req, res) => {
-  const users = await User.find({ role: { $in: ["staff", "hod"] } }).select("name email phone department role").sort({ department: 1, name: 1 }).lean();
-  res.json({ data: users });
+  const users = await User.find({ role: { $in: ["staff", "hod"] } }).select("name email phone department role collegeCode collegeName").sort({ department: 1, name: 1 }).lean();
+  res.json({ data: users.map(({ collegeCode, collegeName, ...u }) => ({ ...u, college: collegeOf({ collegeCode, collegeName }) })) });
 };
 
 // ------------------------------------------------------------------ examiner sets (COE)
@@ -259,7 +272,12 @@ async function readExaminers(req) {
   const user = await User.findById(req.body.internalId).select("name email phone role clerkId").lean();
   if (!user?.clerkId || !["staff", "hod"].includes(user.role)) return { error: "The internal examiner must be a staff member with a login." };
   const ext = req.body?.external || {};
+  // chosen from the faculty list (other colleges): designation and department come along
+  const picked = isId(ext.userId) ? await User.findById(ext.userId).select("designation department").lean() : null;
   const external = {
+    user: picked?._id || null,
+    designation: String(ext.designation || picked?.designation || "").trim().slice(0, 60),
+    department: lower(ext.department || picked?.department || "").slice(0, 40),
     name: String(ext.name || "").trim().slice(0, 80),
     college: String(ext.college || "").trim().slice(0, 120),
     phone: String(ext.phone || "").trim().slice(0, 20),
@@ -280,8 +298,66 @@ async function notifyAllotment(exam, panel, code) {
   if (code && panel.external.email) jobs.push({ to: panel.external.email, name: panel.external.name, role: "EXTERNAL" });
   const results = await Promise.allSettled(jobs.map((j) => sendPracticalAllotmentEmail({ ...j, exam, panel, code })));
   const sent = (role) => jobs.some((j, i) => j.role === role && results[i].status === "fulfilled" && results[i].value === true);
-  return { internal: sent("INTERNAL"), external: sent("EXTERNAL"), hod: sent("HOD") };
+  // A new external examiner also gets the office order for his Principal (a
+  // separate email, so that the secret code is never forwarded with it)
+  const order = code && panel.external.email ? await sendOrder(exam, panel).catch(() => false) : false;
+  return { internal: sent("INTERNAL"), external: sent("EXTERNAL"), hod: sent("HOD"), order };
 }
+
+// Dates for the office order: the practical examinations of the exam (first to
+// last day fixed so far) and the first day this examiner set is needed.
+async function orderDates(examId, panelId) {
+  const batches = await PracticalBatch.find({ exam: examId, date: { $ne: "" } }).select("date panel").lean();
+  const all = batches.map((b) => b.date).sort();
+  const mine = batches.filter((b) => String(b.panel || "") === String(panelId)).map((b) => b.date).sort();
+  return { from: all[0] || "", to: all[all.length - 1] || "", start: mine[0] || "" };
+}
+
+async function orderOf(exam, panel) {
+  return practicalOrderHtml({ exam, panel, date: panel.allottedAt || new Date(), ...(await orderDates(panel.exam, panel._id)) });
+}
+
+// Emails the office order to the external examiner; true when sent
+async function sendOrder(exam, panel) {
+  const ok = await sendPracticalOrderEmail({ to: panel.external.email, name: panel.external.name, exam, html: await orderOf(exam, panel) });
+  if (ok) await PracticalPanel.updateOne({ _id: panel._id }, { $set: { orderSentAt: new Date() } });
+  return ok;
+}
+
+// GET /api/practicals/:id/orders?panel=<id>&department=cs – office orders of the external examiners (print)
+export const listOrders = async (req, res) => {
+  const exam = await loadExam(req, res);
+  if (!exam) return;
+  const filter = { exam: exam._id, "external.name": { $ne: "" } };
+  if (req.query.panel) {
+    if (!isId(req.query.panel)) return fail(res, 400, "Invalid examiner set.");
+    filter._id = req.query.panel;
+  }
+  if (req.query.department) filter.department = lower(req.query.department);
+  const panels = await PracticalPanel.find(filter).sort({ department: 1, number: 1 }).lean();
+  const data = [];
+  for (const p of panels) data.push({ _id: p._id, department: p.department, number: p.number, name: p.external.name, html: await orderOf(exam, p) });
+  res.json({ exam: examView(exam), data });
+};
+
+// POST /api/practicals/panels/:panelId/order – email the office order again (e.g. after the dates are fixed)
+export const resendOrder = async (req, res) => {
+  if (!isId(req.params.panelId)) return fail(res, 400, "Invalid examiner set.");
+  const panel = await PracticalPanel.findById(req.params.panelId).lean();
+  if (!panel) return fail(res, 404, "Examiner set not found.");
+  if (!panel.external?.email) return fail(res, 400, "The external examiner has no email. Print the office order and send it by post.");
+  const exam = await Exam.findById(panel.exam).select("name").lean();
+  let ok = false;
+  try {
+    ok = await sendOrder(exam, panel);
+  } catch (e) {
+    await log(req, "PRACTICAL_ORDER_FAILED", panel._id, { to: panel.external.email, error: String(e.message || e).slice(0, 300) });
+    return fail(res, 502, `The office order could not be emailed: ${e.message}`);
+  }
+  if (!ok) return fail(res, 502, "Email is not set up on the server. Print the office order instead.");
+  await log(req, "PRACTICAL_ORDER_SENT", panel._id, { to: panel.external.email, external: panel.external.name });
+  res.json({ message: `Office order emailed to ${panel.external.name} (${panel.external.email}).` });
+};
 
 async function issueCode(req, panel, exam) {
   const code = makeCode();
@@ -297,7 +373,9 @@ async function issueCode(req, panel, exam) {
 const allotReply = (panel, mail, code) => {
   const told = [mail.internal && "internal examiner", mail.external && "external examiner", mail.hod && "HOD"].filter(Boolean);
   return {
-    message: `Examiner set ${panel.number} of ${panel.department.toUpperCase()} saved. ${told.length ? `Email sent to: ${told.join(", ")}.` : "No email could be sent – please inform them."}`,
+    message: `Examiner set ${panel.number} of ${panel.department.toUpperCase()} saved. ${told.length ? `Email sent to: ${told.join(", ")}.` : "No email could be sent – please inform them."}${
+      mail.order ? " The office order was emailed to the external examiner." : ""
+    }`,
     // The code is shown to the COE only when it could not be emailed to the external examiner
     code: code && !mail.external ? code : null,
   };
@@ -469,7 +547,7 @@ async function sendSchedules(exam, panelIds) {
     if (!panelReady(panel)) continue;
     const batches = await PracticalBatch.find({ exam: exam._id, panel: panel._id }).select("code name number date session lab students.registration").lean();
     if (!batches.some((b) => b.date)) continue;
-    batches.sort((a, b) => (a.date || "9").localeCompare(b.date || "9") || (b.session || "").localeCompare(a.session || "") || a.code.localeCompare(b.code));
+    batches.sort((a, b) => (a.date || "9").localeCompare(b.date || "9") || sessionRank(a.session) - sessionRank(b.session) || a.code.localeCompare(b.code));
     for (const p of [panel.internal, panel.external]) if (p.email) jobs.push(sendPracticalScheduleEmail({ to: p.email, name: p.name, exam, panel, batches }));
   }
   const results = await Promise.allSettled(jobs);
@@ -493,7 +571,7 @@ async function arrange(req, ctx, after) {
       number: Number(a.number),
       label: batchLabel(code, Number(a.number)),
       date: /^\d{4}-\d{2}-\d{2}$/.test(a.date || "") ? a.date : "",
-      session: ["FN", "AN"].includes(a.session) ? a.session : "",
+      session: SESSION_CODES.includes(a.session) ? a.session : "",
       lab: String(a.lab || "").trim().slice(0, 60),
       // with a single set there is nothing to choose
       panel: own.has(String(a.panel)) ? String(a.panel) : panels.length === 1 ? String(panels[0]._id) : null,
@@ -520,7 +598,7 @@ async function arrange(req, ctx, after) {
   const written = new Map(
     regs.map((r) => [String(r._id), new Map(r.subjects.filter((s) => s.hasTheory && paperSlot.has(s.code)).map((s) => [paperSlot.get(s.code), s.code]))])
   );
-  const clashes = findClashes(all, new Set(next.map((a) => a.label)), written);
+  const clashes = findClashes(all, new Set(next.map((a) => a.label)), written, exam.timetable?.sessions || {});
   if (clashes.length)
     return { status: 409, body: { error: clashes.length === 1 ? clashes[0] : `${clashes.length} clashes in the time table. Nothing was saved.`, clashes } };
 
@@ -626,7 +704,7 @@ export const listBatches = async (req, res) => {
   else if (lower(req.query.department)) filter.department = lower(req.query.department);
   await syncOpen(req, filter);
   const batches = await PracticalBatch.find(filter).lean();
-  batches.sort((a, b) => (a.date || "9").localeCompare(b.date || "9") || (b.session || "").localeCompare(a.session || "") || a.label.localeCompare(b.label, undefined, { numeric: true }));
+  batches.sort((a, b) => (a.date || "9").localeCompare(b.date || "9") || sessionRank(a.session) - sessionRank(b.session) || a.label.localeCompare(b.label, undefined, { numeric: true }));
   const pm = await panelMap(batches);
   res.json({
     exam: examView(exam),
@@ -634,6 +712,110 @@ export const listBatches = async (req, res) => {
       ...batchView(b, pm.get(String(b.panel)), { students: false }),
       own: branch ? b.students.filter((s) => s.department === branch).map((s) => ({ registerNumber: s.registerNumber, name: s.name })) : undefined,
     })),
+  });
+};
+
+// GET /api/practicals/:id/schedule?department=cs – the HOD's time table grid:
+// every batch his department conducts (with the students) and his examiner sets
+export const getSchedule = async (req, res) => {
+  const exam = await loadExam(req, res);
+  if (!exam) return;
+  const department = departmentFor(req, req.query.department);
+  if (!department) return fail(res, 400, "Department is required.");
+  const filter = { exam: exam._id, department };
+  await syncOpen(req, filter);
+  const [batches, panels] = await Promise.all([
+    PracticalBatch.find(filter).lean(),
+    PracticalPanel.find({ exam: exam._id, department }).sort({ number: 1 }).lean(),
+  ]);
+  batches.sort((a, b) => (a.date || "9").localeCompare(b.date || "9") || sessionRank(a.session) - sessionRank(b.session) || a.label.localeCompare(b.label, undefined, { numeric: true }));
+  const pm = new Map(panels.map((p) => [String(p._id), p]));
+  res.json({
+    exam: examView(exam),
+    department,
+    panels: panels.map(panelView),
+    batches: batches.map((b) => batchView(b, pm.get(String(b.panel)))),
+  });
+};
+
+// PUT /api/practicals/:id/schedule  { department, items: [{ batchId, date, session, lab, panel }] }
+// Places batches in the time table grid (date + session), with lab and examiner set.
+// The students of the batches do not change. Checked for clashes like the batch page.
+export const saveSchedule = async (req, res) => {
+  const exam = await loadExam(req, res);
+  if (!exam) return;
+  const department = departmentFor(req, req.body?.department);
+  if (!department) return fail(res, 400, "Department is required.");
+  const items = Array.isArray(req.body?.items) ? req.body.items.filter((x) => isId(x?.batchId)) : [];
+  if (!items.length) return fail(res, 400, "Nothing to save.");
+
+  const [batches, allPanels] = await Promise.all([
+    PracticalBatch.find({ exam: exam._id }).select("code label department status date session lab panel students.registration students.registerNumber").lean(),
+    PracticalPanel.find({ exam: exam._id }).select("department internal.clerkId external.email external.name").lean(),
+  ]);
+  const byId = new Map(batches.map((b) => [String(b._id), b]));
+  const pm = new Map(allPanels.map((p) => [String(p._id), p]));
+  const own = allPanels.filter((p) => p.department === department);
+
+  const changes = new Map();
+  for (const x of items) {
+    const b = byId.get(String(x.batchId));
+    if (!b || b.department !== department) return fail(res, 404, "A batch in the time table is not conducted by your department.");
+    if (b.status === "SUBMITTED") continue; // marks are final; its date stays as it was
+    const panel = pm.get(String(x.panel || ""));
+    changes.set(String(b._id), {
+      date: /^\d{4}-\d{2}-\d{2}$/.test(x.date || "") ? x.date : "",
+      session: SESSION_CODES.includes(x.session) ? x.session : "",
+      lab: String(x.lab || "").trim().slice(0, 60),
+      panel: panel && panel.department === department ? String(panel._id) : own.length === 1 ? String(own[0]._id) : null,
+    });
+  }
+  if (!changes.size) return fail(res, 400, "Nothing to save.");
+
+  // ---- clashes, over the whole exam as it would be after saving
+  const slot = (b) => {
+    const x = { ...b, ...(changes.get(String(b._id)) || {}) };
+    const p = pm.get(String(x.panel || ""));
+    return {
+      label: x.label,
+      date: x.date,
+      session: x.session,
+      lab: x.lab,
+      set: String(x.panel || ""),
+      internal: p?.internal?.clerkId || "",
+      external: p?.external?.email || p?.external?.name || "",
+      students: x.students.map((s) => ({ id: s.registration, registerNumber: s.registerNumber })),
+    };
+  };
+  const changed = batches.filter((b) => changes.has(String(b._id)));
+  const ids = changed.flatMap((b) => b.students.map((s) => s.registration));
+  const regs = await ExamRegistration.find({ _id: { $in: ids } }).select("subjects.code subjects.hasTheory").lean();
+  const paperSlot = new Map((exam.timetable?.entries || []).map((e) => [e.code, `${e.date}|${e.session}`]));
+  const written = new Map(regs.map((r) => [String(r._id), new Map(r.subjects.filter((s) => s.hasTheory && paperSlot.has(s.code)).map((s) => [paperSlot.get(s.code), s.code]))]));
+  const clashes = findClashes(batches.map(slot), new Set(changed.map((b) => b.label)), written, exam.timetable?.sessions || {});
+  if (clashes.length)
+    return fail(res, 409, clashes.length === 1 ? clashes[0] : `${clashes.length} clashes in the time table. Nothing was saved.`, { clashes });
+
+  // ---- save
+  const touched = new Set();
+  let saved = 0;
+  for (const b of changed) {
+    const c = changes.get(String(b._id));
+    if (b.date === c.date && b.session === c.session && b.lab === c.lab && String(b.panel || "") === String(c.panel || "")) continue;
+    const set = { ...c };
+    // a sheet opened under another examiner set must be opened again
+    if (String(b.panel || "") !== String(c.panel || "")) set.unlockedUntil = null;
+    await PracticalBatch.updateOne({ _id: b._id, status: "OPEN" }, { $set: set });
+    if (c.panel) touched.add(c.panel);
+    if (b.panel) touched.add(String(b.panel));
+    saved++;
+  }
+  const mails = touched.size ? await sendSchedules(exam, touched) : 0;
+  await log(req, "PRACTICAL_TIMETABLE_SAVED", exam._id, { department, batches: saved, emails: mails });
+  res.json({
+    message: saved
+      ? `Time table saved (${saved} batch${saved === 1 ? "" : "es"} changed).${mails ? " The examiners were emailed their time table." : ""}`
+      : "Nothing was changed.",
   });
 };
 
@@ -658,7 +840,7 @@ export const officeOverview = async (req, res) => {
   batches.sort(
     (a, b) =>
       (a.date || "9").localeCompare(b.date || "9") ||
-      (b.session || "").localeCompare(a.session || "") ||
+      sessionRank(a.session) - sessionRank(b.session) ||
       (a.lab || "").localeCompare(b.lab || "") ||
       a.label.localeCompare(b.label, undefined, { numeric: true })
   );
@@ -720,7 +902,7 @@ export const myBatches = async (req, res) => {
   const filter = { panel: { $in: panels.map((p) => p._id) } };
   await syncOpen(req, filter);
   const batches = await PracticalBatch.find(filter).lean();
-  batches.sort((a, b) => a.status.localeCompare(b.status) || (a.date || "9").localeCompare(b.date || "9") || (b.session || "").localeCompare(a.session || "") || a.label.localeCompare(b.label));
+  batches.sort((a, b) => a.status.localeCompare(b.status) || (a.date || "9").localeCompare(b.date || "9") || sessionRank(a.session) - sessionRank(b.session) || a.label.localeCompare(b.label));
   const exams = await Exam.find({ _id: { $in: batches.map((b) => b.exam) } }).select("name").lean();
   const examOf = new Map(exams.map((e) => [String(e._id), e.name]));
   const pm = new Map(panels.map((p) => [String(p._id), p]));

@@ -21,7 +21,10 @@ const practicalPanelSchema = new mongoose.Schema(
       phone: { type: String, default: "" },
     },
     external: {
+      user: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null }, // when chosen from the faculty list
       name: { type: String, default: "" },
+      designation: { type: String, default: "" },
+      department: { type: String, default: "" },
       college: { type: String, default: "" },
       phone: { type: String, default: "" },
       email: { type: String, default: "" },
@@ -38,6 +41,7 @@ const practicalPanelSchema = new mongoose.Schema(
       sentTo: { type: String, default: "" },
     },
 
+    orderSentAt: { type: Date, default: null }, // office order emailed to the external examiner
     allottedAt: { type: Date, default: null },
     allottedBy: { type: String, default: "" },
   },

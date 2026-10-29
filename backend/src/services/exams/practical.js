@@ -181,9 +181,34 @@ export function prune(students, regs, code) {
 
 // ------------------------------------------------ timetable clashes
 
+// Practical sessions. S1–S4 are the HOD time table's slots; FN / AN are the
+// older morning / afternoon sessions (kept for batches already fixed that way).
+export const PRACTICAL_SESSIONS = {
+  S1: { label: "8:30 AM – 11:30 AM", start: "08:30", end: "11:30" },
+  S2: { label: "11:30 AM – 2:30 PM", start: "11:30", end: "14:30" },
+  S3: { label: "2:30 PM – 5:30 PM", start: "14:30", end: "17:30" },
+  S4: { label: "5:00 PM – 8:00 PM", start: "17:00", end: "20:00" },
+  FN: { label: "morning", start: "10:00", end: "13:00" },
+  AN: { label: "afternoon", start: "14:00", end: "17:00" },
+};
+export const SESSION_CODES = Object.keys(PRACTICAL_SESSIONS);
+const minutes = (hm) => {
+  const [h, m] = String(hm || "").split(":").map(Number);
+  return h * 60 + (m || 0);
+};
+// Sort key: sessions in the order of their start time, "not set" last
+export const sessionRank = (s) => (PRACTICAL_SESSIONS[s] ? minutes(PRACTICAL_SESSIONS[s].start) : 9999);
+// Two sessions of the same day overlap (S3 and S4 share 5:00–5:30)
+const overlap = (s1, s2, times = PRACTICAL_SESSIONS) => {
+  const a = times[s1];
+  const b = times[s2];
+  if (!a || !b) return s1 === s2;
+  return minutes(a.start) < minutes(b.end) && minutes(b.start) < minutes(a.end);
+};
+
 export const slotOf = (b) => (b.date && b.session ? `${b.date}|${b.session}` : "");
 const same = (a, b) => Boolean(a) && Boolean(b) && String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
-const sessionName = (s) => (s === "FN" ? "morning" : "afternoon");
+const sessionName = (s) => PRACTICAL_SESSIONS[s]?.label || s;
 
 // Why the HOD's timetable cannot be saved.
 //   batches : every practical batch of the exam as it would be after saving
@@ -191,18 +216,27 @@ const sessionName = (s) => (s === "FN" ? "morning" : "afternoon");
 //             set = id of the examiner set; internal / external identify the persons
 //   changed : labels of the batches being saved (only these are checked)
 //   written : Map(studentId -> Map("date|session" -> paper code)) from the written timetable
-export function findClashes(batches, changed, written = new Map()) {
+//   paperTimes : { FN: { start, end }, AN: { start, end } } of the written exam
+export function findClashes(batches, changed, written = new Map(), paperTimes = {}) {
   const out = [];
   const list = batches.filter((b) => slotOf(b));
+  // a practical session against a written-exam session (FN / AN at the written exam's times)
+  const meetsPaper = (s, ps) => {
+    if (s === ps) return true;
+    const p = paperTimes[ps] || PRACTICAL_SESSIONS[ps];
+    return Boolean(p) && overlap(s, "P", { [s]: PRACTICAL_SESSIONS[s], P: p });
+  };
   for (const a of list) {
     if (!changed.has(a.label)) continue;
     const at = `${a.date} ${sessionName(a.session)}`;
     for (const s of a.students || []) {
-      const paper = written.get(String(s.id))?.get(slotOf(a));
-      if (paper) out.push(`${a.label}: ${s.registerNumber} writes the theory paper ${paper} on ${at}.`);
+      for (const [key, paper] of written.get(String(s.id)) || []) {
+        const [date, ps] = key.split("|");
+        if (date === a.date && meetsPaper(a.session, ps)) out.push(`${a.label}: ${s.registerNumber} writes the theory paper ${paper} on ${at}.`);
+      }
     }
     for (const b of list) {
-      if (b === a || slotOf(b) !== slotOf(a)) continue;
+      if (b === a || b.date !== a.date || !overlap(a.session, b.session)) continue;
       if (changed.has(b.label) && b.label < a.label) continue; // report each pair once
       const ids = new Set((b.students || []).map((s) => String(s.id)));
       const both = (a.students || []).filter((s) => ids.has(String(s.id)));

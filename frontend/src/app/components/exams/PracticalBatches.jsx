@@ -12,7 +12,7 @@ import Icon from "../shell/Icon";
 import { btn, field } from "../ui/Modal";
 import { useConfirm, useToast } from "../ui/Feedback";
 import { errMsg, useApi } from "./shared";
-import { ExamSelect, NoExam, batchState, branches, dept, examinersOf, usePracticalExams, when } from "./practicalShared";
+import { ExamSelect, NoExam, SLOTS, batchState, branches, dept, examinersOf, usePracticalExams, when } from "./practicalShared";
 
 export default function PracticalBatches() {
   const api = useApi();
@@ -363,8 +363,13 @@ function SubjectBatches({ examId, code, onClose }) {
                   <span className="text-xs font-medium text-slate-500">Session</span>
                   <select disabled={done} value={b.session || ""} onChange={(e) => setField(b.number, "session", e.target.value)} className={`${field} mt-1`}>
                     <option value="">Choose</option>
-                    <option value="FN">Morning</option>
-                    <option value="AN">Afternoon</option>
+                    {SLOTS.map((s) => (
+                      <option key={s.code} value={s.code}>
+                        {s.label}
+                      </option>
+                    ))}
+                    {/* batches fixed earlier as morning / afternoon */}
+                    {["FN", "AN"].includes(b.session) && <option value={b.session}>{b.session === "FN" ? "Morning" : "Afternoon"}</option>}
                   </select>
                 </label>
                 <label className="block">

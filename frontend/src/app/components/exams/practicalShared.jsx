@@ -10,7 +10,15 @@ import { deptLabel, errMsg, useApi } from "./shared";
 export const fmtDay = (iso) =>
   iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", weekday: "short" }) : "Date not set";
 
-export const sessionLabel = (s) => (s === "FN" ? "Morning" : s === "AN" ? "Afternoon" : "");
+// The HOD time table's four slots (S1–S4). FN / AN: older morning / afternoon batches.
+export const SLOTS = [
+  { code: "S1", label: "8:30 AM – 11:30 AM" },
+  { code: "S2", label: "11:30 AM – 2:30 PM" },
+  { code: "S3", label: "2:30 PM – 5:30 PM" },
+  { code: "S4", label: "5:00 PM – 8:00 PM" },
+];
+
+export const sessionLabel = (s) => (s === "FN" ? "Morning" : s === "AN" ? "Afternoon" : SLOTS.find((x) => x.code === s)?.label || "");
 
 export const when = (b) => [fmtDay(b.date), sessionLabel(b.session), b.lab].filter(Boolean).join(" · ");
 

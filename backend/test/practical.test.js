@@ -147,3 +147,19 @@ test("timetable clashes stop the save", () => {
   // two changed batches clash → reported once
   assert.equal(findClashes([b("ENG-B1", { set: "p1" }), b("ENG-B2", { set: "p1" })], new Set(["ENG-B1", "ENG-B2"])).length, 1);
 });
+
+test("practical time table slots S1–S4: overlapping slots clash, written papers by time", () => {
+  const changed = new Set(["ENG-B1"]);
+  const b = (label, o = {}) => ({ label, date: "2026-11-20", session: "S1", lab: "", set: "", internal: "", external: "", students: [], ...o });
+  // S1 and S2 follow each other → the same examiner is fine
+  assert.deepEqual(findClashes([b("ENG-B1", { set: "p1" }), b("IT-B1", { set: "p1", session: "S2" })], changed), []);
+  // S3 (till 5:30) and S4 (from 5:00) overlap
+  assert.match(findClashes([b("ENG-B1", { set: "p1", session: "S3" }), b("IT-B1", { set: "p1", session: "S4" })], changed)[0], /same examiner/);
+  // a written paper in the morning (10:00–13:00) meets S1 and S2, not S3
+  const written = new Map([["a", new Map([["2026-11-20|FN", "25SC11T"]])]]);
+  const st = [{ id: "a", registerNumber: "A" }];
+  const times = { FN: { start: "10:00", end: "13:00" } };
+  assert.equal(findClashes([b("ENG-B1", { students: st })], changed, written, times).length, 1);
+  assert.equal(findClashes([b("ENG-B1", { students: st, session: "S2" })], changed, written, times).length, 1);
+  assert.equal(findClashes([b("ENG-B1", { students: st, session: "S3" })], changed, written, times).length, 0);
+});

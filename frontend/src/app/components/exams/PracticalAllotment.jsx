@@ -75,6 +75,22 @@ export default function PracticalAllotment({ mode = "coe" }) {
     }
   };
 
+  const sendOrder = async (p) => {
+    const ok = await confirm({
+      title: `Email the office order to ${p.external.name}?`,
+      message: `The order addressed to the Principal of ${p.external.college || "his college"} goes to ${p.external.email}, with the practical exam dates fixed so far.`,
+      confirmText: "Email order",
+    });
+    if (!ok) return;
+    try {
+      const r = await api("post", `/practicals/panels/${p._id}/order`);
+      toast.success(r.data.message, 6000);
+      load();
+    } catch (e) {
+      toast.error(errMsg(e, "Could not email the office order."), 8000);
+    }
+  };
+
   const remove = async (p) => {
     const ok = await confirm({ title: `Remove ${title(p)}?`, message: examinersOf(p), confirmText: "Remove set", tone: "danger" });
     if (!ok) return;
@@ -104,7 +120,15 @@ export default function PracticalAllotment({ mode = "coe" }) {
       {/* ------------------------------------------------ examiner sets (COE) */}
       {!admin && batches && depts && (
         <>
-          <h3 className="mt-7 text-lg font-bold tracking-tight text-slate-950">Examiners of each department</h3>
+          <div className="mt-7 flex flex-wrap items-center gap-3">
+            <h3 className="flex-1 text-lg font-bold tracking-tight text-slate-950">Examiners of each department</h3>
+            {depts.some((d) => d.panels.length) && (
+              <a href={`/print/practical-orders/${examId}`} target="_blank" rel="noreferrer" className={btn.small}>
+                <Icon name="download" className="h-4 w-4" />
+                Print all office orders
+              </a>
+            )}
+          </div>
           <div className="mt-3 space-y-3">
             {depts.map((d) => (
               <section key={d.department} className={`overflow-hidden rounded-2xl border bg-white ${d.subjects > 0 && d.panels.length === 0 ? "border-orange-200" : "border-slate-200"}`}>
@@ -146,6 +170,7 @@ export default function PracticalAllotment({ mode = "coe" }) {
                             ) : (
                               "Code given by the COE office"
                             )}
+                            {p.orderSentAt && ` · Office order emailed ${new Date(p.orderSentAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`}
                           </p>
                         </div>
                         <div className="flex flex-wrap gap-2">
@@ -153,6 +178,16 @@ export default function PracticalAllotment({ mode = "coe" }) {
                             <Icon name="edit" className="h-4 w-4" />
                             Change
                           </button>
+                          <a href={`/print/practical-orders/${examId}?panel=${p._id}`} target="_blank" rel="noreferrer" className={btn.small}>
+                            <Icon name="download" className="h-4 w-4" />
+                            Office order
+                          </a>
+                          {p.external.email && (
+                            <button onClick={() => sendOrder(p)} className={btn.small}>
+                              <Icon name="paper" className="h-4 w-4" />
+                              Email order
+                            </button>
+                          )}
                           <button onClick={() => newCode(p)} className={btn.small}>
                             <Icon name="key" className="h-4 w-4" />
                             New code
@@ -277,14 +312,28 @@ function AllotModal({ examId, department, panel, staff, onClose, onDone }) {
   const [ext, setExt] = useState({ name: panel?.external.name || "", college: panel?.external.college || "", phone: panel?.external.phone || "", email: panel?.external.email || "" });
   const [busy, setBusy] = useState(false);
 
-  // staff of the department itself first
-  const sorted = useMemo(() => [...staff].sort((a, b) => (b.department === department) - (a.department === department)), [staff, department]);
+  // staff of the department itself first; faculty of other colleges are external examiners
+  const sorted = useMemo(
+    () => staff.filter((u) => !u.college?.external).sort((a, b) => (b.department === department) - (a.department === department)),
+    [staff, department]
+  );
+  const outside = useMemo(
+    () => staff.filter((u) => u.college?.external).sort((a, b) => (b.department === department) - (a.department === department) || a.name.localeCompare(b.name)),
+    [staff, department]
+  );
+  const [extId, setExtId] = useState(() => outside.find((u) => u.name === panel?.external.name && (!panel?.external.email || u.email === panel.external.email))?._id || "");
   const set = (k) => (e) => setExt((x) => ({ ...x, [k]: e.target.value }));
+  // picking a faculty member fills in the details (they can still be corrected)
+  const pickExternal = (id) => {
+    setExtId(id);
+    const u = outside.find((x) => x._id === id);
+    if (u) setExt({ name: u.name, college: [u.college.code, u.college.name].filter(Boolean).join(" – "), phone: u.phone || "", email: u.email || "" });
+  };
 
   const save = async () => {
     setBusy(true);
     try {
-      const body = { department, internalId, external: ext };
+      const body = { department, internalId, external: { ...ext, userId: extId || null } };
       const r = panel ? await api("patch", `/practicals/panels/${panel._id}`, body) : await api("post", `/practicals/${examId}/panels`, body);
       toast.success(r.data.message, 8000);
       onDone(r.data.code ? { code: r.data.code, name: ext.name } : null);
@@ -325,8 +374,19 @@ function AllotModal({ examId, department, panel, staff, onClose, onDone }) {
         </select>
       </label>
 
-      <p className="mt-5 text-sm font-medium text-slate-700">External examiner</p>
-      <div className="mt-1 grid gap-3 sm:grid-cols-2">
+      <label className="mt-5 block">
+        <span className="text-sm font-medium text-slate-700">External examiner</span>
+        <select value={extId} onChange={(e) => pickExternal(e.target.value)} className={`${field} mt-1`}>
+          <option value="">{outside.length ? "Choose from other colleges' faculty (or type below)" : "No faculty of other colleges added yet – type below"}</option>
+          {outside.map((u) => (
+            <option key={u._id} value={u._id}>
+              {u.name} · {String(u.department || "").toUpperCase()} · {u.college.code}
+              {u.college.name ? ` ${u.college.name}` : ""}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <input value={ext.name} onChange={set("name")} placeholder="Name" className={field} aria-label="External examiner's name" />
         <input value={ext.college} onChange={set("college")} placeholder="College / organisation" className={field} aria-label="College" />
         <input value={ext.phone} onChange={set("phone")} placeholder="Phone" inputMode="tel" className={field} aria-label="Phone" />

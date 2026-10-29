@@ -87,7 +87,9 @@ function Ticket({ t, exam }) {
 
         {/* heading */}
         <div className="mt-1 flex items-center justify-between gap-2">
-          <p className="text-[11px] font-semibold">{exam.name}</p>
+          <p className="rounded border border-[#8e0d3c] bg-[#fde3e4] px-2 py-0.5 text-[12px] font-bold uppercase tracking-wide text-[#8e0d3c]">
+            {exam.name}
+          </p>
           <p className="bg-slate-900 px-3 py-0.5 text-[11px] font-bold tracking-[0.2em] text-white">HALL TICKET</p>
         </div>
 
@@ -98,16 +100,23 @@ function Ticket({ t, exam }) {
               {[
                 ["Register No.", <b key="r" className="text-[12px] tracking-wide">{t.registerNumber}</b>],
                 ["Name", <b key="n">{t.name}</b>],
-                ["Father’s name", t.fatherName || "—"],
+                // father and mother share one row
+                ["Father’s name", t.fatherName?.trim() || "-", "Mother’s name", t.motherName?.trim() || "-"],
                 ["Programme", t.backPapersOnly ? `${programmeName(t.department)} (back papers)` : programmeName(t.department)],
                 [
                   "Semester / Admission",
                   `${t.backPapersOnly ? "—" : t.semester}${t.admissionLabel ? ` · ${t.admissionLabel}` : ""}`,
                 ],
-              ].map(([k, v]) => (
+              ].map(([k, v, k2, v2]) => (
                 <tr key={k}>
                   <td className="w-32 border border-slate-400 px-2 py-[2px] text-slate-600">{k}</td>
-                  <td className="border border-slate-400 px-2 py-[2px]">{v}</td>
+                  <td colSpan={k2 ? 1 : 3} className="border border-slate-400 px-2 py-[2px]">{v}</td>
+                  {k2 && (
+                    <>
+                      <td className="w-24 whitespace-nowrap border border-slate-400 px-2 py-[2px] text-slate-600">{k2}</td>
+                      <td className="border border-slate-400 px-2 py-[2px]">{v2}</td>
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>

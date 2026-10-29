@@ -9,6 +9,9 @@
 //   ?sheet=room-diary               one room diary per lab and session
 //   ?sheet=ml                       blank ML (mark list) entry sheets, one batch per page
 //   ?sheet=status                   practical marks entered / pending, subject-wise
+//   HOD time table grid (&department=cs):
+//   ?sheet=tt-students              date, time and register numbers – for the students
+//   ?sheet=tt-examiners             date, time and examiners with phone numbers – for the HOD
 //   &auto=1                         opens the print (Save as PDF) dialog by itself
 
 import { Suspense, useEffect, useState } from "react";
@@ -16,16 +19,17 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 
 import { errMsg, useApi } from "../../../components/exams/shared";
-import { branches, dept } from "../../../components/exams/practicalShared";
+import { SLOTS, branches, dept, sessionLabel } from "../../../components/exams/practicalShared";
 import { STATUS, filterOffice, roomsOf } from "../../../components/exams/OfficePractical";
 import Letterhead from "../../../components/print/Letterhead";
 
 const OFFICE_SHEETS = ["room-diary", "ml", "status"];
+const TT_SHEETS = ["tt-students", "tt-examiners"];
 
 const th = "border border-slate-700 px-2 py-1 text-left";
 const td = "border border-slate-700 px-2 py-1";
 const day = (iso) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }) : "__________");
-const session = (s) => (s === "FN" ? "Morning" : s === "AN" ? "Afternoon" : "______");
+const session = (s) => sessionLabel(s) || "______";
 
 function Head({ exam, title, sub }) {
   return (
@@ -47,6 +51,7 @@ function PrintPractical() {
   const branch = search.get("branch") || ""; // a HOD's view: his own exams + his students elsewhere
   const sheet = search.get("sheet") || "";
   const office = OFFICE_SHEETS.includes(sheet);
+  const grid = TT_SHEETS.includes(sheet);
   const auto = search.get("auto") === "1";
   const { isLoaded, isSignedIn } = useAuth();
   const api = useApi();
@@ -58,11 +63,13 @@ function PrintPractical() {
     if (!isSignedIn) return setError("Please sign in.");
     const call = office
       ? api("get", `/practicals/${examId}/office`)
+      : grid
+      ? api("get", `/practicals/${examId}/schedule`, undefined, { params: { department } })
       : batchId
         ? api("get", `/practicals/batches/${batchId}`)
         : api("get", `/practicals/${examId}/batches`, undefined, { params: branch ? { branch } : department ? { department } : {} });
     call.then((r) => setData(r.data)).catch((e) => setError(errMsg(e, "Could not load.")));
-  }, [api, examId, batchId, department, branch, office, isLoaded, isSignedIn]);
+  }, [api, examId, batchId, department, branch, office, grid, isLoaded, isSignedIn]);
 
   // "PDF" button of the office pages: open the print dialog once the sheet is drawn
   useEffect(() => {
@@ -83,7 +90,9 @@ function PrintPractical() {
           Print
         </button>
       </div>
-      {office ? (
+      {grid ? (
+        <GridSheet sheet={sheet} data={data} />
+      ) : office ? (
         <OfficeSheet sheet={sheet} data={data} department={department} date={search.get("date") || ""} status={search.get("status") || ""} />
       ) : batchId ? (
         <MarkList b={data.data} />
@@ -224,6 +233,100 @@ function TimeTable({ exam, batches, department, branch }) {
         <span>Head of the Department</span>
         <span>Controller of Examinations</span>
       </div>
+    </div>
+  );
+}
+
+// ------------------------------------------------------------------ HOD time table (grid) sheets
+
+const longDay = (iso) => new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN", { weekday: "long" });
+
+function GridSheet({ sheet, data }) {
+  const forStudents = sheet === "tt-students";
+  const order = (s) => SLOTS.findIndex((x) => x.code === s);
+  const placed = data.batches
+    .filter((b) => b.date && b.session)
+    .sort((a, b) => a.date.localeCompare(b.date) || order(a.session) - order(b.session) || a.label.localeCompare(b.label, undefined, { numeric: true }));
+  const notPlaced = data.batches.filter((b) => !(b.date && b.session));
+  const panels = new Map((data.panels || []).map((p) => [String(p._id), p]));
+  // the date is printed once for all its rows
+  const span = (i) => (i > 0 && placed[i - 1].date === placed[i].date ? 0 : placed.filter((b) => b.date === placed[i].date).length);
+  const person = (name, phone, extra) => (
+    <>
+      {name || "________________"}
+      {extra && <span className="block text-[10px]">{extra}</span>}
+      {phone && <span className="block text-[10px] font-semibold">Ph: {phone}</span>}
+    </>
+  );
+  return (
+    <div>
+      <style>{forStudents ? "" : "@page{size:A4 landscape;margin:10mm}"}</style>
+      <Letterhead />
+      <div className="mt-2 text-center">
+        <p className="text-[12px] font-semibold">{data.exam?.name}</p>
+        <p className="mt-1 text-[13px] font-bold tracking-[0.15em]">
+          {forStudents ? "PRACTICAL EXAMINATION – TIME TABLE FOR STUDENTS" : "PRACTICAL EXAMINATION – TIME TABLE AND EXAMINERS"}
+        </p>
+        <p className="text-[12px]">Conducted by the {dept(data.department)} department</p>
+      </div>
+      <table className="mt-4 w-full border-collapse">
+        <thead>
+          <tr className="bg-slate-100">
+            <th className={`${th} w-24`}>Date / day</th>
+            <th className={`${th} w-28`}>Time</th>
+            <th className={th}>Subject</th>
+            <th className={`${th} w-12`}>Batch</th>
+            <th className={`${th} w-20`}>Lab</th>
+            {forStudents ? (
+              <th className={th}>Register numbers</th>
+            ) : (
+              <>
+                <th className={`${th} w-14`}>Students</th>
+                <th className={th}>Internal examiner</th>
+                <th className={th}>External examiner</th>
+              </>
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {placed.map((b, i) => {
+            const p = panels.get(String(b.panel || ""));
+            return (
+              <tr key={b._id} className="break-inside-avoid align-top">
+                {span(i) > 0 && (
+                  <td rowSpan={span(i)} className={`${td} font-semibold`}>
+                    {day(b.date)}
+                    <span className="block text-[10px] font-normal">{longDay(b.date)}</span>
+                  </td>
+                )}
+                <td className={`${td} whitespace-nowrap`}>{session(b.session)}</td>
+                <td className={td}>
+                  <b>{b.code}</b> {b.name}
+                </td>
+                <td className={`${td} text-center`}>{b.number}</td>
+                <td className={td}>{b.lab}</td>
+                {forStudents ? (
+                  <td className={`${td} text-[10px] leading-snug`}>{b.students.map((s) => s.registerNumber).join(", ")}</td>
+                ) : (
+                  <>
+                    <td className={`${td} text-center`}>{b.count}</td>
+                    <td className={td}>{p ? person(p.internal.name, p.internal.phone) : b.internal?.name || "Not allotted"}</td>
+                    <td className={td}>{p ? person(p.external.name, p.external.phone, p.external.college) : b.external?.name || "Not allotted"}</td>
+                  </>
+                )}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      {placed.length === 0 && <p className="mt-4 text-sm text-slate-500">No batch is in the time table yet.</p>}
+      {notPlaced.length > 0 && (
+        <p className="mt-3 text-[11px]">
+          <b>Not scheduled yet:</b> {notPlaced.map((b) => b.label).join(", ")}
+        </p>
+      )}
+      {forStudents && <p className="mt-3 text-[10.5px]">Report to the lab 15 minutes before the time. Bring your hall ticket, ID card and record book.</p>}
+      <Signatures who={forStudents ? ["HOD", "Principal / Dean", "COE"] : ["HOD", "COE"]} />
     </div>
   );
 }

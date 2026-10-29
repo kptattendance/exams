@@ -58,7 +58,7 @@ export const listHallTickets = async (req, res) => {
 
   // latest photo and parent name from the student record
   const students = await Student.find({ _id: { $in: pageItems.map((t) => t.reg.student) } })
-    .select("imageUrl fatherName")
+    .select("imageUrl fatherName motherName")
     .lean();
   const info = new Map(students.map((s) => [String(s._id), s]));
 
@@ -103,6 +103,7 @@ export const listHallTickets = async (req, res) => {
       rollNumber: reg.rollNumber,
       name: reg.name,
       fatherName: info.get(String(reg.student))?.fatherName || "",
+      motherName: info.get(String(reg.student))?.motherName || "",
       department: reg.department,
       semester: reg.semester,
       batch: reg.batch,

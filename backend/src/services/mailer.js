@@ -15,6 +15,7 @@
 //   FRONTEND_URL=https://exams.kptmangaluru.in
 
 import nodemailer from "nodemailer";
+import { PRACTICAL_SESSIONS } from "./exams/practical.js";
 
 let transporter = null;
 
@@ -33,10 +34,21 @@ function getTransporter() {
   // Every email: a sender that matches the signed-in account, replies to the
   // MAIL_FROM address, and a plain-text copy next to the HTML (spam filters
   // distrust HTML-only mail).
+  // A temporary refusal (Gmail "421 / 454 try again later", a dropped
+  // connection) is retried twice before the send is reported as failed.
   const send = transporter.sendMail.bind(transporter);
-  transporter.sendMail = (msg) => {
+  transporter.sendMail = async (msg) => {
     const { from, replyTo } = senderFor();
-    return send({ ...msg, from, replyTo: msg.replyTo || replyTo, text: msg.text || htmlToText(msg.html) });
+    const full = { ...msg, from, replyTo: msg.replyTo || replyTo, text: msg.text || htmlToText(msg.html) };
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await send(full);
+      } catch (e) {
+        if (attempt >= 3 || !isTemporary(e)) throw e;
+        console.warn(`Email to ${msg.to} failed (${e.responseCode || e.code}), retrying…`);
+        await new Promise((r) => setTimeout(r, attempt * 3000));
+      }
+    }
   };
   return transporter;
 }
@@ -57,6 +69,10 @@ export function senderFor(env = process.env) {
     replyTo: !same && address !== wanted ? wanted : undefined,
   };
 }
+
+// SMTP 4xx replies and network errors pass; 5xx (bad address, rejected) do not
+export const isTemporary = (e) =>
+  (e?.responseCode >= 400 && e?.responseCode < 500) || ["ETIMEDOUT", "ECONNECTION", "ECONNRESET", "ESOCKET", "EDNS"].includes(e?.code);
 
 // Plain-text version of an HTML email
 export function htmlToText(html) {
@@ -235,7 +251,7 @@ export async function sendPracticalScheduleEmail({ to, name, exam, panel, batche
   const rows = batches
     .map(
       (b) => `<tr>
-        <td style="${cell}">${esc(day(b))}${b.session ? `<br/>${b.session === "FN" ? "Morning" : "Afternoon"}` : ""}</td>
+        <td style="${cell}">${esc(day(b))}${b.session ? `<br/>${b.session === "FN" ? "Morning" : b.session === "AN" ? "Afternoon" : esc(PRACTICAL_SESSIONS[b.session]?.label || b.session)}` : ""}</td>
         <td style="${cell}"><b>${esc(b.code)}</b> ${esc(b.name)}<br/>Batch ${esc(b.number)} · ${b.students.length} students</td>
         <td style="${cell}">${esc(b.lab || "")}</td>
       </tr>`
@@ -257,6 +273,28 @@ export async function sendPracticalScheduleEmail({ to, name, exam, panel, batche
     to,
     subject: `Practical examination time table – ${deptName(panel.department)} (${exam.name})`,
     html,
+  });
+  return true;
+}
+
+// Office order for an external practical examiner (see services/practicalOrder.js).
+// He forwards it to his Principal to be relieved for the practical examinations.
+export async function sendPracticalOrderEmail({ to, name, exam, html }) {
+  const t = getTransporter();
+  if (!t || !to) return false;
+  const body = `
+  <div style="font-family:Arial,sans-serif;max-width:720px;margin:auto;color:#0f172a">
+    <p>Dear ${esc(name)},</p>
+    <p>You have been appointed as an <b>external examiner</b> for the practical examinations of ${esc(exam.name)} at
+       Karnataka (Govt.) Polytechnic, Mangaluru. The office order addressed to your Principal is below.
+       Please forward it (or a print of it) to your Principal so that you are relieved for the examinations.</p>
+    <hr style="border:0;border-top:1px solid #cbd5e1;margin:16px 0"/>
+  </div>
+  ${html}`;
+  await t.sendMail({
+    to,
+    subject: `Office order – Practical examiner, ${exam.name} (KPT Mangaluru)`,
+    html: body,
   });
   return true;
 }

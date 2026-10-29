@@ -38,7 +38,7 @@ const practicalBatchSchema = new mongoose.Schema(
     label: { type: String, required: true }, // "25CS31P-B1"
 
     date: { type: String, default: "" }, // "2026-11-20"
-    session: { type: String, enum: ["FN", "AN", ""], default: "" },
+    session: { type: String, enum: ["S1", "S2", "S3", "S4", "FN", "AN", ""], default: "" }, // S1–S4: HOD time-table slots
     lab: { type: String, default: "" },
 
     max: { type: Number, default: 0 }, // subject's practical maximum

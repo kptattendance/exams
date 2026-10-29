@@ -172,6 +172,8 @@ async function trySendEmail(req, paper, subject, examiner, isReminder) {
     return { sent, attached: sent ? attachments.length : 0 };
   } catch (e) {
     console.error("Email failed:", e.message);
+    // kept so that the COE can see why a faculty did not get the mail
+    await audit(req, "EMAIL_FAILED", paper._id, { to: examiner.email, error: String(e.message || e).slice(0, 300) }).catch(() => {});
     return { sent: false, attached: 0 };
   }
 }
