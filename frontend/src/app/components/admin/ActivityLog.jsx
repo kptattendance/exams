@@ -4,7 +4,7 @@
 // itself every 20 seconds. Filters, Excel download, and archiving of entries
 // older than 2 years to Google Drive.
 
-import { useCallback, useEffect, useState } from "react";
+import { Component, useCallback, useEffect, useState } from "react";
 
 import Icon from "../shell/Icon";
 import { btn } from "../ui/Modal";
@@ -38,7 +38,65 @@ const ago = (d) => {
 };
 const when = (d) => new Date(d).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
 
+// If anything in the log fails, only this panel shows the problem – the
+// dashboard around it keeps working.
+class LogBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <section className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+        <p className="font-semibold">The activity log could not be shown.</p>
+        <p className="mt-1 text-xs">{String(this.state.error?.message || this.state.error)}</p>
+        <button onClick={() => this.setState({ error: null })} className="mt-2 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-semibold">
+          Try again
+        </button>
+      </section>
+    );
+  }
+}
+
 export default function ActivityLog() {
+  return (
+    <LogBoundary>
+      <ActivityLogPanel />
+    </LogBoundary>
+  );
+}
+
+// Anything the server sends that is not what we expect counts as "nothing"
+const asList = (v) => (Array.isArray(v) ? v : []);
+const asNumber = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+const cleanLogs = (d) => ({
+  data: asList(d?.data).map((l) => ({
+    ...l,
+    action: String(l?.action || ""),
+    label: String(l?.label || l?.action || ""),
+    summary: typeof l?.summary === "string" ? l.summary : "",
+    email: String(l?.email || ""),
+    role: String(l?.role || ""),
+    entity: String(l?.entity || ""),
+    details: l?.details && typeof l.details === "object" ? l.details : {},
+  })),
+  total: asNumber(d?.total),
+  pages: Math.max(1, asNumber(d?.pages)),
+});
+const cleanMeta = (m) => ({
+  actions: asList(m?.actions).filter((a) => a && a.value),
+  roles: asList(m?.roles).filter((r) => typeof r === "string" && r),
+  total: asNumber(m?.total),
+  today: asNumber(m?.today),
+  olderThanKeep: asNumber(m?.olderThanKeep),
+  keepYears: asNumber(m?.keepYears) || 2,
+});
+
+function ActivityLogPanel() {
   const api = useApi();
   const toast = useToast();
   const confirm = useConfirm();
@@ -49,6 +107,7 @@ export default function ActivityLog() {
   const [page, setPage] = useState(1);
   const [live, setLive] = useState(true);
   const [open, setOpen] = useState(null); // expanded entry
+  const [loadError, setLoadError] = useState("");
 
   // typing in the search box waits a moment before asking the server
   useEffect(() => {
@@ -64,13 +123,20 @@ export default function ActivityLog() {
   const load = useCallback(async () => {
     try {
       const [r, m] = await Promise.all([api("get", "/audit-logs", undefined, { params: { ...params(), page, limit: 50 } }), api("get", "/audit-logs/meta")]);
-      setData(r.data);
-      setMeta(m.data);
+      setData(cleanLogs(r.data));
+      setMeta(cleanMeta(m.data));
+      setLoadError("");
     } catch (e) {
-      setData((d) => d || { data: [], total: 0, pages: 1 });
-      toast.error(errMsg(e, "Could not load the activity log."));
+      setData((d) => d || cleanLogs(null));
+      const status = e?.response?.status;
+      // shown inside the panel (no pop-up every 20 seconds)
+      setLoadError(
+        status === 404
+          ? "The server does not have the activity log yet – restart / redeploy the backend with the latest code."
+          : errMsg(e, "Could not load the activity log.")
+      );
     }
-  }, [api, params, page, toast]);
+  }, [api, params, page]);
 
   useEffect(() => {
     load();
@@ -132,6 +198,8 @@ export default function ActivityLog() {
           </button>
         )}
       </div>
+
+      {loadError && <p className="mt-3 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-orange-900">{loadError}</p>}
 
       {/* filters */}
       <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
