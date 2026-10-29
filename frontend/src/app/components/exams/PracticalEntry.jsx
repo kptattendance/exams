@@ -282,6 +282,14 @@ function Sheet({ id, onClose }) {
           <p className="mt-5 rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-900">
             Type the agreed mark for each student (whole marks, out of {b.max}), or mark him <b>AB</b> (absent) or <b>MP</b> (malpractice). Press Enter to go to the next student.
           </p>
+          {/* what the colours of the mark boxes mean */}
+          <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
+            <span className="rounded-lg border border-red-500 bg-red-100 px-2 py-1 text-red-800">More than {b.max} / wrong</span>
+            {b.min > 0 && <span className="rounded-lg border border-yellow-500 bg-yellow-100 px-2 py-1 text-yellow-900">Below pass ({b.min})</span>}
+            <span className="rounded-lg border border-emerald-500 bg-emerald-50 px-2 py-1 text-emerald-800">Pass</span>
+            <span className="rounded-lg border border-violet-500 bg-violet-100 px-2 py-1 text-violet-800">Absent</span>
+            <span className="rounded-lg border border-slate-700 bg-slate-200 px-2 py-1 text-slate-800">Malpractice</span>
+          </div>
           <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
             <ul className="divide-y divide-slate-100">
               {b.students.map((s, i) => {
@@ -290,15 +298,31 @@ function Sheet({ id, onClose }) {
                 const err = errors[s.registerNumber] || typed;
                 const off = r.attendance === "ABSENT" || r.attendance === "MALPRACTICE";
                 const toggle = (a) => setRow(s.registerNumber, r.attendance === a ? { attendance: null, marks: "" } : { attendance: a, marks: "" });
+                // colour of the mark box: wrong / below pass / pass / absent / malpractice
+                const mark = Number(r.marks);
+                const tone = err
+                  ? "border-red-500 bg-red-100 text-red-800"
+                  : r.attendance === "ABSENT"
+                  ? "border-violet-500 bg-violet-100 placeholder:text-violet-700"
+                  : r.attendance === "MALPRACTICE"
+                  ? "border-slate-700 bg-slate-200 placeholder:text-slate-800"
+                  : r.attendance === "PRESENT" && String(r.marks).trim() !== ""
+                  ? b.min > 0 && mark < b.min
+                    ? "border-yellow-500 bg-yellow-100 text-yellow-900"
+                    : "border-emerald-500 bg-emerald-50 text-emerald-800"
+                  : "border-slate-300 bg-white focus:border-slate-500";
+                const rowTint = err ? "bg-red-50" : r.attendance === "ABSENT" ? "bg-violet-50/60" : r.attendance === "MALPRACTICE" ? "bg-slate-100" : "";
                 return (
-                  <li key={s.registerNumber} className={`flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 ${err ? "bg-red-50" : ""}`}>
+                  <li key={s.registerNumber} className={`flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 ${rowTint}`}>
                     <span className="w-7 text-xs tabular-nums text-slate-400">{i + 1}</span>
                     <span className="w-28 font-bold tabular-nums text-slate-900">{s.registerNumber}</span>
                     <span className="min-w-0 flex-1 basis-40 text-sm text-slate-700">
                       {s.name}
                       {s.department && <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-600">{s.department.toUpperCase()}</span>}
                     </span>
-                    <span className="w-24 text-right text-xs text-red-600">{err}</span>
+                    <span className={`w-24 text-right text-xs ${err ? "text-red-600" : "font-semibold text-yellow-800"}`}>
+                      {err || (r.attendance === "PRESENT" && String(r.marks).trim() !== "" && b.min > 0 && mark < b.min ? "below pass" : "")}
+                    </span>
                     <input
                       ref={(el) => (refs.current[i] = el)}
                       inputMode="numeric"
@@ -315,9 +339,7 @@ function Sheet({ id, onClose }) {
                         }
                       }}
                       aria-label={`Marks for ${s.registerNumber}`}
-                      className={`h-10 w-20 rounded-xl border px-3 text-right text-base font-semibold tabular-nums outline-none focus:ring-4 focus:ring-slate-100 disabled:bg-slate-100 ${
-                        err ? "border-red-400" : "border-slate-300 focus:border-slate-500"
-                      }`}
+                      className={`h-10 w-20 rounded-xl border-2 px-3 text-right text-base font-semibold tabular-nums outline-none focus:ring-4 focus:ring-slate-100 placeholder:font-bold ${tone}`}
                     />
                     {[
                       ["ABSENT", "AB"],
@@ -330,7 +352,11 @@ function Sheet({ id, onClose }) {
                         aria-pressed={r.attendance === a}
                         title={a === "ABSENT" ? "Absent" : "Malpractice"}
                         className={`h-10 w-11 rounded-xl border text-xs font-bold ${
-                          r.attendance === a ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                          r.attendance === a
+                            ? a === "ABSENT"
+                              ? "border-violet-700 bg-violet-600 text-white"
+                              : "border-slate-950 bg-slate-950 text-white"
+                            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                         }`}
                       >
                         {short}
