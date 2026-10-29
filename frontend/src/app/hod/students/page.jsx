@@ -18,6 +18,8 @@ import {
   UserRound,
 } from "lucide-react";
 
+import { STUDENT_FIELDS, problemsOf } from "../../components/students/studentCheck";
+
 export default function HODStudentsPage() {
   const { getToken } = useAuth();
 
@@ -31,6 +33,8 @@ export default function HODStudentsPage() {
   const [admissionYear, setAdmissionYear] = useState("");
   const [status, setStatus] = useState("");
   const [sortBy, setSortBy] = useState("name");
+  // only students with a missing / wrong-looking detail
+  const [onlyProblems, setOnlyProblems] = useState(false);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -176,6 +180,10 @@ export default function HODStudentsPage() {
       );
     }
 
+    if (onlyProblems) {
+      result = result.filter((student) => Object.keys(problemsOf(student)).length > 0);
+    }
+
     result.sort((a, b) => {
       const registerCompare = compareNatural(
         a.registerNumber,
@@ -201,7 +209,11 @@ export default function HODStudentsPage() {
     admissionYear,
     status,
     sortBy,
+    onlyProblems,
   ]);
+
+  // students with at least one missing / wrong-looking detail
+  const problemCount = useMemo(() => students.filter((s) => Object.keys(problemsOf(s)).length > 0).length, [students]);
 
   const clearFilters = () => {
     setSearch("");
@@ -210,56 +222,37 @@ export default function HODStudentsPage() {
     setAdmissionYear("");
     setStatus("");
     setSortBy("name");
+    setOnlyProblems(false);
   };
 
   const downloadExcel = () => {
     if (!filteredStudents.length) return;
 
-    const excelData = filteredStudents.map(
-      (student, index) => ({
-        "Sl. No.": index + 1,
-        "Register Number":
-          student.registerNumber || "",
-        "Student Name":
-          student.name || "",
-        "Father Name":
-          student.fatherName || "",
-        "Mother Name":
-          student.motherName || "",
-        "Semester":
-          student.semester || "",
-        "Batch":
-          student.batch || "",
-        "Admission Year":
-          student.admissionYear || "",
-        "Gender":
-          student.gender || "",
-        "Email":
-          student.email || "",
-        "Phone":
-          student.phone || "",
-        "Status":
-          student.status || "",
-      })
-    );
+    // every detail, and two empty columns for the student to confirm / correct
+    const excelData = filteredStudents.map((student, index) => {
+      const row = { "Sl. No.": index + 1 };
+      for (const f of STUDENT_FIELDS) row[f.label] = f.value(student) ?? "";
+      const problems = problemsOf(student);
+      row["Missing / check"] = Object.entries(problems)
+        .map(([key, why]) => `${STUDENT_FIELDS.find((f) => f.key === key)?.label}: ${why}`)
+        .join("; ");
+      row["Details correct? (Yes / No)"] = "";
+      row["Corrections (write the correct detail)"] = "";
+      return row;
+    });
 
     const worksheet =
       XLSX.utils.json_to_sheet(excelData);
 
     worksheet["!cols"] = [
-      { wch: 8 },
-      { wch: 20 },
-      { wch: 30 },
-      { wch: 28 },
-      { wch: 28 },
-      { wch: 12 },
-      { wch: 18 },
-      { wch: 15 },
-      { wch: 15 },
-      { wch: 32 },
-      { wch: 18 },
-      { wch: 15 },
+      { wch: 7 },
+      ...STUDENT_FIELDS.map((f) => ({ wch: ["name", "fatherName", "motherName", "email"].includes(f.key) ? 28 : 16 })),
+      { wch: 36 },
+      { wch: 16 },
+      { wch: 40 },
     ];
+    // keep Sl. No., register number and name in view while scrolling
+    worksheet["!freeze"] = { xSplit: 4, ySplit: 1 };
 
     const workbook = XLSX.utils.book_new();
 
@@ -271,7 +264,7 @@ export default function HODStudentsPage() {
 
     XLSX.writeFile(
       workbook,
-      `HOD_Student_Report_${new Date()
+      `Student_Details_${semester ? `Sem${semester}_` : ""}${new Date()
         .toISOString()
         .slice(0, 10)}.xlsx`
     );
@@ -294,7 +287,7 @@ export default function HODStudentsPage() {
               </h1>
 
               <p className="text-sm text-amber-700">
-                Students belonging to the department
+                Check every detail. Red = missing, yellow = looks wrong. Download the Excel to share with students for verification.
               </p>
             </div>
           </div>
@@ -460,6 +453,15 @@ export default function HODStudentsPage() {
             </select>
 
             <button
+              onClick={() => setOnlyProblems((v) => !v)}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold ${
+                onlyProblems ? "border-red-400 bg-red-50 text-red-700" : "border-amber-200 text-slate-600 hover:bg-amber-50"
+              }`}
+            >
+              {onlyProblems ? "✓ " : ""}Only students with missing / wrong details ({problemCount})
+            </button>
+
+            <button
               onClick={clearFilters}
               className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-amber-50"
             >
@@ -514,121 +516,65 @@ export default function HODStudentsPage() {
             </div>
           ) : (
             <>
-              {/* DESKTOP */}
-              <div className="hidden overflow-x-auto md:block">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-amber-50 text-xs uppercase text-amber-700">
+              {/* DESKTOP: every detail, scroll sideways; the first columns stay in view */}
+              <div className="hidden max-h-[70vh] overflow-auto md:block">
+                <table className="w-max min-w-full border-collapse text-left text-xs">
+                  <thead className="sticky top-0 z-20 bg-amber-50 text-[11px] uppercase text-amber-700">
                     <tr>
-                      <th className="px-5 py-3">
-                        #
-                      </th>
-
-                      <th className="px-5 py-3">
-                        Student
-                      </th>
-
-                      <th className="px-5 py-3">
-                        Register No.
-                      </th>
-
-                      <th className="px-5 py-3">
-                        Semester
-                      </th>
-
-                      <th className="px-5 py-3">
-                        Batch
-                      </th>
-
-                      <th className="px-5 py-3">
-                        Admission
-                      </th>
-
-                      <th className="px-5 py-3">
-                        Status
-                      </th>
+                      <th className="sticky left-0 z-30 w-10 bg-amber-50 px-3 py-3">#</th>
+                      <th className="sticky left-10 z-30 w-56 bg-amber-50 px-3 py-3">Student</th>
+                      {STUDENT_FIELDS.filter((f) => f.key !== "name").map((f) => (
+                        <th key={f.key} className="whitespace-nowrap px-3 py-3">
+                          {f.label}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
 
                   <tbody className="divide-y divide-amber-100">
-                    {filteredStudents.map(
-                      (student, index) => (
-                        <tr
-                          key={
-                            student._id ||
-                            student.id ||
-                            index
-                          }
-                          className="hover:bg-amber-50"
-                        >
-                          <td className="px-5 py-4 text-amber-700">
-                            {index + 1}
+                    {filteredStudents.map((student, index) => {
+                      const problems = problemsOf(student);
+                      return (
+                        <tr key={student._id || student.id || index} className="bg-white hover:bg-amber-50/60">
+                          <td className="sticky left-0 z-10 w-10 bg-white px-3 py-2.5 text-amber-700">{index + 1}</td>
+                          <td className={`sticky left-10 z-10 w-56 px-3 py-2.5 ${problems.name ? "bg-red-50" : "bg-white"}`}>
+                            <div className="flex items-center gap-2.5">
+                              {student.imageUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={student.imageUrl} alt="" className="h-9 w-9 shrink-0 rounded-full border border-amber-200 object-cover" />
+                              ) : (
+                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-50 font-semibold text-amber-600">
+                                  {String(student.name || "?").charAt(0).toUpperCase()}
+                                </span>
+                              )}
+                              <span className="min-w-0">
+                                <span className="block truncate text-sm font-semibold text-gray-800">{student.name || "Missing"}</span>
+                                {Object.keys(problems).length > 0 && (
+                                  <span className="text-[11px] font-semibold text-red-600">
+                                    {Object.keys(problems).length} to check
+                                  </span>
+                                )}
+                              </span>
+                            </div>
                           </td>
-
-                          <td className="px-5 py-4">
-                            <div className="flex items-center gap-3">
-  {student.imageUrl ? (
-    <img
-      src={student.imageUrl}
-      alt={student.name || "Student"}
-      className="h-10 w-10 rounded-full object-cover border border-amber-200"
-      onError={(e) => {
-        e.currentTarget.style.display = "none";
-        e.currentTarget.nextElementSibling.style.display = "flex";
-      }}
-    />
-  ) : null}
-
-  <div
-    className={`h-10 w-10 items-center justify-center rounded-full bg-amber-50 font-semibold text-amber-600 ${
-      student.imageUrl ? "hidden" : "flex"
-    }`}
-  >
-    {String(student.name || "?")
-      .charAt(0)
-      .toUpperCase()}
-  </div>
-
-  <div>
-    <p className="font-semibold text-gray-800">
-      {student.name || "-"}
-    </p>
-
-    <p className="text-xs text-gray-500">
-      {student.gender || ""}
-    </p>
-  </div>
-</div>
-                          </td>
-
-                          <td className="px-5 py-4 font-medium text-gray-700">
-                            {student.registerNumber ||
-                              "-"}
-                          </td>
-
-                          <td className="px-5 py-4">
-                            <span className="rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
-                              Sem{" "}
-                              {student.semester || "-"}
-                            </span>
-                          </td>
-
-                          <td className="px-5 py-4 text-slate-600">
-                            {student.batch || "-"}
-                          </td>
-
-                          <td className="px-5 py-4 text-slate-600">
-                            {student.admissionYear ||
-                              "-"}
-                          </td>
-
-                          <td className="px-5 py-4">
-                            <span className="rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
-                              {student.status || "Active"}
-                            </span>
-                          </td>
+                          {STUDENT_FIELDS.filter((f) => f.key !== "name").map((f) => {
+                            const why = problems[f.key];
+                            const v = f.value(student);
+                            return (
+                              <td
+                                key={f.key}
+                                title={why || undefined}
+                                className={`whitespace-nowrap px-3 py-2.5 ${
+                                  why === "missing" ? "bg-red-50 font-semibold text-red-600" : why ? "bg-yellow-50 text-yellow-900" : "text-slate-700"
+                                }`}
+                              >
+                                {why === "missing" ? "Missing" : v === undefined || v === null || v === "" ? "–" : String(v)}
+                              </td>
+                            );
+                          })}
                         </tr>
-                      )
-                    )}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -686,22 +632,21 @@ export default function HODStudentsPage() {
                             </span>
                           </div>
 
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            <span className="rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-700">
-                              Sem{" "}
-                              {student.semester ||
-                                "-"}
-                            </span>
-
-                            <span className="rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-700">
-                              {student.batch || "-"}
-                            </span>
-
-                            <span className="rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-700">
-                              {student.status ||
-                                "Active"}
-                            </span>
-                          </div>
+                          {/* every detail; red = missing, yellow = looks wrong */}
+                          <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+                            {STUDENT_FIELDS.filter((f) => !["name", "registerNumber"].includes(f.key)).map((f) => {
+                              const why = problemsOf(student)[f.key];
+                              const v = f.value(student);
+                              return (
+                                <div key={f.key} className={`min-w-0 rounded px-1 ${why === "missing" ? "bg-red-50" : why ? "bg-yellow-50" : ""}`}>
+                                  <dt className="text-[10px] uppercase text-gray-400">{f.label}</dt>
+                                  <dd className={`break-words ${why === "missing" ? "font-semibold text-red-600" : "text-gray-800"}`}>
+                                    {why === "missing" ? "Missing" : v === undefined || v === null || v === "" ? "–" : String(v)}
+                                  </dd>
+                                </div>
+                              );
+                            })}
+                          </dl>
                         </div>
                       </div>
                     </div>
