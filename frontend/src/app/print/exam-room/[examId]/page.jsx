@@ -3,8 +3,8 @@
 // Room diary of a written-exam session (Print → Save as PDF):
 //   ?date=2026-11-16&session=FN            every room, one after another
 //   &room=Room%2012                        only that room
-// Students write their answer script number and sign; the invigilator writes
-// "Absent" against a student who did not come.
+// Students write their answer script number (and additional sheet numbers) and
+// sign; the invigilator writes "Absent" against a student who did not come.
 
 import { Suspense, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
@@ -100,9 +100,9 @@ function PrintRoomDiary() {
                   <th className={`${th} w-28`}>Register No.</th>
                   <th className={th}>Name</th>
                   <th className={`${th} w-20`}>Paper</th>
-                  <th className={`${th} w-32`}>Answer script No.</th>
-                  <th className={`${th} w-32`}>Signature of candidate</th>
-                  <th className={`${th} w-20`}>Remarks</th>
+                  <th className={`${th} w-28`}>Answer script No.</th>
+                  <th className={`${th} w-28`}>Additional sheet No.</th>
+                  <th className={`${th} w-28`}>Signature of candidate</th>
                 </tr>
               </thead>
               <tbody>
@@ -122,7 +122,7 @@ function PrintRoomDiary() {
             <p className="mt-3 text-[11px] leading-6">
               Allotted: {students.length} &nbsp;·&nbsp; Present: ______ &nbsp;·&nbsp; Absent: ______
               <br />
-              Invigilator: write <b>“Absent”</b> in Remarks against every candidate who did not come.
+              Invigilator: write <b>“Absent”</b> against every candidate who did not come.
               <br />
               Absentees (register numbers): ____________________________________________________________
             </p>
