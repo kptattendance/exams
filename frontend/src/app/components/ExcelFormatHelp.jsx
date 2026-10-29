@@ -21,7 +21,7 @@ export const KINDS = {
   },
 };
 
-export const BASE_COLUMNS = ["Sl No", "Register Number", "Student Name", "Phone Number", "Photo"];
+export const BASE_COLUMNS = ["Sl No", "Register Number", "Student Name"];
 
 function rules(kind) {
   const k = KINDS[kind];
@@ -32,7 +32,7 @@ function rules(kind) {
       ? `Row 2 is the MAX row (${k.maxLabel}) – already filled in. You may change a subject's maximum here.`
       : "There is no maximum row – attendance is entered directly as a percentage.",
     `From row ${kind === "ia" ? 3 : 2}, enter the ${k.fill} under each subject code column.`,
-    "Only the \"Register Number\" and subject code columns are read. Sl No, Name, Phone and Photo are for reference only.",
+    "Only the \"Register Number\" and subject code columns are read. Sl No and Name are for reference only.",
     "Do not change register numbers. Rows with an unknown register number are skipped.",
     "A blank cell leaves that entry unchanged. Enter numbers only (no text such as AB or -).",
     "Keep the data on the first sheet. After uploading, check the table and click Save.",
@@ -50,8 +50,6 @@ export function excelInstructionsSheet(kind, subjects = []) {
     ["Sl No", "Serial number (not read)"],
     ["Register Number", "Student register number – used to match the student (required)"],
     ["Student Name", "Reference only (not read)"],
-    ["Phone Number", "Reference only (not read)"],
-    ["Photo", "Reference only (not read)"],
     ...subjects.map((s) => [s.code, `${s.name || "Subject"} – ${k.fill}`]),
   ];
   const sheet = XLSX.utils.aoa_to_sheet(rows);
@@ -96,8 +94,6 @@ export default function ExcelFormatHelp({ kind, subjects = [] }) {
                   <td className="border border-slate-300 bg-white px-2 py-1" />
                   <td className="border border-slate-300 bg-white px-2 py-1 font-semibold">MAX</td>
                   <td className="whitespace-nowrap border border-slate-300 bg-white px-2 py-1">{k.maxLabel}</td>
-                  <td className="border border-slate-300 bg-white px-2 py-1" />
-                  <td className="border border-slate-300 bg-white px-2 py-1" />
                   {subjects.map((s) => (
                     <td key={s.subjectId || s.code} className="border border-slate-300 bg-white px-2 py-1 font-semibold">
                       {s.maxMarks ?? ""}
@@ -110,8 +106,6 @@ export default function ExcelFormatHelp({ kind, subjects = [] }) {
                 <td className="border border-slate-300 bg-white px-2 py-1">1</td>
                 <td className="whitespace-nowrap border border-slate-300 bg-white px-2 py-1">Register No.</td>
                 <td className="border border-slate-300 bg-white px-2 py-1">Name</td>
-                <td className="border border-slate-300 bg-white px-2 py-1" />
-                <td className="border border-slate-300 bg-white px-2 py-1" />
                 {subjects.map((s) => (
                   <td key={s.subjectId || s.code} className="border border-slate-300 bg-white px-2 py-1 text-slate-500">
                     {kind === "ia" ? "marks" : "%"}

@@ -798,8 +798,6 @@ export default function AttendancePage() {
           "Sl No",
           "Register Number",
           "Student Name",
-          "Phone Number",
-          "Photo",
 
           ...subjects.map(
             (subject) =>
@@ -822,10 +820,6 @@ export default function AttendancePage() {
                 student.registerNumber,
 
                 student.studentName,
-
-                student.phone || "",
-
-                student.imageUrl || "",
 
                 ...subjects.map(
                   (subject) => {
@@ -872,14 +866,6 @@ export default function AttendancePage() {
             wch: 26,
           },
 
-          {
-            wch: 15,
-          },
-
-          {
-            wch: 40,
-          },
-
           ...subjects.map(
             () => ({
               wch: 12,
@@ -892,7 +878,7 @@ export default function AttendancePage() {
         // ------------------------------------------------------
 
         worksheet["!freeze"] = {
-          xSplit: 5,
+          xSplit: 3,
           ySplit: 1,
         };
 

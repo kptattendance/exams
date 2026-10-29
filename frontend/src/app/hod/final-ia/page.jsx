@@ -634,8 +634,6 @@ export default function FinalIAPage() {
           "Sl No",
           "Register Number",
           "Student Name",
-          "Phone Number",
-          "Photo",
           ...subjects.map(
             (subject) =>
               subject.code
@@ -646,8 +644,6 @@ export default function FinalIAPage() {
           "",
           "MAX",
           "Maximum IA Marks",
-          "",
-          "",
           ...subjects.map(
             (subject) =>
               subject.maxMarks ??
@@ -666,10 +662,6 @@ export default function FinalIAPage() {
                 student.registerNumber,
 
                 student.studentName,
-
-                student.phone || "",
-
-                student.imageUrl || "",
 
                 ...subjects.map(
                   (subject) => {
@@ -702,8 +694,6 @@ export default function FinalIAPage() {
           { wch: 7 },
           { wch: 18 },
           { wch: 26 },
-          { wch: 15 },
-          { wch: 40 },
 
           ...subjects.map(
             () => ({
@@ -713,7 +703,7 @@ export default function FinalIAPage() {
         ];
 
         worksheet["!freeze"] = {
-          xSplit: 5,
+          xSplit: 3,
           ySplit: 2,
         };
 

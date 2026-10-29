@@ -87,8 +87,6 @@ export default function ExcelDialog({ open, onClose, kind, subjects = [], semest
                         <td className={cell} />
                         <td className={`${cell} font-semibold`}>MAX</td>
                         <td className={`${cell} whitespace-nowrap`}>{k.maxLabel}</td>
-                        <td className={cell} />
-                        <td className={cell} />
                         {subjects.map((s) => (
                           <td key={s.subjectId || s.code} className={`${cell} bg-emerald-50 font-semibold text-emerald-800`}>
                             {s.maxMarks ?? ""}
@@ -101,8 +99,6 @@ export default function ExcelDialog({ open, onClose, kind, subjects = [], semest
                       <td className={cell}>1</td>
                       <td className={`${cell} whitespace-nowrap`}>Register No.</td>
                       <td className={cell}>Name</td>
-                      <td className={cell} />
-                      <td className={cell} />
                       {subjects.map((s) => (
                         <td key={s.subjectId || s.code} className={`${cell} text-slate-400`}>
                           {ia ? "marks" : "%"}
