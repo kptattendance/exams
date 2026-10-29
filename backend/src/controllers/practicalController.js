@@ -24,7 +24,7 @@ import PracticalBatch from "../models/PracticalBatch.js";
 import PracticalPanel from "../models/PracticalPanel.js";
 import AuditLog from "../models/AuditLog.js";
 import { sendPracticalAllotmentEmail, sendPracticalOrderEmail, sendPracticalScheduleEmail } from "../services/mailer.js";
-import { SIGNATURE_CID, practicalOrderHtml, signatureDataUri } from "../services/practicalOrder.js";
+import { collegeParts, practicalOrdersPdf } from "../services/practicalOrder.js";
 import {
   batchLabel,
   boardDepartment,
@@ -297,11 +297,14 @@ async function notifyAllotment(exam, panel, code) {
   ];
   // A new external examiner gets the appointment, his code and the office order
   // for his Principal in ONE email
-  const order = code && panel.external.email ? await orderFor(exam, panel).catch(() => null) : null;
-  if (code && panel.external.email) jobs.push({ to: panel.external.email, name: panel.external.name, role: "EXTERNAL", order });
+  let orderPdf = null;
+  if (code && panel.external.email) {
+    orderPdf = await orderPdfOf(exam, [panel]).catch((e) => (console.error("Office order PDF failed:", e.message), null));
+    jobs.push({ to: panel.external.email, name: panel.external.name, role: "EXTERNAL", orderPdf });
+  }
   const results = await Promise.allSettled(jobs.map((j) => sendPracticalAllotmentEmail({ ...j, exam, panel, code })));
   const sent = (role) => jobs.some((j, i) => j.role === role && results[i].status === "fulfilled" && results[i].value === true);
-  const orderSent = Boolean(order) && sent("EXTERNAL");
+  const orderSent = Boolean(orderPdf) && sent("EXTERNAL");
   if (orderSent) await PracticalPanel.updateOne({ _id: panel._id }, { $set: { orderSentAt: new Date() } });
   return { internal: sent("INTERNAL"), external: sent("EXTERNAL"), hod: sent("HOD"), order: orderSent };
 }
@@ -315,23 +318,33 @@ async function orderDates(examId, panelId) {
   return { from: all[0] || "", to: all[all.length - 1] || "", start: mine[0] || "" };
 }
 
-async function orderOf(exam, panel, extra = {}) {
-  return practicalOrderHtml({ exam, panel, date: panel.allottedAt || new Date(), ...(await orderDates(panel.exam, panel._id)), ...extra });
-}
-
-// The order for an email: { email: signature as cid, print: signature as data URI }
-async function orderFor(exam, panel) {
-  return { email: await orderOf(exam, panel, { signature: signatureDataUri() ? `cid:${SIGNATURE_CID}` : "" }), print: await orderOf(exam, panel) };
+// The office orders of these examiner sets as one PDF. The college code for the
+// copy to the Principal comes from the examiner's faculty record when he was
+// chosen from the list.
+async function orderPdfOf(exam, panels) {
+  const ids = panels.map((p) => p.external?.user).filter(Boolean);
+  const users = ids.length ? await User.find({ _id: { $in: ids } }).select("collegeCode collegeName").lean() : [];
+  const byId = new Map(users.map((u) => [String(u._id), u]));
+  const orders = [];
+  for (const p of panels)
+    orders.push({
+      exam,
+      panel: p,
+      college: collegeParts(p.external, byId.get(String(p.external?.user || ""))),
+      date: p.allottedAt || new Date(),
+      ...(await orderDates(p.exam, p._id)),
+    });
+  return practicalOrdersPdf(orders);
 }
 
 // Emails the office order alone (the "Email order" button); true when sent
 async function sendOrder(exam, panel) {
-  const ok = await sendPracticalOrderEmail({ to: panel.external.email, name: panel.external.name, exam, order: await orderFor(exam, panel) });
+  const ok = await sendPracticalOrderEmail({ to: panel.external.email, name: panel.external.name, exam, orderPdf: await orderPdfOf(exam, [panel]) });
   if (ok) await PracticalPanel.updateOne({ _id: panel._id }, { $set: { orderSentAt: new Date() } });
   return ok;
 }
 
-// GET /api/practicals/:id/orders?panel=<id>&department=cs – office orders of the external examiners (print)
+// GET /api/practicals/:id/orders?panel=<id>&department=cs – office orders of the external examiners (one PDF)
 export const listOrders = async (req, res) => {
   const exam = await loadExam(req, res);
   if (!exam) return;
@@ -342,9 +355,11 @@ export const listOrders = async (req, res) => {
   }
   if (req.query.department) filter.department = lower(req.query.department);
   const panels = await PracticalPanel.find(filter).sort({ department: 1, number: 1 }).lean();
-  const data = [];
-  for (const p of panels) data.push({ _id: p._id, department: p.department, number: p.number, name: p.external.name, html: await orderOf(exam, p) });
-  res.json({ exam: examView(exam), data });
+  if (!panels.length) return fail(res, 404, "No external examiner has been allotted yet.");
+  const pdf = await orderPdfOf(exam, panels);
+  const name = panels.length === 1 ? `Office_Order_${panels[0].external.name.replace(/[^A-Za-z0-9]+/g, "_")}` : "Office_Orders_Practical_Examiners";
+  res.set({ "Content-Type": "application/pdf", "Content-Disposition": `inline; filename="${name}.pdf"` });
+  res.send(pdf);
 };
 
 // POST /api/practicals/panels/:panelId/order – email the office order again (e.g. after the dates are fixed)

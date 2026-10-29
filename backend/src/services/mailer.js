@@ -14,20 +14,15 @@
 //   MAIL_FROM="COE, KPT Mangaluru <coe.kpt@gmail.com>"
 //   FRONTEND_URL=https://exams.kptmangaluru.in
 
-import { fileURLToPath } from "node:url";
 import nodemailer from "nodemailer";
 import { PRACTICAL_SESSIONS } from "./exams/practical.js";
-import { SIGNATURE_CID, SIGNATURE_PATH, orderDocument, signatureDataUri } from "./practicalOrder.js";
 
-// The office order inside an email: the signature travels as an inline
-// attachment, and a printable copy of the order is attached as well.
-//   order: { email, print }  – the order HTML for the email body (cid signature)
-//                              and for the attached copy (data-URI signature)
-function orderParts(order, name) {
-  const attachments = [{ filename: `Office_Order_${String(name || "Examiner").replace(/[^A-Za-z0-9]+/g, "_")}.html`, content: orderDocument(order.print), contentType: "text/html; charset=utf-8" }];
-  if (signatureDataUri()) attachments.push({ filename: "coe-signature.png", path: fileURLToPath(SIGNATURE_PATH), cid: SIGNATURE_CID });
-  return attachments;
-}
+// The office order (PDF, see services/practicalOrder.js) as an attachment
+const orderAttachment = (pdf, name) => ({
+  filename: `Office_Order_${String(name || "Examiner").replace(/[^A-Za-z0-9]+/g, "_")}.pdf`,
+  content: pdf,
+  contentType: "application/pdf",
+});
 
 let transporter = null;
 
@@ -201,7 +196,8 @@ const wrap = (title, body) => `
 //   role "EXTERNAL" – also carries the secret code he types on exam day
 //   role "INTERNAL" – he signs in and opens each batch
 //   role "HOD"      – so that he can contact them and fix the dates
-export async function sendPracticalAllotmentEmail({ to, name, role, exam, panel, code, order = null }) {
+//   orderPdf          – external examiner: the office order (PDF) goes in the same email
+export async function sendPracticalAllotmentEmail({ to, name, role, exam, panel, code, orderPdf = null }) {
   const t = getTransporter();
   if (!t || !to) {
     if (!t) console.warn("SMTP not configured: practical allotment email not sent to", to);
@@ -236,11 +232,11 @@ export async function sendPracticalAllotmentEmail({ to, name, role, exam, panel,
              <b>yourself</b> to open the sheet, and once more to submit the marks. The same code works for all your batches.
              <b>Do not share this code with anyone, including the internal examiner.</b>
            </p>${
-             order
+             orderPdf
                ? `<p style="background:#fff7ed;border-left:4px solid #ea580c;padding:10px 12px;border-radius:4px">
-             <b>Office order for your Principal</b> (for relieving) is given below, and a printable copy is attached
-             (open the attached file and print it). Give the printed order, or the attached file, to your Principal.
-             <b>Do not forward this whole email</b> – it contains your secret code.</p>`
+             <b>Your office order is attached (PDF).</b> Print it and give the copy to your Principal so that you are relieved
+             for the practical examinations. If you send it to your Principal by email, attach only the PDF –
+             <b>do not forward this email</b>, it contains your secret code.</p>`
                : ""
            }`
         : role === "INTERNAL"
@@ -255,8 +251,8 @@ export async function sendPracticalAllotmentEmail({ to, name, role, exam, panel,
     from: process.env.MAIL_FROM || process.env.SMTP_USER,
     to,
     subject: `${title} – ${deptName(panel.department)} (${exam.name})`,
-    html: order ? `${html}<hr style="border:0;border-top:1px solid #cbd5e1;margin:20px 0"/>${order.email}` : html,
-    attachments: order ? orderParts(order, name) : undefined,
+    html,
+    attachments: orderPdf ? [orderAttachment(orderPdf, name)] : undefined,
   });
   return true;
 }
@@ -299,23 +295,21 @@ export async function sendPracticalScheduleEmail({ to, name, exam, panel, batche
 
 // Office order for an external practical examiner (see services/practicalOrder.js).
 // He forwards it to his Principal to be relieved for the practical examinations.
-export async function sendPracticalOrderEmail({ to, name, exam, order }) {
+export async function sendPracticalOrderEmail({ to, name, exam, orderPdf }) {
   const t = getTransporter();
   if (!t || !to) return false;
-  const body = `
-  <div style="font-family:Arial,sans-serif;max-width:720px;margin:auto;color:#0f172a">
-    <p>Dear ${esc(name)},</p>
-    <p>You have been appointed as an <b>external examiner</b> for the practical examinations of ${esc(exam.name)} at
-       Karnataka (Govt.) Polytechnic, Mangaluru. The office order addressed to your Principal is below.
-       Please forward it (or a print of the attached copy) to your Principal so that you are relieved for the examinations.</p>
-    <hr style="border:0;border-top:1px solid #cbd5e1;margin:16px 0"/>
-  </div>
-  ${order.email}`;
+  const html = wrap(
+    "Office order – Practical examiner",
+    `<p>Dear ${esc(name)},</p>
+    <p>Your office order as an <b>external examiner</b> for the practical examinations of ${esc(exam.name)} at
+       Karnataka (Govt.) Polytechnic, Mangaluru is attached (PDF). Please print it and give the copy to your Principal
+       so that you are relieved for the examinations.</p>`
+  );
   await t.sendMail({
     to,
     subject: `Office order – Practical examiner, ${exam.name} (KPT Mangaluru)`,
-    html: body,
-    attachments: orderParts(order, name),
+    html,
+    attachments: [orderAttachment(orderPdf, name)],
   });
   return true;
 }
