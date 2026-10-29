@@ -143,3 +143,17 @@ export async function uploadLogArchive(buffer, name) {
   });
   return res.data.id;
 }
+
+// ------------------------------------------------------------------ database backups
+// Encrypted full backups (.kptbak) in the "Backups" folder. Returns { id, link }.
+
+export async function uploadBackup(buffer, name) {
+  const res = await getDrive().files.create({
+    requestBody: { name, parents: [await subFolderId("Backups")], mimeType: "application/octet-stream" },
+    media: { mimeType: "application/octet-stream", body: Readable.from(buffer) },
+    fields: "id,size,webViewLink",
+    supportsAllDrives: true,
+  });
+  if (Number(res.data.size) !== buffer.length) throw new Error("Drive upload size mismatch");
+  return { id: res.data.id, link: res.data.webViewLink || "" };
+}

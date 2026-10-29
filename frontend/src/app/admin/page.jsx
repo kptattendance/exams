@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 
 import ActivityLog from "../components/admin/ActivityLog";
+import BackupPanel from "../components/admin/BackupPanel";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -236,6 +237,9 @@ export default function AdminDashboard() {
         ))}
 
       </div>
+
+      {/* database backups */}
+      <BackupPanel />
 
       {/* who did what and when */}
       <ActivityLog />

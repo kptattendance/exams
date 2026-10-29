@@ -19,6 +19,7 @@ import marksEntryRoutes from "./routes/marksEntryRoutes.js";
 import practicalRoutes from "./routes/practicalRoutes.js";
 import examSessionRoutes from "./routes/examSessionRoutes.js";
 import auditLogRoutes from "./routes/auditLogRoutes.js";
+import backupRoutes from "./routes/backupRoutes.js";
 import stepUpRoutes from "./routes/stepUpRoutes.js";
 
 
@@ -114,6 +115,7 @@ app.use("/api/marks-entry", marksEntryRoutes);
 app.use("/api/practicals", practicalRoutes);
 app.use("/api/exam-sessions", examSessionRoutes);
 app.use("/api/audit-logs", auditLogRoutes);
+app.use("/api/backups", backupRoutes);
 app.use("/api/otp", stepUpRoutes);
 
 
