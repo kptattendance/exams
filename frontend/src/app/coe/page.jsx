@@ -1,508 +1,238 @@
 "use client";
 
+// COE dashboard – real numbers of the running examination: students,
+// subjects, registrations and eligibility, hall tickets, question papers
+// (theory) and practical marks. Each figure comes from the same data the
+// COE pages use; a figure that cannot be loaded shows "–".
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
-const quickActions = [
-  {
-    title: "Register Numbers",
-    description:
-      "Generate and download register numbers for students.",
-    href: "/coe/register-numbers",
-    icon: "01",
-  },
-  {
-    title: "Exam Applications",
-    description:
-      "Manage students appearing for examinations.",
-    href: "/coe/applications",
-    icon: "02",
-  },
-  {
-    title: "Time Table",
-    description:
-      "Create and manage examination schedules.",
-    href: "/coe/timetable",
-    icon: "03",
-  },
-  {
-    title: "Hall Tickets",
-    description:
-      "Generate and manage student hall tickets.",
-    href: "/coe/hall-tickets",
-    icon: "04",
-  },
-];
+import Icon from "../components/shell/Icon";
+import { useAcademicYear } from "../components/academicYear";
+import { useApi } from "../components/exams/shared";
 
-const modules = [
-  {
-    title: "Seating Arrangement",
-    description:
-      "Prepare examination hall seating plans.",
-    href: "/coe/seating",
-  },
-  {
-    title: "IA Marks",
-    description:
-      "Review and manage internal assessment marks.",
-    href: "/coe/ia-marks",
-  },
-  {
-    title: "Valuation",
-    description:
-      "Manage valuation and examination marks.",
-    href: "/coe/valuation",
-  },
-  {
-    title: "Results",
-    description:
-      "Process and publish examination results.",
-    href: "/coe/results",
-  },
-];
+const list = (r) => (r?.status === "fulfilled" ? r.value?.data?.data || r.value?.data?.students || r.value?.data?.subjects || [] : null);
 
 export default function COEDashboard() {
+  const api = useApi();
+  const academicYear = useAcademicYear();
+  const [d, setD] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      const [ex, st, sub, ps] = await Promise.allSettled([
+        api("get", "/exams"),
+        api("get", "/students"),
+        api("get", "/subjects/getsubjects"),
+        api("get", "/paper-setting"),
+      ]);
+      const exams = list(ex) || [];
+      // the running examination: the newest that is not completed
+      const exam = exams.find((e) => e.status !== "COMPLETED") || null;
+      const students = list(st);
+      const subjects = list(sub);
+      const papers = (list(ps) || []).filter((p) => p.status !== "CANCELLED");
+
+      let tickets = null;
+      let practical = null;
+      if (exam) {
+        const [ht, pr] = await Promise.allSettled([
+          api("get", `/exams/${exam._id}/hall-tickets`, undefined, { params: { limit: 1 } }),
+          api("get", `/practicals/${exam._id}/office`),
+        ]);
+        if (ht.status === "fulfilled") tickets = ht.value.data.counts || null;
+        if (pr.status === "fulfilled") {
+          const subs = pr.value.data.subjects || [];
+          const by = (k) => subs.filter((s) => s.status === k).length;
+          practical = { subjects: subs.length, entered: by("ENTERED"), partly: by("PARTLY"), pending: by("PENDING"), notScheduled: by("NOT_SCHEDULED"), batches: (pr.value.data.batches || []).length };
+        }
+      }
+
+      const byStatus = (k) => papers.filter((p) => p.status === k).length;
+      setD({
+        exam,
+        examsLoaded: ex.status === "fulfilled",
+        students: students ? { total: students.length, active: students.filter((s) => (s.status || "active") === "active").length } : null,
+        subjects: subjects ? subjects.length : null,
+        papers: ps.status === "fulfilled" ? { total: papers.length, submitted: byStatus("SUBMITTED"), uploaded: byStatus("UPLOADED"), returned: byStatus("RETURNED"), assigned: byStatus("ASSIGNED") } : null,
+        tickets,
+        practical,
+      });
+    })();
+  }, [api]);
+
+  const s = d?.exam?.stats;
+  const loading = d === null;
+
   return (
-    <main className="min-h-screen bg-slate-50 p-5 sm:p-6 lg:p-8">
-
-      <div className="mx-auto max-w-[1500px]">
-
-        {/* =================================================
-            HEADER
-        ================================================= */}
-
-        <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-
-          <div>
-
-            <p className="text-sm font-semibold text-blue-600">
-              Controller of Examinations
-            </p>
-
-            <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
-              Examination Dashboard
-            </h1>
-
-            <p className="mt-2 max-w-2xl text-sm text-slate-500">
-              Central examination management for student registration,
-              examinations, hall tickets, marks, results and reports.
-            </p>
-
-          </div>
-
-          <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              Current Academic Year
-            </p>
-
-            <p className="mt-1 text-sm font-bold text-slate-900">
-              2026–27
-            </p>
-
-          </div>
-
-        </div>
-
-        {/* =================================================
-            STATUS CARDS
-        ================================================= */}
-
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-
-          <StatCard
-            label="Registered Students"
-            value="—"
-            description="Students with register numbers"
-            icon="students"
-          />
-
-          <StatCard
-            label="Exam Applications"
-            value="—"
-            description="Applications for current examination"
-            icon="applications"
-          />
-
-          <StatCard
-            label="Upcoming Exams"
-            value="—"
-            description="Scheduled examination papers"
-            icon="calendar"
-          />
-
-          <StatCard
-            label="Results Pending"
-            value="—"
-            description="Examinations awaiting result processing"
-            icon="results"
-          />
-
-        </div>
-
-        {/* =================================================
-            QUICK ACTIONS
-        ================================================= */}
-
-        <section className="mt-8">
-
-          <div className="mb-4">
-
-            <h2 className="text-lg font-bold text-slate-950">
-              Quick Actions
-            </h2>
-
-            <p className="mt-1 text-sm text-slate-500">
-              Frequently used examination functions.
-            </p>
-
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-
-            {quickActions.map(
-              (action) => (
-                <Link
-                  key={action.href}
-                  href={action.href}
-                  className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
-                >
-
-                  <div className="flex items-start justify-between">
-
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 text-xs font-bold text-white">
-                      {action.icon}
-                    </div>
-
-                    <span className="text-slate-300 transition group-hover:translate-x-1 group-hover:text-slate-600">
-                      →
-                    </span>
-
-                  </div>
-
-                  <h3 className="mt-5 text-sm font-bold text-slate-900">
-                    {action.title}
-                  </h3>
-
-                  <p className="mt-1.5 text-xs leading-5 text-slate-500">
-                    {action.description}
-                  </p>
-
-                </Link>
-              )
-            )}
-
-          </div>
-
-        </section>
-
-        {/* =================================================
-            MAIN WORK AREA
-        ================================================= */}
-
-        <div className="mt-8 grid gap-6 xl:grid-cols-3">
-
-          {/* UPCOMING EXAMINATION */}
-
-          <section className="xl:col-span-2 rounded-2xl border border-slate-200 bg-white shadow-sm">
-
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-
-              <div>
-
-                <h2 className="text-base font-bold text-slate-900">
-                  Examination Activity
-                </h2>
-
-                <p className="mt-0.5 text-xs text-slate-400">
-                  Current examination workflow
-                </p>
-
-              </div>
-
-              <Link
-                href="/coe/examinations"
-                className="text-xs font-semibold text-blue-600 hover:text-blue-700"
-              >
-                View all
-              </Link>
-
-            </div>
-
-            <div className="p-5">
-
-              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
-
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-xl shadow-sm">
-                  📋
-                </div>
-
-                <h3 className="mt-4 text-sm font-bold text-slate-900">
-                  No active examination workflow
-                </h3>
-
-                <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-slate-500">
-                  Examination activity will appear here once an
-                  examination cycle is created.
-                </p>
-
-                <Link
-                  href="/coe/examinations"
-                  className="mt-5 inline-flex rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-bold text-white hover:bg-slate-800"
-                >
-                  Create Examination
-                </Link>
-
-              </div>
-
-            </div>
-
-          </section>
-
-          {/* COE STATUS */}
-
-          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-
-            <div className="border-b border-slate-100 px-5 py-4">
-
-              <h2 className="text-base font-bold text-slate-900">
-                COE Status
-              </h2>
-
-              <p className="mt-0.5 text-xs text-slate-400">
-                Examination office overview
-              </p>
-
-            </div>
-
-            <div className="space-y-4 p-5">
-
-              <StatusRow
-                label="Register Number Generation"
-                status="Not Started"
-              />
-
-              <StatusRow
-                label="Exam Applications"
-                status="Not Started"
-              />
-
-              <StatusRow
-                label="Time Table"
-                status="Not Started"
-              />
-
-              <StatusRow
-                label="Hall Tickets"
-                status="Not Started"
-              />
-
-              <StatusRow
-                label="Results"
-                status="Not Started"
-              />
-
-            </div>
-
-          </section>
-
-        </div>
-
-        {/* =================================================
-            EXAMINATION MODULES
-        ================================================= */}
-
-        <section className="mt-8">
-
-          <div className="mb-4">
-
-            <h2 className="text-lg font-bold text-slate-950">
-              Examination Modules
-            </h2>
-
-            <p className="mt-1 text-sm text-slate-500">
-              Access the complete examination workflow.
-            </p>
-
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-
-            {modules.map(
-              (module) => (
-                <Link
-                  key={module.href}
-                  href={module.href}
-                  className="group rounded-2xl border border-slate-200 bg-white p-5 transition hover:border-slate-300 hover:shadow-sm"
-                >
-
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
-                    →
-                  </div>
-
-                  <h3 className="mt-4 text-sm font-bold text-slate-900">
-                    {module.title}
-                  </h3>
-
-                  <p className="mt-1.5 text-xs leading-5 text-slate-500">
-                    {module.description}
-                  </p>
-
-                </Link>
-              )
-            )}
-
-          </div>
-
-        </section>
-
-        {/* =================================================
-            FOOTER
-        ================================================= */}
-
-        <div className="mt-10 border-t border-slate-200 pt-5">
-
-          <p className="text-center text-[11px] text-slate-400">
-            KPT Examination ERP · Controller of Examinations
+    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-blue-600">Controller of Examinations</p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Examination Dashboard</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            {loading ? "Loading… please wait" : d.exam ? `Running examination: ${d.exam.name}` : d.examsLoaded ? "No examination is running right now." : "Could not load the examinations."}
           </p>
-
         </div>
-
+        <div className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Academic year</p>
+          <p className="text-sm font-bold text-slate-900">{academicYear}</p>
+        </div>
       </div>
 
+      {/* the institution */}
+      <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <Stat label="Students" value={d?.students?.active} sub={d?.students ? `${d.students.total} in all (incl. not active)` : ""} href="/coe/students" loading={loading} />
+        <Stat label="Subjects" value={d?.subjects} sub="all departments" href="/coe/subjects" loading={loading} />
+        <Stat label="Registered for the exam" value={s?.students} sub={d?.exam ? d.exam.name : "no running exam"} href="/coe/exams" loading={loading} />
+        <Stat
+          label="Hall tickets ready"
+          value={d?.tickets ? d.tickets.ready : undefined}
+          sub={d?.tickets ? `${d.tickets.notReady} not ready yet` : ""}
+          href="/coe/hall-tickets"
+          loading={loading}
+          tone={d?.tickets?.notReady ? "orange" : "green"}
+        />
+      </div>
+
+      {/* eligibility of the registered students */}
+      {d?.exam && s && (
+        <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="text-sm font-bold text-slate-900">Eligibility – {d.exam.name}</h2>
+          <Bar
+            total={s.students || 0}
+            parts={[
+              ["All subjects eligible", s.ALL_CLEAR || 0, "bg-emerald-500"],
+              ["Partly eligible", s.PARTIAL || 0, "bg-yellow-400"],
+              ["Not eligible", s.BLOCKED || 0, "bg-red-500"],
+              ["Not decided yet", s.PENDING || 0, "bg-slate-300"],
+            ]}
+          />
+        </section>
+      )}
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+        {/* theory */}
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-2">
+            <h2 className="flex-1 text-sm font-bold text-slate-900">Theory – question papers</h2>
+            <Link href="/coe/paper-setting" className="text-xs font-semibold text-blue-700 hover:underline">
+              Open →
+            </Link>
+          </div>
+          {loading ? (
+            <p className="mt-3 text-sm text-slate-400">Loading… please wait</p>
+          ) : !d.papers ? (
+            <p className="mt-3 text-sm text-slate-400">–</p>
+          ) : d.papers.total === 0 ? (
+            <p className="mt-3 text-sm text-slate-500">No paper setter is assigned yet.</p>
+          ) : (
+            <>
+              <p className="mt-2 text-2xl font-bold text-slate-950">
+                {d.papers.submitted} <span className="text-sm font-semibold text-slate-500">of {d.papers.total} papers submitted</span>
+              </p>
+              <Bar
+                total={d.papers.total}
+                parts={[
+                  ["Submitted", d.papers.submitted, "bg-emerald-500"],
+                  ["Uploaded (draft)", d.papers.uploaded, "bg-blue-400"],
+                  ["Sent back", d.papers.returned, "bg-yellow-400"],
+                  ["Not uploaded yet", d.papers.assigned, "bg-slate-300"],
+                ]}
+              />
+            </>
+          )}
+        </section>
+
+        {/* practical */}
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-2">
+            <h2 className="flex-1 text-sm font-bold text-slate-900">Practical – marks entry</h2>
+            <Link href="/coe/practical-exam-marks" className="text-xs font-semibold text-blue-700 hover:underline">
+              Open →
+            </Link>
+          </div>
+          {loading ? (
+            <p className="mt-3 text-sm text-slate-400">Loading… please wait</p>
+          ) : !d.practical ? (
+            <p className="mt-3 text-sm text-slate-400">{d.exam ? "–" : "No running examination."}</p>
+          ) : d.practical.subjects === 0 ? (
+            <p className="mt-3 text-sm text-slate-500">No practical subjects in this examination.</p>
+          ) : (
+            <>
+              <p className="mt-2 text-2xl font-bold text-slate-950">
+                {d.practical.entered} <span className="text-sm font-semibold text-slate-500">of {d.practical.subjects} subjects fully entered · {d.practical.batches} batches</span>
+              </p>
+              <Bar
+                total={d.practical.subjects}
+                parts={[
+                  ["Entered", d.practical.entered, "bg-emerald-500"],
+                  ["Partly entered", d.practical.partly, "bg-yellow-400"],
+                  ["Pending", d.practical.pending, "bg-orange-400"],
+                  ["No batches yet", d.practical.notScheduled, "bg-slate-300"],
+                ]}
+              />
+            </>
+          )}
+        </section>
+      </div>
+
+      {/* quick links – only pages that exist */}
+      <section className="mt-5">
+        <h2 className="text-sm font-bold text-slate-900">Quick links</h2>
+        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {[
+            ["Examinations", "/coe/exams", "paper"],
+            ["Time table", "/coe/timetable", "calendar"],
+            ["Hall tickets", "/coe/hall-tickets", "ticket"],
+            ["Paper setting", "/coe/paper-setting", "lock"],
+            ["Valuation", "/coe/valuation", "valuation"],
+            ["Marks entry", "/coe/marks-entry", "marks"],
+            ["Practical Examiners", "/coe/practical-exam-marks", "paper"],
+            ["Results", "/coe/results", "results"],
+          ].map(([label, href, icon]) => (
+            <Link key={href} href={href} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 hover:border-slate-400">
+              <Icon name={icon} className="h-4 w-4 text-slate-500" />
+              {label}
+            </Link>
+          ))}
+        </div>
+      </section>
     </main>
   );
 }
 
-/* =========================================================
-   STAT CARD
-========================================================= */
-
-function StatCard({
-  label,
-  value,
-  description,
-  icon,
-}) {
+function Stat({ label, value, sub, href, loading, tone }) {
+  const color = tone === "orange" ? "text-orange-700" : tone === "green" ? "text-emerald-700" : "text-slate-950";
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-
-      <div className="flex items-start justify-between">
-
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
-          <SmallIcon type={icon} />
-        </div>
-
-        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-          COE
-        </span>
-
-      </div>
-
-      <p className="mt-5 text-xs font-semibold text-slate-500">
-        {label}
-      </p>
-
-      <p className="mt-1 text-2xl font-bold tracking-tight text-slate-950">
-        {value}
-      </p>
-
-      <p className="mt-1 text-[11px] text-slate-400">
-        {description}
-      </p>
-
-    </div>
+    <Link href={href} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-400">
+      <p className="text-xs font-semibold text-slate-500">{label}</p>
+      {loading ? (
+        <p className="mt-2 text-sm font-semibold text-slate-400">Loading…</p>
+      ) : (
+        <p className={`mt-1 text-2xl font-bold tabular-nums ${value === undefined || value === null ? "text-slate-400" : color}`}>{value === undefined || value === null ? "–" : value}</p>
+      )}
+      {sub && <p className="mt-0.5 truncate text-[11px] text-slate-400">{sub}</p>}
+    </Link>
   );
 }
 
-/* =========================================================
-   STATUS ROW
-========================================================= */
-
-function StatusRow({
-  label,
-  status,
-}) {
+// one horizontal bar split into parts, with a legend
+function Bar({ total, parts }) {
   return (
-    <div className="flex items-center justify-between gap-3">
-
-      <div className="min-w-0">
-
-        <p className="truncate text-xs font-semibold text-slate-700">
-          {label}
-        </p>
-
+    <div className="mt-3">
+      <div className="flex h-3 overflow-hidden rounded-full bg-slate-100">
+        {total > 0 && parts.map(([label, n, color]) => (n > 0 ? <span key={label} className={color} style={{ width: `${(n / total) * 100}%` }} title={`${label}: ${n}`} /> : null))}
       </div>
-
-      <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-500">
-        {status}
-      </span>
-
+      <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
+        {parts.map(([label, n, color]) => (
+          <li key={label} className="flex items-center gap-1.5">
+            <span className={`h-2.5 w-2.5 rounded-full ${color}`} />
+            {label}: <b className="text-slate-900">{n}</b>
+          </li>
+        ))}
+      </ul>
     </div>
-  );
-}
-
-/* =========================================================
-   SMALL ICONS
-========================================================= */
-
-function SmallIcon({ type }) {
-  const common = {
-    width: 18,
-    height: 18,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 1.8,
-    strokeLinecap: "round",
-    strokeLinejoin: "round",
-  };
-
-  if (type === "students") {
-    return (
-      <svg {...common}>
-        <circle cx="9" cy="8" r="3" />
-        <path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5" />
-        <path d="M16 6a3 3 0 0 1 0 5.8" />
-        <path d="M18 15c1.8.8 3 2.2 3 5" />
-      </svg>
-    );
-  }
-
-  if (type === "applications") {
-    return (
-      <svg {...common}>
-        <path d="M6 3h9l3 3v15H6z" />
-        <path d="M14 3v4h4" />
-        <path d="M9 12h6" />
-        <path d="M9 16h4" />
-      </svg>
-    );
-  }
-
-  if (type === "calendar") {
-    return (
-      <svg {...common}>
-        <rect
-          x="3"
-          y="5"
-          width="18"
-          height="16"
-          rx="2"
-        />
-        <path d="M8 3v4" />
-        <path d="M16 3v4" />
-        <path d="M3 10h18" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg {...common}>
-      <path d="M4 19V5" />
-      <path d="M4 19h16" />
-      <path d="M8 16v-4" />
-      <path d="M12 16V9" />
-      <path d="M16 16V6" />
-    </svg>
   );
 }

@@ -25,7 +25,7 @@ departments.sort(sortOptions); // alphabetical in every drop-down
 const getDepartmentName = (value) => {
   return (
     departments.find(
-      (department) => department.value === value
+      (department) => department.value === String(value || "").toLowerCase()
     )?.label || value
   );
 };
@@ -115,7 +115,7 @@ export default function SubjectsPage() {
 
       const matchesDepartment =
         !departmentFilter ||
-        subject.department === departmentFilter;
+        String(subject.department || "").toLowerCase() === departmentFilter;
 
       const matchesSemester =
         !semesterFilter ||
@@ -209,7 +209,7 @@ export default function SubjectsPage() {
       code: subject.code || "",
       name: subject.name || "",
       semester: subject.semester || "",
-      department: subject.department || "",
+      department: String(subject.department || "").toLowerCase(),
     });
 
     setShowAddModal(true);

@@ -74,20 +74,26 @@ export const MENUS = {
         title: "Examination",
         items: [
           { label: "Examinations", href: "/coe/exams", icon: "paper", pinned: true },
-          { label: "Fee verification", href: "/coe/fees", icon: "money" },
-          { label: "Register numbers", href: "/coe/register-numbers", icon: "register" },
-          { label: "Paper setting", href: "/coe/paper-setting", icon: "lock", pinned: true },
           { label: "Time table", href: "/coe/timetable", icon: "calendar" },
           { label: "Hall tickets", href: "/coe/hall-tickets", icon: "ticket" },
         ],
       },
       {
-        title: "Marks & results",
+        title: "Theory exam",
         items: [
-          { label: "IA marks", href: "/coe/ia-marks", icon: "marks", soon: true },
-          { label: "Practical Examiners", href: "/coe/practical-exam-marks", icon: "paper" },
+          { label: "Paper setting", href: "/coe/paper-setting", icon: "lock", pinned: true },
           { label: "Valuation", href: "/coe/valuation", icon: "valuation" },
           { label: "Marks entry", href: "/coe/marks-entry", icon: "marks" },
+        ],
+      },
+      {
+        title: "Practical exam",
+        items: [{ label: "Practical Examiners", href: "/coe/practical-exam-marks", icon: "paper" }],
+      },
+      {
+        title: "Results",
+        items: [
+          { label: "IA marks", href: "/coe/ia-marks", icon: "marks", soon: true },
           { label: "Results", href: "/coe/results", icon: "results" },
         ],
       },
