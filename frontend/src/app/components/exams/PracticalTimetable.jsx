@@ -176,6 +176,22 @@ export default function PracticalTimetable() {
                 {unplaced.length > 0 && <span className="font-semibold text-orange-700"> · {unplaced.length} not in the time table yet</span>}
               </p>
 
+              {/* permitted students left out of every batch */}
+              {(data.check || []).some((c) => c.notInBatch.length) && (
+                <div className="mt-3 rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900">
+                  <p className="font-semibold">Some permitted students are not in any batch – add them on Practical batches:</p>
+                  <ul className="mt-1 list-disc space-y-0.5 pl-5">
+                    {data.check
+                      .filter((c) => c.notInBatch.length)
+                      .map((c) => (
+                        <li key={c.code}>
+                          <b>{c.code}</b>: {c.notInBatch.map((s) => s.registerNumber).join(", ")}
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              )}
+
               {clashes.length > 0 && (
                 <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 p-4" role="alert">
                   <p className="text-sm font-semibold text-red-900">Not saved – {clashes.length === 1 ? "a clash" : `${clashes.length} clashes`}. Change the date, session, lab or examiner set.</p>

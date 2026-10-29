@@ -282,6 +282,7 @@ function GridSheet({ sheet, data }) {
             ) : (
               <>
                 <th className={`${th} w-14`}>Students</th>
+                <th className={`${th} w-56`}>Register numbers</th>
                 <th className={th}>Internal examiner</th>
                 <th className={th}>External examiner</th>
               </>
@@ -310,6 +311,7 @@ function GridSheet({ sheet, data }) {
                 ) : (
                   <>
                     <td className={`${td} text-center`}>{b.count}</td>
+                    <td className={`${td} text-[9.5px] leading-snug`}>{b.students.map((s) => s.registerNumber).join(", ")}</td>
                     <td className={td}>{p ? person(p.internal.name, p.internal.phone) : b.internal?.name || "Not allotted"}</td>
                     <td className={td}>{p ? person(p.external.name, p.external.phone, p.external.college) : b.external?.name || "Not allotted"}</td>
                   </>
@@ -325,8 +327,50 @@ function GridSheet({ sheet, data }) {
           <b>Not scheduled yet:</b> {notPlaced.map((b) => b.label).join(", ")}
         </p>
       )}
+      {!forStudents && <MissingCheck check={data.check || []} />}
       {forStudents && <p className="mt-3 text-[10.5px]">Report to the lab 15 minutes before the time. Bring your hall ticket, ID card and record book.</p>}
       <Signatures who={forStudents ? ["HOD", "Principal / Dean", "COE"] : ["HOD", "COE"]} />
+    </div>
+  );
+}
+
+// HOD's check: every registered student of each subject is either in a batch,
+// or listed here (permitted but left out / not permitted).
+function MissingCheck({ check }) {
+  const gaps = check.filter((c) => c.notInBatch.length || c.notPermitted.length);
+  const list = (rows, reason) => rows.map((s) => `${s.registerNumber}${reason && s.reason ? ` (${s.reason})` : ""}`).join(", ");
+  return (
+    <div className="mt-4 break-inside-avoid">
+      <p className="text-[12px] font-bold">Register number check</p>
+      {check.length > 0 && gaps.length === 0 && (
+        <p className="mt-1 text-[11px]">All registered students of every subject are in the time table – nobody is missing.</p>
+      )}
+      {gaps.length > 0 && (
+        <table className="mt-1 w-full border-collapse">
+          <thead>
+            <tr className="bg-slate-100">
+              <th className={`${th} w-48`}>Subject</th>
+              <th className={`${th} w-28`}>Registered / permitted</th>
+              <th className={th}>Permitted but NOT in any batch (add them)</th>
+              <th className={th}>Not permitted (eligibility / fee)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {gaps.map((c) => (
+              <tr key={c.code} className="align-top">
+                <td className={td}>
+                  <b>{c.code}</b> {c.name}
+                </td>
+                <td className={`${td} text-center`}>
+                  {c.registered} / {c.permitted}
+                </td>
+                <td className={`${td} text-[10px] font-semibold leading-snug`}>{c.notInBatch.length ? list(c.notInBatch) : "None"}</td>
+                <td className={`${td} text-[10px] leading-snug`}>{c.notPermitted.length ? list(c.notPermitted, true) : "None"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }

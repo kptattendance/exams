@@ -25,6 +25,7 @@ import PracticalPanel from "../models/PracticalPanel.js";
 import AuditLog from "../models/AuditLog.js";
 import { sendPracticalAllotmentEmail, sendPracticalOrderEmail, sendPracticalScheduleEmail } from "../services/mailer.js";
 import { collegeParts, practicalOrdersPdf } from "../services/practicalOrder.js";
+import { effectiveOf } from "../services/exams/rules.js";
 import {
   batchLabel,
   boardDepartment,
@@ -761,8 +762,42 @@ export const getSchedule = async (req, res) => {
     department,
     panels: panels.map(panelView),
     batches: batches.map((b) => batchView(b, pm.get(String(b.panel)))),
+    check: await missingStudents(exam, department, batches),
   });
 };
+
+// For each practical subject of the department: who registered for it but is
+// not in the time table – permitted students left out of every batch (to be
+// placed) and students not permitted (not eligible / fee not paid).
+async function missingStudents(exam, department, batches) {
+  const subjects = await Subject.find({ board: { $in: boardsOf(department) }, practicalExamMax: { $gt: 0 } }).select("code name").lean();
+  const codes = [...new Set(subjects.map((s) => s.code))];
+  const regs = await ExamRegistration.find({ exam: exam._id, "subjects.code": { $in: codes } }).select(REG_FIELDS).lean();
+  const out = [];
+  for (const code of codes) {
+    const takers = regs.filter((r) => r.subjects.some((x) => x.code === code && x.hasPractical));
+    if (!takers.length) continue;
+    const permitted = practicalCandidates(regs, code);
+    const ok = new Set(permitted.map((c) => String(c.registration)));
+    const placed = new Set(batches.filter((b) => b.code === code).flatMap((b) => b.students.map((s) => String(s.registration))));
+    const who = (r) => ({ registerNumber: r.registerNumber, name: r.name });
+    out.push({
+      code,
+      name: subjects.find((s) => s.code === code)?.name || "",
+      registered: takers.length,
+      permitted: permitted.length,
+      notInBatch: permitted.filter((c) => !placed.has(String(c.registration))).map(who),
+      notPermitted: takers
+        .filter((r) => !ok.has(String(r._id)))
+        .map((r) => {
+          const s = r.subjects.find((x) => x.code === code);
+          return { ...who(r), reason: effectiveOf(s) !== "ELIGIBLE" ? "Not eligible" : "Fee not paid" };
+        })
+        .sort((a, b) => String(a.registerNumber).localeCompare(String(b.registerNumber))),
+    });
+  }
+  return out.sort((a, b) => a.code.localeCompare(b.code));
+}
 
 // PUT /api/practicals/:id/schedule  { department, items: [{ batchId, date, session, lab, panel }] }
 // Places batches in the time table grid (date + session), with lab and examiner set.
