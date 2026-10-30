@@ -5,6 +5,7 @@ import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { sortOptions } from "../../components/sortOptions";
+import { useIsAdmin } from "../../components/useRole";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -87,7 +88,10 @@ const numberValue = (value) => {
 // MAIN PAGE
 // =====================================================
 
+// Used by the Admin and by the COE (/coe/subjects): the same form for both.
+// Deleting subjects is for the Admin only (the server enforces it too).
 export default function SubjectsPage() {
+  const isAdmin = useIsAdmin();
   const { getToken } = useAuth();
 
   // =====================================================
@@ -1247,7 +1251,7 @@ const openEditModal = (subject) => {
 
         <div className="flex flex-wrap gap-2">
 
-          {selectedSubjects.length > 0 && (
+          {isAdmin && selectedSubjects.length > 0 && (
             <button
               onClick={handleDeleteSelected}
               disabled={deletingSelected}
@@ -1775,8 +1779,9 @@ const openEditModal = (subject) => {
                               </svg>
                             </button>
 
-                            {/* DELETE */}
+                            {/* DELETE (Admin only) */}
 
+                            {isAdmin && (
                             <button
                               onClick={() =>
                                 handleDelete(
@@ -1800,6 +1805,7 @@ const openEditModal = (subject) => {
                                 <path d="M14 11v5" />
                               </svg>
                             </button>
+                            )}
                           </div>
                         </td>
                       </tr>
