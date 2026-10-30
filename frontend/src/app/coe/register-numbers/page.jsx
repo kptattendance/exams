@@ -10,11 +10,11 @@ const DEPARTMENTS = [
   { code: "AT", name: "Automobile Engineering" },
   { code: "CH", name: "Chemical Engineering" },
   { code: "CE", name: "Civil Engineering" },
-  { code: "CS", name: "Computer Science & Engineering" },
-  { code: "EC", name: "Electronics & Communication Engineering" },
-  { code: "EE", name: "Electrical & Electronics Engineering" },
+  { code: "CS", name: "Computer Science and Engineering" },
+  { code: "EC", name: "Electronics and Communication Engineering" },
+  { code: "EE", name: "Electrical and Electronics Engineering" },
   { code: "ME", name: "Mechanical Engineering" },
-  { code: "PS", name: "Polymer Science Engineering" },
+  { code: "PS", name: "Polymer Technology" },
 ];
 DEPARTMENTS.sort(sortOptions); // alphabetical in every drop-down
 

@@ -11,14 +11,14 @@ import { DESIGNATIONS } from "./designations";
 import { sortOptions } from "./sortOptions";
 
 const DEPARTMENTS = [
-  ["at", "Automobile"],
-  ["ch", "Chemical"],
-  ["ce", "Civil"],
-  ["cs", "Computer Science"],
-  ["ec", "Electronics & Comm."],
-  ["ee", "Electrical & Electronics"],
-  ["me", "Mechanical"],
-  ["ps", "Polymer"],
+  ["at", "Automobile Engineering"],
+  ["ch", "Chemical Engineering"],
+  ["ce", "Civil Engineering"],
+  ["cs", "Computer Science and Engineering"],
+  ["ec", "Electronics and Communication Engineering"],
+  ["ee", "Electrical and Electronics Engineering"],
+  ["me", "Mechanical Engineering"],
+  ["ps", "Polymer Technology"],
   ["sc", "Science & English"],
   ["ot", "Others"],
 ];

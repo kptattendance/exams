@@ -24,14 +24,14 @@ export const errMsg = (e, fallback = "Something went wrong. Please try again.") 
   e?.response?.data?.error || e?.response?.data?.message || fallback;
 
 export const DEPARTMENTS = [
-  { value: "at", label: "Automobile" },
-  { value: "ch", label: "Chemical" },
-  { value: "ce", label: "Civil" },
-  { value: "cs", label: "Computer Science" },
-  { value: "ec", label: "Electronics & Comm." },
-  { value: "ee", label: "Electrical & Electronics" },
-  { value: "me", label: "Mechanical" },
-  { value: "ps", label: "Polymer" },
+  { value: "at", label: "Automobile Engineering" },
+  { value: "ch", label: "Chemical Engineering" },
+  { value: "ce", label: "Civil Engineering" },
+  { value: "cs", label: "Computer Science and Engineering" },
+  { value: "ec", label: "Electronics and Communication Engineering" },
+  { value: "ee", label: "Electrical and Electronics Engineering" },
+  { value: "me", label: "Mechanical Engineering" },
+  { value: "ps", label: "Polymer Technology" },
 ];
 DEPARTMENTS.sort(sortOptions); // alphabetical in every drop-down
 // Full programme names for printed documents (hall tickets)

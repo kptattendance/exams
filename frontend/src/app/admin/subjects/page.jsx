@@ -17,11 +17,11 @@ const departments = [
   { value: "at", label: "Automobile Engineering" },
   { value: "ch", label: "Chemical Engineering" },
   { value: "ce", label: "Civil Engineering" },
-  { value: "cs", label: "Computer Science Engineering" },
-  { value: "ec", label: "Electronics & Communication" },
-  { value: "ee", label: "Electrical & Electronics" },
+  { value: "cs", label: "Computer Science and Engineering" },
+  { value: "ec", label: "Electronics and Communication Engineering" },
+  { value: "ee", label: "Electrical and Electronics Engineering" },
   { value: "me", label: "Mechanical Engineering" },
-  { value: "ps", label: "Polymer Engineering" },
+  { value: "ps", label: "Polymer Technology" },
   { value: "sc", label: "Science & English" },
 ];
 departments.sort(sortOptions); // alphabetical in every drop-down

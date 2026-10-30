@@ -173,14 +173,14 @@ export async function sendPaperSettingEmail({ to, name, subject, paper, isRemind
 // ------------------------------------------------------------------ practical exams
 
 const DEPT_NAME = {
-  at: "Automobile",
-  ch: "Chemical",
-  ce: "Civil",
-  cs: "Computer Science",
-  ec: "Electronics & Communication",
-  ee: "Electrical & Electronics",
-  me: "Mechanical",
-  ps: "Polymer",
+  at: "Automobile Engineering",
+  ch: "Chemical Engineering",
+  ce: "Civil Engineering",
+  cs: "Computer Science and Engineering",
+  ec: "Electronics and Communication Engineering",
+  ee: "Electrical and Electronics Engineering",
+  me: "Mechanical Engineering",
+  ps: "Polymer Technology",
   sc: "Science & English",
 };
 const deptName = (d) => DEPT_NAME[String(d).toLowerCase()] || String(d).toUpperCase();
