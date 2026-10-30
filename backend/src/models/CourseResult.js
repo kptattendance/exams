@@ -32,6 +32,10 @@ const courseResultSchema = new mongoose.Schema(
     // When the result was declared; the latest one per subject counts
     declaredAt: { type: Date, default: Date.now },
     source: { type: String, enum: ["RESULT", "MANUAL", "IMPORT"], default: "RESULT" },
+    // Imported from the old results software: its exam code (25S, 26A) and
+    // the marks exactly as printed there, e.g. "32/AB/--"
+    examCode: { type: String, default: "" },
+    marksText: { type: String, default: "" },
   },
   { timestamps: true }
 );

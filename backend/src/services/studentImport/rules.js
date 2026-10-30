@@ -13,6 +13,8 @@
 //   Lateral, PUC         -> 701..999   (YY = joining year)
 
 export const COLLEGE_CODE = process.env.COLLEGE_CODE || "103";
+// evening college (2nd shift, working students): same college, register numbers start 186
+export const EVENING_CODE = process.env.EVENING_COLLEGE_CODE || "186";
 
 export const DEPARTMENTS = ["at", "ch", "ce", "cs", "ec", "ee", "me", "ps"];
 

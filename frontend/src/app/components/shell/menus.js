@@ -35,6 +35,7 @@ export const MENUS = {
           { label: "Students", href: "/admin/students", icon: "students", pinned: true },
           { label: "Import 1st-year students", href: "/admin/students/import", icon: "userPlus" },
           { label: "Import 2nd / 3rd-year students", href: "/admin/students/import-existing", icon: "userPlus" },
+          { label: "Import old results", href: "/admin/results/import-old", icon: "results" },
           { label: "Users & roles", href: "/admin/users", icon: "users" },
           { label: "Login accounts", href: "/admin/clerk-users", icon: "key" },
         ],
@@ -43,6 +44,7 @@ export const MENUS = {
         title: "Academics",
         items: [
           { label: "Subjects", href: "/admin/subjects", icon: "subjects", pinned: true },
+          { label: "Bridge courses", href: "/admin/bridge-courses", icon: "bridge" },
           { label: "Practical marks corrections", href: "/admin/practical-marks", icon: "marks" },
         ],
       },
@@ -68,7 +70,6 @@ export const MENUS = {
           { label: "Import 1st-year students", href: "/coe/students/import", icon: "userPlus" },
           { label: "Staff / Faculty", href: "/coe/faculty", icon: "faculty" },
           { label: "Subjects", href: "/coe/subjects", icon: "subjects" },
-          { label: "Bridge courses", href: "/coe/bridge-courses", icon: "bridge" },
         ],
       },
       {

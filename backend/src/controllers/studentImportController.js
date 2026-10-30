@@ -35,6 +35,7 @@ import { encryptAadhaar, hashAadhaar } from "../services/studentCrypto.js";
 import {
   ADMISSION_TYPES,
   COLLEGE_CODE,
+  EVENING_CODE,
   DEPARTMENTS,
   mapHeaders,
   cleanRow,
@@ -266,7 +267,7 @@ const excelError = (res, e, where) => {
 
 // Existing students: the given register number and any semester 1–6.
 // (cleanRow is made for 1st-year admissions, so its semester rule is relaxed here.)
-const REGNO_RE = new RegExp(`^${COLLEGE_CODE}(${DEPARTMENTS.map((d) => d.toUpperCase()).join("|")})(\\d{2})(\\d{3})$`);
+const REGNO_RE = new RegExp(`^(?:${COLLEGE_CODE}|${EVENING_CODE})(${DEPARTMENTS.map((d) => d.toUpperCase()).join("|")})(\\d{2})(\\d{3})$`);
 function checkExistingRow(row, raw, map) {
   const s = row.student;
   const header = Object.keys(map).find((h) => map[h] === "registerNumberGiven");
@@ -285,7 +286,7 @@ function checkExistingRow(row, raw, map) {
 
   const m = s.registerNumber.match(REGNO_RE);
   if (!s.registerNumber) row.problems.push({ level: "error", field: "registerNumber", message: "Register number is missing." });
-  else if (!m) row.problems.push({ level: "error", field: "registerNumber", message: `Register number ${s.registerNumber} does not look like ${COLLEGE_CODE}CS25001.` });
+  else if (!m) row.problems.push({ level: "error", field: "registerNumber", message: `Register number ${s.registerNumber} does not look like ${COLLEGE_CODE}CS25001 (or ${EVENING_CODE}EE25001 for the evening college).` });
   else if (s.department && m[1].toLowerCase() !== s.department)
     row.problems.push({ level: "error", field: "registerNumber", message: `Register number is for ${m[1]} but the department is ${s.department.toUpperCase()}.` });
   else if (s.admissionYear && Number(m[2]) !== s.admissionYear % 100)
