@@ -461,7 +461,8 @@ const openEditModal = (subject) => {
     name: subject.name || "",
     sequence: subject.sequence || "",
     semester: subject.semester || "",
-    department: subject.department || "",
+    // stored as "CS", the drop-down uses "cs": match it so it is not asked again
+    department: String(subject.department || "").toLowerCase(),
 
     subjectCategory:
       subject.subjectCategory || "REGULAR",
@@ -2075,6 +2076,11 @@ const openEditModal = (subject) => {
                           </option>
                         )
                       )}
+
+                      {/* a saved value that is not in the list stays as it is */}
+                      {form.subjectType && !subjectTypes.some((t) => t.value === form.subjectType) && (
+                        <option value={form.subjectType}>{form.subjectType} (as saved)</option>
+                      )}
                     </select>
                   </div>
 
@@ -2104,6 +2110,11 @@ const openEditModal = (subject) => {
                           {board}
                         </option>
                       ))}
+
+                      {/* a saved value that is not in the list stays as it is */}
+                      {form.board && !boards.includes(form.board) && (
+                        <option value={form.board}>{form.board} (as saved)</option>
+                      )}
                     </select>
                   </div>
 
