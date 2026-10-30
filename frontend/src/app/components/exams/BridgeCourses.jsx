@@ -61,7 +61,16 @@ export default function BridgeCourses({ canManage = true }) {
         (!forType || (forType === "NONE" ? typesOf(s).length === 0 : typesOf(s).includes(forType))) &&
         (!q || `${s.code} ${s.name}`.toLowerCase().includes(q.toLowerCase()))
     )
-    .sort((a, b) => String(a.department).localeCompare(String(b.department)) || a.semester - b.semester || String(a.code).localeCompare(String(b.code)));
+    // department, semester, then the subject's sequence number (numbers in
+    // number order, e.g. 3CS2 before 3CS10); a subject without one comes last
+    .sort(
+      (a, b) =>
+        String(a.department).localeCompare(String(b.department)) ||
+        a.semester - b.semester ||
+        !a.sequence - !b.sequence ||
+        String(a.sequence || "").localeCompare(String(b.sequence || ""), undefined, { numeric: true }) ||
+        String(a.code).localeCompare(String(b.code))
+    );
 
   // tick / untick one kind of student for every subject shown
   const setAll = (t, on) =>
@@ -173,6 +182,7 @@ export default function BridgeCourses({ canManage = true }) {
                   <th className="w-12 px-3 py-2.5">Sl.</th>
                   <th className="w-20 px-3 py-2.5">Dept</th>
                   <th className="w-16 px-3 py-2.5">Sem</th>
+                  <th className="w-24 px-3 py-2.5">Seq.</th>
                   <th className="px-3 py-2.5">Subject</th>
                   <th className="w-28 px-3 py-2.5">Exam</th>
                   {TYPES.map(([t, label]) => {
@@ -200,6 +210,7 @@ export default function BridgeCourses({ canManage = true }) {
                       <td className="px-3 py-2 tabular-nums text-slate-500">{i + 1}</td>
                       <td className="px-3 py-2 font-semibold text-slate-800">{String(s.department).toUpperCase()}</td>
                       <td className="px-3 py-2 tabular-nums">{s.semester}</td>
+                      <td className="px-3 py-2 tabular-nums text-xs text-slate-600">{s.sequence || "–"}</td>
                       <td className="px-3 py-2">
                         <p className="font-semibold text-slate-900">{s.code}</p>
                         <p className="text-xs text-slate-600">{s.name}</p>
@@ -233,7 +244,7 @@ export default function BridgeCourses({ canManage = true }) {
                 })}
                 {shown.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
+                    <td colSpan={9} className="px-4 py-8 text-center text-slate-500">
                       No bridge course matches the filters.
                     </td>
                   </tr>
