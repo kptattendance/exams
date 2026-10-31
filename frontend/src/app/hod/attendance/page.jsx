@@ -43,6 +43,8 @@ export default function AttendancePage() {
 
   const fileInputRef = useRef(null);
   const toast = useToast();
+  // the HOD's department, as sent with the sheet (for the printed copies)
+  const [department, setDepartment] = useState("");
 
   // ============================================================
   // FILTERS
@@ -250,6 +252,7 @@ export default function AttendancePage() {
       const sheet = asPercentSheet(sortedSubjects, sortedStudents);
       setStudents(sheet.students);
       setSubjects(sheet.subjects);
+      setDepartment(data.department || "");
 
       setStatus(
         data.status || "draft"
@@ -1397,7 +1400,7 @@ export default function AttendancePage() {
       semester,
       batch,
       status,
-      department: students[0]?.department || "",
+      department: department || students[0]?.department || subjects[0]?.department || "",
       subjects: subjects.map((s) => ({ subjectId: String(s.subjectId), code: s.code, name: s.name })),
       students: students.map((st) => ({
         registerNumber: st.registerNumber,
