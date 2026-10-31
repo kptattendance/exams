@@ -214,17 +214,14 @@ function Sheet({ id, onClose }) {
         {b.external.college && `, ${b.external.college}`}
       </p>
 
-      <a href={`/print/practical/${b.exam}?batch=${b._id}`} target="_blank" rel="noreferrer" className={`${btn.secondary} mt-4`}>
-        <Icon name="download" className="h-4 w-4" />
-        {done ? "Print the mark list for both signatures" : "Print blank mark list"}
-      </a>
+      {/* The mark lists (ML) and room diaries are printed by the exam section only */}
 
       {/* ---------------------------------------------------- submitted */}
       {done && (
         <>
           <p className="mt-5 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-            <b>Submitted and final.</b> {b.summary.present} present, {b.summary.absent} absent, {b.summary.malpractice} malpractice. Print the mark list, sign it with the external
-            examiner and hand it to the exam section. Any correction can be made only by the Admin.
+            <b>Submitted and final.</b> {b.summary.present} present, {b.summary.absent} absent, {b.summary.malpractice} malpractice. The exam section prints the mark list; sign it
+            there together with the external examiner. Any correction can be made only by the Admin.
           </p>
           <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
             <ul className="divide-y divide-slate-100">

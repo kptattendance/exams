@@ -22,6 +22,7 @@ import { errMsg, useApi } from "../../../components/exams/shared";
 import { SLOTS, branches, dept, sessionLabel } from "../../../components/exams/practicalShared";
 import { STATUS, filterOffice, roomsOf } from "../../../components/exams/OfficePractical";
 import Letterhead from "../../../components/print/Letterhead";
+import { useRole } from "../../../components/useRole";
 
 const OFFICE_SHEETS = ["room-diary", "ml", "status"];
 const TT_SHEETS = ["tt-students", "tt-examiners"];
@@ -57,6 +58,8 @@ function PrintPractical() {
   const api = useApi();
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
+  // Mark lists are printed by the exam section, not by the examiners (faculty)
+  const examinerOnly = useRole() === "staff";
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -78,6 +81,7 @@ function PrintPractical() {
     return () => clearTimeout(t);
   }, [auto, data]);
 
+  if (examinerOnly) return <p className="p-8 text-sm text-slate-700">Mark lists and room diaries are printed by the exam section.</p>;
   if (error) return <p className="p-8 text-sm text-red-700">{error}</p>;
   if (!data) return <p className="p-8 text-sm text-slate-500">Loading…</p>;
 
