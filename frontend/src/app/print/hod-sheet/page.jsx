@@ -12,8 +12,8 @@ import Letterhead from "../../components/print/Letterhead";
 import { readSignatureSheetRaw } from "../../components/HodSheetPanel";
 
 const SHORTAGE_BELOW = 75;
-const th = "border border-slate-700 px-1.5 py-1 text-center";
-const td = "border border-slate-700 px-1.5 py-1";
+const th = "border border-slate-700 px-1 py-1 text-center";
+const td = "border border-slate-700 px-1 py-1";
 
 const DEPT = {
   at: "Automobile Engineering",
@@ -56,8 +56,8 @@ function Sheet() {
   const show = (v) => (v === "" || v === null || v === undefined ? "–" : v);
 
   return (
-    <div className="mx-auto max-w-[297mm] bg-white px-6 py-6 text-[11px] text-slate-900 print:max-w-none print:p-0">
-      <style>{`@page{size:A4 landscape;margin:9mm} @media print{body{background:#fff}} thead{display:table-header-group} tr{break-inside:avoid}`}</style>
+    <div className="mx-auto max-w-[210mm] bg-white px-6 py-6 text-[10px] text-slate-900 print:max-w-none print:p-0">
+      <style>{`@page{size:A4 portrait;margin:10mm} @media print{body{background:#fff}} thead{display:table-header-group} tr{break-inside:avoid}`}</style>
       <div className="mb-5 flex items-center gap-3 rounded-xl bg-slate-100 p-3 print:hidden">
         <p className="flex-1 text-sm text-slate-600">Use Print → Save as PDF for a PDF.</p>
         <button onClick={() => window.print()} className="h-10 rounded-xl bg-slate-950 px-5 text-sm font-semibold text-white">
@@ -76,15 +76,15 @@ function Sheet() {
         <thead>
           <tr className="bg-slate-100">
             <th className={`${th} w-7`}>Sl.</th>
-            <th className={`${th} w-24`}>Register No.</th>
+            <th className={`${th} w-[22mm]`}>Register No.</th>
             <th className={`${th} text-left`}>Name of the student</th>
             {subjects.map((s) => (
-              <th key={s.subjectId} className={`${th} w-16`}>
+              <th key={s.subjectId} className={`${th} w-[12mm]`}>
                 <div className="font-bold">{s.code}</div>
                 {ia && <div className="text-[9px] font-normal">Max {s.iaMax ?? "–"}</div>}
               </th>
             ))}
-            <th className={`${th} w-36`}>Student signature</th>
+            <th className={`${th} w-[30mm]`}>Student signature</th>
           </tr>
         </thead>
         <tbody>
