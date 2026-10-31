@@ -157,19 +157,7 @@ function MarkList({ b }) {
       ) : (
         <p className="mt-3 text-[11px]">Students: {b.count} &nbsp;·&nbsp; Present: ______ &nbsp;·&nbsp; Absent: ______</p>
       )}
-      <div className="mt-14 flex justify-between text-[11px]">
-        <div>
-          <p className="font-semibold">Internal examiner</p>
-          <p>{b.internal.name || "________________"}</p>
-        </div>
-        <div className="text-right">
-          <p className="font-semibold">External examiner</p>
-          <p>
-            {b.external.name || "________________"}
-            {b.external.college && `, ${b.external.college}`}
-          </p>
-        </div>
-      </div>
+      <ExaminerSignatures b={b} />
     </div>
   );
 }
@@ -556,6 +544,25 @@ function RoomDiary({ exam, room }) {
   );
 }
 
+// Mark list sign-off (the HOD does not sign – he does not see the marks):
+// each examiner's name, then his college code and name
+function ExaminerSignatures({ b }) {
+  return (
+    <div className="mt-14 grid grid-cols-2 gap-16 text-[11px] leading-4 break-inside-avoid">
+      <div className="border-t border-slate-700 pt-1">
+        <p className="font-semibold">Internal Examiner</p>
+        <p>{b.internal?.name || "Name: ________________"}</p>
+        <p className="text-[10px]">{OUR_COLLEGE}</p>
+      </div>
+      <div className="border-t border-slate-700 pt-1">
+        <p className="font-semibold">External Examiner</p>
+        <p>{b.external?.name || "Name: ________________"}</p>
+        <p className="text-[10px]">{b.external?.college || "College code & name: ________________"}</p>
+      </div>
+    </div>
+  );
+}
+
 function BlankMarkList({ exam, b }) {
   return (
     <div>
@@ -603,22 +610,7 @@ function BlankMarkList({ exam, b }) {
         </tbody>
       </table>
       <p className="mt-3 text-[11px]">Students: {b.count} &nbsp;·&nbsp; Present: ______ &nbsp;·&nbsp; Absent: ______ &nbsp;·&nbsp; Write AB for absent.</p>
-      <div className="mt-12 grid grid-cols-3 gap-4 text-[11px]">
-        <div>
-          <p className="border-t border-slate-700 pt-1 font-semibold">Internal Examiner</p>
-          <p>{b.internal.name || "Name: ________________"}</p>
-        </div>
-        <div>
-          <p className="border-t border-slate-700 pt-1 font-semibold">External Examiner</p>
-          <p>
-            {b.external.name || "Name: ________________"}
-            {b.external.college && `, ${b.external.college}`}
-          </p>
-        </div>
-        <div>
-          <p className="border-t border-slate-700 pt-1 font-semibold">HOD</p>
-        </div>
-      </div>
+      <ExaminerSignatures b={b} />
     </div>
   );
 }
