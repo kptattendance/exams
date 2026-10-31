@@ -314,6 +314,7 @@ function ImportTab({ openImportId, onOpened, onOpen, onShowHistory, undo, onChan
   const [preview, setPreview] = useState(null);
   const [error, setError] = useState("");
   const [importDoc, setImportDoc] = useState(null);
+  const [finished, setFinished] = useState(false); // all students and photos done
 
   useEffect(() => {
     if (!openImportId) return;
@@ -365,13 +366,16 @@ function ImportTab({ openImportId, onOpened, onOpen, onShowHistory, undo, onChan
     setPreview(null);
     setImportDoc(null);
     setError("");
+    setFinished(false);
     setStage("pick");
   };
 
   const undoThen = (doc, after) => undo.run(doc, () => (after?.(), onChanged()));
+  const step = stage === "running" ? (finished ? 3 : 2) : stage === "preview" || stage === "starting" ? 1 : 0;
 
   return (
     <div className="space-y-5">
+      <Steps current={step} />
       {error && (
         <div className="flex gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           <Icon name="close" className="mt-0.5 h-4 w-4 shrink-0" />
@@ -397,9 +401,48 @@ function ImportTab({ openImportId, onOpened, onOpen, onShowHistory, undo, onChan
       )}
 
       {stage === "running" && importDoc && (
-        <Progress initial={importDoc} onReset={reset} onUndo={(d) => undoThen(d, reset)} undoBusy={undo.busy} />
+        <Progress initial={importDoc} onReset={reset} onUndo={(d) => undoThen(d, reset)} undoBusy={undo.busy} onFinished={setFinished} />
       )}
     </div>
+  );
+}
+
+// where the user is: the same four steps for every import, all on this page
+const STEPS = [
+  ["Choose the Excel", "drop the office file"],
+  ["Check every row", "fix red rows, if any"],
+  ["Create students", "logins, then photos – you can stop"],
+  ["Done", "download register numbers"],
+];
+
+function Steps({ current }) {
+  return (
+    <ol className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      {STEPS.map(([title, hint], i) => {
+        const done = i < current || (i === 3 && current === 3);
+        const now = i === current && !done;
+        return (
+          <li
+            key={title}
+            className={`flex items-center gap-2.5 rounded-xl border px-3 py-2 ${
+              now ? "border-blue-300 bg-blue-50" : done ? "border-emerald-200 bg-emerald-50/60" : "border-slate-200 bg-white"
+            }`}
+          >
+            <span
+              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                now ? "bg-blue-600 text-white" : done ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-500"
+              }`}
+            >
+              {done ? <Icon name="check" className="h-3.5 w-3.5" strokeWidth={2.5} /> : i + 1}
+            </span>
+            <span className="min-w-0">
+              <span className={`block truncate text-sm font-semibold ${now ? "text-blue-900" : "text-slate-800"}`}>{title}</span>
+              <span className="block truncate text-[11px] text-slate-500">{hint}</span>
+            </span>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
@@ -823,16 +866,42 @@ function Bar({ value, total, tone = "bg-blue-600" }) {
   );
 }
 
-function Progress({ initial, onReset, onUndo, undoBusy }) {
+const STATE_CHIP = {
+  WORKING: "bg-blue-100 text-blue-800",
+  PENDING: "bg-slate-100 text-slate-600",
+  NONE: "bg-slate-50 text-slate-400",
+  CREATED: "bg-emerald-100 text-emerald-800",
+  DONE: "bg-emerald-100 text-emerald-800",
+  FAILED: "bg-red-100 text-red-800",
+  UNDONE: "bg-slate-100 text-slate-500",
+};
+
+function RowState({ state, labels, note }) {
+  return (
+    <div>
+      <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATE_CHIP[state] || STATE_CHIP.PENDING}`}>
+        {state === "WORKING" && <span className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-blue-200 border-t-blue-700" />}
+        {labels[state] || state}
+      </span>
+      {note && <p className="mt-1 max-w-[260px] text-xs leading-4 text-red-700">{note}</p>}
+    </div>
+  );
+}
+
+function Progress({ initial, onReset, onUndo, undoBusy, onFinished }) {
   const api = useApi();
   const toast = useToast();
   const [doc, setDoc] = useState(initial);
   const [running, setRunning] = useState(initial.status !== "DONE");
+  const [stopping, setStopping] = useState(false);
   const [error, setError] = useState("");
+  const [show, setShow] = useState("all");
+  const [q, setQ] = useState("");
   const stop = useRef(false);
 
   const loop = useCallback(async () => {
     stop.current = false;
+    setStopping(false);
     setRunning(true);
     setError("");
     while (!stop.current) {
@@ -851,7 +920,15 @@ function Progress({ initial, onReset, onUndo, undoBusy }) {
       }
     }
     setRunning(false);
+    setStopping(false);
   }, [api, initial._id, toast]);
+
+  // Stop: the students being created right now are finished, then it pauses.
+  // Nothing is lost – Continue carries on from there, Undo removes them.
+  const pause = () => {
+    stop.current = true;
+    setStopping(true);
+  };
 
   useEffect(() => {
     if (initial.status !== "DONE") loop();
@@ -879,8 +956,32 @@ function Progress({ initial, onReset, onUndo, undoBusy }) {
 
   const s = doc.summary;
   const photoTotal = s.photosDone + s.photosFailed + s.photosPending;
-  const failedRows = doc.rows?.filter((r) => r.state === "FAILED" || r.photoState === "FAILED") || [];
+  const rows = useMemo(() => doc.rows || [], [doc.rows]);
+  const failedRows = rows.filter((r) => r.state === "FAILED" || r.photoState === "FAILED");
   const finished = !running && doc.status === "DONE";
+  const photoFails = rows.filter((r) => r.photoState === "FAILED");
+
+  useEffect(() => {
+    onFinished?.(finished);
+  }, [finished, onFinished]);
+
+  // the next few waiting rows are the ones being worked on right now
+  const busyKeys = useMemo(() => {
+    if (!running) return new Set();
+    const pending = rows.filter((r) => r.state === "PENDING");
+    const list = pending.length ? pending.slice(0, 3) : rows.filter((r) => r.state === "CREATED" && r.photoState === "PENDING").slice(0, 2);
+    return new Set(list.map((r) => r.registerNumber));
+  }, [rows, running]);
+
+  const shown = useMemo(() => {
+    const t = q.trim().toUpperCase();
+    return rows.filter((r) => {
+      if (show === "waiting" && !(r.state === "PENDING" || (r.state === "CREATED" && r.photoState === "PENDING"))) return false;
+      if (show === "done" && !(r.state === "CREATED" && r.photoState !== "PENDING" && r.photoState !== "FAILED")) return false;
+      if (show === "attention" && !(r.state === "FAILED" || r.photoState === "FAILED")) return false;
+      return !t || [r.registerNumber, r.rollNumber, r.name].some((v) => String(v || "").toUpperCase().includes(t));
+    });
+  }, [rows, show, q]);
 
   return (
     <div className="space-y-5">
@@ -889,17 +990,39 @@ function Progress({ initial, onReset, onUndo, undoBusy }) {
           <div>
             <p className="text-sm text-slate-500">{doc.fileName}</p>
             <p className="mt-0.5 text-lg font-bold tracking-tight text-slate-950">
-              {running
-                ? "Importing students…"
-                : finished
-                  ? s.failed
-                    ? `${s.created} imported, ${s.failed} failed`
-                    : `All ${s.created} students imported`
-                  : "Import paused"}
+              {stopping
+                ? "Stopping… finishing the students in hand"
+                : running
+                  ? s.pending > 0
+                    ? `Creating students… ${s.created + s.failed} of ${s.total}`
+                    : `Copying photos… ${s.photosDone + s.photosFailed} of ${photoTotal}`
+                  : finished
+                    ? s.failed
+                      ? `${s.created} imported, ${s.failed} failed`
+                      : `All ${s.created} students imported`
+                    : "Import stopped"}
             </p>
-            {running && <p className="mt-1 text-xs text-slate-500">Keep this page open. You can come back later from Import history.</p>}
+            {running && !stopping && (
+              <p className="mt-1 text-xs text-slate-500">Keep this page open. To stop in the middle, click Stop – nothing already done is lost.</p>
+            )}
+            {!running && doc.status !== "DONE" && (
+              <p className="mt-1 max-w-xl text-xs leading-5 text-slate-600">
+                {s.created} students are already created and kept. <b>Continue</b> carries on from where it stopped (also later, from
+                Import history). <b>Undo import</b> removes all students of this Excel and frees their register numbers.
+              </p>
+            )}
           </div>
           <div className="flex flex-wrap gap-2">
+            {running && (
+              <button
+                onClick={pause}
+                disabled={stopping}
+                className="inline-flex items-center gap-2 rounded-xl border border-red-300 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
+              >
+                <span className="h-3 w-3 rounded-sm bg-red-600" />
+                {stopping ? "Stopping…" : "Stop"}
+              </button>
+            )}
             {!running && doc.status !== "DONE" && (
               <button onClick={loop} className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">
                 Continue
@@ -951,27 +1074,97 @@ function Progress({ initial, onReset, onUndo, undoBusy }) {
         </div>
 
         {error && <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+
+        {photoFails.length > 0 && (
+          <div className="mt-4 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-900">
+            <p className="font-semibold">
+              {photoFails.length} photo{photoFails.length === 1 ? "" : "s"} could not be copied – {photoFails[0].photoError}
+            </p>
+            <p className="mt-1 text-xs leading-5">
+              Usually the Google Drive folder is not shared. In Drive: folder → Share → General access → “Anyone with the link”.
+              {running ? " You can Stop now," : ""} then click <b>Retry failed</b> – the students stay; only the photos are tried again. Or
+              upload photos later in the “Upload photos” tab.
+            </p>
+          </div>
+        )}
       </div>
 
-      {failedRows.length > 0 && (
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <p className="border-b border-slate-100 px-5 py-3 text-sm font-semibold text-slate-900">Needs attention ({failedRows.length})</p>
-          <ul className="divide-y divide-slate-100">
-            {failedRows.map((r) => (
-              <li key={r.registerNumber} className="flex flex-col gap-1 px-5 py-3 text-sm sm:flex-row sm:items-center sm:gap-4">
-                <span className="w-28 shrink-0 font-semibold tabular-nums text-blue-800">{r.registerNumber}</span>
-                <span className="w-48 shrink-0 truncate text-slate-800">{r.name}</span>
-                <span className="text-xs text-red-700">
-                  {r.state === "FAILED" ? `Student not created: ${r.error}` : `Photo: ${r.photoError}`}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <p className="border-t border-slate-100 px-5 py-3 text-xs text-slate-500">
-            Missing photos can also be uploaded in the “Upload photos” tab, named by roll or register number.
-          </p>
+      {/* every student and what is happening to it */}
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="no-scrollbar flex flex-wrap items-center gap-2 border-b border-slate-100 p-3">
+          {[
+            ["all", `All (${rows.length})`],
+            ["waiting", `Waiting (${rows.filter((r) => r.state === "PENDING" || (r.state === "CREATED" && r.photoState === "PENDING")).length})`],
+            ["done", "Done"],
+            ["attention", `Needs attention (${failedRows.length})`],
+          ].map(([k, l]) => (
+            <button
+              key={k}
+              onClick={() => setShow(k)}
+              className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium ${show === k ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-100"}`}
+            >
+              {l}
+            </button>
+          ))}
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search name / roll / reg no"
+            className="ml-auto h-9 w-full rounded-lg border border-slate-200 px-3 text-sm sm:w-56"
+          />
         </div>
-      )}
+        {shown.length === 0 ? (
+          <p className="px-5 py-10 text-center text-sm text-slate-500">Nothing to show here.</p>
+        ) : (
+          <div className="max-h-[60vh] overflow-auto">
+            <table className="w-full min-w-[720px] text-sm">
+              <thead className="sticky top-0 z-[1]">
+                <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs font-semibold text-slate-500">
+                  <th className="px-4 py-2.5">Row</th>
+                  <th className="px-3 py-2.5">Register no.</th>
+                  <th className="px-3 py-2.5">Student</th>
+                  <th className="px-3 py-2.5">Login &amp; record</th>
+                  <th className="px-3 py-2.5">Photo</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {shown.map((r) => {
+                  const now = busyKeys.has(r.registerNumber);
+                  return (
+                    <tr key={r.registerNumber} className={`align-top ${now ? "bg-blue-50/60" : r.state === "FAILED" || r.photoState === "FAILED" ? "bg-red-50/50" : ""}`}>
+                      <td className="px-4 py-2.5 tabular-nums text-slate-400">{r.rowNumber}</td>
+                      <td className="px-3 py-2.5 font-semibold tabular-nums text-blue-800">{r.registerNumber}</td>
+                      <td className="px-3 py-2.5">
+                        <p className="font-medium text-slate-900">{r.name}</p>
+                        <p className="text-xs text-slate-500">
+                          {r.rollNumber} · {r.department} · {TYPE_LABEL[r.admissionType] || "—"}
+                        </p>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <RowState
+                          state={now && r.state === "PENDING" ? "WORKING" : r.state}
+                          labels={{ WORKING: "Creating…", PENDING: running ? "Waiting" : "Not started", CREATED: "Created ✓", FAILED: "Failed", UNDONE: "Undone" }}
+                          note={r.state === "FAILED" ? r.error : ""}
+                        />
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <RowState
+                          state={now && r.photoState === "PENDING" && r.state === "CREATED" ? "WORKING" : r.photoState}
+                          labels={{ WORKING: "Copying…", NONE: "No photo link", PENDING: r.state === "CREATED" ? (running ? "Waiting" : "Not copied yet") : "After the student", DONE: "Copied ✓", FAILED: "Failed" }}
+                          note={r.photoState === "FAILED" ? r.photoError : ""}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="border-t border-slate-100 px-5 py-3 text-xs text-slate-500">
+          Missing photos can also be uploaded in the “Upload photos” tab, named by roll or register number.
+        </p>
+      </div>
 
       {finished && (
         <button onClick={onReset} className="text-sm font-semibold text-blue-700 hover:underline">
