@@ -412,6 +412,61 @@ function Signatures({ who }) {
   );
 }
 
+// Room diary sign-off: under each examiner his name, then his college (code and
+// name); under HOD the department that conducts the exam
+const OUR_COLLEGE = "103 – Karnataka (Govt.) Polytechnic, Mangaluru";
+const uniq = (list) => [...new Set(list.filter(Boolean))];
+
+function RoomSignatures({ batches }) {
+  const internals = uniq(batches.map((b) => b.internal?.name));
+  const externals = uniq(batches.map((b) => [b.external?.name, b.external?.college].filter(Boolean).join("|")));
+  const depts = uniq(batches.map((b) => dept(b.department)));
+  const cell = (title, lines) => (
+    <div className="border-t border-slate-700 pt-1">
+      <p className="font-semibold">{title}</p>
+      {lines}
+    </div>
+  );
+  return (
+    <div className="mt-12 grid grid-cols-4 gap-4 text-center text-[11px] leading-4 break-inside-avoid">
+      {cell(
+        "Internal Examiner",
+        internals.length ? (
+          internals.map((n) => (
+            <p key={n}>
+              {n}
+              <span className="block text-[10px]">{OUR_COLLEGE}</span>
+            </p>
+          ))
+        ) : (
+          <p>________________</p>
+        )
+      )}
+      {cell(
+        "External Examiner",
+        externals.length ? (
+          externals.map((x) => {
+            const [name, college] = x.split("|");
+            return (
+              <p key={x}>
+                {name}
+                {college && <span className="block text-[10px]">{college}</span>}
+              </p>
+            );
+          })
+        ) : (
+          <p>________________</p>
+        )
+      )}
+      {cell(
+        "HOD",
+        depts.map((d) => <p key={d}>{d}</p>)
+      )}
+      {cell("COE", null)}
+    </div>
+  );
+}
+
 function RoomDiary({ exam, room }) {
   const students = room.batches.flatMap((b) => b.students.map((s) => ({ ...s, batch: b.label })));
   const done = room.batches.every((b) => b.status === "SUBMITTED");
@@ -471,7 +526,6 @@ function RoomDiary({ exam, room }) {
             <th className={th}>Name</th>
             <th className={`${th} w-12`}>Branch</th>
             <th className={`${th} w-24`}>Batch</th>
-            <th className={`${th} w-14`}>P / AB</th>
             {/* written by the candidate: the number printed on his answer script */}
             <th className={`${th} w-28`}>Answer script No.</th>
             <th className={`${th} w-28`}>Signature of candidate</th>
@@ -485,9 +539,6 @@ function RoomDiary({ exam, room }) {
               <td className={td}>{s.name}</td>
               <td className={td}>{String(s.department || "").toUpperCase()}</td>
               <td className={td}>{s.batch}</td>
-              <td className={`${td} text-center font-semibold`}>
-                {s.attendance === "PRESENT" ? "P" : s.attendance === "ABSENT" ? "AB" : s.attendance === "MALPRACTICE" ? "MP" : ""}
-              </td>
               <td className={td} />
               <td className={td} />
             </tr>
@@ -499,10 +550,8 @@ function RoomDiary({ exam, room }) {
         {done ? count("ABSENT") : "______"} &nbsp;·&nbsp; Malpractice: {done ? count("MALPRACTICE") : "______"}
         <br />
         Absentees (register numbers): {done ? students.filter((s) => s.attendance === "ABSENT").map((s) => s.registerNumber).join(", ") || "Nil" : "______________________________________________"}
-        <br />
-        Remarks: ____________________________________________________________________________
       </p>
-      <Signatures who={["Internal Examiner", "External Examiner", "HOD", "COE"]} />
+      <RoomSignatures batches={room.batches} />
     </div>
   );
 }
