@@ -7,6 +7,7 @@ import { useAuth } from "@clerk/nextjs";
 import { excelInstructionsSheet } from "../../components/ExcelFormatHelp";
 import HodSheetPanel, { openSignatureSheet } from "../../components/HodSheetPanel";
 import { batchFor, useAcademicYear } from "../../components/academicYear";
+import { useToast } from "../../components/ui/Feedback";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -41,6 +42,7 @@ export default function AttendancePage() {
   } = useAuth();
 
   const fileInputRef = useRef(null);
+  const toast = useToast();
 
   // ============================================================
   // FILTERS
@@ -299,6 +301,16 @@ export default function AttendancePage() {
   ) => {
     if (status !== "draft") {
       return;
+    }
+
+    // more than 100 % (or below 0) is not taken at all
+    if (value !== "") {
+      const n = Number(value);
+      if (!Number.isFinite(n) || n < 0) return;
+      if (n > PERCENT_MAX) {
+        toast.error(`Attendance cannot be more than ${PERCENT_MAX}%.`, 3500);
+        return;
+      }
     }
 
     setStudents(
@@ -1166,6 +1178,7 @@ export default function AttendancePage() {
         let importedCount =
           0;
 
+        const rejected = []; // values above the maximum
         let skippedCount =
           0;
 
@@ -1266,6 +1279,12 @@ export default function AttendancePage() {
                 return;
               }
 
+              // more than 100 % (or below 0): not taken, listed after the import
+              if (numericValue < 0 || numericValue > PERCENT_MAX) {
+                rejected.push(`${updatedStudents[studentIndex].registerNumber || updatedStudents[studentIndex].studentName} ${subject.code}: ${numericValue}%`);
+                return;
+              }
+
               const attendance =
                 updatedStudents[
                   studentIndex
@@ -1328,6 +1347,10 @@ export default function AttendancePage() {
             : ""
           }.`
         );
+        if (rejected.length)
+          setError(
+            `${rejected.length} value(s) in the Excel are more than ${PERCENT_MAX}% and were NOT taken – enter them correctly: ${rejected.slice(0, 15).join("; ")}${rejected.length > 15 ? " …" : ""}`
+          );
       } catch (err) {
         console.error(
           "Excel Upload Error:",

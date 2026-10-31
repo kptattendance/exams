@@ -7,6 +7,7 @@ import { useAuth } from "@clerk/nextjs";
 import { excelInstructionsSheet } from "../../components/ExcelFormatHelp";
 import HodSheetPanel, { openSignatureSheet } from "../../components/HodSheetPanel";
 import { batchFor, useAcademicYear } from "../../components/academicYear";
+import { useToast } from "../../components/ui/Feedback";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -18,6 +19,7 @@ export default function FinalIAPage() {
   } = useAuth();
 
   const fileInputRef = useRef(null);
+  const toast = useToast();
 
   // Running academic year – set by the Admin, not chosen here
   const academicYear = useAcademicYear();
@@ -216,6 +218,18 @@ export default function FinalIAPage() {
   ) => {
     if (status !== "draft") {
       return;
+    }
+
+    // a mark above the subject's maximum (or below 0) is not taken at all
+    if (value !== "") {
+      const subject = subjects.find((s) => String(s.subjectId) === String(subjectId));
+      const max = Number(subject?.maxMarks ?? subject?.iaMax) || 0;
+      const n = Number(value);
+      if (!Number.isFinite(n) || n < 0) return;
+      if (max > 0 && n > max) {
+        toast.error(`${subject?.code || "This subject"}: IA marks cannot be more than ${max}.`, 3500);
+        return;
+      }
     }
 
     setStudents(
@@ -958,6 +972,7 @@ export default function FinalIAPage() {
           );
 
         let importedCount = 0;
+        const rejected = []; // values above the maximum
         let skippedCount = 0;
 
         // Read students
@@ -1049,6 +1064,13 @@ export default function FinalIAPage() {
                 return;
               }
 
+              // above the maximum (or below 0): not taken, listed after the import
+              const cap = Number(subject.maxMarks ?? subject.iaMax) || 0;
+              if (numericMark < 0 || (cap > 0 && numericMark > cap)) {
+                rejected.push(`${updatedStudents[studentIndex].registerNumber || updatedStudents[studentIndex].studentName} ${subject.code}: ${numericMark} (max ${cap})`);
+                return;
+              }
+
               const marks =
                 updatedStudents[
                   studentIndex
@@ -1110,6 +1132,10 @@ export default function FinalIAPage() {
             : ""
           }.`
         );
+        if (rejected.length)
+          setError(
+            `${rejected.length} mark(s) in the Excel are more than the maximum and were NOT taken – enter them correctly: ${rejected.slice(0, 15).join("; ")}${rejected.length > 15 ? " …" : ""}`
+          );
       } catch (err) {
         console.error(
           "Excel Upload Error:",
