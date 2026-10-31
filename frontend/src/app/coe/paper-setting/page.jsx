@@ -24,6 +24,13 @@ const departments = [
 ];
 departments.sort(sortOptions); // alphabetical in every drop-down
 
+// same rule as the server (models/User.js collegeOf): no code or 103 = our college
+const HOME_CODE = "103";
+const isExternal = (examiner) => {
+  const code = String(examiner?.collegeCode || "").trim();
+  return Boolean(code) && code !== HOME_CODE;
+};
+
 const STATUS_STYLE = {
   ASSIGNED: "bg-slate-100 text-slate-700",
   UPLOADED: "bg-amber-50 text-amber-700",
@@ -80,7 +87,8 @@ export default function PaperSettingPage() {
   const [session, setSession] = useState(defaultSession());
   const [statusFilter, setStatusFilter] = useState("");
   const [deptFilter, setDeptFilter] = useState("");
-  const [papers, setPapers] = useState([]);
+  const [allPapers, setPapers] = useState([]);
+  const [typeFilter, setTypeFilter] = useState(""); // "" | INTERNAL | EXTERNAL
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const toast = useToast();
@@ -115,6 +123,12 @@ export default function PaperSettingPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Internal = examiner of our college (103), External = any other college code
+  const papers = useMemo(
+    () => (typeFilter ? allPapers.filter((p) => (isExternal(p.examiner) ? "EXTERNAL" : "INTERNAL") === typeFilter) : allPapers),
+    [allPapers, typeFilter]
+  );
 
   const counts = useMemo(() => {
     const c = { total: papers.length };
@@ -360,6 +374,11 @@ ${
             </option>
           ))}
         </select>
+        <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className={`${inputCls} lg:w-56`}>
+          <option value="">Internal and external</option>
+          <option value="INTERNAL">Internal ({HOME_CODE} – our college)</option>
+          <option value="EXTERNAL">External (other colleges)</option>
+        </select>
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={`${inputCls} lg:w-56`}>
           <option value="">All statuses</option>
           {Object.entries(STATUS_LABEL).map(([k, v]) => (
@@ -415,7 +434,9 @@ ${
                       <td className="px-3 py-3">
                         <p className="text-sm text-slate-800">{p.examiner?.name}</p>
                         <p className="text-xs text-slate-500">{p.examiner?.email}</p>
-                        <p className="text-[11px] text-slate-400">{p.examinerType}</p>
+                        <p className="text-[11px] text-slate-400">
+                          {isExternal(p.examiner) ? `EXTERNAL · ${p.examiner.collegeCode} ${p.examiner.collegeName || ""}` : `INTERNAL · ${HOME_CODE}`}
+                        </p>
                       </td>
                       <td className={`px-3 py-3 text-xs ${overdue ? "font-semibold text-red-600" : "text-slate-600"}`}>
                         {fmtDate(p.deadline)}
@@ -469,7 +490,7 @@ ${
                   <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
                     <div className="col-span-2">
                       <dt className="text-slate-400">Examiner</dt>
-                      <dd className="truncate font-medium text-slate-700">{p.examiner?.name} <span className="font-normal text-slate-400">{p.examinerType === "EXTERNAL" ? "(external)" : ""}</span></dd>
+                      <dd className="truncate font-medium text-slate-700">{p.examiner?.name} <span className="font-normal text-slate-400">{isExternal(p.examiner) ? `(external · ${p.examiner.collegeCode})` : ""}</span></dd>
                     </div>
                     <div>
                       <dt className="text-slate-400">Deadline</dt>

@@ -1587,13 +1587,20 @@ export const deleteUser = async (
     }
 
     /*
-     * Permission: deleting an account is for the Admin only
+     * Permission: the Admin can delete any account; the COE only
+     * faculty (staff) accounts, from the COE Faculty page
      */
-    if (requesterRole !== "admin") {
+    const coeDeletingFaculty =
+      requesterRole === "coe" &&
+      String(user.role || "").toLowerCase() === "staff";
+
+    if (requesterRole !== "admin" && !coeDeletingFaculty) {
       return res.status(403).json({
         success: false,
         message:
-          "Only the Admin can delete users. Please ask the Admin.",
+          requesterRole === "coe"
+            ? "The COE can delete faculty accounts only. Please ask the Admin."
+            : "Only the Admin can delete users. Please ask the Admin.",
       });
     }
 
