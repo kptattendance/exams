@@ -332,7 +332,7 @@ async function orderDates(examId, panelId) {
 // The office orders of these examiner sets as one PDF. The college code for the
 // copy to the Principal comes from the examiner's faculty record when he was
 // chosen from the list.
-async function orderPdfOf(exam, panels) {
+async function externalOrdersOf(exam, panels) {
   const ids = panels.map((p) => p.external?.user).filter(Boolean);
   const users = ids.length ? await User.find({ _id: { $in: ids } }).select("collegeCode collegeName").lean() : [];
   const byId = new Map(users.map((u) => [String(u._id), u]));
@@ -345,23 +345,29 @@ async function orderPdfOf(exam, panels) {
       date: p.allottedAt || new Date(),
       ...(await orderDates(p.exam, p._id)),
     });
-  return practicalOrdersPdf(orders);
+  return orders;
+}
+
+async function orderPdfOf(exam, panels) {
+  return practicalOrdersPdf(await externalOrdersOf(exam, panels));
 }
 
 // The office order of the internal examiner (our college, copy to his HOD)
-async function internalOrderPdfOf(exam, panel) {
+async function internalOrderOf(exam, panel) {
   const u = panel.internal?.user ? await User.findById(panel.internal.user).select("designation department").lean() : null;
-  return practicalOrdersPdf([
-    {
-      exam,
-      panel,
-      role: "INTERNAL",
-      person: { name: panel.internal.name, designation: u?.designation || "", department: u?.department || panel.department },
-      college: { code: HOME_COLLEGE.code, name: HOME_COLLEGE.name },
-      date: panel.allottedAt || new Date(),
-      ...(await orderDates(panel.exam, panel._id)),
-    },
-  ]);
+  return {
+    exam,
+    panel,
+    role: "INTERNAL",
+    person: { name: panel.internal.name, designation: u?.designation || "", department: u?.department || panel.department },
+    college: { code: HOME_COLLEGE.code, name: HOME_COLLEGE.name },
+    date: panel.allottedAt || new Date(),
+    ...(await orderDates(panel.exam, panel._id)),
+  };
+}
+
+async function internalOrderPdfOf(exam, panel) {
+  return practicalOrdersPdf([await internalOrderOf(exam, panel)]);
 }
 
 // Emails the office order alone (the "Email order" button); true when sent
@@ -375,17 +381,33 @@ async function sendInternalOrder(exam, panel) {
   return sendPracticalOrderEmail({ to: panel.internal.email, name: panel.internal.name, exam, orderPdf: await internalOrderPdfOf(exam, panel), internal: true });
 }
 
-// GET /api/practicals/:id/orders?panel=<id>&department=cs – office orders of the external examiners (one PDF)
+// GET /api/practicals/:id/orders?panel=<id>&department=cs&who=external|internal|both
+// – office orders as one PDF; who: external (default), internal, or both (each
+// set's external order followed by its internal order) for the office file
 export const listOrders = async (req, res) => {
   const exam = await loadExam(req, res);
   if (!exam) return;
-  const filter = { exam: exam._id, "external.name": { $ne: "" } };
+  const who = ["internal", "both"].includes(req.query.who) ? req.query.who : "external";
+  const filter = { exam: exam._id, ...(who === "external" ? { "external.name": { $ne: "" } } : {}) };
   if (req.query.panel) {
     if (!isId(req.query.panel)) return fail(res, 400, "Invalid examiner set.");
     filter._id = req.query.panel;
   }
   if (req.query.department) filter.department = lower(req.query.department);
   const panels = await PracticalPanel.find(filter).sort({ department: 1, number: 1 }).lean();
+  if (who !== "external") {
+    const withExt = panels.filter((p) => p.external?.name);
+    const ext = who === "both" ? new Map((await externalOrdersOf(exam, withExt)).map((o) => [String(o.panel._id), o])) : new Map();
+    const orders = [];
+    for (const p of panels) {
+      if (ext.has(String(p._id))) orders.push(ext.get(String(p._id)));
+      if (p.internal?.name) orders.push(await internalOrderOf(exam, p));
+    }
+    if (!orders.length) return fail(res, 404, "No examiner has been allotted yet.");
+    const pdf = await practicalOrdersPdf(orders);
+    res.set({ "Content-Type": "application/pdf", "Content-Disposition": `inline; filename="Office_Orders_Practical_Examiners_${who}.pdf"` });
+    return res.send(pdf);
+  }
   if (!panels.length) return fail(res, 404, "No external examiner has been allotted yet.");
   const pdf = await orderPdfOf(exam, panels);
   const name = panels.length === 1 ? `Office_Order_${panels[0].external.name.replace(/[^A-Za-z0-9]+/g, "_")}` : "Office_Orders_Practical_Examiners";

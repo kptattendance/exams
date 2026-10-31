@@ -183,6 +183,7 @@ export const MENUS = {
           { label: "Room diary", href: "/office/practical/room-diary", icon: "list" },
           { label: "ML entry sheets", href: "/office/practical/mark-sheets", icon: "paper" },
           { label: "Marks status report", href: "/office/practical/report", icon: "chart" },
+          { label: "Examiner orders", href: "/office/practical/orders", icon: "report" },
         ],
       },
       {

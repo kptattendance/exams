@@ -1,9 +1,10 @@
 "use client";
 
-// Office orders (PDF) for the external practical examiners – the same PDF that
-// is emailed to them. Shown in the browser's PDF viewer to print or download.
+// Office orders (PDF) for the practical examiners – the same PDF that is
+// emailed to them. Shown in the browser's PDF viewer to print or download.
 //   ?panel=<id>        only that examiner set
 //   ?department=cs     only that department's sets
+//   ?who=internal|both internal examiners' orders, or both (default: external)
 
 import { Suspense, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
