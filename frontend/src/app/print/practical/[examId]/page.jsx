@@ -127,8 +127,8 @@ function MarkList({ b }) {
             <th className={`${th} w-28`}>Register No.</th>
             <th className={th}>Name</th>
             <th className={`${th} w-12`}>Branch</th>
-            <th className={`${th} w-28`}>Marks (out of {b.max})</th>
-            <th className={`${th} w-40`}>{done ? "Remarks" : "Marks in words"}</th>
+            <th className={`${th} w-24`}>Marks (out of {b.max})</th>
+            <th className={`${th} w-60`}>Marks in words</th>
           </tr>
         </thead>
         <tbody>
@@ -583,8 +583,7 @@ function BlankMarkList({ exam, b }) {
             <th className={th}>Name</th>
             <th className={`${th} w-12`}>Branch</th>
             <th className={`${th} w-24`}>Marks (figures)</th>
-            <th className={`${th} w-36`}>Marks (words)</th>
-            <th className={`${th} w-20`}>Remarks</th>
+            <th className={`${th} w-60`}>Marks (words)</th>
           </tr>
         </thead>
         <tbody>
@@ -597,7 +596,6 @@ function BlankMarkList({ exam, b }) {
                 {s.kind === "BACKLOG" && <span className="ml-1 text-[9px]">(B)</span>}
               </td>
               <td className={td}>{String(s.department || "").toUpperCase()}</td>
-              <td className={td} />
               <td className={td} />
               <td className={td} />
             </tr>
