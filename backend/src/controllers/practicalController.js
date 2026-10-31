@@ -19,7 +19,7 @@ import mongoose from "mongoose";
 import Exam from "../models/Exam.js";
 import ExamRegistration from "../models/ExamRegistration.js";
 import Subject from "../models/Subject.js";
-import User, { collegeOf } from "../models/User.js";
+import User, { HOME_COLLEGE, collegeOf } from "../models/User.js";
 import PracticalBatch from "../models/PracticalBatch.js";
 import PracticalPanel from "../models/PracticalPanel.js";
 import AuditLog from "../models/AuditLog.js";
@@ -294,8 +294,12 @@ async function readExaminers(req) {
 // Tell everyone concerned. Returns who was reached.
 async function notifyAllotment(exam, panel, code) {
   const hods = await User.find({ role: "hod", department: panel.department }).select("name email").lean();
+  // the internal examiner gets his own office order with the appointment
+  const internalPdf = panel.internal?.email
+    ? await internalOrderPdfOf(exam, panel).catch((e) => (console.error("Internal office order PDF failed:", e.message), null))
+    : null;
   const jobs = [
-    { to: panel.internal.email, name: panel.internal.name, role: "INTERNAL" },
+    { to: panel.internal.email, name: panel.internal.name, role: "INTERNAL", orderPdf: internalPdf },
     ...hods.filter((h) => h.email && h.email !== panel.internal.email).map((h) => ({ to: h.email, name: h.name, role: "HOD" })),
   ];
   // A new external examiner gets the appointment, his code and the office order
@@ -344,11 +348,31 @@ async function orderPdfOf(exam, panels) {
   return practicalOrdersPdf(orders);
 }
 
+// The office order of the internal examiner (our college, copy to his HOD)
+async function internalOrderPdfOf(exam, panel) {
+  const u = panel.internal?.user ? await User.findById(panel.internal.user).select("designation department").lean() : null;
+  return practicalOrdersPdf([
+    {
+      exam,
+      panel,
+      role: "INTERNAL",
+      person: { name: panel.internal.name, designation: u?.designation || "", department: u?.department || panel.department },
+      college: { code: HOME_COLLEGE.code, name: HOME_COLLEGE.name },
+      date: panel.allottedAt || new Date(),
+      ...(await orderDates(panel.exam, panel._id)),
+    },
+  ]);
+}
+
 // Emails the office order alone (the "Email order" button); true when sent
 async function sendOrder(exam, panel) {
   const ok = await sendPracticalOrderEmail({ to: panel.external.email, name: panel.external.name, exam, orderPdf: await orderPdfOf(exam, [panel]) });
   if (ok) await PracticalPanel.updateOne({ _id: panel._id }, { $set: { orderSentAt: new Date() } });
   return ok;
+}
+
+async function sendInternalOrder(exam, panel) {
+  return sendPracticalOrderEmail({ to: panel.internal.email, name: panel.internal.name, exam, orderPdf: await internalOrderPdfOf(exam, panel), internal: true });
 }
 
 // GET /api/practicals/:id/orders?panel=<id>&department=cs – office orders of the external examiners (one PDF)
@@ -374,18 +398,31 @@ export const resendOrder = async (req, res) => {
   if (!isId(req.params.panelId)) return fail(res, 400, "Invalid examiner set.");
   const panel = await PracticalPanel.findById(req.params.panelId).lean();
   if (!panel) return fail(res, 404, "Examiner set not found.");
-  if (!panel.external?.email) return fail(res, 400, "The external examiner has no email. Print the office order and send it by post.");
+  if (!panel.external?.email && !panel.internal?.email)
+    return fail(res, 400, "The examiners have no email. Print the office order and send it by post.");
   const exam = await Exam.findById(panel.exam).select("name").lean();
-  let ok = false;
-  try {
-    ok = await sendOrder(exam, panel);
-  } catch (e) {
-    await log(req, "PRACTICAL_ORDER_FAILED", panel._id, { to: panel.external.email, error: String(e.message || e).slice(0, 300) });
-    return fail(res, 502, `The office order could not be emailed: ${e.message}`);
+  // the external and the internal examiner each get their own order
+  const sent = [];
+  const problems = [];
+  for (const [who, p, send] of [
+    ["external", panel.external, () => sendOrder(exam, panel)],
+    ["internal", panel.internal, () => sendInternalOrder(exam, panel)],
+  ]) {
+    if (!p?.email) {
+      problems.push(`the ${who} examiner has no email`);
+      continue;
+    }
+    try {
+      if (await send()) sent.push(`${p.name} (${p.email})`);
+      else problems.push("email is not set up on the server");
+    } catch (e) {
+      await log(req, "PRACTICAL_ORDER_FAILED", panel._id, { to: p.email, error: String(e.message || e).slice(0, 300) });
+      problems.push(`${who} examiner: ${e.message}`);
+    }
   }
-  if (!ok) return fail(res, 502, "Email is not set up on the server. Print the office order instead.");
-  await log(req, "PRACTICAL_ORDER_SENT", panel._id, { to: panel.external.email, external: panel.external.name });
-  res.json({ message: `Office order emailed to ${panel.external.name} (${panel.external.email}).` });
+  if (!sent.length) return fail(res, 502, `The office order could not be emailed: ${[...new Set(problems)].join("; ")}. Print it instead.`);
+  await log(req, "PRACTICAL_ORDER_SENT", panel._id, { to: sent, external: panel.external.name, internal: panel.internal.name });
+  res.json({ message: `Office order emailed to ${sent.join(" and ")}.${problems.length ? ` Not sent: ${[...new Set(problems)].join("; ")}.` : ""}` });
 };
 
 async function issueCode(req, panel, exam) {

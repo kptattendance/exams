@@ -51,7 +51,7 @@ const handleError = (res, err, where) => {
 };
 
 const POPULATE = [
-  { path: "subject", select: "code subjectId name semester department" },
+  { path: "subject", select: "code subjectId name semester department board" },
   { path: "examiner", select: "name email department designation phone collegeCode collegeName" },
 ];
 

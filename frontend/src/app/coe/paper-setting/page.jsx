@@ -89,6 +89,7 @@ export default function PaperSettingPage() {
   const [deptFilter, setDeptFilter] = useState("");
   const [allPapers, setPapers] = useState([]);
   const [typeFilter, setTypeFilter] = useState(""); // "" | INTERNAL | EXTERNAL
+  const [boardFilter, setBoardFilter] = useState(""); // board that handles the subject, e.g. SC for maths
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const toast = useToast();
@@ -125,9 +126,19 @@ export default function PaperSettingPage() {
   }, [load]);
 
   // Internal = examiner of our college (103), External = any other college code
+  // Board = who handles the subject (maths of Automobile is under SC)
   const papers = useMemo(
-    () => (typeFilter ? allPapers.filter((p) => (isExternal(p.examiner) ? "EXTERNAL" : "INTERNAL") === typeFilter) : allPapers),
-    [allPapers, typeFilter]
+    () =>
+      allPapers.filter(
+        (p) =>
+          (!typeFilter || (isExternal(p.examiner) ? "EXTERNAL" : "INTERNAL") === typeFilter) &&
+          (!boardFilter || String(p.subject?.board || "").toUpperCase() === boardFilter)
+      ),
+    [allPapers, typeFilter, boardFilter]
+  );
+  const boards = useMemo(
+    () => [...new Set([...allPapers.map((p) => String(p.subject?.board || "").toUpperCase()).filter(Boolean), ...(boardFilter ? [boardFilter] : [])])].sort(),
+    [allPapers, boardFilter]
   );
 
   const counts = useMemo(() => {
@@ -374,6 +385,14 @@ ${
             </option>
           ))}
         </select>
+        <select value={boardFilter} onChange={(e) => setBoardFilter(e.target.value)} className={`${inputCls} lg:w-48`}>
+          <option value="">All boards</option>
+          {boards.map((b) => (
+            <option key={b} value={b}>
+              Board: {b}
+            </option>
+          ))}
+        </select>
         <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className={`${inputCls} lg:w-56`}>
           <option value="">Internal and external</option>
           <option value="INTERNAL">Internal ({HOME_CODE} – our college)</option>
@@ -427,7 +446,7 @@ ${
                         <p className="text-sm font-semibold text-slate-900">{p.subject?.code}</p>
                         <p className="text-xs text-slate-500">{p.subject?.name}</p>
                         <p className="mt-0.5 text-[11px] text-slate-400">
-                          {p.subject?.department} · Sem {p.subject?.semester} · {p.paperType}
+                          {p.subject?.department}{p.subject?.board ? ` · Board ${p.subject.board}` : ""} · Sem {p.subject?.semester} · {p.paperType}
                         </p>
                       </td>
                       <td className="px-3 py-3 text-sm font-semibold text-slate-700">Set {p.setNo}</td>

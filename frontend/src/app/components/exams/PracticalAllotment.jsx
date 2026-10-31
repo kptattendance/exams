@@ -77,8 +77,14 @@ export default function PracticalAllotment({ mode = "coe" }) {
 
   const sendOrder = async (p) => {
     const ok = await confirm({
-      title: `Email the office order to ${p.external.name}?`,
-      message: `The order addressed to the Principal of ${p.external.college || "his college"} goes to ${p.external.email}, with the practical exam dates fixed so far.`,
+      title: "Email the office orders to both examiners?",
+      message: [
+        p.external.email && `External – ${p.external.name} (${p.external.email}): order with the copy to the Principal of ${p.external.college || "his college"}.`,
+        p.internal?.email && `Internal – ${p.internal.name} (${p.internal.email}): order with the copy to the HOD.`,
+        "Each order has the practical exam dates fixed so far.",
+      ]
+        .filter(Boolean)
+        .join("\n"),
       confirmText: "Email order",
     });
     if (!ok) return;
@@ -392,7 +398,7 @@ function ExaminerTable({ examId, depts, onAllot, onOrder, onCode, onRemove }) {
                         <Icon name="download" className="h-3.5 w-3.5" />
                         Order
                       </a>
-                      {p.external.email && (
+                      {(p.external.email || p.internal?.email) && (
                         <button onClick={() => onOrder(p)} className={act}>
                           <Icon name="paper" className="h-3.5 w-3.5" />
                           Email order

@@ -243,7 +243,9 @@ export async function sendPracticalAllotmentEmail({ to, name, role, exam, panel,
         ? `<p>The Head of the Department will fix the dates; you will get the time table by email. After each batch, sign in at
              <a href="${process.env.FRONTEND_URL}">${esc(process.env.FRONTEND_URL || "the examination website")}</a>
              and open <b>Practical marks entry</b>. The external examiner types a secret code on your screen
-             to open the marks sheet and again to submit it. Submitted marks are final.</p>`
+             to open the marks sheet and again to submit it. Submitted marks are final.</p>${
+             orderPdf ? `<p style="background:#fff7ed;border-left:4px solid #ea580c;padding:10px 12px;border-radius:4px"><b>Your office order is attached (PDF).</b></p>` : ""
+           }`
         : ""
     }`
   );
@@ -293,14 +295,18 @@ export async function sendPracticalScheduleEmail({ to, name, exam, panel, batche
   return true;
 }
 
-// Office order for an external practical examiner (see services/practicalOrder.js).
-// He forwards it to his Principal to be relieved for the practical examinations.
-export async function sendPracticalOrderEmail({ to, name, exam, orderPdf }) {
+// Office order for a practical examiner (see services/practicalOrder.js).
+// The external examiner forwards it to his Principal to be relieved for the
+// practical examinations; the internal examiner (internal: true) keeps it.
+export async function sendPracticalOrderEmail({ to, name, exam, orderPdf, internal = false }) {
   const t = getTransporter();
   if (!t || !to) return false;
   const html = wrap(
     "Office order – Practical examiner",
-    `<p>Dear ${esc(name)},</p>
+    internal
+      ? `<p>Dear ${esc(name)},</p>
+    <p>Your office order as the <b>internal examiner</b> for the practical examinations of ${esc(exam.name)} is attached (PDF).</p>`
+      : `<p>Dear ${esc(name)},</p>
     <p>Your office order as an <b>external examiner</b> for the practical examinations of ${esc(exam.name)} at
        Karnataka (Govt.) Polytechnic, Mangaluru is attached (PDF). Please print it and give the copy to your Principal
        so that you are relieved for the examinations.</p>`
