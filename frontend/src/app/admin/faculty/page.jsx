@@ -31,6 +31,10 @@ const getDepartmentName = (code) => {
   return department?.label || code || "Not assigned";
 };
 
+// same rule as the server (models/User.js collegeOf): no code = our college
+const HOME_COLLEGE_CODE = "103";
+const collegeCodeOf = (user) => String(user?.collegeCode || "").trim() || HOME_COLLEGE_CODE;
+
 export default function FacultyPage() {
   const { getToken, isLoaded, isSignedIn } = useAuth();
 
@@ -43,6 +47,9 @@ export default function FacultyPage() {
 
   const [search, setSearch] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState(""); // "" | internal | external
+  const [collegeFilter, setCollegeFilter] = useState("");
+  const [designationFilter, setDesignationFilter] = useState("");
 
   const [selectedFaculty, setSelectedFaculty] = useState([]);
   const [deletingSelected, setDeletingSelected] = useState(false);
@@ -145,9 +152,49 @@ const loadFaculty = async () => {
         !departmentFilter ||
         user.department === departmentFilter;
 
-      return matchesSearch && matchesDepartment;
+      // internal = our college (no code or 103), external = any other code
+      const code = collegeCodeOf(user);
+      const matchesType =
+        !typeFilter ||
+        (typeFilter === "internal") === (code === HOME_COLLEGE_CODE);
+
+      const matchesCollege =
+        !collegeFilter || code === collegeFilter;
+
+      const matchesDesignation =
+        !designationFilter ||
+        (user.designation || "") === designationFilter;
+
+      return matchesSearch && matchesDepartment && matchesType && matchesCollege && matchesDesignation;
     });
-  }, [faculty, search, departmentFilter]);
+  }, [faculty, search, departmentFilter, typeFilter, collegeFilter, designationFilter]);
+
+  // college codes and designations that occur, for the filters
+  const collegeOptions = useMemo(() => {
+    const names = new Map();
+    for (const u of faculty) {
+      const code = collegeCodeOf(u);
+      if (!names.has(code) || (!names.get(code) && u.collegeName)) names.set(code, code === HOME_COLLEGE_CODE ? "our college" : u.collegeName || "");
+    }
+    return [...names.entries()]
+      .filter(([code]) => typeFilter !== "internal" || code === HOME_COLLEGE_CODE)
+      .filter(([code]) => typeFilter !== "external" || code !== HOME_COLLEGE_CODE)
+      .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }));
+  }, [faculty, typeFilter]);
+
+  const designationOptions = useMemo(
+    () => [...new Set([...DESIGNATIONS, ...faculty.map((u) => u.designation).filter(Boolean)])].sort(),
+    [faculty]
+  );
+
+  const anyFilter = Boolean(search || departmentFilter || typeFilter || collegeFilter || designationFilter);
+  const clearFilters = () => {
+    setSearch("");
+    setDepartmentFilter("");
+    setTypeFilter("");
+    setCollegeFilter("");
+    setDesignationFilter("");
+  };
 
   // --------------------------------------------------
   // SELECTION
@@ -535,10 +582,10 @@ const loadFaculty = async () => {
       {/* TOOLBAR */}
       <div className="mb-4 rounded-2xl border border-amber-200 bg-white p-3 shadow-sm">
 
-        <div className="flex flex-col gap-3 lg:flex-row">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
 
           {/* SEARCH */}
-          <div className="relative min-w-0 flex-1">
+          <div className="relative min-w-[240px] flex-1">
 
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -590,6 +637,58 @@ const loadFaculty = async () => {
             ))}
 
           </select>
+
+          {/* INTERNAL / EXTERNAL */}
+          <select
+            value={typeFilter}
+            onChange={(e) => {
+              setTypeFilter(e.target.value);
+              setCollegeFilter("");
+            }}
+            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-amber-500 focus:bg-white focus:ring-4 focus:ring-amber-100 sm:w-48"
+          >
+            <option value="">Internal and external</option>
+            <option value="internal">Internal ({HOME_COLLEGE_CODE})</option>
+            <option value="external">External (other colleges)</option>
+          </select>
+
+          {/* COLLEGE CODE */}
+          <select
+            value={collegeFilter}
+            onChange={(e) => setCollegeFilter(e.target.value)}
+            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-amber-500 focus:bg-white focus:ring-4 focus:ring-amber-100 sm:w-56"
+          >
+            <option value="">All college codes</option>
+            {collegeOptions.map(([code, name]) => (
+              <option key={code} value={code}>
+                {code}{name ? ` – ${name}` : ""}
+              </option>
+            ))}
+          </select>
+
+          {/* DESIGNATION */}
+          <select
+            value={designationFilter}
+            onChange={(e) => setDesignationFilter(e.target.value)}
+            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-amber-500 focus:bg-white focus:ring-4 focus:ring-amber-100 sm:w-52"
+          >
+            <option value="">All designations</option>
+            {designationOptions.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+
+          {anyFilter && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="h-10 shrink-0 rounded-xl px-3 text-sm font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+            >
+              Clear filters
+            </button>
+          )}
 
           {/* DELETE SELECTED */}
           {selectedFaculty.length > 0 && (
@@ -707,7 +806,7 @@ const loadFaculty = async () => {
             </h3>
 
             <p className="mt-1 text-xs text-slate-400">
-              {search || departmentFilter
+              {anyFilter
                 ? "Try changing your search or filter."
                 : "Add your first faculty member to get started."}
             </p>

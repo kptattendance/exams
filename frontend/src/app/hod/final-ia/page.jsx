@@ -5,7 +5,7 @@ import axios from "axios";
 import * as XLSX from "xlsx";
 import { useAuth } from "@clerk/nextjs";
 import { excelInstructionsSheet } from "../../components/ExcelFormatHelp";
-import ExcelDialog from "../../components/ExcelDialog";
+import HodSheetPanel, { openSignatureSheet } from "../../components/HodSheetPanel";
 import { batchFor, useAcademicYear } from "../../components/academicYear";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -48,9 +48,6 @@ export default function FinalIAPage() {
 
   const [status, setStatus] =
     useState("draft");
-
-  // the Excel window (download template / upload)
-  const [excelOpen, setExcelOpen] = useState(false);
 
   // Note from the Exam Officer when a sheet is sent back
   const [returnedReason, setReturnedReason] = useState("");
@@ -1198,6 +1195,23 @@ export default function FinalIAPage() {
     batch,
   ]);
 
+  // PDF of the submitted marks with a student-signature column
+  const openPdf = () =>
+    openSignatureSheet({
+      kind: "ia",
+      academicYear,
+      semester,
+      batch,
+      status,
+      department: students[0]?.department || "",
+      subjects: subjects.map((s) => ({ subjectId: String(s.subjectId), code: s.code, name: s.name, iaMin: s.iaMin, iaMax: s.iaMax })),
+      students: sortedStudents.map((st) => ({
+        registerNumber: st.registerNumber,
+        studentName: st.studentName,
+        values: Object.fromEntries(subjects.map((s) => [String(s.subjectId), getStudentMark(st, s.subjectId)])),
+      })),
+    });
+
   // ============================================================
   // COUNTS
   // ============================================================
@@ -1215,29 +1229,6 @@ export default function FinalIAPage() {
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-gray-50 p-3 md:p-5">
 
-      <ExcelDialog
-        open={excelOpen}
-        onClose={() => setExcelOpen(false)}
-        kind="ia"
-        subjects={subjects}
-        semester={semester}
-        onSemester={(value) => {
-          // same as choosing the semester on the page (its students load by themselves)
-          setSemester(value);
-          setBatch(batchFor(academicYear, value));
-          clearTable();
-        }}
-        loading={loading}
-        ready={students.length > 0 && subjects.length > 0}
-        locked={students.length > 0 && status !== "draft"}
-        studentCount={students.length}
-        importing={excelLoading}
-        onDownload={downloadExcelTemplate}
-        onUpload={() => {
-          setExcelOpen(false);
-          fileInputRef.current?.click();
-        }}
-      />
 
 <style jsx>{`
   .no-spinner::-webkit-outer-spin-button,
@@ -1275,14 +1266,6 @@ export default function FinalIAPage() {
         )}
 
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setExcelOpen(true)}
-            className="rounded-lg bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700"
-          >
-            Excel – download / upload
-          </button>
-
           {status === "draft" && (
             <span className="rounded-full bg-yellow-100 px-3 py-1.5 text-xs font-semibold text-yellow-700">
               Draft
@@ -1519,23 +1502,18 @@ export default function FinalIAPage() {
                   className="hidden"
                 />
 
-                <button
-                  type="button"
-                  onClick={() => setExcelOpen(true)}
-                  disabled={
-                    excelLoading ||
-                    status !== "draft"
-                  }
-                  className="rounded-lg bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:bg-gray-300"
-                >
-                  {excelLoading
-                    ? "Importing..."
-                    : "↑ Upload Excel"}
-                </button>
-
               </div>
 
             </div>
+
+            <HodSheetPanel
+              kind="ia"
+              status={status}
+              importing={excelLoading}
+              onDownload={downloadExcelTemplate}
+              onUpload={() => fileInputRef.current?.click()}
+              onPdf={openPdf}
+            />
 
 
           </div>
