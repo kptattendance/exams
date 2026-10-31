@@ -44,7 +44,10 @@ export default function FacultyHome() {
         {papers === null && !error && <p className="text-sm text-slate-500">Loading…</p>}
         {papers?.length === 0 && (
           <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-            You have no paper setting requests right now.
+            You have no open paper setting work right now.
+            <p className="mt-1 text-xs text-slate-400">
+              A paper closes here once its deadline is over – the COE office carries on from there. If you need more time, please contact the COE office.
+            </p>
           </div>
         )}
         {papers?.map((p) => {

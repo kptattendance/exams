@@ -421,6 +421,16 @@ export const getAuditTrail = async (req, res) => {
 
 const FACULTY_EDITABLE = ["ASSIGNED", "UPLOADED", "RETURNED"];
 
+// Once its deadline is over a paper is closed for the setter: it leaves his
+// list and cannot be opened, previewed, uploaded or submitted any more – also
+// not by typing the address (scrutiny goes on at the COE's end). Each paper
+// has its own deadline, so an extended one stays open till the new date.
+// Only a scheme of valuation the COE asked for after submission can still be
+// sent (as before).
+const pendingLateScheme = (p) => p.status === "SUBMITTED" && Boolean(p.schemeRequested) && !p.schemeSubmittedAt;
+const pastDeadline = (p) => new Date() > new Date(p.deadline);
+const closedForSetter = (p) => pastDeadline(p) && !pendingLateScheme(p);
+
 async function loadOwnPaper(req, res) {
   if (!isId(req.params.id)) {
     fail(res, 400, "Invalid id.");
@@ -435,6 +445,11 @@ async function loadOwnPaper(req, res) {
   if (!paper) {
     // Same message whether it doesn't exist or belongs to someone else
     fail(res, 404, "Paper setting request not found.");
+    return null;
+  }
+  if (closedForSetter(paper)) {
+    await audit(req, "PAPER_ACCESS_AFTER_DEADLINE", paper._id, { path: req.originalUrl, deadline: paper.deadline }).catch(() => {});
+    fail(res, 403, "The deadline for this paper is over, so it is closed. Please contact the COE office if you need more time.");
     return null;
   }
   return paper;
@@ -460,9 +475,9 @@ const facultyView = (p) => {
     schemeFile: brief(j.schemeFile),
     schemeRequested: Boolean(j.schemeRequested),
     schemeSubmittedAt: j.schemeSubmittedAt || null,
-    // What the scrutiniser changed (text only, never the file)
+    // What the scrutiniser changed (text only, never the file) – not after the deadline
     scrutiny:
-      j.scrutiny?.status === "DONE"
+      j.scrutiny?.status === "DONE" && !pastDeadline(j)
         ? { doneAt: j.scrutiny.doneAt, note: j.scrutiny.note, changes: j.scrutiny.changes, added: j.scrutiny.added, removed: j.scrutiny.removed }
         : null,
     isPastDeadline: new Date() > new Date(j.deadline),
@@ -478,7 +493,8 @@ export const myAssignments = async (req, res) => {
     })
       .populate(POPULATE[0])
       .sort({ deadline: 1 });
-    res.json({ data: papers.map(facultyView) });
+    // papers whose deadline is over are not listed (see closedForSetter)
+    res.json({ data: papers.filter((p) => !closedForSetter(p)).map(facultyView) });
   } catch (err) {
     handleError(res, err, "myAssignments");
   }

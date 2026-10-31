@@ -1,17 +1,52 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SignInButton, useAuth } from "@clerk/nextjs";
 import { usePathname } from "next/navigation";
+import axios from "axios";
 
 import AppShell from "../components/shell/AppShell";
 import FullPageStatus from "../components/shell/FullPageStatus";
 import { MENUS } from "../components/shell/menus";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const PAPER_HREF = "/faculty";
+const MAX_TIMER = 2 ** 31 - 1; // longest setTimeout (about 24 days)
+
 export default function FacultyLayout({ children }) {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn, getToken } = useAuth();
   const pathname = usePathname();
   const [slow, setSlow] = useState(false);
+  // "Paper setting" shows only while the faculty has a paper still open
+  // (the server lists only papers whose deadline is not over)
+  const [openPapers, setOpenPapers] = useState(null);
+  const [check, setCheck] = useState(0);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    let timer;
+    (async () => {
+      try {
+        const res = await axios.get(`${API_URL}/api/paper-setting/my`, { headers: { Authorization: `Bearer ${await getToken()}` } });
+        const list = res.data?.data || [];
+        setOpenPapers(list.length);
+        // look again when the next deadline passes, so the menu closes by itself
+        const next = Math.min(...list.map((p) => new Date(p.deadline).getTime()).filter((t) => t > Date.now()));
+        if (Number.isFinite(next)) timer = setTimeout(() => setCheck((c) => c + 1), Math.min(next - Date.now() + 2000, MAX_TIMER));
+      } catch {
+        setOpenPapers(0);
+      }
+    })();
+    return () => clearTimeout(timer);
+  }, [isLoaded, isSignedIn, getToken, check]);
+
+  const menu = useMemo(() => {
+    if (openPapers) return MENUS.faculty;
+    return {
+      ...MENUS.faculty,
+      sections: MENUS.faculty.sections.map((s) => ({ ...s, items: s.items.filter((i) => i.href !== PAPER_HREF) })),
+    };
+  }, [openPapers]);
 
   useEffect(() => {
     const t = setTimeout(() => setSlow(true), 10000);
@@ -52,7 +87,7 @@ export default function FacultyLayout({ children }) {
   }
 
   return (
-    <AppShell menu={MENUS.faculty}>
+    <AppShell menu={menu}>
       <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">{children}</div>
     </AppShell>
   );

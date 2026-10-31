@@ -71,6 +71,23 @@ export default function PaperUploadPage() {
     })();
   }, [id, auth, loadPreview]);
 
+  // The page closes itself the moment the deadline is over (the server refuses
+  // everything after that too). A scheme the COE asked for after submission
+  // can still be sent, as before.
+  useEffect(() => {
+    if (!paper) return;
+    if (paper.status === "SUBMITTED" && paper.schemeRequested && !paper.schemeSubmittedAt) return;
+    const left = new Date(paper.deadline).getTime() - Date.now();
+    if (left > 2 ** 31 - 1) return;
+    const t = setTimeout(() => {
+      setPaper(null);
+      setPreview(null);
+      setSchemePreview(null);
+      setError("The deadline for this paper is over, so it is closed. Please contact the COE office if you need more time.");
+    }, Math.max(0, left));
+    return () => clearTimeout(t);
+  }, [paper]);
+
   const pick = (f) => {
     setError("");
     if (!f) return;
