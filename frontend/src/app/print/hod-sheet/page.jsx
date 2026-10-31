@@ -1,9 +1,13 @@
 "use client";
 
-// HOD: submitted Final IA marks / Final attendance with a column for each
-// student's signature (new tab, Print → Save as PDF). Opened from the Final IA
-// or Final attendance page, which hands over the sheet it shows
-// (components/HodSheetPanel.jsx). &auto=1 opens the print dialog by itself.
+// Submitted Final IA marks / Final attendance (new tab, Print → Save as PDF).
+// Opened from the HOD's Final IA / Final attendance page or the Exam Officer's
+// review, which hand over the sheet they show (components/HodSheetPanel.jsx).
+//   copy "students"     – a column for each student's signature
+//   copy "verification" – for the officer who visits to verify the entries:
+//                         remarks column, certificate and the signatures of
+//                         the verifying officer, HOD, Academic Dean, Principal
+// &auto=1 opens the print dialog by itself.
 
 import { Suspense, useEffect, useMemo, useSyncExternalStore } from "react";
 import { useSearchParams } from "next/navigation";
@@ -50,6 +54,7 @@ function Sheet() {
   if (!sheet) return <p className="p-8 text-sm text-slate-600">Nothing to print. Open this from the Final IA or Final attendance page (PDF for student signatures).</p>;
 
   const ia = sheet.kind === "ia";
+  const verify = sheet.copy === "verification";
   const subjects = sheet.subjects || [];
   const students = sheet.students || [];
   const dept = DEPT[String(sheet.department || "").toLowerCase()] || String(sheet.department || "").toUpperCase();
@@ -67,6 +72,7 @@ function Sheet() {
 
       <Letterhead compact />
       <p className="mt-2 text-center text-[13px] font-bold tracking-[0.12em]">{ia ? "FINAL INTERNAL ASSESSMENT (IA) MARKS" : "FINAL ATTENDANCE (%)"}</p>
+      {verify && <p className="text-center text-[11px] font-semibold tracking-[0.2em]">VERIFICATION COPY</p>}
       <p className="mt-1 text-center text-[11.5px]">
         Department: <b>{dept || "—"}</b> &nbsp;·&nbsp; Semester: <b>{sheet.semester}</b> &nbsp;·&nbsp; Batch: <b>{sheet.batch}</b> &nbsp;·&nbsp; Academic year:{" "}
         <b>{sheet.academicYear}</b>
@@ -84,7 +90,7 @@ function Sheet() {
                 {ia && <div className="text-[9px] font-normal">Max {s.iaMax ?? "–"}</div>}
               </th>
             ))}
-            <th className={`${th} w-[30mm]`}>Student signature</th>
+            <th className={`${th} ${verify ? "w-[24mm]" : "w-[30mm]"}`}>{verify ? "Remarks" : "Student signature"}</th>
           </tr>
         </thead>
         <tbody>
@@ -114,10 +120,71 @@ function Sheet() {
         {!ia && <p className="mt-1">* below {SHORTAGE_BELOW}% – shortage of attendance.</p>}
       </div>
 
-      <div className="mt-14 flex justify-between text-[11px] break-inside-avoid">
-        <p className="w-56 border-t border-slate-700 pt-1 text-center">Class teacher / Coordinator</p>
-        <p className="w-56 border-t border-slate-700 pt-1 text-center">Head of the Department</p>
+      {verify ? (
+        <Verification ia={ia} count={students.length} dept={dept} sheet={sheet} />
+      ) : (
+        <div className="mt-14 flex justify-between text-[11px] break-inside-avoid">
+          <p className="w-56 border-t border-slate-700 pt-1 text-center">Class teacher / Coordinator</p>
+          <p className="w-56 border-t border-slate-700 pt-1 text-center">Head of the Department</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Certificate and sign-off of the verification copy
+function Verification({ ia, count, dept, sheet }) {
+  const what = ia ? "Final Internal Assessment (IA) marks" : "Final attendance";
+  const records = ia ? "IA test answer scripts, assignments and the IA register" : "attendance registers";
+  const line = "mt-1 h-6 border-b border-dotted border-slate-500";
+  const box = "rounded border border-slate-700 p-2";
+  return (
+    <div className="mt-5 text-[10.5px] leading-5 break-inside-avoid">
+      <p className="font-bold">VERIFICATION CERTIFICATE</p>
+      <p className="mt-1 text-justify">
+        Certified that the {what} of the above <b>{count}</b> students of {dept || "the department"}, Semester {sheet.semester} (Batch {sheet.batch},
+        academic year {sheet.academicYear}) have been verified with the {records}, and are found
+        <span className="mx-1 inline-block w-4 border border-slate-700 align-middle" style={{ height: "10px" }} /> correct
+        <span className="mx-1 ml-3 inline-block w-4 border border-slate-700 align-middle" style={{ height: "10px" }} /> correct except as noted in
+        the Remarks column / below.
+      </p>
+      <p className="mt-1">Observations, if any:</p>
+      <div className={line} />
+      <div className={line} />
+
+      <div className={`mt-3 ${box}`}>
+        <p className="font-bold">Verified by</p>
+        <div className="mt-1 grid grid-cols-2 gap-x-6">
+          <p>
+            Name: <span className="inline-block w-[60mm] border-b border-dotted border-slate-500" />
+          </p>
+          <p>
+            Designation: <span className="inline-block w-[50mm] border-b border-dotted border-slate-500" />
+          </p>
+          <p className="mt-2">
+            Institution: <span className="inline-block w-[55mm] border-b border-dotted border-slate-500" />
+          </p>
+          <p className="mt-2">
+            Date of verification: <span className="inline-block w-[38mm] border-b border-dotted border-slate-500" />
+          </p>
+        </div>
+        <p className="mt-8 text-right">Signature of the verifying officer</p>
       </div>
+
+      <div className="mt-12 grid grid-cols-3 gap-6 text-center">
+        <p className="border-t border-slate-700 pt-1">
+          Head of the Department
+          <br />
+          <span className="text-[9.5px] text-slate-600">{dept}</span>
+        </p>
+        <p className="border-t border-slate-700 pt-1">Academic Dean</p>
+        <p className="border-t border-slate-700 pt-1">
+          Principal
+          <br />
+          <span className="text-[9.5px] text-slate-600">(Seal)</span>
+        </p>
+      </div>
+      <p className="mt-4 text-[9.5px] text-slate-500">The verifying officer and the HOD initial every page of this copy.</p>
     </div>
   );
 }

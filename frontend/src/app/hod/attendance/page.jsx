@@ -1366,9 +1366,10 @@ export default function AttendancePage() {
   ]);
 
   // PDF of the submitted attendance with a student-signature column
-  const openPdf = () =>
+  const openPdf = (copy = "students") =>
     openSignatureSheet({
       kind: "attendance",
+      copy,
       academicYear,
       semester,
       batch,

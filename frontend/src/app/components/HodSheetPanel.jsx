@@ -3,13 +3,14 @@
 // One place for everything Excel / PDF on the HOD Final IA and Final attendance
 // pages (shown once the students are loaded):
 //   1 Download template → 2 fill it → 3 Upload it     (while the sheet is a draft)
-//   PDF with a student-signature column                 (after Submit)
+//   PDF with a student-signature column, and the verification copy for the
+//   officer who visits to verify the entries               (after Submit)
 // The page keeps its own download / upload logic; this only calls it.
 
 const STORE = "kpt-hod-sheet";
 
-// Opens the signature sheet (print → Save as PDF) in a new tab.
-//   sheet: { kind, academicYear, semester, batch, status, department,
+// Opens the sheet (print → Save as PDF) in a new tab.
+//   sheet: { kind, copy: "students" | "verification", academicYear, semester, batch, status, department,
 //            subjects: [{ subjectId, code, name, iaMin, iaMax }],
 //            students: [{ registerNumber, studentName, values: { [subjectId]: value } }] }
 export function openSignatureSheet(sheet) {
@@ -78,12 +79,21 @@ export default function HodSheetPanel({ kind, status, importing, onDownload, onU
       {/* PDF for signatures: after Submit */}
       <div className={`rounded-lg border p-3 ${draft ? "border-gray-200 bg-gray-50" : "border-blue-200 bg-blue-50"}`}>
         <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">After Submit</p>
-        <p className="mt-1 text-xs text-gray-700">
-          PDF of the {what} with a <b>student signature</b> column – print it and let each student sign.
-        </p>
-        <button type="button" onClick={onPdf} disabled={draft} className={`${btn} mt-2 w-full bg-blue-600 text-white hover:bg-blue-700`}>
-          ⎙ PDF for student signatures
-        </button>
+        <p className="mt-1 text-xs text-gray-700">PDF of the {what}, to print:</p>
+        <div className="mt-2 grid gap-1.5">
+          <button type="button" onClick={() => onPdf("students")} disabled={draft} className={`${btn} w-full bg-blue-600 text-white hover:bg-blue-700`}>
+            ⎙ Student signature copy
+          </button>
+          <button
+            type="button"
+            onClick={() => onPdf("verification")}
+            disabled={draft}
+            title="For the officer who visits to verify – with HOD, Academic Dean and Principal signatures"
+            className={`${btn} w-full bg-white text-blue-700 ring-1 ring-blue-600 hover:bg-blue-50`}
+          >
+            ⎙ Verification copy
+          </button>
+        </div>
         {draft && <p className="mt-1.5 text-[11px] text-gray-500">Available once the sheet is submitted.</p>}
       </div>
     </div>

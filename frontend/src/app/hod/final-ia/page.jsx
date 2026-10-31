@@ -1196,9 +1196,10 @@ export default function FinalIAPage() {
   ]);
 
   // PDF of the submitted marks with a student-signature column
-  const openPdf = () =>
+  const openPdf = (copy = "students") =>
     openSignatureSheet({
       kind: "ia",
+      copy,
       academicYear,
       semester,
       batch,

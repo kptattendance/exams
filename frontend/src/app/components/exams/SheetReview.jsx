@@ -12,6 +12,7 @@ import Modal, { btn, field } from "../ui/Modal";
 import { useConfirm, useToast } from "../ui/Feedback";
 import { deptLabel, errMsg, useApi } from "./shared";
 import { T } from "../ui/table";
+import { openSignatureSheet } from "../HodSheetPanel";
 
 const TITLE = { ia: "Final IA", attendance: "Final attendance" };
 const TABS = [
@@ -241,6 +242,26 @@ const CELL = {
   "": "",
 };
 
+// The same printed sheet as the HOD's (print/hod-sheet): attendance as %
+function printCopy(type, sheet, copy) {
+  const ia = type === "ia";
+  openSignatureSheet({
+    kind: ia ? "ia" : "attendance",
+    copy,
+    academicYear: sheet.academicYear,
+    semester: sheet.semester,
+    batch: sheet.batch,
+    status: sheet.status,
+    department: sheet.department,
+    subjects: sheet.subjects.map((s) => ({ subjectId: String(s.subjectId), code: s.code, name: s.name, iaMin: s.iaMin, iaMax: s.max ?? s.iaMax })),
+    students: sheet.students.map((st) => ({
+      registerNumber: st.registerNumber,
+      studentName: st.name,
+      values: Object.fromEntries(sheet.subjects.map((s, i) => [String(s.subjectId), ia ? st.cells[i]?.value ?? "" : st.cells[i]?.pct ?? ""])),
+    })),
+  });
+}
+
 function ReviewModal({ type, id, onClose, onFreeze, onChanged }) {
   const api = useApi();
   const toast = useToast();
@@ -301,6 +322,12 @@ function ReviewModal({ type, id, onClose, onFreeze, onChanged }) {
             {sheet.status !== "draft" && (
               <button onClick={() => setReturning(true)} className={`${btn.secondary} sm:mr-auto`}>
                 Send back to HOD
+              </button>
+            )}
+            {sheet.status !== "draft" && (
+              <button onClick={() => printCopy(type, sheet, "verification")} className={btn.secondary} title="For the officer who visits to verify – with HOD, Academic Dean and Principal signatures">
+                <Icon name="download" className="h-4 w-4" />
+                Verification copy
               </button>
             )}
             <button onClick={onClose} className={btn.secondary}>
