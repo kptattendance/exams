@@ -31,6 +31,9 @@ const isExternal = (examiner) => {
   return Boolean(code) && code !== HOME_CODE;
 };
 
+// assignments whose deadline / email can still be changed
+const OPEN_STATUSES = ["ASSIGNED", "UPLOADED", "RETURNED"];
+
 const STATUS_STYLE = {
   ASSIGNED: "bg-slate-100 text-slate-700",
   UPLOADED: "bg-amber-50 text-amber-700",
@@ -98,6 +101,9 @@ export default function PaperSettingPage() {
 
   const [showCreate, setShowCreate] = useState(false);
   const [extending, setExtending] = useState(null);
+  const [selected, setSelected] = useState([]); // ids ticked for bulk actions
+  const [bulkDeadline, setBulkDeadline] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState("");
   const [auditFor, setAuditFor] = useState(null);
   const [showSyllabus, setShowSyllabus] = useState(false);
   const [busyId, setBusyId] = useState(null);
@@ -146,6 +152,54 @@ export default function PaperSettingPage() {
     for (const p of papers) c[p.status] = (c[p.status] || 0) + 1;
     return c;
   }, [papers]);
+
+  // ---- bulk: deadline / email for many assignments at once
+  // (one request per paper, the same as doing them one by one – each is logged)
+  const shownIds = new Set(papers.map((p) => p._id));
+  const picked = papers.filter((p) => selected.includes(p._id) && OPEN_STATUSES.includes(p.status));
+  const openShown = papers.filter((p) => OPEN_STATUSES.includes(p.status));
+  const allPicked = openShown.length > 0 && openShown.every((p) => selected.includes(p._id));
+  const toggle = (id) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  const toggleAll = () =>
+    setSelected((s) => (allPicked ? s.filter((id) => !shownIds.has(id)) : [...new Set([...s, ...openShown.map((p) => p._id)])]));
+
+  const runBulk = async (label, list, fn) => {
+    const failed = [];
+    for (let i = 0; i < list.length; i++) {
+      setBulkBusy(`${label} ${i + 1} of ${list.length}…`);
+      try {
+        await fn(list[i]);
+      } catch (e) {
+        failed.push(`${list[i].subject?.code} Set ${list[i].setNo}: ${e.response?.data?.error || "failed"}`);
+      }
+    }
+    setBulkBusy("");
+    await load();
+    return failed;
+  };
+
+  const bulkSetDeadline = async ({ mode, date, days, email }) => {
+    const list = picked;
+    const failed = await runBulk("Updating", list, async (p) => {
+      const due = mode === "add" ? new Date(new Date(p.deadline).getTime() + Number(days) * 864e5) : new Date(date);
+      await api("patch", `/paper-setting/${p._id}`, { deadline: due.toISOString() });
+      if (email) await api("post", `/paper-setting/${p._id}/send-email`);
+    });
+    setBulkDeadline(false);
+    setSelected([]);
+    const ok = list.length - failed.length;
+    if (failed.length) toast.error(`${ok} updated, ${failed.length} not: ${failed.join("; ")}`, 12000);
+    else flash(`Deadline changed for ${ok} assignment${ok === 1 ? "" : "s"}${email ? " and the setters were emailed" : ""}.`);
+  };
+
+  const bulkEmail = async () => {
+    const list = picked;
+    const failed = await runBulk("Emailing", list, (p) => api("post", `/paper-setting/${p._id}/send-email`));
+    setSelected([]);
+    const ok = list.length - failed.length;
+    if (failed.length) toast.error(`${ok} emailed, ${failed.length} not: ${failed.join("; ")}`, 12000);
+    else flash(`Email sent to ${ok} paper setter${ok === 1 ? "" : "s"}.`);
+  };
 
   const act = async (id, fn, okMsg) => {
     setBusyId(id);
@@ -410,6 +464,26 @@ ${
 
       {error && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
+      {/* BULK ACTIONS for the ticked assignments */}
+      {(picked.length > 0 || bulkBusy) && (
+        <div className="sticky top-2 z-20 mb-3 flex flex-wrap items-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 shadow-sm">
+          <p className="mr-auto text-sm font-semibold text-blue-900">{bulkBusy || `${picked.length} selected`}</p>
+          {!bulkBusy && (
+            <>
+              <button onClick={() => setBulkDeadline(true)} className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+                Change deadline
+              </button>
+              <button onClick={bulkEmail} className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                Send email / Remind
+              </button>
+              <button onClick={() => setSelected([])} className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-white">
+                Clear
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* TABLE */}
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         {loading ? (
@@ -427,6 +501,16 @@ ${
             <table className="w-full min-w-[980px]">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50">
+                  <th className="w-10 px-3 py-3">
+                    <input
+                      type="checkbox"
+                      checked={allPicked}
+                      onChange={toggleAll}
+                      disabled={!openShown.length || Boolean(bulkBusy)}
+                      title="Select all open assignments shown"
+                      className="h-4 w-4 accent-blue-600"
+                    />
+                  </th>
                   {["Sl.", "Subject", "Set", "Examiner", "Deadline", "Status", "Email", "Actions"].map((h) => (
                     <th key={h} className="px-3 py-3 text-left text-xs font-semibold text-slate-500">
                       {h}
@@ -440,7 +524,17 @@ ${
                     !["SUBMITTED", "CANCELLED"].includes(p.status) && new Date(p.deadline) < new Date();
                   const busy = busyId === p._id;
                   return (
-                    <tr key={p._id} className="border-b border-slate-100 align-top last:border-0 hover:bg-slate-50/60">
+                    <tr key={p._id} className={`border-b border-slate-100 align-top last:border-0 hover:bg-slate-50/60 ${selected.includes(p._id) ? "bg-blue-50/60" : ""}`}>
+                      <td className="px-3 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selected.includes(p._id)}
+                          onChange={() => toggle(p._id)}
+                          disabled={!OPEN_STATUSES.includes(p.status) || Boolean(bulkBusy)}
+                          title={OPEN_STATUSES.includes(p.status) ? "" : "Submitted or cancelled – nothing to change"}
+                          className="h-4 w-4 accent-blue-600"
+                        />
+                      </td>
                       <td className="px-3 py-3 text-sm tabular-nums text-slate-500">{i + 1}</td>
                       <td className="px-3 py-3">
                         <p className="text-sm font-semibold text-slate-900">{p.subject?.code}</p>
@@ -493,9 +587,18 @@ ${
               const overdue = !["SUBMITTED", "CANCELLED"].includes(p.status) && new Date(p.deadline) < new Date();
               const busy = busyId === p._id;
               return (
-                <li key={p._id} className="p-4">
+                <li key={p._id} className={`p-4 ${selected.includes(p._id) ? "bg-blue-50/60" : ""}`}>
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
+                    {OPEN_STATUSES.includes(p.status) && (
+                      <input
+                        type="checkbox"
+                        checked={selected.includes(p._id)}
+                        onChange={() => toggle(p._id)}
+                        disabled={Boolean(bulkBusy)}
+                        className="mt-1 h-4 w-4 shrink-0 accent-blue-600"
+                      />
+                    )}
+                    <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-slate-900">
                         <span className="mr-1 font-normal text-slate-400">{i + 1}.</span>
                         {p.subject?.code} <span className="font-normal text-slate-400">Set {p.setNo}</span>
@@ -562,6 +665,8 @@ ${
         />
       )}
 
+      {bulkDeadline && <BulkDeadlineModal papers={picked} onClose={() => setBulkDeadline(false)} onSubmit={bulkSetDeadline} />}
+
       {auditFor && <AuditModal api={api} paper={auditFor} onClose={() => setAuditFor(null)} />}
 
       {showSyllabus && <SyllabusModal api={api} onClose={() => setShowSyllabus(false)} />}
@@ -601,6 +706,95 @@ function Modal({ title, onClose, children, wide }) {
         {children}
       </div>
     </div>
+  );
+}
+
+// Change the deadline of many assignments: N more days each, or one date for all
+function BulkDeadlineModal({ papers, onClose, onSubmit }) {
+  const [mode, setMode] = useState("add");
+  const [days, setDays] = useState(7);
+  const [date, setDate] = useState(() => {
+    const latest = papers.reduce((m, p) => Math.max(m, new Date(p.deadline).getTime()), Date.now());
+    return toLocalInput(new Date(latest + 7 * 864e5));
+  });
+  const [email, setEmail] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const valid = mode === "add" ? Number(days) > 0 : Boolean(date);
+  const sample = papers[0];
+
+  return (
+    <Modal title={`Change deadline – ${papers.length} assignment${papers.length === 1 ? "" : "s"}`} onClose={saving ? () => {} : onClose}>
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            ["add", "Extend each by days"],
+            ["set", "Same date for all"],
+          ].map(([k, l]) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setMode(k)}
+              className={`rounded-xl border px-3 py-2 text-sm font-semibold ${mode === k ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 text-slate-700 hover:bg-slate-50"}`}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+
+        {mode === "add" ? (
+          <Field label="Extend every deadline by (days)">
+            <div className="flex flex-wrap items-center gap-2">
+              <input type="number" min="1" max="90" className={`${inputCls} w-28`} value={days} onChange={(e) => setDays(e.target.value)} />
+              {[3, 7, 15].map((d) => (
+                <button key={d} type="button" onClick={() => setDays(d)} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">
+                  +{d} days
+                </button>
+              ))}
+            </div>
+            {sample && Number(days) > 0 && (
+              <p className="mt-1.5 text-xs text-slate-500">
+                e.g. {sample.subject?.code} Set {sample.setNo}: {fmtDate(sample.deadline)} → {fmtDate(new Date(new Date(sample.deadline).getTime() + Number(days) * 864e5))}
+              </p>
+            )}
+          </Field>
+        ) : (
+          <Field label="New deadline for all selected">
+            <input type="datetime-local" className={inputCls} value={date} onChange={(e) => setDate(e.target.value)} />
+          </Field>
+        )}
+
+        <label className="flex items-start gap-2 text-sm text-slate-700">
+          <input type="checkbox" checked={email} onChange={(e) => setEmail(e.target.checked)} className="mt-0.5 h-4 w-4 accent-blue-600" />
+          Also email each paper setter (reminder with the new deadline)
+        </label>
+
+        <div className="max-h-40 overflow-y-auto rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">
+          {papers.map((p) => (
+            <p key={p._id}>
+              {p.subject?.code} Set {p.setNo} · {p.examiner?.name} · now {fmtDate(p.deadline)}
+            </p>
+          ))}
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <button type="button" onClick={onClose} disabled={saving} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={!valid || saving}
+            onClick={async () => {
+              setSaving(true);
+              await onSubmit({ mode, date, days, email });
+              setSaving(false);
+            }}
+            className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:bg-slate-300"
+          >
+            {saving ? "Updating…" : "Change deadlines"}
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
