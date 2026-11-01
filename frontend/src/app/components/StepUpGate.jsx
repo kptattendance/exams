@@ -9,6 +9,7 @@
 // It hooks into axios, so no page needs to change.
 
 import { useEffect, useRef, useState } from "react";
+import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "";
@@ -43,11 +44,34 @@ async function stepUpOf(error) {
 }
 
 let openPrompt = null; // set by the mounted component
+
+// The sign-in token (Clerk) lives only about a minute. Waiting for the code
+// usually takes longer, so the code check and the repeated request must use a
+// fresh token – not the one the first request carried (that gave
+// "Unauthorized. No authenticated Clerk user found." with a correct code).
+let freshToken = null; // set by the mounted component
+async function authHeader(fallback) {
+  try {
+    const t = freshToken ? await freshToken() : null;
+    if (t) return `Bearer ${t}`;
+  } catch {
+    // fall back to the token of the first request
+  }
+  return fallback || null;
+}
 const waiting = new Map(); // scope -> promise, so parallel requests share one prompt
 
 export default function StepUpGate() {
   const [ask, setAsk] = useState(null); // { scope, label, auth, resolve }
   const installed = useRef(false);
+  const { getToken } = useAuth();
+
+  useEffect(() => {
+    freshToken = () => getToken();
+    return () => {
+      freshToken = null;
+    };
+  }, [getToken]);
 
   useEffect(() => {
     if (installed.current) return;
@@ -80,6 +104,15 @@ export default function StepUpGate() {
       const ok = await waiting.get(step.scope);
       if (!ok) throw Object.assign(error, { message: "Verification cancelled." });
       config._stepUpTried = true;
+      // repeat it with a fresh sign-in token (the first one may have expired meanwhile)
+      if (auth) {
+        const fresh = await authHeader(auth);
+        if (typeof config.headers?.set === "function") config.headers.set("Authorization", fresh);
+        else {
+          delete config.headers.authorization;
+          config.headers.Authorization = fresh;
+        }
+      }
       return axios(config);
     });
 
@@ -107,13 +140,16 @@ function CodeDialog({ ask, onDone }) {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const headers = ask.auth ? { Authorization: ask.auth } : {};
+  const headers = async () => {
+    const a = await authHeader(ask.auth);
+    return a ? { Authorization: a } : {};
+  };
 
   const send = async () => {
     setBusy(true);
     setError("");
     try {
-      const r = await axios.post(`${API}/api/otp/request`, { scope: ask.scope }, { headers });
+      const r = await axios.post(`${API}/api/otp/request`, { scope: ask.scope }, { headers: await headers() });
       setSent(r.data);
       setCode("");
     } catch (e) {
@@ -128,7 +164,7 @@ function CodeDialog({ ask, onDone }) {
     setBusy(true);
     setError("");
     try {
-      const r = await axios.post(`${API}/api/otp/verify`, { requestId: sent.requestId, code }, { headers });
+      const r = await axios.post(`${API}/api/otp/verify`, { requestId: sent.requestId, code }, { headers: await headers() });
       passes.set(r.data.scope, { token: r.data.token, expiresAt: r.data.expiresAt });
       savePasses();
       onDone(true);
