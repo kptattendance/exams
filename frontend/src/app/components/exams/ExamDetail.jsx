@@ -44,6 +44,13 @@ export default function ExamDetail({ id, basePath, canManage = false, canEditSub
   const [addingBack, setAddingBack] = useState(false);
   const [listKey, setListKey] = useState(0);
   const [filters, setFilters] = useState({ cls: "", overall: "", issue: "", q: "" });
+  const [tab, setTab] = useState("classes"); // classes | students | sheets
+  const [openClass, setOpenClass] = useState(null); // class shown in the pop-up
+  // a tile / count was clicked: show the students with that filter
+  const showStudents = (patch) => {
+    setFilters((f) => ({ ...f, ...patch }));
+    setTab("students");
+  };
 
   const load = useCallback(async () => {
     try {
@@ -323,70 +330,122 @@ export default function ExamDetail({ id, basePath, canManage = false, canEditSub
           ) : (
             <p className="mt-6 text-sm font-medium text-slate-500">The COE has not registered students yet.</p>
           )}
-          <SheetStatus readiness={exam.readiness} semesters={exam.semesters} />
+          <div className="mt-8 border-t border-slate-100 pt-6">
+            <SheetTable readiness={exam.readiness} semesters={exam.semesters} />
+          </div>
         </div>
       )}
 
       {registered && (
         <>
-          {/* ------------------------------------------------ tiles */}
+          {/* ------------------------------------------------ summary */}
           <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
-            <Tile n={totalStudents} label="Students" onClick={() => setFilters((f) => ({ ...f, overall: "" }))} active={!filters.overall} />
-            {["ALL_CLEAR", "PARTIAL", "BLOCKED", "PENDING"].map((k) => (
-              <Tile
-                key={k}
-                n={sum(k)}
-                label={OVERALL[k].short}
-                dot={OVERALL[k].dot}
-                active={filters.overall === k}
-                onClick={() => setFilters((f) => ({ ...f, overall: f.overall === k ? "" : k }))}
-              />
+            <Tile n={totalStudents} label="Students" tone="slate" icon="students" active={tab === "students" && !filters.overall} onClick={() => showStudents({ overall: "" })} />
+            {[
+              ["ALL_CLEAR", "emerald", "check"],
+              ["PARTIAL", "orange", "alert"],
+              ["BLOCKED", "red", "close"],
+              ["PENDING", "slate", "list"],
+            ].map(([k, tone, icon]) => (
+              <Tile key={k} n={sum(k)} label={OVERALL[k].short} tone={tone} icon={icon} active={tab === "students" && filters.overall === k} onClick={() => showStudents({ overall: filters.overall === k ? "" : k })} />
             ))}
           </div>
-          <p className="mt-3 text-sm text-slate-500">
-            Subjects: <b className="text-emerald-700">{exam.subjectCounts.ELIGIBLE}</b> eligible ·{" "}
-            <button className="font-semibold text-red-700 hover:underline" onClick={() => setFilters((f) => ({ ...f, issue: "ANS" }))}>
-              {exam.subjectCounts.ANS} attendance shortage
-            </button>{" "}
-            ·{" "}
-            <button className="font-semibold text-orange-700 hover:underline" onClick={() => setFilters((f) => ({ ...f, issue: "NE" }))}>
-              {exam.subjectCounts.NE} IA below minimum
-            </button>{" "}
-            · {exam.subjectCounts.PENDING} waiting
-          </p>
-          {exam.feeCounts && (
-            <p className="mt-1 text-sm text-slate-500">
-              Fees: <b className="text-emerald-700">{exam.feeCounts.PAID}</b> fully paid ·{" "}
-              <b className="text-orange-700">{exam.feeCounts.PARTIAL}</b> partly paid ·{" "}
-              <b className="text-red-700">{exam.feeCounts.UNPAID}</b> not paid
-              {feesHref && (
-                <Link href={feesHref} className="ml-2 font-semibold text-blue-700 hover:underline">
-                  Open fee verification →
-                </Link>
-              )}
-            </p>
-          )}
 
-          {/* ------------------------------------------------ classes */}
-          <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
-            <ClassTable classes={exam.classes} selected={filters.cls} onSelect={(cls) => setFilters((f) => ({ ...f, cls }))} onDownload={download} />
-            <div className="rounded-2xl border border-slate-200 bg-white p-5">
-              <SheetStatus readiness={exam.readiness} semesters={exam.semesters} compact />
+          <div className="mt-3 grid gap-3 lg:grid-cols-2">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm">
+              <span className="font-semibold text-slate-800">Subjects</span>
+              <span>
+                <b className="tabular-nums text-emerald-700">{exam.subjectCounts.ELIGIBLE}</b> <span className="text-slate-500">eligible</span>
+              </span>
+              <button className="hover:underline" onClick={() => showStudents({ issue: "ANS" })}>
+                <b className="tabular-nums text-red-700">{exam.subjectCounts.ANS}</b> <span className="text-slate-500">attendance shortage (ANS)</span>
+              </button>
+              <button className="hover:underline" onClick={() => showStudents({ issue: "NE" })}>
+                <b className="tabular-nums text-orange-700">{exam.subjectCounts.NE}</b> <span className="text-slate-500">IA below minimum (NE)</span>
+              </button>
+              <button className="hover:underline" onClick={() => showStudents({ issue: "PENDING" })}>
+                <b className="tabular-nums text-slate-700">{exam.subjectCounts.PENDING}</b> <span className="text-slate-500">waiting</span>
+              </button>
             </div>
+            {exam.feeCounts && (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm">
+                <span className="font-semibold text-slate-800">Fees</span>
+                <span>
+                  <b className="tabular-nums text-emerald-700">{exam.feeCounts.PAID}</b> <span className="text-slate-500">fully paid</span>
+                </span>
+                <span>
+                  <b className="tabular-nums text-orange-700">{exam.feeCounts.PARTIAL}</b> <span className="text-slate-500">partly paid</span>
+                </span>
+                <span>
+                  <b className="tabular-nums text-red-700">{exam.feeCounts.UNPAID}</b> <span className="text-slate-500">not paid</span>
+                </span>
+                {feesHref && (
+                  <Link href={feesHref} className="ml-auto font-semibold text-blue-700 hover:underline">
+                    Fee verification →
+                  </Link>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* ------------------------------------------------ students */}
-          <StudentList
-            key={listKey}
-            examId={id}
-            classes={exam.classes}
-            filters={filters}
-            setFilters={setFilters}
-            canManage={canManage}
-            canEditSubjects={canEditSubjects}
-            onChanged={load}
-          />
+          {/* ------------------------------------------------ tabs */}
+          <div className="no-scrollbar mt-6 flex gap-1 overflow-x-auto border-b border-slate-200">
+            {[
+              ["classes", "Classes", exam.classes.length],
+              ["students", "Students", totalStudents],
+              ["sheets", "HOD sheets (IA / attendance)", notReady.length ? `${notReady.length} not frozen` : "all frozen"],
+            ].map(([k, label, badge]) => (
+              <button
+                key={k}
+                onClick={() => setTab(k)}
+                className={`-mb-px flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-semibold transition ${
+                  tab === k ? "border-blue-600 text-blue-700" : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                {label}
+                <span className={`rounded-full px-2 py-0.5 text-[11px] ${tab === k ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-500"}`}>{badge}</span>
+              </button>
+            ))}
+          </div>
+
+          {tab === "classes" && <ClassTable classes={exam.classes} onOpen={setOpenClass} onDownload={download} />}
+
+          {tab === "students" && (
+            <StudentList
+              key={listKey}
+              examId={id}
+              classes={exam.classes}
+              filters={filters}
+              setFilters={setFilters}
+              canManage={canManage}
+              canEditSubjects={canEditSubjects}
+              onChanged={load}
+            />
+          )}
+
+          {tab === "sheets" && (
+            <div className="mt-4">
+              <SheetTable readiness={exam.readiness} semesters={exam.semesters} />
+            </div>
+          )}
         </>
+      )}
+
+      {/* ------------------------------------------------ one class in a pop-up */}
+      {openClass && (
+        <ClassModal
+          cls={openClass}
+          examId={id}
+          classes={exam.classes}
+          canManage={canManage}
+          canEditSubjects={canEditSubjects}
+          onChanged={load}
+          onDownload={download}
+          onClose={() => {
+            setOpenClass(null);
+            setListKey((k) => k + 1);
+          }}
+        />
       )}
 
       {/* ------------------------------------------------ modals */}
@@ -430,145 +489,271 @@ function Banner({ tone, icon, title, children }) {
   );
 }
 
-function Tile({ n, label, dot, active, onClick }) {
+const TONE = {
+  slate: { box: "from-slate-50 to-white", icon: "bg-slate-100 text-slate-600", num: "text-slate-950" },
+  emerald: { box: "from-emerald-50 to-white", icon: "bg-emerald-100 text-emerald-700", num: "text-emerald-800" },
+  orange: { box: "from-orange-50 to-white", icon: "bg-orange-100 text-orange-700", num: "text-orange-800" },
+  red: { box: "from-red-50 to-white", icon: "bg-red-100 text-red-700", num: "text-red-800" },
+};
+
+function Tile({ n, label, tone = "slate", icon, active, onClick }) {
+  const t = TONE[tone];
   return (
     <button
       onClick={onClick}
-      className={`rounded-2xl border bg-white px-4 py-3 text-left transition hover:border-slate-300 ${
+      className={`flex items-center gap-3 rounded-2xl border bg-gradient-to-br ${t.box} px-4 py-3 text-left transition hover:shadow-sm ${
         active ? "border-blue-600 ring-4 ring-blue-50" : "border-slate-200"
       }`}
     >
-      <p className="text-2xl font-bold tabular-nums tracking-tight text-slate-950">{n}</p>
-      <p className="mt-0.5 flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-        {dot && <span className={`h-2 w-2 rounded-full ${dot}`} />}
-        {label}
-      </p>
+      {icon && (
+        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${t.icon}`}>
+          <Icon name={icon} className="h-5 w-5" />
+        </span>
+      )}
+      <span className="min-w-0">
+        <span className={`block text-2xl font-bold tabular-nums tracking-tight ${t.num}`}>{n}</span>
+        <span className="block truncate text-xs font-semibold text-slate-500">{label}</span>
+      </span>
     </button>
   );
 }
 
-function ClassTable({ classes, selected, onSelect, onDownload }) {
-  const [all, setAll] = useState(false);
-  const LIMIT = 8;
-  const shown = all || classes.length <= LIMIT + 2 ? classes : classes.slice(0, LIMIT);
+// Every class of the exam – click a row to see its students in a pop-up
+function ClassTable({ classes, onOpen, onDownload }) {
+  const [sem, setSem] = useState("");
+  const [q, setQ] = useState("");
+  const sems = [...new Set(classes.filter((c) => c.key !== "backlog").map((c) => c.semester))].sort();
+  const shown = classes.filter(
+    (c) =>
+      (!sem || (sem === "backlog" ? c.key === "backlog" : String(c.semester) === sem && c.key !== "backlog")) &&
+      (!q || `${c.department} ${deptLabel(c.department)}`.toLowerCase().includes(q.trim().toLowerCase()))
+  );
+  const num = "px-3 py-3 text-right tabular-nums";
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
-        <p className="font-semibold text-slate-900">Class-wise</p>
-        {selected && (
-          <button onClick={() => onSelect("")} className="text-xs font-semibold text-blue-700 hover:underline">
-            Show all classes
-          </button>
-        )}
+    <div className="mt-4">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="relative w-60">
+          <Icon name="search" className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Department" className={`${T.field} w-full pl-8`} />
+        </div>
+        <select value={sem} onChange={(e) => setSem(e.target.value)} className={T.field}>
+          <option value="">All semesters</option>
+          {sems.map((s) => (
+            <option key={s} value={s}>
+              Semester {s}
+            </option>
+          ))}
+          {classes.some((c) => c.key === "backlog") && <option value="backlog">Back papers only</option>}
+        </select>
+        <span className="ml-auto text-xs text-slate-500">Click a class to see its students</span>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[520px] text-sm">
-          <thead>
-            <tr className="text-left text-xs font-semibold text-slate-500">
-              <th className="px-5 py-2.5">Class</th>
-              <th className="px-2 py-2.5 text-right">Students</th>
-              <th className="px-2 py-2.5 text-right text-emerald-700">All clear</th>
-              <th className="px-2 py-2.5 text-right text-red-600">Not permitted</th>
-              <th className="px-2 py-2.5 text-right">Waiting</th>
-              <th className="px-3 py-2.5" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {shown.map((c) => {
-              const on = selected === c.key;
-              return (
-                <tr
-                  key={c.key}
-                  onClick={() => onSelect(on ? "" : c.key)}
-                  className={`cursor-pointer ${on ? "bg-blue-50/70" : "hover:bg-slate-50"}`}
-                >
-                  <td className="px-5 py-2.5">
-                    {c.key === "backlog" ? (
-                      <span className="font-semibold text-slate-900">Back papers only</span>
-                    ) : (
-                      <>
-                        <span className="font-semibold text-slate-900">
-                          {c.department.toUpperCase()} · Sem {c.semester}
-                        </span>
-                        <span className="ml-2 hidden text-xs text-slate-500 sm:inline">{deptLabel(c.department)}</span>
-                      </>
-                    )}
-                  </td>
-                  <td className="px-2 py-2.5 text-right tabular-nums">{c.students}</td>
-                  <td className="px-2 py-2.5 text-right tabular-nums text-emerald-700">{c.ALL_CLEAR}</td>
-                  <td className="px-2 py-2.5 text-right tabular-nums text-red-600">{c.PARTIAL + c.BLOCKED || ""}</td>
-                  <td className="px-2 py-2.5 text-right tabular-nums text-slate-500">{c.PENDING || ""}</td>
-                  <td className="px-3 py-2.5 text-right">
-                    {c.key !== "backlog" && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDownload({ department: c.department, semester: c.semester });
-                        }}
-                        className="rounded-lg p-1.5 text-slate-400 hover:bg-white hover:text-slate-800"
-                        title="Download this class (Excel)"
-                        aria-label={`Download ${c.key}`}
-                      >
-                        <Icon name="download" className="h-4 w-4" />
-                      </button>
-                    )}
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[820px] text-sm">
+            <thead>
+              <tr className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <th className="w-12 px-3 py-3 text-center">Sl.</th>
+                <th className="px-3 py-3">Class</th>
+                <th className="px-3 py-3">Department</th>
+                <th className="px-3 py-3 text-right">Students</th>
+                <th className="px-3 py-3 text-right text-emerald-700">All clear</th>
+                <th className="px-3 py-3 text-right text-orange-700">Partly blocked</th>
+                <th className="px-3 py-3 text-right text-red-700">Blocked</th>
+                <th className="px-3 py-3 text-right">Waiting</th>
+                <th className="w-36 px-3 py-3">Ready</th>
+                <th className="px-3 py-3" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {shown.length === 0 && (
+                <tr>
+                  <td colSpan={10} className="px-4 py-10 text-center text-slate-500">
+                    No class matches.
                   </td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              )}
+              {shown.map((c, i) => {
+                const pct = c.students ? Math.round((c.ALL_CLEAR / c.students) * 100) : 0;
+                return (
+                  <tr key={c.key} onClick={() => onOpen(c)} className="cursor-pointer transition hover:bg-blue-50/50">
+                    <td className="px-3 py-3 text-center text-xs tabular-nums text-slate-400">{i + 1}</td>
+                    <td className="px-3 py-3">
+                      {c.key === "backlog" ? (
+                        <span className="rounded-lg bg-amber-50 px-2 py-1 text-xs font-bold text-amber-800">Back papers</span>
+                      ) : (
+                        <span className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-bold text-slate-800">
+                          {c.department.toUpperCase()} · Sem {c.semester}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-3 text-slate-600">{c.key === "backlog" ? "Students writing only back papers" : deptLabel(c.department)}</td>
+                    <td className={`${num} font-semibold text-slate-900`}>{c.students}</td>
+                    <td className={`${num} text-emerald-700`}>{c.ALL_CLEAR || "–"}</td>
+                    <td className={`${num} text-orange-700`}>{c.PARTIAL || "–"}</td>
+                    <td className={`${num} text-red-700`}>{c.BLOCKED || "–"}</td>
+                    <td className={`${num} text-slate-500`}>{c.PENDING || "–"}</td>
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+                          <div className="h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="w-9 text-right text-xs tabular-nums text-slate-500">{pct}%</span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      <div className="flex justify-end gap-1">
+                        <span className="rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">View</span>
+                        {c.key !== "backlog" && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDownload({ department: c.department, semester: c.semester });
+                            }}
+                            className="rounded-lg p-1.5 text-slate-400 hover:bg-white hover:text-slate-800"
+                            title="Download this class (Excel)"
+                            aria-label={`Download ${c.key}`}
+                          >
+                            <Icon name="download" className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
-      {shown.length < classes.length && (
-        <button
-          onClick={() => setAll(true)}
-          className="w-full border-t border-slate-100 py-3 text-sm font-semibold text-blue-700 hover:bg-slate-50"
-        >
-          Show all {classes.length} classes
-        </button>
-      )}
     </div>
   );
 }
 
-function SheetStatus({ readiness, semesters, compact = false }) {
+// The HOD sheets (IA / attendance) of every department and semester, as a table
+const SHEET_PILL = {
+  confirmed: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  submitted: "bg-blue-50 text-blue-700 ring-blue-200",
+  draft: "bg-orange-50 text-orange-700 ring-orange-200",
+  missing: "bg-slate-50 text-slate-500 ring-slate-200",
+};
+
+function SheetTable({ readiness, semesters }) {
+  const [sem, setSem] = useState("");
+  const [show, setShow] = useState("");
+  const ready = (r) => r.ia === "confirmed" && r.attendance === "confirmed";
+  const rows = readiness
+    .filter((r) => (!sem || String(r.semester) === sem) && (!show || (show === "ready" ? ready(r) : !ready(r))))
+    .sort((a, b) => a.semester - b.semester || a.department.localeCompare(b.department));
+  const pill = (state) => (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${SHEET_PILL[state] || SHEET_PILL.missing}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${SHEET_DOT[state] || SHEET_DOT.missing}`} />
+      {SHEET[state]?.label || state}
+    </span>
+  );
   return (
-    <div className={compact ? "" : "mt-8 border-t border-slate-100 pt-6"}>
-      <p className="font-semibold text-slate-900">HOD sheets for this academic year</p>
-      <p className="mt-0.5 text-xs text-slate-500">Only frozen IA and attendance are used.</p>
-      <div className="mt-3 flex flex-wrap gap-3 text-[11px] font-medium text-slate-500">
-        {["confirmed", "submitted", "draft", "missing"].map((k) => (
-          <span key={k} className="flex items-center gap-1.5">
-            <span className={`h-2.5 w-2.5 rounded-full ${SHEET_DOT[k]}`} />
-            {SHEET[k].label}
-          </span>
-        ))}
+    <div>
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="mr-auto text-sm text-slate-600">
+          Exam eligibility uses only <b>frozen</b> sheets. HOD submits → Exam Officer freezes.
+        </p>
+        <select value={sem} onChange={(e) => setSem(e.target.value)} className={T.field}>
+          <option value="">All semesters</option>
+          {semesters.map((s) => (
+            <option key={s} value={s}>
+              Semester {s}
+            </option>
+          ))}
+        </select>
+        <select value={show} onChange={(e) => setShow(e.target.value)} className={T.field}>
+          <option value="">All sheets</option>
+          <option value="pending">Not frozen yet</option>
+          <option value="ready">Both frozen</option>
+        </select>
       </div>
-      {semesters.map((s) => (
-        <div key={s} className="mt-4">
-          <p className="mb-1.5 text-xs font-semibold text-slate-500">Semester {s}</p>
-          <div className={`grid gap-1.5 ${compact ? "grid-cols-4" : "grid-cols-4 sm:grid-cols-8"}`}>
-            {readiness
-              .filter((r) => r.semester === s)
-              .map((r) => (
-                <div
-                  key={r.department}
-                  className="rounded-lg border border-slate-100 bg-slate-50 px-2 py-1.5"
-                  title={`${deptLabel(r.department)} sem ${s}: IA ${SHEET[r.ia].label}, attendance ${SHEET[r.attendance].label}`}
-                >
-                  <p className="text-xs font-bold text-slate-800">{r.department.toUpperCase()}</p>
-                  <p className="mt-1 flex items-center gap-1 text-[10px] text-slate-500">
-                    <span className={`h-2 w-2 rounded-full ${SHEET_DOT[r.ia]}`} />
-                    IA
-                    <span className={`ml-1 h-2 w-2 rounded-full ${SHEET_DOT[r.attendance]}`} />
-                    Att
-                  </p>
-                </div>
+      <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-sm">
+            <thead>
+              <tr className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <th className="w-12 px-3 py-3 text-center">Sl.</th>
+                <th className="px-3 py-3">Department</th>
+                <th className="px-3 py-3">Semester</th>
+                <th className="px-3 py-3">IA sheet</th>
+                <th className="px-3 py-3">Attendance sheet</th>
+                <th className="px-3 py-3">For the exam</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-10 text-center text-slate-500">
+                    Nothing to show.
+                  </td>
+                </tr>
+              )}
+              {rows.map((r, i) => (
+                <tr key={`${r.department}-${r.semester}`} className="hover:bg-slate-50/60">
+                  <td className="px-3 py-3 text-center text-xs tabular-nums text-slate-400">{i + 1}</td>
+                  <td className="px-3 py-3">
+                    <span className="font-semibold text-slate-900">{r.department.toUpperCase()}</span>
+                    <span className="ml-2 text-xs text-slate-500">{deptLabel(r.department)}</span>
+                  </td>
+                  <td className="px-3 py-3 text-slate-700">Sem {r.semester}</td>
+                  <td className="px-3 py-3">{pill(r.ia)}</td>
+                  <td className="px-3 py-3">{pill(r.attendance)}</td>
+                  <td className="px-3 py-3">
+                    {ready(r) ? (
+                      <span className="text-xs font-semibold text-emerald-700">✓ Ready</span>
+                    ) : (
+                      <span className="text-xs text-slate-500">Students show as “Waiting”</span>
+                    )}
+                  </td>
+                </tr>
               ))}
-          </div>
+            </tbody>
+          </table>
         </div>
-      ))}
+      </div>
     </div>
+  );
+}
+
+// One class's students in a pop-up (same list, filters and actions as the Students tab)
+function ClassModal({ cls, examId, classes, canManage, canEditSubjects, onChanged, onDownload, onClose }) {
+  const [filters, setFilters] = useState({ cls: cls.key, overall: "", issue: "", q: "" });
+  const title = cls.key === "backlog" ? "Back papers only" : `${cls.department.toUpperCase()} · Semester ${cls.semester}`;
+  return (
+    <Modal
+      open
+      xl
+      onClose={onClose}
+      title={title}
+      subtitle={`${cls.key === "backlog" ? "Students writing only back papers" : deptLabel(cls.department)} · ${cls.students} students · ${cls.ALL_CLEAR} all clear · ${cls.PARTIAL + cls.BLOCKED} not permitted in some subject · ${cls.PENDING} waiting`}
+      footer={
+        <>
+          {cls.key !== "backlog" && (
+            <button onClick={() => onDownload({ department: cls.department, semester: cls.semester })} className={btn.secondary}>
+              <Icon name="download" className="h-4 w-4" />
+              Excel of this class
+            </button>
+          )}
+          <button onClick={onClose} className={btn.primary}>
+            Close
+          </button>
+        </>
+      }
+    >
+      <StudentList
+        examId={examId}
+        classes={classes}
+        filters={filters}
+        setFilters={setFilters}
+        fixedClass
+        canManage={canManage}
+        canEditSubjects={canEditSubjects}
+        onChanged={onChanged}
+      />
+    </Modal>
   );
 }
 
@@ -606,7 +791,7 @@ function ProgressModal({ gen }) {
 
 // ==================================================================== student list
 
-function StudentList({ examId, classes, filters, setFilters, canManage, canEditSubjects, onChanged }) {
+function StudentList({ examId, classes, filters, setFilters, fixedClass = false, canManage, canEditSubjects, onChanged }) {
   const api = useApi();
   const toast = useToast();
   const [data, setData] = useState(null);
@@ -671,7 +856,7 @@ function StudentList({ examId, classes, filters, setFilters, canManage, canEditS
   const sel = T.field;
 
   return (
-    <section className="mt-8">
+    <section className={fixedClass ? "" : "mt-4"}>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <h3 className="text-lg font-bold tracking-tight text-slate-950">
           Students {data && <span className="text-sm font-medium text-slate-500">({data.total})</span>}
@@ -686,11 +871,21 @@ function StudentList({ examId, classes, filters, setFilters, canManage, canEditS
               className={`${sel} w-full pl-8`}
             />
           </div>
+          {!fixedClass && (
           <select value={filters.cls} onChange={(e) => setFilters((f) => ({ ...f, cls: e.target.value }))} className={sel}>
             <option value="">All classes</option>
             {classes.map((c) => (
               <option key={c.key} value={c.key}>
                 {c.key === "backlog" ? "Back papers only" : `${c.department.toUpperCase()} · Sem ${c.semester}`}
+              </option>
+            ))}
+          </select>
+          )}
+          <select value={filters.overall} onChange={(e) => setFilters((f) => ({ ...f, overall: e.target.value }))} className={sel}>
+            <option value="">Any result</option>
+            {Object.entries(OVERALL).map(([k, o]) => (
+              <option key={k} value={k}>
+                {o.short}
               </option>
             ))}
           </select>
@@ -706,11 +901,11 @@ function StudentList({ examId, classes, filters, setFilters, canManage, canEditS
         </div>
       </div>
 
-      {(filters.overall || filters.issue || filters.cls || filters.q) && (
+      {(filters.overall || filters.issue || (filters.cls && !fixedClass) || filters.q) && (
         <button
           onClick={() => {
             setQ("");
-            setFilters({ cls: "", overall: "", issue: "", q: "" });
+            setFilters((f) => ({ cls: fixedClass ? f.cls : "", overall: "", issue: "", q: "" }));
           }}
           className="mt-3 text-xs font-semibold text-blue-700 hover:underline"
         >

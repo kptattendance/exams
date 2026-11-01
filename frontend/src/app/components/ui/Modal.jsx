@@ -10,7 +10,7 @@ import { useEffect } from "react";
 
 import Icon from "../shell/Icon";
 
-export default function Modal({ open, onClose, title, subtitle, children, footer, wide = false, busy = false }) {
+export default function Modal({ open, onClose, title, subtitle, children, footer, wide = false, xl = false, busy = false }) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => e.key === "Escape" && !busy && onClose?.();
@@ -29,7 +29,7 @@ export default function Modal({ open, onClose, title, subtitle, children, footer
       <div className="kpt-fade absolute inset-0 bg-slate-950/45 backdrop-blur-[2px]" onClick={() => !busy && onClose?.()} />
       <div
         className={`kpt-pop relative flex max-h-[92vh] w-full flex-col rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl ${
-          wide ? "max-w-2xl" : "max-w-md"
+          xl ? "max-w-6xl" : wide ? "max-w-2xl" : "max-w-md"
         }`}
       >
         <div className="flex items-start gap-3 border-b border-slate-100 px-6 pb-4 pt-5">
