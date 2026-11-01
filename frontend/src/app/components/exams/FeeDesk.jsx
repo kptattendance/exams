@@ -21,7 +21,7 @@ import Link from "next/link";
 import Icon from "../shell/Icon";
 import Modal, { btn, field } from "../ui/Modal";
 import { useConfirm, useToast } from "../ui/Feedback";
-import { ADMISSION_SHORT, downloadBlob, errMsg, useApi } from "./shared";
+import { ADMISSION_SHORT, DEPARTMENTS, downloadBlob, errMsg, useApi } from "./shared";
 import { T } from "../ui/table";
 import { scanReceipt } from "./receiptScan";
 
@@ -54,6 +54,7 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
   const [picked, setPicked] = useState(() => new Set()); // registration ids ticked for "Mark as paid"
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false); // fee collection report (PDF)
   // transaction details: "none" = not added yet, "some" = added, "" = all
   const [txn, setTxn] = useState(txnMode ? "none" : "");
   const searchRef = useRef(null);
@@ -225,6 +226,10 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
             <button onClick={() => download("export", "fees_pending.xlsx", { status: "PENDING" })} className={btn.secondary}>
               <Icon name="download" className="h-4 w-4" />
               Pending list
+            </button>
+            <button onClick={() => setReportOpen(true)} className={btn.secondary}>
+              <Icon name="report" className="h-4 w-4" />
+              Fee report (PDF)
             </button>
           </div>
         )}
@@ -426,6 +431,8 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
           }}
         />
       )}
+      {reportOpen && <FeeReportModal examId={examId} semesters={data?.exam?.semesters || [1, 2, 3, 4, 5, 6]} onClose={() => setReportOpen(false)} />}
+
       {uploading && (
         <UploadModal
           examId={examId}
@@ -525,6 +532,93 @@ function BulkPaidModal({ examId, cls, clsLabel, pendingInClass, onClose, onDone 
           )}
         </>
       )}
+    </Modal>
+  );
+}
+
+// Filters of the fee collection report; the PDF opens in a new tab (print/fee-report)
+function FeeReportModal({ examId, semesters, onClose }) {
+  const [department, setDepartment] = useState("");
+  const [semester, setSemester] = useState("");
+  const [status, setStatus] = useState("ANY_PAID");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const open = () => {
+    const q = new URLSearchParams({ status, auto: "1" });
+    if (department) q.set("department", department);
+    if (semester && department !== "backlog") q.set("semester", semester);
+    if (from) q.set("from", from);
+    if (to) q.set("to", to);
+    window.open(`/print/fee-report/${examId}?${q}`, "_blank");
+    onClose();
+  };
+  return (
+    <Modal
+      open
+      wide
+      onClose={onClose}
+      title="Fee report (PDF)"
+      subtitle="Students with their transactions – department and semester wise, with the total collected"
+      footer={
+        <>
+          <button onClick={onClose} className={btn.secondary}>
+            Cancel
+          </button>
+          <button onClick={open} className={btn.primary}>
+            <Icon name="report" className="h-4 w-4" />
+            Open PDF
+          </button>
+        </>
+      }
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="block">
+          <span className="text-sm font-semibold text-slate-800">Department</span>
+          <select value={department} onChange={(e) => setDepartment(e.target.value)} className={`${field} mt-1.5`}>
+            <option value="">All departments</option>
+            {DEPARTMENTS.map((d) => (
+              <option key={d.value} value={d.value}>
+                {d.label}
+              </option>
+            ))}
+            <option value="backlog">Back-paper students only</option>
+          </select>
+        </label>
+        <label className="block">
+          <span className="text-sm font-semibold text-slate-800">Semester</span>
+          <select value={semester} onChange={(e) => setSemester(e.target.value)} disabled={department === "backlog"} className={`${field} mt-1.5`}>
+            <option value="">All semesters</option>
+            {semesters.map((s) => (
+              <option key={s} value={s}>
+                Semester {s}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block">
+          <span className="text-sm font-semibold text-slate-800">Students</span>
+          <select value={status} onChange={(e) => setStatus(e.target.value)} className={`${field} mt-1.5`}>
+            <option value="ANY_PAID">Paid and partly paid</option>
+            <option value="PAID">Fully paid only</option>
+            <option value="PARTIAL">Partly paid only</option>
+            <option value="ALL">All students (also not paid)</option>
+          </select>
+        </label>
+        <div>
+          <span className="text-sm font-semibold text-slate-800">
+            Paid between <span className="font-normal text-slate-400">(optional)</span>
+          </span>
+          <div className="mt-1.5 flex items-center gap-2">
+            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={field} />
+            <span className="text-slate-400">–</span>
+            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={field} />
+          </div>
+        </div>
+      </div>
+      <p className="mt-4 text-xs text-slate-500">
+        The PDF lists every student with his transaction number, date and amount, a total for each class and the total collected for these filters. With dates, only
+        transactions paid in those dates are counted.
+      </p>
     </Modal>
   );
 }
