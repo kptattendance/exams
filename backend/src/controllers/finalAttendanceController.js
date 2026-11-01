@@ -1,4 +1,5 @@
 import FinalAttendance from "../models/FinalAttendance.js";
+import { batchesOfClass } from "../services/exams/rules.js";
 import Student from "../models/Student.js";
 import Subject from "../models/Subject.js";
 
@@ -116,8 +117,9 @@ export const prepareAttendance = async (req, res) => {
         semester:
           semesterNumber,
 
-        batch:
-          normalizedBatch,
+        batch: {
+          $in: batchesOfClass(normalizedBatch),
+        },
 
         status:
           "active",
@@ -622,8 +624,9 @@ export const saveAttendance = async (
         semester:
           semesterNumber,
 
-        batch:
-          normalizedBatch,
+        batch: {
+          $in: batchesOfClass(normalizedBatch),
+        },
 
         status:
           "active",

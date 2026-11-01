@@ -30,6 +30,7 @@ import {
   ADMISSION_LABEL,
   normalizeAdmissionTypes,
   batchStartYear,
+  classBatch,
   pickScheme,
   currentSubjectsFor,
   backlogsFrom,
@@ -566,8 +567,9 @@ async function generateClassGroup(exam, department, semester) {
     const sid = String(st._id);
     const scheme = pickScheme(allSubjects, batchStartYear(st));
     const { subjects, warnings } = currentSubjectsFor(st, scheme, choices.get(sid) || {});
-    const iaSheet = sheets.ia.get(st.batch);
-    const attSheet = sheets.att.get(st.batch);
+    // a lateral's 2-year batch (2026-2028) is in the sheet of his class (2025-2028)
+    const iaSheet = sheets.ia.get(classBatch(st.batch));
+    const attSheet = sheets.att.get(classBatch(st.batch));
 
     const current = subjects.map(({ subject, kind }) => {
       const ia = sheetEntry(iaSheet, st._id, subject._id);

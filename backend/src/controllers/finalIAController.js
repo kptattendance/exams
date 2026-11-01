@@ -1,4 +1,5 @@
 import FinalIA from "../models/FinalIA.js";
+import { batchesOfClass, takesSubject } from "../services/exams/rules.js";
 import Student from "../models/Student.js";
 import Subject from "../models/Subject.js";
 
@@ -102,21 +103,15 @@ const students = await Student.find({
 
   semester: semesterNumber,
 
-  // Exact batch match, ignoring accidental
-  // leading/trailing spaces and case.
-  batch: new RegExp(
-    `^${normalizedBatch.replace(
-      /[.*+?^${}()|[\]\\]/g,
-      "\\$&"
-    )}$`,
-    "i"
-  ),
+  // The class batch, and the laterals of this class whose batch is stored
+  // as the two years they study (2025-2028 and 2026-2028)
+  batch: { $in: batchesOfClass(normalizedBatch) },
 
   // Existing records may have different casing.
   status: /^active$/i,
 })
   .select(
-    "_id rollNumber registerNumber name fatherName motherName phone imageUrl batch batchNumber semester department status"
+    "_id rollNumber registerNumber name fatherName motherName phone imageUrl batch batchNumber semester department status admissionType"
   )
   .sort({
     rollNumber: 1,
@@ -142,7 +137,7 @@ const subjects = await Subject.find({
   semester: semesterNumber,
 })
   .select(
-    "_id code name semester department sequence iaMax iaMin"
+    "_id code name semester department sequence iaMax iaMin subjectCategory forAdmissionTypes"
   )
   .sort({
     sequence: 1,
@@ -184,6 +179,10 @@ const responseSubjects = subjects.map((subject) => {
 
     iaMax: subject.iaMax ?? null,
     iaMin: subject.iaMin ?? null,
+
+    // bridge courses: only the laterals of these types take them
+    subjectCategory: subject.subjectCategory || "REGULAR",
+    forAdmissionTypes: subject.forAdmissionTypes || [],
 
     maxMarks:
       subject.iaMax ??
@@ -255,6 +254,9 @@ const responseStudents = students.map(
 
       batchNumber:
         student.batchNumber || "",
+
+      admissionType:
+        student.admissionType || "regular",
 
       semester:
         student.semester || "",
@@ -488,7 +490,7 @@ export const saveFinalIA = async (
           hodDepartment,
       })
         .select(
-          "_id code name semester department"
+          "_id code name semester department subjectCategory forAdmissionTypes"
         )
         .lean();
 
@@ -595,14 +597,15 @@ export const saveFinalIA = async (
         semester:
           semesterNumber,
 
-        batch:
-          normalizedBatch,
+        batch: {
+          $in: batchesOfClass(normalizedBatch),
+        },
 
         status:
           "active",
       })
         .select(
-          "_id registerNumber name fatherName"
+          "_id registerNumber name fatherName admissionType"
         )
         .lean();
 
@@ -649,6 +652,13 @@ export const saveFinalIA = async (
         const subject of
           processedSubjects
       ) {
+        // a bridge course this student does not take: no mark
+        const subjectDoc = dbSubjects.find((item) => String(item._id) === String(subject.subjectId));
+        if (subjectDoc && !takesSubject(dbStudent, subjectDoc)) {
+          processedMarks.push({ subjectId: subject.subjectId, marks: null, notRequired: true });
+          continue;
+        }
+
         const inputMark =
           inputStudent.marks?.find(
             (item) =>

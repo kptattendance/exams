@@ -8,6 +8,7 @@ import { excelInstructionsSheet } from "../../components/ExcelFormatHelp";
 import HodSheetPanel, { openSignatureSheet } from "../../components/HodSheetPanel";
 import { batchFor, useAcademicYear } from "../../components/academicYear";
 import { useToast } from "../../components/ui/Feedback";
+import { BridgeBadge, BridgeLegend, LateralTag, NotRequiredCell, takesSubject } from "../../components/bridge";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -355,6 +356,8 @@ export default function FinalIAPage() {
         for (
           const subject of subjects
         ) {
+          if (!takesSubject(student, subject)) continue;
+
           const mark =
             getStudentMark(
               student,
@@ -441,13 +444,9 @@ export default function FinalIAPage() {
                   subjectId:
                     subject.subjectId,
 
-                  marks:
-                    Number(
-                      getStudentMark(
-                        student,
-                        subject.subjectId
-                      )
-                    ),
+                  marks: takesSubject(student, subject)
+                    ? Number(getStudentMark(student, subject.subjectId))
+                    : null,
                 })
               ),
           })
@@ -676,6 +675,8 @@ export default function FinalIAPage() {
 
                 ...subjects.map(
                   (subject) => {
+                    if (!takesSubject(student, subject)) return "NA";
+
                     const mark =
                       getStudentMark(
                         student,
@@ -1064,6 +1065,9 @@ export default function FinalIAPage() {
                 return;
               }
 
+              // a bridge course this student does not take: ignored
+              if (!takesSubject(updatedStudents[studentIndex], subject)) return;
+
               // above the maximum (or below 0): not taken, listed after the import
               const cap = Number(subject.maxMarks ?? subject.iaMax) || 0;
               if (numericMark < 0 || (cap > 0 && numericMark > cap)) {
@@ -1235,7 +1239,7 @@ export default function FinalIAPage() {
       students: sortedStudents.map((st) => ({
         registerNumber: st.registerNumber,
         studentName: st.studentName,
-        values: Object.fromEntries(subjects.map((s) => [String(s.subjectId), getStudentMark(st, s.subjectId)])),
+        values: Object.fromEntries(subjects.map((s) => [String(s.subjectId), takesSubject(st, s) ? getStudentMark(st, s.subjectId) : "NA"])),
       })),
     });
 
@@ -1542,6 +1546,8 @@ export default function FinalIAPage() {
               onPdf={openPdf}
             />
 
+            <BridgeLegend subjects={subjects} />
+
 
           </div>
         )}
@@ -1625,6 +1631,8 @@ export default function FinalIAPage() {
                           <div className="mt-1 line-clamp-2 text-[10px] font-normal leading-tight text-slate-300">
                             {subject.name}
                           </div>
+
+                          <BridgeBadge subject={subject} />
 
                         </th>
                       )
@@ -1745,6 +1753,8 @@ export default function FinalIAPage() {
                                 Reg No: {student.registerNumber || "-"}
                               </div>
 
+                              <LateralTag student={student} />
+
                               <div className="truncate text-[10px] text-gray-400">
                                 {student.phone || "No phone"}
                               </div>
@@ -1761,6 +1771,9 @@ export default function FinalIAPage() {
 
                         {subjects.map(
                           (subject) => {
+                            if (!takesSubject(student, subject))
+                              return <NotRequiredCell key={subject.subjectId} />;
+
                             const mark =
                               getStudentMark(
                                 student,

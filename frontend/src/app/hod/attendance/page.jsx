@@ -8,6 +8,7 @@ import { excelInstructionsSheet } from "../../components/ExcelFormatHelp";
 import HodSheetPanel, { openSignatureSheet } from "../../components/HodSheetPanel";
 import { batchFor, useAcademicYear } from "../../components/academicYear";
 import { useToast } from "../../components/ui/Feedback";
+import { LateralTag } from "../../components/bridge";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -1900,6 +1901,8 @@ export default function AttendancePage() {
                                   student.registerNumber
                                 }
                               </div>
+
+                              <LateralTag student={student} />
 
                               <div className="truncate text-[10px] text-gray-400">
                                 {student.phone ||

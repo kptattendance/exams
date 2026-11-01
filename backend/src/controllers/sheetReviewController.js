@@ -49,7 +49,7 @@ function emptyCount(doc, type) {
     for (const sub of doc.subjects || []) {
       const v = (vals || []).find((x) => String(x.subjectId) === String(sub.subjectId));
       const value = type === "ia" ? v?.marks : v?.classesAttended;
-      if (value === null || value === undefined) n++;
+      if ((value === null || value === undefined) && !v?.notRequired) n++;
     }
   }
   return n;
@@ -134,7 +134,8 @@ export const getSheet = async (req, res) => {
       const value = type === "ia" ? v?.marks ?? null : v?.classesAttended ?? null;
       let flag = "";
       let pct = null;
-      if (value === null) flag = "empty";
+      if (v?.notRequired) flag = "na"; // a bridge course this student does not take
+      else if (value === null) flag = "empty";
       else if (type === "attendance" && sub.max > 0) {
         pct = Math.round((value / sub.max) * 1000) / 10;
         if (pct < MIN_ATTENDANCE) flag = "low";

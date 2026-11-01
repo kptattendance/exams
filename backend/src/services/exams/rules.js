@@ -44,8 +44,37 @@ export function normalizeAdmissionTypes(input) {
   return LATERAL_TYPES.filter((t) => out.has(t));
 }
 
+// A lateral student's batch may be stored as the two years he studies, e.g.
+// "2026-2028". He belongs to the class of the regulars who finish the same
+// year – "2025-2028" – for the IA / attendance sheets and the scheme.
+// A 3-year batch stays as it is.
+export function classBatch(batch) {
+  const b = String(batch || "").trim();
+  const m = /^(\d{4})-(\d{4})$/.exec(b);
+  if (!m || Number(m[2]) - Number(m[1]) !== 2) return b;
+  return `${Number(m[2]) - 3}-${m[2]}`;
+}
+
+// The student batches that belong to a class: "2025-2028" -> ["2025-2028", "2026-2028"]
+export function batchesOfClass(batch) {
+  const b = String(batch || "").trim();
+  const m = /^(\d{4})-(\d{4})$/.exec(b);
+  if (!m || Number(m[2]) - Number(m[1]) !== 3) return [b];
+  return [b, `${Number(m[1]) + 1}-${m[2]}`];
+}
+
+// Does this student take this subject? A bridge course only for laterals of
+// the types it is marked for (none marked = every lateral) – the same rule as
+// currentSubjectsFor; every other subject: yes.
+export function takesSubject(student, subject) {
+  if (String(subject?.subjectCategory || "").toUpperCase() !== "BRIDGE") return true;
+  if (!LATERAL_TYPES.includes(student?.admissionType)) return false;
+  const types = subject.forAdmissionTypes || [];
+  return types.length === 0 || types.includes(student.admissionType);
+}
+
 export const batchStartYear = (student) => {
-  const m = /^(\d{4})-\d{4}$/.exec(student?.batch || "");
+  const m = /^(\d{4})-\d{4}$/.exec(classBatch(student?.batch));
   if (m) return Number(m[1]);
   if (!student?.admissionYear) return null;
   return student.admissionType === "regular" || !student.admissionType

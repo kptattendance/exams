@@ -239,6 +239,7 @@ const CELL = {
   low: "bg-red-50 text-red-700 font-semibold",
   empty: "bg-orange-50 text-orange-700",
   over: "bg-purple-50 text-purple-700 font-semibold",
+  na: "bg-slate-100 text-slate-400", // bridge course the student does not take
   "": "",
 };
 
@@ -257,7 +258,7 @@ function printCopy(type, sheet, copy) {
     students: sheet.students.map((st) => ({
       registerNumber: st.registerNumber,
       studentName: st.name,
-      values: Object.fromEntries(sheet.subjects.map((s, i) => [String(s.subjectId), ia ? st.cells[i]?.value ?? "" : st.cells[i]?.pct ?? ""])),
+      values: Object.fromEntries(sheet.subjects.map((s, i) => [String(s.subjectId), st.cells[i]?.flag === "na" ? "NA" : ia ? st.cells[i]?.value ?? "" : st.cells[i]?.pct ?? ""])),
     })),
   });
 }
@@ -400,7 +401,7 @@ function ReviewModal({ type, id, onClose, onFreeze, onChanged }) {
                     </td>
                     {st.cells.map((c, i) => (
                       <td key={i} className={`px-3 py-1.5 text-center tabular-nums ${CELL[c.flag]}`}>
-                        {c.value ?? "—"}
+                        {c.flag === "na" ? "NA" : c.value ?? "—"}
                         {type === "attendance" && c.pct !== null && <span className="block text-[11px] font-normal opacity-80">{c.pct}%</span>}
                       </td>
                     ))}

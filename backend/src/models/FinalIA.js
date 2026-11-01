@@ -74,6 +74,10 @@ const finalIAStudentSchema = new mongoose.Schema(
           min: 0,
           default: null,
         },
+
+        // A bridge course this student does not take (regular students,
+        // or another lateral type): no mark, not counted as missing
+        notRequired: { type: Boolean },
       },
     ],
   },
