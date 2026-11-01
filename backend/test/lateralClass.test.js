@@ -45,20 +45,28 @@ test("a bridge course is decided by IA alone (no attendance)", async () => {
   assert.equal(low.status, "NE");
 });
 
-test("exam fee: 350 per eligible subject, 200 per back paper, late fee by date", async () => {
+test("exam fee per semester exam (DTE circular): 1-2 subjects 200, 3+ 300, marks card 50, late fee each", async () => {
   const { examFeeFor, lateFeeOn } = await import("../src/services/exams/rules.js");
-  const subjects = [
-    { kind: "REGULAR", status: "ELIGIBLE" },
-    { kind: "BRIDGE", status: "ELIGIBLE" },
-    { kind: "REGULAR", status: "ANS" }, // not permitted: not charged
-    { kind: "REGULAR", status: "PENDING", override: { status: "ELIGIBLE" } }, // allowed by the COE
-    { kind: "BACKLOG", status: "ELIGIBLE" },
+  const lateFees = [
+    { from: "2026-09-10", amount: 50 },
+    { from: "2026-09-21", amount: 100 },
+    { from: "2026-09-30", amount: 200 },
+    { from: "2026-10-09", amount: 400 },
+    { from: "2026-10-19", amount: 2000 },
   ];
-  const lateFees = [{ from: "2026-11-15", amount: 500 }, { from: "2026-11-25", amount: 2000 }];
-  assert.equal(lateFeeOn(lateFees, "2026-11-10"), 0);
-  assert.equal(lateFeeOn(lateFees, "2026-11-15"), 500);
-  assert.equal(lateFeeOn(lateFees, "2026-12-01"), 2000);
-  const f = examFeeFor(subjects, { perSubject: 350, backPaper: 200, lateFees }, "2026-11-20");
-  assert.deepEqual(f, { current: 3, backPapers: 1, currentFee: 1050, backPaperFee: 200, base: 1250, late: 500, total: 1750 });
-  assert.equal(examFeeFor([{ kind: "REGULAR", status: "NE" }], { lateFees }, "2026-12-01").total, 0);
+  assert.equal(lateFeeOn(lateFees, "2026-09-09"), 0);
+  assert.equal(lateFeeOn(lateFees, "2026-09-25"), 100);
+  assert.equal(lateFeeOn(lateFees, "2026-10-20"), 2000);
+  const sem3 = (code, status = "ELIGIBLE", extra = {}) => ({ code, semester: 3, kind: "REGULAR", status, ...extra });
+  const subjects = [
+    sem3("A"), sem3("B"), sem3("C"), sem3("D", "ANS"), sem3("E", "PENDING", { override: { status: "ELIGIBLE" } }),
+    { code: "BR1", semester: 3, kind: "BRIDGE", status: "ELIGIBLE" },
+    { code: "M1", semester: 1, kind: "BACKLOG", status: "ELIGIBLE" },
+  ];
+  // full semester only, paid in time: 300 + 50
+  assert.equal(examFeeFor([sem3("A"), sem3("B"), sem3("C")], {}, "2026-09-01").total, 350);
+  const f = examFeeFor(subjects, { lateFees }, "2026-09-15"); // late fee Rs 50 for each of the 3 exams
+  assert.deepEqual(f.exams.map((e) => [e.label, e.count, e.total]), [["Sem 3", 4, 400], ["Sem 1", 1, 300], ["Bridge", 1, 300]]);
+  assert.equal(f.total, 1000);
+  assert.equal(examFeeFor([sem3("A", "NE")], {}, "2026-10-20").total, 0);
 });

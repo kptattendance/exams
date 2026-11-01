@@ -105,10 +105,12 @@ function readExamBody(body, { partial = false } = {}) {
   }
   if (body.fees !== undefined) {
     const f = body.fees || {};
-    const per = Number(f.perSubject);
-    const back = Number(f.backPaper);
-    if (!(per >= 0 && per <= 10000)) errors.push("Fee per subject must be between 0 and 10000.");
-    if (!(back >= 0 && back <= 10000)) errors.push("Fee per back paper must be between 0 and 10000.");
+    const small = Number(f.upTo2);
+    const full = Number(f.threePlus);
+    const card = Number(f.marksCard);
+    if (!(small >= 0 && small <= 10000)) errors.push("Fee for 1 or 2 subjects must be between 0 and 10000.");
+    if (!(full >= 0 && full <= 10000)) errors.push("Fee for 3 or more subjects must be between 0 and 10000.");
+    if (!(card >= 0 && card <= 10000)) errors.push("Marks card fee must be between 0 and 10000.");
     const slabs = (Array.isArray(f.lateFees) ? f.lateFees : [])
       .filter((s) => s && (s.from || s.amount))
       .map((s) => ({ from: String(s.from || "").slice(0, 10), amount: Number(s.amount) }));
@@ -116,16 +118,18 @@ function readExamBody(body, { partial = false } = {}) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(s.from)) errors.push("Every late fee needs its start date.");
       else if (!(s.amount >= 0 && s.amount <= 10000)) errors.push(`Late fee from ${s.from} must be between 0 and 10000.`);
     }
-    out["settings.perSubjectFee"] = per;
-    out["settings.backPaperFee"] = back;
+    out["settings.feeUpTo2"] = small;
+    out["settings.feeThreePlus"] = full;
+    out["settings.marksCardFee"] = card;
     out["settings.lateFees"] = slabs.sort((a, b) => a.from.localeCompare(b.from));
   }
   return { out, errors };
 }
 
 const feeRulesOf = (e) => ({
-  perSubject: e.settings?.perSubjectFee ?? 350,
-  backPaper: e.settings?.backPaperFee ?? 200,
+  upTo2: e.settings?.feeUpTo2 ?? 200,
+  threePlus: e.settings?.feeThreePlus ?? 300,
+  marksCard: e.settings?.marksCardFee ?? 50,
   lateFees: (e.settings?.lateFees || []).map((s) => ({ from: s.from, amount: s.amount })),
 });
 
@@ -145,7 +149,7 @@ export const hodFeeList = async (req, res) => {
   const on = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.on || "")) ? req.query.on : new Date().toISOString().slice(0, 10);
   const rules = feeRulesOf(exam);
   const regs = await ExamRegistration.find({ exam: exam._id, department })
-    .select("registerNumber rollNumber name semester admissionType subjects.code subjects.name subjects.kind subjects.status subjects.override subjects.reasons")
+    .select("registerNumber rollNumber name semester admissionType subjects.code subjects.name subjects.semester subjects.kind subjects.status subjects.override subjects.reasons")
     .sort({ semester: 1, rollNumber: 1, registerNumber: 1 })
     .lean();
   const rows = regs.map((r) => {
@@ -156,8 +160,9 @@ export const hodFeeList = async (req, res) => {
       name: r.name,
       semester: r.semester,
       admissionType: r.admissionType || "regular",
-      eligible: subj.filter((s) => s.status === "ELIGIBLE" && s.kind !== "BACKLOG").map((s) => s.code),
+      eligible: subj.filter((s) => s.status === "ELIGIBLE" && s.kind !== "BACKLOG" && s.kind !== "BRIDGE").map((s) => s.code),
       backPapers: subj.filter((s) => s.status === "ELIGIBLE" && s.kind === "BACKLOG").map((s) => s.code),
+      bridge: subj.filter((s) => s.status === "ELIGIBLE" && s.kind === "BRIDGE").map((s) => s.code),
       notPermitted: subj.filter((s) => s.status === "ANS" || s.status === "NE").map((s) => `${s.code} (${s.status})`),
       pending: subj.filter((s) => s.status === "PENDING").map((s) => s.code),
       fee: examFeeFor(r.subjects || [], rules, on),

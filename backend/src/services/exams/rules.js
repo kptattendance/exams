@@ -258,17 +258,32 @@ export function lateFeeOn(lateFees = [], on) {
   return fee;
 }
 
-// Exam fee of one registration. Only subjects the student may write (final
-// status ELIGIBLE, COE's decision included) are charged: current-semester ones
-// (regular, elective, bridge) at perSubject, back papers at backPaper, plus
-// the late fee in force on the day `on`.
-export function examFeeFor(subjects, { perSubject = 350, backPaper = 200, lateFees = [] } = {}, on) {
+// Exam fee of one registration (DTE circular). Only subjects the student may
+// write (final status ELIGIBLE, COE's decision included) count. They are
+// grouped into semester exams – by the subject's semester; bridge courses are
+// a separate exam. Each semester exam: upTo2 (1 or 2 subjects) or threePlus
+// (3 or more, i.e. the full semester) + marksCard + the late fee in force on
+// the day `on`.
+export function examFeeFor(subjects, { upTo2 = 200, threePlus = 300, marksCard = 50, lateFees = [] } = {}, on) {
   const eligible = (subjects || []).filter((s) => effectiveOf(s) === "ELIGIBLE");
-  const current = eligible.filter((s) => s.kind !== "BACKLOG").length;
-  const backs = eligible.filter((s) => s.kind === "BACKLOG").length;
-  const base = current * perSubject + backs * backPaper;
-  const late = eligible.length ? lateFeeOn(lateFees, on) : 0;
-  return { current, backPapers: backs, currentFee: current * perSubject, backPaperFee: backs * backPaper, base, late, total: base + late };
+  const late = lateFeeOn(lateFees, on);
+  const byExam = new Map();
+  for (const s of eligible) {
+    const key = s.kind === "BRIDGE" ? "Bridge" : `Sem ${s.semester ?? "?"}`;
+    if (!byExam.has(key)) byExam.set(key, []);
+    byExam.get(key).push(s.code);
+  }
+  const exams = [...byExam.entries()]
+    .sort(([a], [b]) => (a === "Bridge") - (b === "Bridge") || b.localeCompare(a, undefined, { numeric: true }))
+    .map(([label, codes]) => {
+      const fee = codes.length >= 3 ? threePlus : upTo2;
+      return { label, count: codes.length, codes, fee, marksCard, late, total: fee + marksCard + late };
+    });
+  const sum = (k) => exams.reduce((a, e) => a + e[k], 0);
+  const examFee = sum("fee");
+  const cardFee = sum("marksCard");
+  const lateFee = sum("late");
+  return { exams, subjects: eligible.length, examFee, cardFee, lateFee, base: examFee + cardFee, total: examFee + cardFee + lateFee };
 }
 
 // incomplete = something is still missing (e.g. elective not chosen), so the

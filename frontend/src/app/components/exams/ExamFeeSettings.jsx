@@ -1,8 +1,10 @@
 "use client";
 
-// COE: the exam fee of one examination – per current-semester subject, per
-// back paper, and late fees that grow with the date. The HOD's "Exam fee
-// list" uses these to tell each student what to pay.
+// COE: the exam fee of one examination (DTE circular). Charged per SEMESTER
+// EXAM a student writes: 1 or 2 subjects of that semester, or 3 or more (the
+// full semester), plus the marks card fee, plus a late fee per semester exam
+// that grows with the date. Bridge courses are a separate exam. The HOD's
+// "Exam fee list" uses these to tell each student what to pay.
 
 import { useState } from "react";
 
@@ -12,23 +14,36 @@ import { errMsg, useApi } from "./shared";
 
 const day = (iso) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "");
 
+// DTE circular BTE/03/EP/2026 dated 31.07.2026 (Nov/Dec 2026 exam)
+const CIRCULAR_2026 = [
+  { from: "2026-09-10", amount: 50 },
+  { from: "2026-09-21", amount: 100 },
+  { from: "2026-09-30", amount: 200 },
+  { from: "2026-10-09", amount: 400 },
+  { from: "2026-10-19", amount: 2000 },
+];
+
 export default function ExamFeeSettings({ exam, onClose, onSaved }) {
   const api = useApi();
   const toast = useToast();
   const f = exam.fees || {};
-  const [perSubject, setPerSubject] = useState(f.perSubject ?? 350);
-  const [backPaper, setBackPaper] = useState(f.backPaper ?? 200);
+  const [upTo2, setUpTo2] = useState(f.upTo2 ?? 200);
+  const [threePlus, setThreePlus] = useState(f.threePlus ?? 300);
+  const [marksCard, setMarksCard] = useState(f.marksCard ?? 50);
   const [slabs, setSlabs] = useState((f.lateFees || []).map((s) => ({ ...s })));
   const [busy, setBusy] = useState(false);
 
   const setSlab = (i, k, v) => setSlabs((list) => list.map((s, j) => (j === i ? { ...s, [k]: v } : s)));
   const sorted = [...slabs].filter((s) => s.from).sort((a, b) => a.from.localeCompare(b.from));
+  const n = (v) => Number(v) || 0;
+  const full = n(threePlus) + n(marksCard);
+  const small = n(upTo2) + n(marksCard);
 
   const save = async () => {
     setBusy(true);
     try {
       const r = await api("patch", `/exams/${exam._id}`, {
-        fees: { perSubject: Number(perSubject), backPaper: Number(backPaper), lateFees: slabs.map((s) => ({ from: s.from, amount: Number(s.amount) })) },
+        fees: { upTo2: n(upTo2), threePlus: n(threePlus), marksCard: n(marksCard), lateFees: slabs.map((s) => ({ from: s.from, amount: Number(s.amount) })) },
       });
       toast.success("Exam fee saved. HODs see it in their Exam fee list.");
       onSaved(r.data.data);
@@ -56,20 +71,29 @@ export default function ExamFeeSettings({ exam, onClose, onSaved }) {
       }
     >
       <div className="space-y-5">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <p className="text-xs text-slate-500">Charged for each semester exam a student writes (his current semester, each back-paper semester, and the bridge courses separately).</p>
+        <div className="grid gap-3 sm:grid-cols-3">
           <label className="block">
-            <span className="text-sm font-semibold text-slate-800">Per subject (current semester)</span>
-            <input type="number" min="0" value={perSubject} onChange={(e) => setPerSubject(e.target.value)} className={`${field} mt-1.5`} />
-            <span className="mt-1 block text-xs text-slate-500">Regular, elective and bridge courses.</span>
+            <span className="text-sm font-semibold text-slate-800">1 or 2 subjects</span>
+            <input type="number" min="0" value={upTo2} onChange={(e) => setUpTo2(e.target.value)} className={`${field} mt-1.5`} />
           </label>
           <label className="block">
-            <span className="text-sm font-semibold text-slate-800">Per back paper</span>
-            <input type="number" min="0" value={backPaper} onChange={(e) => setBackPaper(e.target.value)} className={`${field} mt-1.5`} />
+            <span className="text-sm font-semibold text-slate-800">3+ subjects / full sem</span>
+            <input type="number" min="0" value={threePlus} onChange={(e) => setThreePlus(e.target.value)} className={`${field} mt-1.5`} />
+          </label>
+          <label className="block">
+            <span className="text-sm font-semibold text-slate-800">Marks card</span>
+            <input type="number" min="0" value={marksCard} onChange={(e) => setMarksCard(e.target.value)} className={`${field} mt-1.5`} />
           </label>
         </div>
 
         <div>
-          <p className="text-sm font-semibold text-slate-800">Late fee</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="mr-auto text-sm font-semibold text-slate-800">Late fee (per semester exam)</p>
+            <button type="button" onClick={() => setSlabs(CIRCULAR_2026.map((s) => ({ ...s })))} className={btn.small}>
+              Fill from circular 31-07-2026
+            </button>
+          </div>
           <p className="text-xs text-slate-500">Each amount applies from its date onwards (the latest one counts). Before the first date there is no late fee.</p>
           <div className="mt-2 space-y-2">
             {slabs.map((s, i) => (
@@ -90,13 +114,14 @@ export default function ExamFeeSettings({ exam, onClose, onSaved }) {
         </div>
 
         <div className="rounded-xl bg-slate-50 px-3 py-2.5 text-xs leading-5 text-slate-600">
-          <b>Example:</b> 6 subjects + 1 back paper = 6 × {perSubject || 0} + 1 × {backPaper || 0} = Rs {6 * (Number(perSubject) || 0) + (Number(backPaper) || 0)}
+          <b>Example:</b> full semester = {n(threePlus)} + {n(marksCard)} = <b>Rs {full}</b> · one back paper of another semester = {n(upTo2)} + {n(marksCard)} = <b>Rs {small}</b> · both
+          together Rs {full + small}
           {sorted.map((s) => (
             <span key={s.from} className="block">
-              from {day(s.from)}: + Rs {Number(s.amount) || 0} late fee = Rs {6 * (Number(perSubject) || 0) + (Number(backPaper) || 0) + (Number(s.amount) || 0)}
+              from {day(s.from)}: + Rs {n(s.amount)} for each semester exam = Rs {full + small + 2 * n(s.amount)}
             </span>
           ))}
-          <span className="block text-slate-500">Only subjects the student may write are charged (not ANS / NE).</span>
+          <span className="block text-slate-500">Only subjects the student may write are counted (not ANS / NE).</span>
         </div>
       </div>
     </Modal>

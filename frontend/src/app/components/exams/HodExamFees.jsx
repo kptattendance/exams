@@ -2,7 +2,9 @@
 
 // HOD: for one examination, every student of the department – the subjects he
 // may write, his back papers, subjects not permitted (ANS / NE) and the exam
-// fee to pay (per subject, per back paper, late fee by date, set by the COE).
+// fee to pay. Fee (DTE circular, set by the COE): for each semester exam he
+// writes – 1 or 2 subjects or 3+ (full semester) – plus the marks card fee and
+// the late fee by date; bridge courses are a separate exam.
 // Download as Excel and share it with the students.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -17,6 +19,8 @@ const rs = (n) => `Rs ${Number(n || 0).toLocaleString("en-IN")}`;
 const day = (iso) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "");
 const today = () => new Date().toISOString().slice(0, 10);
 const TYPE = { regular: "Regular", "lateral-puc": "Lateral (PUC)", "lateral-iti": "Lateral (ITI)", "lateral-iti-cross": "Lateral (ITI cross)" };
+// "Sem 3 (4 subjects): 300 + 50 + 100 late"
+const examLine = (e) => `${e.label} (${e.count} subject${e.count === 1 ? "" : "s"}): ${e.fee} + ${e.marksCard}${e.late ? ` + ${e.late} late` : ""} = ${e.total}`;
 
 export default function HodExamFees() {
   const api = useApi();
@@ -47,11 +51,11 @@ export default function HodExamFees() {
     return (d?.rows || []).filter((r) => (!sem || String(r.semester) === sem) && (!t || [r.registerNumber, r.rollNumber, r.name].some((v) => String(v || "").toUpperCase().includes(t))));
   }, [d, q, sem]);
   const semesters = [...new Set((d?.rows || []).map((r) => r.semester))].sort();
-  const slabs = d?.rules?.lateFees || [];
+  const rules = d?.rules;
+  const slabs = rules?.lateFees || [];
   const total = rows.reduce((a, r) => a + r.fee.total, 0);
 
   const download = () => {
-    const rules = d.rules;
     const head = [
       "Sl",
       "Register No.",
@@ -60,15 +64,16 @@ export default function HodExamFees() {
       "Sem",
       "Admission",
       "Subjects (may write)",
-      "No.",
       "Back papers",
-      "No.",
+      "Bridge courses",
       "Not permitted",
       "Decision awaited",
-      `Subject fee (${rules.perSubject} each)`,
-      `Back paper fee (${rules.backPaper} each)`,
+      "Semester exams",
+      "Exam fee",
+      "Marks card fee",
       `Late fee (on ${day(d.on)})`,
       `TOTAL (on ${day(d.on)})`,
+      "How it is made up",
       ...slabs.map((s) => `Total if paid from ${day(s.from)}`),
     ];
     const body = rows.map((r, i) => [
@@ -79,25 +84,29 @@ export default function HodExamFees() {
       r.semester,
       TYPE[r.admissionType] || r.admissionType,
       r.eligible.join(", "),
-      r.fee.current,
       r.backPapers.join(", "),
-      r.fee.backPapers,
+      r.bridge.join(", "),
       r.notPermitted.join(", "),
       r.pending.join(", "),
-      r.fee.currentFee,
-      r.fee.backPaperFee,
-      r.fee.late,
+      r.fee.exams.length,
+      r.fee.examFee,
+      r.fee.cardFee,
+      r.fee.lateFee,
       r.fee.total,
-      ...slabs.map((s) => (r.fee.current + r.fee.backPapers ? r.fee.base + (Number(s.amount) || 0) : 0)),
+      r.fee.exams.map(examLine).join("; "),
+      ...slabs.map((s) => r.fee.base + r.fee.exams.length * (Number(s.amount) || 0)),
     ]);
     const title = [
       [`${d.exam.name} – exam fee`],
-      [`Department: ${deptLabel(d.department)} · Fee per subject Rs ${rules.perSubject} · per back paper Rs ${rules.backPaper}${slabs.length ? ` · late fee: ${slabs.map((s) => `from ${day(s.from)} Rs ${s.amount}`).join(", ")}` : ""}`],
-      ["Only subjects the student may write are charged. Not permitted = attendance shortage (ANS) or IA below minimum (NE)."],
+      [
+        `Department: ${deptLabel(d.department)} · For each semester exam: 1 or 2 subjects Rs ${rules.upTo2}, 3 or more / full semester Rs ${rules.threePlus}, + marks card Rs ${rules.marksCard}. Bridge courses are a separate exam.`,
+      ],
+      [slabs.length ? `Late fee for each semester exam: ${slabs.map((s) => `from ${day(s.from)} Rs ${s.amount}`).join(", ")}.` : "No late fee set."],
+      ["Only subjects the student may write are counted. Not permitted = attendance shortage (ANS) or IA below minimum (NE)."],
       [],
     ];
     const ws = XLSX.utils.aoa_to_sheet([...title, head, ...body]);
-    ws["!cols"] = head.map((h, i) => ({ wch: [4, 13, 10, 26, 5, 14, 34, 5, 20, 5, 22, 18][i] || Math.max(12, String(h).length + 2) }));
+    ws["!cols"] = head.map((h, i) => ({ wch: [4, 13, 10, 26, 5, 14, 34, 18, 18, 20, 16, 9, 9, 9, 11, 11, 48][i] || Math.max(12, String(h).length + 2) }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Exam fee");
     XLSX.writeFile(wb, `Exam_fee_${String(d.department).toUpperCase()}${sem ? `_Sem${sem}` : ""}_${d.on}.xlsx`);
@@ -141,11 +150,10 @@ export default function HodExamFees() {
         </button>
       </div>
 
-      {d?.rules && (
-        <p className="mt-3 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-900">
-          Fee per subject <b>{rs(d.rules.perSubject)}</b> · per back paper <b>{rs(d.rules.backPaper)}</b>
-          {slabs.length > 0 && <> · late fee {slabs.map((s) => `from ${day(s.from)} ${rs(s.amount)}`).join(", ")}</>}
-          {" "}(set by the COE) · {rows.length} students · total {rs(total)}
+      {rules && (
+        <p className="mt-3 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-900">
+          For each semester exam: 1–2 subjects <b>{rs(rules.upTo2)}</b>, 3+ / full semester <b>{rs(rules.threePlus)}</b>, + marks card <b>{rs(rules.marksCard)}</b>
+          {slabs.length > 0 && <> · late fee {slabs.map((s) => `from ${day(s.from)} ${rs(s.amount)}`).join(", ")}</>} (set by the COE) · {rows.length} students · total {rs(total)}
         </p>
       )}
 
@@ -162,7 +170,7 @@ export default function HodExamFees() {
                 <th className="px-2 py-2">#</th>
                 <th className="px-2 py-2">Student</th>
                 <th className="px-2 py-2">Subjects (may write)</th>
-                <th className="px-2 py-2">Back papers</th>
+                <th className="px-2 py-2">Back papers / bridge</th>
                 <th className="px-2 py-2">Not permitted / awaited</th>
                 <th className="px-2 py-2 text-right">Fee</th>
               </tr>
@@ -178,10 +186,12 @@ export default function HodExamFees() {
                       {r.admissionType !== "regular" && ` · ${TYPE[r.admissionType]}`}
                     </p>
                   </td>
+                  <td className="px-2 py-2 text-gray-700">{r.eligible.join(", ") || "—"}</td>
                   <td className="px-2 py-2 text-gray-700">
-                    {r.eligible.join(", ") || "—"} <span className="text-gray-400">({r.fee.current})</span>
+                    {r.backPapers.length > 0 && <p>Back: {r.backPapers.join(", ")}</p>}
+                    {r.bridge.length > 0 && <p className="text-violet-800">Bridge: {r.bridge.join(", ")}</p>}
+                    {!r.backPapers.length && !r.bridge.length && <span className="text-gray-300">—</span>}
                   </td>
-                  <td className="px-2 py-2 text-gray-700">{r.backPapers.length ? `${r.backPapers.join(", ")} (${r.fee.backPapers})` : "—"}</td>
                   <td className="px-2 py-2">
                     {r.notPermitted.length > 0 && <p className="font-semibold text-red-700">{r.notPermitted.join(", ")}</p>}
                     {r.pending.length > 0 && <p className="text-orange-700">Awaited: {r.pending.join(", ")}</p>}
@@ -189,11 +199,11 @@ export default function HodExamFees() {
                   </td>
                   <td className="px-2 py-2 text-right">
                     <p className="text-sm font-bold text-gray-900">{rs(r.fee.total)}</p>
-                    <p className="text-[10px] text-gray-500">
-                      {r.fee.currentFee}
-                      {r.fee.backPaperFee ? ` + ${r.fee.backPaperFee}` : ""}
-                      {r.fee.late ? ` + ${r.fee.late} late` : ""}
-                    </p>
+                    {r.fee.exams.map((e) => (
+                      <p key={e.label} className="text-[10px] text-gray-500">
+                        {examLine(e)}
+                      </p>
+                    ))}
                   </td>
                 </tr>
               ))}
@@ -202,7 +212,7 @@ export default function HodExamFees() {
         </div>
       )}
       <p className="mt-2 text-[11px] text-gray-500">
-        Only subjects the student may write are charged. &quot;Awaited&quot; = IA / attendance not confirmed yet – not charged until decided.
+        Only subjects the student may write are counted. &quot;Awaited&quot; = IA / attendance not confirmed yet – not counted until decided.
       </p>
     </div>
   );
