@@ -683,6 +683,7 @@ function PayModal({ examId, reg: initialReg, onClose, onSaved, onChanged }) {
   return (
     <Modal
       open
+      lg
       onClose={onClose}
       busy={busy}
       title={reg.name}
@@ -733,7 +734,9 @@ function PayModal({ examId, reg: initialReg, onClose, onSaved, onChanged }) {
           </label>
         </div>
       ) : (
-        <>
+        <div className="grid gap-6 lg:grid-cols-[1fr_1.35fr]">
+          {/* left: the fees */}
+          <div>
           {unpaid.length > 0 && (
             <>
               <p className="text-sm font-semibold text-slate-800">Paying for</p>
@@ -787,63 +790,82 @@ function PayModal({ examId, reg: initialReg, onClose, onSaved, onChanged }) {
               </ul>
             </div>
           )}
+          </div>
+          {/* right: the transactions */}
           <Payments examId={examId} reg={reg} markKeys={openKeys} onChanged={changed} />
-        </>
+        </div>
       )}
     </Modal>
   );
 }
 
-// Transactions of one student: add (typed or read from a scanned receipt) / remove
+// Transactions of one student: add one or several at once (typed or read from
+// a scanned receipt) / remove. Each is saved with the same request as before.
 function Payments({ examId, reg, markKeys, onChanged }) {
   const api = useApi();
   const toast = useToast();
   const confirm = useConfirm();
-  const blank = { txnNo: "", amount: "", paidOn: today(), note: "" };
-  const [form, setForm] = useState(blank);
-  const [source, setSource] = useState("MANUAL");
+  const blank = () => ({ txnNo: "", amount: "", paidOn: today(), source: "MANUAL", scanned: false });
+  const [rows, setRows] = useState(() => [blank()]);
   const [alsoMark, setAlsoMark] = useState(true);
-  const [scan, setScan] = useState(null); // null | number (progress) | "done"
+  const [scan, setScan] = useState(null); // { row, progress } while a receipt is read
   const [busy, setBusy] = useState(false);
   const fileRef = useRef(null);
+  const scanRow = useRef(0);
   const payments = reg.payments || [];
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const setRow = (i, patch) => setRows((list) => list.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  const filled = rows.filter((r) => r.txnNo.trim() || r.amount !== "");
+  const newTotal = filled.reduce((a, r) => a + (Number(r.amount) || 0), 0);
+
+  const startScan = (i) => {
+    scanRow.current = i;
+    fileRef.current?.click();
+  };
 
   const onScan = async (e) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    setScan(0);
+    const i = scanRow.current;
+    setScan({ row: i, progress: 0 });
     try {
-      const r = await scanReceipt(file, (p) => setScan(p));
-      setForm((f) => ({
-        ...f,
-        txnNo: r.txnNo || f.txnNo,
-        amount: r.amount || f.amount,
-        paidOn: r.paidOn || f.paidOn,
-      }));
-      setSource("SCAN");
-      setScan("done");
+      const r = await scanReceipt(file, (p) => setScan({ row: i, progress: p }));
+      setRows((list) =>
+        list.map((row, j) => (j === i ? { ...row, txnNo: r.txnNo || row.txnNo, amount: r.amount || row.amount, paidOn: r.paidOn || row.paidOn, source: "SCAN", scanned: true } : row))
+      );
       if (!r.txnNo && !r.amount) toast.info("Could not read the details clearly. Please type them.");
     } catch {
-      setScan(null);
       toast.error("Could not read the image. Please type the details.");
     }
+    setScan(null);
   };
 
-  const add = async () => {
+  // saves every filled row, one after the other; the ticked fees are marked
+  // paid together with the first one (when "also mark" is on)
+  const save = async () => {
     setBusy(true);
-    try {
-      const body = { ...form, source, keys: alsoMark ? markKeys : [] };
-      const r = await api("post", `/exams/${examId}/registrations/${reg._id}/payments`, body);
-      toast.success(r.data.message);
-      if (r.data.warning) toast.error(r.data.warning);
-      onChanged(r.data.data);
-      setForm(blank);
-      setSource("MANUAL");
-      setScan(null);
-    } catch (e) {
-      toast.error(errMsg(e, "Could not add the payment."));
+    let last = null;
+    let saved = 0;
+    const failed = [];
+    for (const row of filled) {
+      try {
+        const body = { txnNo: row.txnNo, amount: row.amount, paidOn: row.paidOn, note: "", source: row.source, keys: alsoMark && saved === 0 ? markKeys : [] };
+        const r = await api("post", `/exams/${examId}/registrations/${reg._id}/payments`, body);
+        if (r.data.warning) toast.error(r.data.warning);
+        last = r.data.data;
+        saved++;
+      } catch (e) {
+        failed.push({ ...row, error: errMsg(e, "Could not add the payment.") });
+      }
+    }
+    if (last) onChanged(last);
+    if (failed.length) {
+      setRows(failed.map(({ error, ...r }) => r));
+      toast.error(`${saved} saved, ${failed.length} not: ${failed.map((f) => `${f.txnNo || f.amount}: ${f.error}`).join("; ")}`, 10000);
+    } else {
+      setRows([blank()]);
+      toast.success(saved === 1 ? "Transaction added." : `${saved} transactions added.`);
     }
     setBusy(false);
   };
@@ -865,62 +887,107 @@ function Payments({ examId, reg, markKeys, onChanged }) {
     }
   };
 
+  const cell = "h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm outline-none focus:border-blue-500";
+
   return (
-    <div className="mt-6 border-t border-slate-100 pt-4">
+    <div className="border-t border-slate-100 pt-4 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
       <div className="flex items-baseline justify-between gap-3">
         <p className="text-sm font-semibold text-slate-800">
-          Transactions <span className="font-normal text-slate-400">(optional – add any time)</span>
+          Transactions <span className="font-normal text-slate-400">(one or more)</span>
         </p>
-        {payments.length > 0 && <p className="text-sm font-bold tabular-nums text-slate-900">Total {rupees(reg.amountPaid)}</p>}
+        <p className="text-sm tabular-nums text-slate-600">
+          Paid so far <b className="text-slate-900">{rupees(reg.amountPaid || 0)}</b>
+        </p>
       </div>
 
       {payments.length > 0 && (
-        <ul className="mt-2 divide-y divide-slate-100 rounded-xl border border-slate-200">
-          {payments.map((p) => (
-            <li key={p._id} className="flex items-center gap-3 px-3 py-2 text-sm">
-              <span className="min-w-0 flex-1">
-                <span className="font-semibold tabular-nums text-slate-900">{p.txnNo || "—"}</span>
-                <span className="block text-xs text-slate-500">
-                  {fmtDate(p.paidOn)} · {p.by}
-                  {p.source === "SCAN" ? " · scanned" : ""}
-                </span>
-              </span>
-              <span className="font-semibold tabular-nums text-slate-900">{p.amount != null ? rupees(p.amount) : ""}</span>
-              <button onClick={() => remove(p)} className="text-xs font-semibold text-red-600 hover:underline">
-                Remove
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className="mt-2 overflow-hidden rounded-xl border border-slate-200">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-50 text-left text-[11px] font-semibold uppercase text-slate-500">
+                <th className="px-3 py-2">#</th>
+                <th className="px-3 py-2">Txn / UTR / receipt</th>
+                <th className="px-3 py-2">Paid on</th>
+                <th className="px-3 py-2 text-right">Amount</th>
+                <th className="px-3 py-2" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {payments.map((p, i) => (
+                <tr key={p._id}>
+                  <td className="px-3 py-2 text-xs text-slate-400">{i + 1}</td>
+                  <td className="px-3 py-2">
+                    <span className="font-semibold tabular-nums text-slate-900">{p.txnNo || "—"}</span>
+                    <span className="block text-[11px] text-slate-500">
+                      {p.by}
+                      {p.source === "SCAN" ? " · scanned" : ""}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 text-xs text-slate-600">{fmtDate(p.paidOn)}</td>
+                  <td className="px-3 py-2 text-right font-semibold tabular-nums text-slate-900">{p.amount != null ? rupees(p.amount) : "—"}</td>
+                  <td className="px-3 py-2 text-right">
+                    <button onClick={() => remove(p)} className="text-xs font-semibold text-red-600 hover:underline">
+                      Remove
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
-      <div className="mt-3 rounded-xl bg-slate-50 p-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs font-semibold text-slate-600">Add a transaction</p>
-          <button type="button" onClick={() => fileRef.current?.click()} disabled={typeof scan === "number"} className={btn.small}>
-            <Icon name="ticket" className="h-3.5 w-3.5" />
-            {typeof scan === "number" ? `Reading… ${scan}%` : "Scan receipt"}
+      <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/40 p-3">
+        <p className="text-xs font-semibold text-slate-700">Add transaction(s)</p>
+        <div className="mt-2 space-y-2">
+          {rows.map((r, i) => (
+            <div key={i} className="grid grid-cols-[1.4fr_0.9fr_1fr_auto] items-end gap-2">
+              <label className="block min-w-0">
+                {i === 0 && <span className="text-[11px] font-semibold text-slate-600">Txn / UTR / receipt no.</span>}
+                <input value={r.txnNo} onChange={(e) => setRow(i, { txnNo: e.target.value })} className={`${cell} ${i === 0 ? "mt-1" : ""}`} />
+              </label>
+              <label className="block min-w-0">
+                {i === 0 && <span className="text-[11px] font-semibold text-slate-600">Amount (₹)</span>}
+                <input type="number" min="0" inputMode="decimal" value={r.amount} onChange={(e) => setRow(i, { amount: e.target.value })} className={`${cell} ${i === 0 ? "mt-1" : ""}`} />
+              </label>
+              <label className="block min-w-0">
+                {i === 0 && <span className="text-[11px] font-semibold text-slate-600">Paid on</span>}
+                <input type="date" value={r.paidOn} max={today()} onChange={(e) => setRow(i, { paidOn: e.target.value })} className={`${cell} ${i === 0 ? "mt-1" : ""}`} />
+              </label>
+              <div className="flex h-10 items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => startScan(i)}
+                  disabled={Boolean(scan)}
+                  className="flex h-10 items-center rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                  title="Read the details from a photo of the receipt"
+                >
+                  {scan?.row === i ? `${scan.progress}%` : <Icon name="ticket" className="h-4 w-4" />}
+                </button>
+                {rows.length > 1 && (
+                  <button type="button" onClick={() => setRows((list) => list.filter((_, j) => j !== i))} className="flex h-10 w-8 items-center justify-center rounded-lg text-lg text-slate-400 hover:bg-white hover:text-red-600" aria-label="Remove this row">
+                    ×
+                  </button>
+                )}
+              </div>
+              {r.scanned && <p className="col-span-4 -mt-1 text-[11px] font-medium text-emerald-700">Filled from the receipt – please check.</p>}
+            </div>
+          ))}
+        </div>
+        <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onScan} />
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button type="button" onClick={() => setRows((list) => [...list, blank()])} className={btn.small}>
+            + Add another transaction
           </button>
-          <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onScan} />
+          {filled.length > 0 && (
+            <span className="text-xs tabular-nums text-slate-600">
+              New: <b>{rupees(newTotal)}</b> · total after saving <b>{rupees((reg.amountPaid || 0) + newTotal)}</b>
+            </span>
+          )}
         </div>
-        {scan === "done" && (
-          <p className="mt-2 text-xs font-medium text-emerald-700">Filled from the receipt – please check before adding.</p>
-        )}
-        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <label className="block">
-            <span className="text-xs font-semibold text-slate-700">Txn / UTR / receipt no.</span>
-            <input value={form.txnNo} onChange={set("txnNo")} className={`${field} mt-1 h-10`} />
-          </label>
-          <label className="block">
-            <span className="text-xs font-semibold text-slate-700">Amount (₹)</span>
-            <input type="number" min="0" inputMode="decimal" value={form.amount} onChange={set("amount")} className={`${field} mt-1 h-10`} />
-          </label>
-          <label className="block">
-            <span className="text-xs font-semibold text-slate-700">Paid on</span>
-            <input type="date" value={form.paidOn} max={today()} onChange={set("paidOn")} className={`${field} mt-1 h-10`} />
-          </label>
-        </div>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-blue-100 pt-3">
           {markKeys.length > 0 ? (
             <label className="flex items-center gap-2 text-xs text-slate-700">
               <input type="checkbox" checked={alsoMark} onChange={(e) => setAlsoMark(e.target.checked)} className="h-4 w-4 accent-blue-600" />
@@ -929,8 +996,8 @@ function Payments({ examId, reg, markKeys, onChanged }) {
           ) : (
             <span />
           )}
-          <button onClick={add} disabled={busy || (!form.txnNo.trim() && form.amount === "")} className={`${btn.primary} py-2`}>
-            {busy ? "Adding…" : "Add transaction"}
+          <button onClick={save} disabled={busy || !filled.length} className={`${btn.primary} py-2`}>
+            {busy ? "Saving…" : filled.length > 1 ? `Save ${filled.length} transactions` : "Save transaction"}
           </button>
         </div>
       </div>
