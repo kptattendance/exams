@@ -47,6 +47,7 @@ import {
   getDriveFileId,
   hasErrors,
 } from "../services/studentImport/rules.js";
+import { refreshAfterChange, refreshNote } from "../services/exams/autoRefresh.js";
 
 const PHOTO_FOLDER = "kpt-examination/students";
 const isId = (id) => mongoose.Types.ObjectId.isValid(id);
@@ -563,6 +564,10 @@ export const processImport = async (req, res) => {
     if (!stillWorking && doc.status !== "DONE") {
       doc.status = "DONE";
       await logAction(req, "STUDENT_IMPORT_FINISHED", doc._id, s);
+      await refreshAfterChange(
+        doc.rows.filter((r) => r.state === "CREATED").map((r) => ({ department: r.department, semester: r.data?.semester })),
+        "students imported"
+      );
     }
     doc.markModified("rows");
     doc.lockedUntil = new Date(0);

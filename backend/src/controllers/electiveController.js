@@ -9,6 +9,7 @@ import Student from "../models/Student.js";
 import Subject from "../models/Subject.js";
 import StudentElective from "../models/StudentElective.js";
 import AuditLog from "../models/AuditLog.js";
+import { refreshAfterChange, refreshNote } from "../services/exams/autoRefresh.js";
 
 const fail = (res, status, error) => res.status(status).json({ error });
 const ci = (v) => new RegExp(`^${String(v).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i");
@@ -126,5 +127,6 @@ export const saveElectives = async (req, res) => {
     actorRole: req.user?.role || "",
     details: { department, semester, changes: ops.length },
   }).catch(() => {});
-  res.json({ message: `Saved ${ops.length} choices.` });
+  const auto = await refreshAfterChange([{ department, semester }], "electives changed");
+  res.json({ message: `Saved ${ops.length} choices.${refreshNote(auto)}` });
 };

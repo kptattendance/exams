@@ -17,6 +17,7 @@ import CourseResult from "../models/CourseResult.js";
 import AuditLog from "../models/AuditLog.js";
 import { REQUIRED_OLD_COLUMNS, examDate, mapOldColumns, oldRowResult, sdCodeOf } from "../services/exams/oldResults.js";
 import { EVENING_CODE } from "../services/studentImport/rules.js";
+import { refreshAfterChange, refreshNote } from "../services/exams/autoRefresh.js";
 
 const fail = (res, status, error, extra = {}) => res.status(status).json({ error, ...extra });
 const MAX_PROBLEMS = 500;
@@ -214,6 +215,11 @@ export const importOldResults = async (req, res) => {
       },
     }));
     const r = await CourseResult.bulkWrite(ops, { ordered: false });
+    // back papers changed: the students' classes and the back-paper group
+    const auto = await refreshAfterChange(
+      [...ready.map((it) => ({ department: it.student.department, semester: it.student.semester })), { backlog: true }],
+      "old results imported"
+    );
 
     await AuditLog.create({
       action: "OLD_RESULTS_IMPORTED",
@@ -235,7 +241,7 @@ export const importOldResults = async (req, res) => {
     res.status(201).json({
       ...preview,
       saved: { added: r.upsertedCount, updated: r.modifiedCount, unchanged: ready.length - r.upsertedCount - r.modifiedCount },
-      message: `Results saved: ${r.upsertedCount} added, ${r.modifiedCount} updated${summary.missingStudents.length ? ` – ${summary.missingStudents.length} students are not in the website yet (import them, then upload this file again)` : ""}.`,
+      message: `Results saved: ${r.upsertedCount} added, ${r.modifiedCount} updated${summary.missingStudents.length ? ` – ${summary.missingStudents.length} students are not in the website yet (import them, then upload this file again)` : ""}.${refreshNote(auto)}`,
     });
   } catch (e) {
     excelError(res, e);

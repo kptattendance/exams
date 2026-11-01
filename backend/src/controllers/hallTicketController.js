@@ -13,14 +13,17 @@ import Subject from "../models/Subject.js";
 import AuditLog from "../models/AuditLog.js";
 import { ticketFor } from "../services/exams/hallTicket.js";
 import { ADMISSION_LABEL } from "../services/exams/rules.js";
+import { refreshStale } from "../services/exams/autoRefresh.js";
 
 const isId = (id) => mongoose.Types.ObjectId.isValid(id);
 const fail = (res, status, error) => res.status(status).json({ error });
 
 export const listHallTickets = async (req, res) => {
   if (!isId(req.params.id)) return fail(res, 400, "Invalid exam id.");
+  if (!(await Exam.exists({ _id: req.params.id }))) return fail(res, 404, "Exam not found.");
+  // classes still marked out of date are registered again first
+  await refreshStale(req.params.id);
   const exam = await Exam.findById(req.params.id).lean();
-  if (!exam) return fail(res, 404, "Exam not found.");
 
   const { department, semester, q, state } = req.query;
   const filter = { exam: exam._id };

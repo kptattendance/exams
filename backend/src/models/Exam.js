@@ -64,6 +64,16 @@ const examSchema = new mongoose.Schema(
       startedAt: { type: Date, default: null },
       finishedAt: { type: Date, default: null },
       startedBy: { type: String, default: "" },
+      // classes whose automatic refresh could not run (services/exams/autoRefresh.js)
+      stale: {
+        type: [
+          new mongoose.Schema(
+            { key: String, department: String, semester: Number, reason: String, at: Date },
+            { _id: false }
+          ),
+        ],
+        default: [],
+      },
     },
 
     // Written-exam timetable. One entry per subject code: every department

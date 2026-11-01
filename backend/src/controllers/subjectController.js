@@ -1,6 +1,7 @@
 import Subject from "../models/Subject.js";
 import { parse } from "csv-parse/sync";
 import { normalizeAdmissionTypes } from "../services/exams/rules.js";
+import { refreshAfterChange, refreshNote } from "../services/exams/autoRefresh.js";
 
 // =====================================================
 // VALID DEPARTMENTS
@@ -387,8 +388,9 @@ export const createSubject = async (req, res) => {
       ...numericData,
     });
 
+    const auto = await refreshAfterChange([subject], "subject added");
     return res.status(201).json({
-      message: "Subject created successfully.",
+      message: `Subject created successfully.${refreshNote(auto)}`,
       subject,
     });
   } catch (error) {
@@ -771,8 +773,9 @@ export const updateSubject = async (
         }
       );
 
+    const auto = await refreshAfterChange([existingSubject, subject], "subject changed");
     return res.status(200).json({
-      message: "Subject updated successfully.",
+      message: `Subject updated successfully.${refreshNote(auto)}`,
       subject,
     });
   } catch (error) {
@@ -814,8 +817,9 @@ export const deleteSubject = async (
       });
     }
 
+    const auto = await refreshAfterChange([subject], "subject deleted");
     return res.status(200).json({
-      message: "Subject deleted successfully.",
+      message: `Subject deleted successfully.${refreshNote(auto)}`,
     });
   } catch (error) {
     console.error(

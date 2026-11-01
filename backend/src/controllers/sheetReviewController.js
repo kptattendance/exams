@@ -15,6 +15,7 @@ import FinalIA from "../models/FinalIA.js";
 import FinalAttendance from "../models/FinalAttendance.js";
 import Subject from "../models/Subject.js";
 import AuditLog from "../models/AuditLog.js";
+import { refreshAfterChange, refreshNote } from "../services/exams/autoRefresh.js";
 
 const MODELS = { ia: FinalIA, attendance: FinalAttendance };
 const LABEL = { ia: "Final IA", attendance: "Final attendance" };
@@ -181,9 +182,10 @@ export const freezeSheet = async (req, res) => {
     semester: doc.semester,
     batch: doc.batch,
   });
+  const auto = await refreshAfterChange([{ department: doc.department, semester: doc.semester }], `${LABEL[req.params.type]} frozen`);
   res.json({
     data: summary(doc.toObject(), req.params.type),
-    message: `${LABEL[req.params.type]} for ${doc.department.toUpperCase()} semester ${doc.semester} is frozen.`,
+    message: `${LABEL[req.params.type]} for ${doc.department.toUpperCase()} semester ${doc.semester} is frozen.${refreshNote(auto)}`,
   });
 };
 
@@ -212,8 +214,9 @@ export const returnSheet = async (req, res) => {
     reason,
     wasFrozen,
   });
+  const auto = wasFrozen ? await refreshAfterChange([{ department: doc.department, semester: doc.semester }], `${LABEL[req.params.type]} sent back`) : null;
   res.json({
     data: summary(doc.toObject(), req.params.type),
-    message: `Sent back to the ${doc.department.toUpperCase()} HOD for correction.`,
+    message: `Sent back to the ${doc.department.toUpperCase()} HOD for correction.${refreshNote(auto)}`,
   });
 };

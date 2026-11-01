@@ -47,6 +47,7 @@ import {
   isIncomplete,
   feeSummary,
 } from "../services/exams/rules.js";
+import { refreshAfterChange, refreshNote } from "../services/exams/autoRefresh.js";
 
 const DEPARTMENTS = ["at", "ch", "ce", "cs", "ec", "ee", "me", "ps"];
 const LOCK_MS = 25_000;
@@ -198,6 +199,7 @@ function examView(exam, extra = {}) {
       total: groups.length,
       done: groups.filter((g) => g.state !== "PENDING").length,
       failed: groups.filter((g) => g.state === "FAILED").map((g) => ({ key: g.key, error: g.error })),
+      stale: (e.generation?.stale || []).map((s) => ({ key: s.key, department: s.department, semester: s.semester, reason: s.reason, at: s.at })),
       startedAt: e.generation?.startedAt,
       finishedAt: e.generation?.finishedAt,
     },
@@ -426,6 +428,7 @@ export const startGeneration = async (req, res) => {
   if (!groups.length) return fail(res, 400, "No active students found in the selected semesters.");
 
   exam.generation.groups = groups;
+  if (!only) exam.generation.stale = []; // a full refresh brings everything up to date
   exam.generation.startedAt = new Date();
   exam.generation.finishedAt = null;
   exam.generation.startedBy = actor(req);
@@ -610,6 +613,25 @@ async function saveRegistrations(exam, docs, existingByStudent) {
     };
   });
   if (ops.length) await ExamRegistration.bulkWrite(ops, { ordered: false });
+}
+
+// Automatic refresh of one class / the back-paper group (services/exams/autoRefresh.js)
+export async function refreshClassInExam(exam, department, semester) {
+  const n = await generateClassGroup(exam, department, semester);
+  const key = examGroupKey(department, semester);
+  await Exam.updateOne(
+    { _id: exam._id, "generation.groups.key": key },
+    { $set: { "generation.groups.$.students": n, "generation.groups.$.state": "DONE", "generation.groups.$.error": "", "generation.groups.$.doneAt": new Date() } }
+  );
+  await Exam.updateOne({ _id: exam._id }, { $pull: { "generation.stale": { key } } });
+  return n;
+}
+
+export async function refreshBacklogInExam(exam) {
+  const n = await generateBacklogGroup(exam);
+  await Exam.updateOne({ _id: exam._id, "generation.groups.key": "backlog" }, { $set: { "generation.groups.$.students": n, "generation.groups.$.doneAt": new Date() } });
+  await Exam.updateOne({ _id: exam._id }, { $pull: { "generation.stale": { key: "backlog" } } });
+  return n;
 }
 
 // One class: department + current semester
@@ -987,5 +1009,7 @@ export const saveBridgeCourses = async (req, res) => {
   }
   const r = await Subject.bulkWrite(ops);
   await logAction(req, "BRIDGE_COURSES_MAPPED", null, { subjects: updates.length });
-  res.json({ message: `Saved ${r.matchedCount} bridge courses.` });
+  const changed = await Subject.find({ _id: { $in: updates.map((u) => u.id) } }).select("department semester").lean();
+  const auto = await refreshAfterChange(changed, "bridge courses changed");
+  res.json({ message: `Saved ${r.matchedCount} bridge courses.${refreshNote(auto)}` });
 };

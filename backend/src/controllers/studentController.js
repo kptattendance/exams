@@ -8,6 +8,7 @@ import cloudinary from "../config/cloudinary.js";
 import XLSX from "xlsx";
 import axios from "axios";
 import { calendarDay } from "../services/studentImport/rules.js";
+import { refreshAfterChange, refreshNote } from "../services/exams/autoRefresh.js";
 
 // =====================================================
 // GOOGLE DRIVE FILE ID
@@ -1762,6 +1763,9 @@ export const updateStudent = async (req, res) => {
       });
     }
 
+    // its class before the change (automatic registration refresh)
+    const before = { department: student.department, semester: student.semester };
+
     // -----------------------------------------
     // ONLY THESE FIELDS CAN BE EDITED
     // -----------------------------------------
@@ -1867,9 +1871,10 @@ export const updateStudent = async (req, res) => {
       );
     }
 
+    const auto = await refreshAfterChange([before, student], "student changed");
     return res.status(200).json({
       success: true,
-      message: "Student updated successfully.",
+      message: `Student updated successfully.${refreshNote(auto)}`,
       data: student,
     });
 

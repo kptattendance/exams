@@ -85,7 +85,7 @@ export default function ExamDetail({ id, basePath, canManage = false, canEditSub
       const ok = await confirm({
         title: "Refresh registration?",
         message:
-          "Subjects and eligibility are worked out again from the latest IA, attendance, electives and bridge-course settings.\n\nYour changed decisions, back papers added by hand and fee entries are kept.",
+          "Subjects and eligibility are worked out again from the latest IA, attendance, electives and bridge-course settings.\n\nThis normally happens by itself for the class concerned whenever something changes – use this only to update every class at once.\n\nYour changed decisions, back papers added by hand and fee entries are kept.",
         confirmText: "Refresh",
       });
       if (!ok) return;
@@ -278,9 +278,20 @@ export default function ExamDetail({ id, basePath, canManage = false, canEditSub
             click each).
           </Banner>
         )}
+        {registered && exam.generation.stale?.length > 0 && (
+          <Banner tone="amber" icon="refresh" title={`Registration is out of date for ${exam.generation.stale.length} class${exam.generation.stale.length === 1 ? "" : "es"}`}>
+            {exam.generation.stale.map((s) => `${s.key === "backlog" ? "Back-paper students" : `${String(s.department).toUpperCase()} sem ${s.semester}`} (${s.reason})`).join(" · ")}. It is
+            normally updated by itself; this time it could not run. Hall tickets update it before printing.
+            {canManage && (
+              <button onClick={() => register({ again: true })} disabled={Boolean(gen)} className="ml-2 font-semibold underline">
+                Update now
+              </button>
+            )}
+          </Banner>
+        )}
         {registered && relevantNotReady.length > 0 && (
           <Banner tone="blue" icon="list" title={`IA or attendance not frozen yet for ${relevantNotReady.length} classes`}>
-            Students of those classes show as “Waiting”. Once the Exam Officer freezes them, click Refresh registration.
+            Students of those classes show as “Waiting”. As soon as the Exam Officer freezes a sheet, that class is updated by itself.
           </Banner>
         )}
       </div>

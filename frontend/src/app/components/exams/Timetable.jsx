@@ -1,7 +1,11 @@
 "use client";
 
-// Written-exam timetable – kept deliberately simple:
-//   one row per paper → pick a date and Morning / Afternoon → Save → Publish.
+// Written-exam timetable – laid out like the sheet it is written on:
+//   one row per exam day, a Morning and an Afternoon column, the papers in
+//   the cells. Click a paper (from "Papers without a date" or a cell), then
+//   click the cell it goes to. × takes it out again. Save → Publish.
+// A published timetable can still be changed directly (no "draft" step);
+// it must stay without clashes. "List" shows the same papers as a table.
 // Clashes (a student with two papers at the same time) show up immediately.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -74,6 +78,9 @@ export default function Timetable({ examId: fixedExamId, canManage = false, back
   const [search, setSearch] = useState("");
   const [dept, setDept] = useState("");
   const [only, setOnly] = useState(""); // "" | "NO_DATE" | "CLASH"
+  const [view, setView] = useState("sheet"); // "sheet" | "list"
+  const [picked, setPicked] = useState(null); // paper code being placed / moved
+  const [extraDays, setExtraDays] = useState([]); // empty days added on the sheet
 
   useEffect(() => {
     if (fixedExamId) return;
@@ -128,6 +135,14 @@ export default function Timetable({ examId: fixedExamId, canManage = false, back
   const setRow = (code, patch) => setRows((r) => ({ ...r, [code]: { session: "FN", ...(r[code] || {}), ...patch } }));
 
   const save = async () => {
+    if (data?.published) {
+      const ok = await confirm({
+        title: "Save the published timetable?",
+        message: "The new dates are used at once – on hall tickets printed from now on. Hall tickets already printed show the old dates.",
+        confirmText: "Save",
+      });
+      if (!ok) return;
+    }
     setBusy(true);
     try {
       const r = await api("put", `/exams/${examId}/timetable`, { entries, sessions });
@@ -241,8 +256,8 @@ export default function Timetable({ examId: fixedExamId, canManage = false, back
             </a>
             {canManage &&
               (published ? (
-                <button onClick={() => publish(false)} disabled={busy} className={btn.secondary}>
-                  Move to draft
+                <button onClick={() => publish(false)} disabled={busy} className={btn.secondary} title="Only if the timetable must be taken back">
+                  Unpublish
                 </button>
               ) : (
                 <button onClick={() => publish(true)} disabled={busy} className={btn.primary}>
@@ -277,7 +292,7 @@ export default function Timetable({ examId: fixedExamId, canManage = false, back
                 <input
                   type="time"
                   value={sessions[k].start}
-                  disabled={locked || published}
+                  disabled={locked}
                   onChange={(e) => setSessions((s) => ({ ...s, [k]: { ...s[k], start: e.target.value } }))}
                   className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-sm disabled:bg-transparent disabled:border-transparent"
                 />
@@ -285,7 +300,7 @@ export default function Timetable({ examId: fixedExamId, canManage = false, back
                 <input
                   type="time"
                   value={sessions[k].end}
-                  disabled={locked || published}
+                  disabled={locked}
                   onChange={(e) => setSessions((s) => ({ ...s, [k]: { ...s[k], end: e.target.value } }))}
                   className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-sm disabled:bg-transparent disabled:border-transparent"
                 />
@@ -297,7 +312,7 @@ export default function Timetable({ examId: fixedExamId, canManage = false, back
           <Problems problems={problems} total={data.papers.length} />
 
           {/* ---------------- fill automatically ---------------- */}
-          {canManage && !published && (
+          {canManage && (
             <AutoFill
               open={autoOpen}
               setOpen={setAutoOpen}
@@ -311,7 +326,42 @@ export default function Timetable({ examId: fixedExamId, canManage = false, back
             />
           )}
 
-          {/* ---------------- papers ---------------- */}
+          {/* ---------------- sheet / list ---------------- */}
+          <div className="mt-6 inline-flex overflow-hidden rounded-xl border border-slate-200 bg-white text-sm font-semibold">
+            {[
+              ["sheet", "Sheet (by date)"],
+              ["list", "List (by subject)"],
+            ].map(([k, l]) => (
+              <button key={k} onClick={() => setView(k)} className={`px-4 py-2 ${view === k ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-50"}`}>
+                {l}
+              </button>
+            ))}
+          </div>
+
+          {view === "sheet" && (
+            <Sheet
+              papers={data.papers}
+              rows={rows}
+              sessions={sessions}
+              clashCodes={clashCodes}
+              canEdit={!locked}
+              picked={picked}
+              setPicked={setPicked}
+              extraDays={extraDays}
+              setExtraDays={setExtraDays}
+              place={(code, date, session) => {
+                setRow(code, { date, session });
+                setPicked(null);
+              }}
+              remove={(code) => {
+                setRow(code, { date: "" });
+                setPicked(null);
+              }}
+            />
+          )}
+
+          {view === "list" && (
+          <>
           <div className="mt-6 flex flex-wrap items-center gap-2">
             <div className="relative">
               <Icon name="search" className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
@@ -393,7 +443,7 @@ export default function Timetable({ examId: fixedExamId, canManage = false, back
                               <input
                                 type="date"
                                 value={v.date || ""}
-                                disabled={locked || published}
+                                disabled={locked}
                                 onChange={(e) => setRow(p.code, { date: e.target.value })}
                                 className={`h-8 w-36 rounded-lg border px-2 text-xs text-slate-900 outline-none focus:border-slate-500 disabled:bg-slate-50 ${
                                   !v.date ? "border-orange-300 bg-orange-50" : "border-slate-300 bg-white"
@@ -407,7 +457,7 @@ export default function Timetable({ examId: fixedExamId, canManage = false, back
                                   <button
                                     key={k}
                                     type="button"
-                                    disabled={locked || published || !v.date}
+                                    disabled={locked || !v.date}
                                     onClick={() => setRow(p.code, { session: k })}
                                     className={`h-8 px-2.5 text-[11px] font-semibold transition disabled:cursor-default ${
                                       v.date && (v.session || "FN") === k ? "bg-slate-950 text-white" : "bg-white text-slate-500 hover:bg-slate-50"
@@ -423,7 +473,7 @@ export default function Timetable({ examId: fixedExamId, canManage = false, back
                                 <input
                                   type="checkbox"
                                   checked={Boolean(v.drawing)}
-                                  disabled={locked || published || !v.date}
+                                  disabled={locked || !v.date}
                                   onChange={(e) => setRow(p.code, { drawing: e.target.checked })}
                                   className="h-4 w-4"
                                   aria-label={`${p.code} is a drawing paper`}
@@ -445,8 +495,11 @@ export default function Timetable({ examId: fixedExamId, canManage = false, back
             ))}
           </div>
 
+          </>
+          )}
+
           {published && canManage && (
-            <p className="mt-6 text-sm text-slate-500">This timetable is published. To change a date, click “Move to draft” first.</p>
+            <p className="mt-6 text-sm text-slate-500">This timetable is published. You can still change it – Save asks once, then the new dates are used.</p>
           )}
         </>
       )}
@@ -467,6 +520,185 @@ export default function Timetable({ examId: fixedExamId, canManage = false, back
               {busy ? "Saving…" : "Save"}
             </button>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// colour of a paper chip by semester (back-paper-only papers amber)
+const SEM_CHIP = {
+  1: "border-sky-300 bg-sky-50 text-sky-900",
+  2: "border-cyan-300 bg-cyan-50 text-cyan-900",
+  3: "border-indigo-300 bg-indigo-50 text-indigo-900",
+  4: "border-violet-300 bg-violet-50 text-violet-900",
+  5: "border-emerald-300 bg-emerald-50 text-emerald-900",
+  6: "border-teal-300 bg-teal-50 text-teal-900",
+};
+const chipColour = (p) => (!p.departments.length ? "border-amber-300 bg-amber-50 text-amber-900" : SEM_CHIP[p.semesters[0]] || "border-slate-300 bg-white text-slate-900");
+
+function Chip({ p, picked, clash, onPick, onRemove, canEdit }) {
+  return (
+    <span
+      className={`group inline-flex max-w-full items-center gap-1.5 rounded-lg border px-2 py-1 text-xs ${chipColour(p)} ${clash ? "!border-red-500 ring-2 ring-red-200" : ""} ${
+        picked ? "ring-2 ring-slate-900" : ""
+      }`}
+      title={`${p.code} – ${p.name}\n${p.departments.length ? p.departments.map((d) => d.toUpperCase()).join(", ") : "Back papers"} · ${p.candidates} students`}
+    >
+      <button type="button" onClick={onPick} disabled={!canEdit} className="min-w-0 text-left">
+        <b>{p.code}</b>
+        <span className="ml-1 hidden truncate opacity-75 sm:inline">{p.name.length > 26 ? `${p.name.slice(0, 26)}…` : p.name}</span>
+        <span className="ml-1 text-[10px] opacity-70">({p.candidates})</span>
+      </button>
+      {canEdit && onRemove && (
+        <button type="button" onClick={onRemove} className="rounded px-0.5 text-sm leading-none opacity-50 hover:opacity-100" aria-label={`Remove ${p.code} from this day`}>
+          ×
+        </button>
+      )}
+    </span>
+  );
+}
+
+// The timetable as it is written on paper: a row per day, Morning | Afternoon
+function Sheet({ papers, rows, sessions, clashCodes, canEdit, picked, setPicked, extraDays, setExtraDays, place, remove }) {
+  const [newDay, setNewDay] = useState("");
+  const byCode = useMemo(() => new Map(papers.map((p) => [p.code, p])), [papers]);
+  const days = useMemo(
+    () => [...new Set([...Object.values(rows).filter((v) => v.date).map((v) => v.date), ...extraDays])].sort(),
+    [rows, extraDays]
+  );
+  const inCell = (date, session) =>
+    Object.entries(rows)
+      .filter(([code, v]) => v.date === date && (v.session || "FN") === session && byCode.has(code))
+      .map(([code]) => byCode.get(code))
+      .sort((a, b) => (a.semesters[0] || 9) - (b.semesters[0] || 9) || a.code.localeCompare(b.code));
+  const waiting = papers.filter((p) => !rows[p.code]?.date);
+  const waitingGroups = useMemo(() => {
+    const g = new Map();
+    for (const p of waiting) {
+      const label = !p.departments.length ? "Back papers only" : `Sem ${p.semesters.join("/")}`;
+      if (!g.has(label)) g.set(label, []);
+      g.get(label).push(p);
+    }
+    return [...g.entries()].sort(([a], [b]) => (a.startsWith("Back") ? 1 : b.startsWith("Back") ? -1 : a.localeCompare(b, undefined, { numeric: true })));
+  }, [waiting]);
+  const pickedPaper = picked && byCode.get(picked);
+  const time = (k) => `${sessions[k].start} – ${sessions[k].end}`;
+
+  return (
+    <div className="mt-4 space-y-4">
+      {/* papers still without a date */}
+      <div className="rounded-2xl border border-orange-200 bg-orange-50/60 p-3">
+        <p className="text-sm font-semibold text-orange-900">
+          Papers without a date ({waiting.length})
+          {canEdit && waiting.length > 0 && <span className="ml-2 font-normal text-orange-800">– click one, then click the day and session it goes to</span>}
+        </p>
+        {waiting.length === 0 ? (
+          <p className="mt-1 text-xs text-emerald-700">Every paper has a date.</p>
+        ) : (
+          <div className="mt-2 space-y-1.5">
+            {waitingGroups.map(([label, list]) => (
+              <div key={label} className="flex flex-wrap items-center gap-1.5">
+                <span className="w-24 shrink-0 text-[11px] font-semibold uppercase text-orange-800">{label}</span>
+                {list.map((p) => (
+                  <Chip key={p.code} p={p} canEdit={canEdit} picked={picked === p.code} onPick={() => setPicked(picked === p.code ? null : p.code)} />
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {pickedPaper && (
+        <p className="sticky top-2 z-20 rounded-xl bg-slate-950 px-4 py-2.5 text-sm text-white shadow-lg">
+          Placing <b>{pickedPaper.code}</b> {pickedPaper.name} – click a Morning / Afternoon box below.
+          <button onClick={() => setPicked(null)} className="ml-3 font-semibold text-slate-300 underline hover:text-white">
+            Cancel
+          </button>
+        </p>
+      )}
+
+      {/* the sheet */}
+      <div className="overflow-x-auto rounded-2xl border border-slate-300 bg-white">
+        <table className="w-full min-w-[680px] border-collapse text-sm">
+          <thead>
+            <tr className="bg-slate-100 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
+              <th className="w-36 border-b border-r border-slate-300 px-3 py-2">Date</th>
+              <th className="border-b border-r border-slate-300 px-3 py-2">
+                Morning <span className="font-normal normal-case text-slate-500">{time("FN")}</span>
+              </th>
+              <th className="border-b border-slate-300 px-3 py-2">
+                Afternoon <span className="font-normal normal-case text-slate-500">{time("AN")}</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {days.length === 0 && (
+              <tr>
+                <td colSpan={3} className="px-4 py-8 text-center text-sm text-slate-500">
+                  No exam days yet. Add the first day below (or use “Fill empty dates automatically”).
+                </td>
+              </tr>
+            )}
+            {days.map((d) => {
+              const dt = new Date(`${d}T00:00:00`);
+              const sunday = dt.getDay() === 0;
+              return (
+                <tr key={d} className="align-top">
+                  <td className={`border-b border-r border-slate-300 px-3 py-2 ${sunday ? "bg-red-50" : ""}`}>
+                    <p className="font-bold text-slate-900">{dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</p>
+                    <p className={`text-xs ${sunday ? "font-semibold text-red-600" : "text-slate-500"}`}>{dt.toLocaleDateString("en-IN", { weekday: "long" })}</p>
+                  </td>
+                  {["FN", "AN"].map((k) => {
+                    const list = inCell(d, k);
+                    const target = canEdit && pickedPaper;
+                    return (
+                      <td
+                        key={k}
+                        onClick={target ? () => place(picked, d, k) : undefined}
+                        className={`border-b border-slate-300 px-2 py-2 ${k === "FN" ? "border-r" : ""} ${target ? "cursor-pointer bg-emerald-50/60 hover:bg-emerald-100" : ""}`}
+                      >
+                        <div className="flex min-h-[2.25rem] flex-wrap gap-1.5" onClick={(e) => target && e.target === e.currentTarget && place(picked, d, k)}>
+                          {list.map((p) => (
+                            <span key={p.code} onClick={(e) => target && e.stopPropagation()}>
+                              <Chip
+                                p={p}
+                                canEdit={canEdit}
+                                clash={clashCodes.has(p.code)}
+                                picked={picked === p.code}
+                                onPick={() => setPicked(picked === p.code ? null : p.code)}
+                                onRemove={() => remove(p.code)}
+                              />
+                            </span>
+                          ))}
+                          {target && <span className="self-center text-xs font-semibold text-emerald-700">+ place here</span>}
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {canEdit && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="font-semibold text-slate-700">Add exam day</span>
+          <input type="date" value={newDay} onChange={(e) => setNewDay(e.target.value)} className="h-9 rounded-lg border border-slate-300 bg-white px-2 text-sm" />
+          <button
+            type="button"
+            disabled={!newDay}
+            onClick={() => {
+              setExtraDays((list) => [...new Set([...list, newDay])]);
+              setNewDay("");
+            }}
+            className={btn.secondary}
+          >
+            Add
+          </button>
+          <span className="text-xs text-slate-500">Colours: Sem 1 blue · Sem 3 indigo · Sem 5 green · back papers amber · red border = clash. Hover a paper for its departments.</span>
         </div>
       )}
     </div>
