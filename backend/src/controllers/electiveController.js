@@ -50,7 +50,7 @@ export const getElectives = async (req, res) => {
       .sort({ electiveGroup: 1, code: 1 })
       .lean(),
     Student.find({ department: ci(department), semester, status: "active" })
-      .select("registerNumber rollNumber name batch admissionType")
+      .select("registerNumber rollNumber name batch admissionType imageUrl")
       .sort({ registerNumber: 1 })
       .lean(),
   ]);

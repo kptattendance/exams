@@ -156,87 +156,101 @@ export default function Electives({ fixedDepartment = false }) {
 
       {data && (
         <>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {data.groups.map((g) => (
-              <div key={g.group} className="rounded-2xl border border-slate-200 bg-white p-4">
-                <p className="text-xs font-semibold text-slate-500">Group {g.group}</p>
-                <ul className="mt-2 space-y-2">
-                  {g.subjects.map((s) => {
-                    const n = data.students.filter((st) => choices[st._id]?.[g.group] === s._id).length;
-                    return (
-                      <li key={s._id} className="flex items-center gap-2 text-sm">
-                        <span className="min-w-0 flex-1 truncate">
-                          <b>{s.code}</b> <span className="text-slate-600">{s.name}</span>
-                        </span>
-                        <span className="tabular-nums text-xs text-slate-500">{n}</span>
-                        <button onClick={() => setAll(g.group, s._id, s.code)} className={btn.small} title={`Give ${s.code} to all`}>
-                          All
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            ))}
-          </div>
-
           {missing > 0 && (
             <p className="mt-4 flex items-center gap-2 rounded-xl bg-orange-50 px-3 py-2 text-sm font-medium text-orange-800">
               <Icon name="alert" className="h-4 w-4" />
               {missing} student{missing > 1 ? "s have" : " has"} no elective chosen yet.
             </p>
           )}
+          <p className="mt-3 text-xs text-slate-500">
+            Tick the elective each student studies. “All” gives one subject to every student – then change the few who study the other one, and Save.
+          </p>
 
-          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[560px] text-sm">
-                <thead>
-                  <tr className="border-b border-slate-100 text-left text-xs font-semibold text-slate-500">
-                    <th className="px-4 py-2.5">Student</th>
+          {/* one row per student, one column per elective subject (grouped) */}
+          <div className="mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            <div className="max-h-[68vh] overflow-auto">
+              <table className="w-full min-w-[640px] border-collapse text-sm">
+                <thead className="sticky top-0 z-10">
+                  <tr className="bg-slate-800 text-left text-xs text-white">
+                    <th rowSpan={2} className="border-r border-slate-600 px-3 py-2">Sl.</th>
+                    <th rowSpan={2} className="border-r border-slate-600 px-3 py-2">Student</th>
                     {data.groups.map((g) => (
-                      <th key={g.group} className="px-3 py-2.5">
-                        Group {g.group}
+                      <th key={g.group} colSpan={g.subjects.length} className="border-b border-r border-slate-600 px-3 py-1.5 text-center">
+                        Elective group {g.group}
                       </th>
                     ))}
                   </tr>
+                  <tr className="bg-slate-700 text-xs text-white">
+                    {data.groups.flatMap((g) =>
+                      g.subjects.map((s) => {
+                        const n = data.students.filter((st) => choices[st._id]?.[g.group] === s._id).length;
+                        return (
+                          <th key={s._id} className="min-w-[150px] border-r border-slate-600 px-2 py-1.5 text-center align-top font-normal">
+                            <p className="font-bold">{s.code}</p>
+                            <p className="line-clamp-2 text-[10px] text-slate-300">{s.name}</p>
+                            <p className="mt-1 flex items-center justify-center gap-1.5">
+                              <span className="rounded bg-slate-600 px-1.5 py-0.5 text-[10px] tabular-nums">{n} students</span>
+                              <button onClick={() => setAll(g.group, s._id, s.code)} className="rounded bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-900 hover:bg-slate-200" title={`Give ${s.code} to all`}>
+                                All
+                              </button>
+                            </p>
+                          </th>
+                        );
+                      })
+                    )}
+                  </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {data.students.map((st, n) => (
-                    <tr key={st._id}>
-                      <td className="px-4 py-2">
-                        <p className="font-semibold text-slate-900">
-                          <span className="mr-1 font-normal tabular-nums text-slate-400">{n + 1}.</span>
-                          {st.name}
-                        </p>
-                        <p className="text-xs tabular-nums text-slate-500">{st.registerNumber}</p>
-                      </td>
-                      {data.groups.map((g) => {
-                        const v = choices[st._id]?.[g.group] || "";
-                        const dirty = (original[st._id]?.[g.group] || "") !== v;
-                        return (
-                          <td key={g.group} className="px-3 py-2">
-                            <select
-                              value={v}
-                              onChange={(e) => setChoice(st._id, g.group, e.target.value)}
-                              className={`h-10 w-full rounded-xl border px-2 text-sm ${
-                                dirty ? "border-blue-500 bg-blue-50" : v ? "border-slate-200 bg-white" : "border-orange-300 bg-orange-50"
-                              }`}
-                            >
-                              <option value="">– not chosen –</option>
-                              {g.subjects.map((s) => (
-                                <option key={s._id} value={s._id}>
-                                  {s.code} {s.name}
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
+                  {data.students.map((st, n) => {
+                    const none = data.groups.some((g) => !choices[st._id]?.[g.group]);
+                    return (
+                      <tr key={st._id} className={none ? "bg-orange-50/50" : n % 2 ? "bg-slate-50/60" : ""}>
+                        <td className="border-r border-slate-100 px-3 py-2 text-xs tabular-nums text-slate-400">{n + 1}</td>
+                        <td className="border-r border-slate-100 px-3 py-2">
+                          <div className="flex items-center gap-2.5">
+                            {st.imageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={st.imageUrl} alt={st.name} className="h-10 w-10 shrink-0 cursor-zoom-in rounded-full border border-slate-200 object-cover" />
+                            ) : (
+                              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-200 text-sm font-bold text-slate-500">
+                                {String(st.name || "S").charAt(0)}
+                              </span>
+                            )}
+                            <div className="min-w-0">
+                              <p className="truncate font-semibold text-slate-900">{st.name}</p>
+                              <p className="text-xs tabular-nums text-slate-500">
+                                {st.registerNumber}
+                                {st.admissionType && st.admissionType !== "regular" && <span className="ml-1.5 rounded bg-violet-100 px-1 text-[10px] text-violet-800">Lateral</span>}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        {data.groups.flatMap((g) =>
+                          g.subjects.map((s) => {
+                            const on = choices[st._id]?.[g.group] === s._id;
+                            const dirty = (original[st._id]?.[g.group] || "") !== (choices[st._id]?.[g.group] || "");
+                            return (
+                              <td key={s._id} className={`border-r border-slate-100 px-2 py-2 text-center ${on ? (dirty ? "bg-blue-50" : "bg-emerald-50") : ""}`}>
+                                <label className="inline-flex cursor-pointer items-center justify-center p-1.5">
+                                  <input
+                                    type="radio"
+                                    name={`${st._id}-${g.group}`}
+                                    checked={on}
+                                    onChange={() => setChoice(st._id, g.group, s._id)}
+                                    className="h-5 w-5 accent-emerald-600"
+                                    aria-label={`${st.name}: ${s.code}`}
+                                  />
+                                </label>
+                              </td>
+                            );
+                          })
+                        )}
+                      </tr>
+                    );
+                  })}
                   {data.students.length === 0 && (
                     <tr>
-                      <td colSpan={data.groups.length + 1} className="px-4 py-8 text-center text-slate-500">
+                      <td colSpan={2 + data.groups.reduce((a, g) => a + g.subjects.length, 0)} className="px-4 py-8 text-center text-slate-500">
                         No active students in semester {semester}.
                       </td>
                     </tr>

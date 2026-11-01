@@ -74,6 +74,30 @@ export function FeedbackProvider({ children }) {
     return id;
   }, []);
 
+  // A person's photo anywhere on the site opens full screen when clicked
+  // (photos are the cropped "object-cover" images; data-zoom / data-no-zoom
+  // switch it on or off for any other image). Print / PDF pages are outside.
+  const [photo, setPhoto] = useState(null); // { src, alt }
+  useEffect(() => {
+    const onClick = (e) => {
+      const img = e.target instanceof HTMLImageElement ? e.target : null;
+      if (!img || !img.src || img.closest("[data-no-zoom]")) return;
+      const isPhoto = img.hasAttribute("data-zoom") || String(img.className || "").includes("object-cover");
+      if (!isPhoto || /\.svg(\?|$)/i.test(img.src)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setPhoto({ src: img.currentSrc || img.src, alt: img.alt || "" });
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, []);
+  useEffect(() => {
+    if (!photo) return;
+    const onKey = (e) => e.key === "Escape" && setPhoto(null);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [photo]);
+
   // alert() on any page becomes the same popup
   useEffect(() => {
     const original = window.alert;
@@ -113,6 +137,16 @@ export function FeedbackProvider({ children }) {
       {children}
       <Toasts toasts={toasts} onDismiss={dismiss} />
       {dialog && <ConfirmDialog {...dialog} onClose={close} />}
+      {photo && (
+        <div className="fixed inset-0 z-[95] flex flex-col items-center justify-center bg-slate-950/90 p-4" role="dialog" aria-modal="true" onClick={() => setPhoto(null)}>
+          <button onClick={() => setPhoto(null)} className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-2xl leading-none text-white hover:bg-white/20" aria-label="Close photo">
+            ×
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={photo.src} alt={photo.alt} data-no-zoom className="max-h-[85vh] max-w-[92vw] rounded-2xl object-contain shadow-2xl" />
+          {photo.alt && <p className="mt-3 text-sm font-semibold text-white">{photo.alt}</p>}
+        </div>
+      )}
     </FeedbackContext.Provider>
   );
 }
