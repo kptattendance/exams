@@ -65,9 +65,16 @@ export function batchesOfClass(batch) {
 
 // Does this student take this subject? A bridge course only for laterals of
 // the types it is marked for (none marked = every lateral) – the same rule as
-// currentSubjectsFor; every other subject: yes.
+// currentSubjectsFor. An elective: only the one chosen in its group
+// (student.electives = { [group]: subjectId }); while none is chosen, all.
+// Every other subject: yes.
 export function takesSubject(student, subject) {
-  if (String(subject?.subjectCategory || "").toUpperCase() !== "BRIDGE") return true;
+  const category = String(subject?.subjectCategory || "").toUpperCase();
+  if (category === "ELECTIVE") {
+    const chosen = student?.electives?.[String(subject.electiveGroup || "").toUpperCase()];
+    return !chosen || String(chosen) === String(subject._id ?? subject.subjectId);
+  }
+  if (category !== "BRIDGE") return true;
   if (!LATERAL_TYPES.includes(student?.admissionType)) return false;
   const types = subject.forAdmissionTypes || [];
   return types.length === 0 || types.includes(student.admissionType);

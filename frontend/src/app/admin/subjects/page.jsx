@@ -218,8 +218,10 @@ const emptyForm = {
   semester: "",
   department: "",
 
-  // REGULAR or BRIDGE
+  // REGULAR, ELECTIVE or BRIDGE
   subjectCategory: "REGULAR",
+  // ELECTIVE only: subjects of one group are alternatives (a student takes one)
+  electiveGroup: "",
 
   subjectType: "",
   board: "",
@@ -466,6 +468,7 @@ const openEditModal = (subject) => {
 
     subjectCategory:
       subject.subjectCategory || "REGULAR",
+    electiveGroup: subject.electiveGroup || "",
 
     subjectType: subject.subjectType || "",
     board: subject.board || "",
@@ -529,6 +532,7 @@ const openEditModal = (subject) => {
 
   // IMPORTANT
   subjectCategory: form.subjectCategory,
+  electiveGroup: form.subjectCategory === "ELECTIVE" ? String(form.electiveGroup || "").trim().toUpperCase() : null,
 
   subjectType: form.subjectType,
   board: form.board,
@@ -1592,6 +1596,7 @@ const openEditModal = (subject) => {
 <td className="px-3 py-3">
   <span className="inline-flex rounded-lg bg-amber-100 px-2.5 py-1.5 text-xs font-bold text-amber-700">
     {subject.subjectCategory || "REGULAR"}
+    {subject.subjectCategory === "ELECTIVE" && subject.electiveGroup ? ` · ${subject.electiveGroup}` : ""}
   </span>
 </td>
                         {/* TYPE */}
@@ -2038,14 +2043,37 @@ const openEditModal = (subject) => {
       Regular
     </option>
 
+    <option value="ELECTIVE">
+      Elective (student takes one of a group)
+    </option>
+
     <option value="BRIDGE">
       Bridge
     </option>
   </select>
 
   <p className="mt-1 text-[10px] text-slate-400">
-    Select Regular for normal subjects and Bridge for bridge courses.
+    Regular for normal subjects, Elective when students choose one of two (e.g. 340PA / 340PB), Bridge for bridge courses.
   </p>
+
+  {form.subjectCategory === "ELECTIVE" && (
+    <div className="mt-2">
+      <label className="mb-1.5 block text-xs font-semibold text-slate-600">
+        Elective group
+      </label>
+      <input
+        name="electiveGroup"
+        value={form.electiveGroup || ""}
+        onChange={handleFormChange}
+        required
+        placeholder="E1"
+        className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm uppercase outline-none focus:border-amber-400 focus:bg-white focus:ring-4 focus:ring-amber-50"
+      />
+      <p className="mt-1 text-[10px] text-slate-400">
+        Give both choices the same group (e.g. E1). The HOD then picks one for each student under Electives.
+      </p>
+    </div>
+  )}
 </div>
 
                   {/* TYPE */}

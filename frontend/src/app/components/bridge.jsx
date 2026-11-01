@@ -11,7 +11,14 @@ const SHORT = { "lateral-puc": "PUC", "lateral-iti": "ITI", "lateral-iti-cross":
 
 export const isBridge = (subject) => String(subject?.subjectCategory || "").toUpperCase() === "BRIDGE";
 
+export const isElective = (subject) => String(subject?.subjectCategory || "").toUpperCase() === "ELECTIVE";
+
 export function takesSubject(student, subject) {
+  // an elective: only the one the HOD chose for the student (none chosen yet: all)
+  if (isElective(subject)) {
+    const chosen = student?.electives?.[String(subject.electiveGroup || "").toUpperCase()];
+    return !chosen || String(chosen) === String(subject.subjectId ?? subject._id);
+  }
   if (!isBridge(subject)) return true;
   if (!LATERAL.includes(student?.admissionType)) return false;
   const types = subject.forAdmissionTypes || [];
@@ -22,6 +29,12 @@ const forWhom = (subject) => (subject.forAdmissionTypes || []).map((t) => SHORT[
 
 // under the subject code in the table header
 export function BridgeBadge({ subject }) {
+  if (isElective(subject))
+    return (
+      <div className="mt-1 inline-block rounded bg-sky-200 px-1.5 py-0.5 text-[9px] font-bold text-sky-900" title="Elective – each student takes the one chosen under Electives">
+        ELECTIVE · {subject.electiveGroup || "-"}
+      </div>
+    );
   if (!isBridge(subject)) return null;
   return (
     <div className="mt-1 inline-block rounded bg-violet-200 px-1.5 py-0.5 text-[9px] font-bold text-violet-900" title={`Bridge course – only for lateral students: ${forWhom(subject)}`}>
@@ -41,7 +54,7 @@ const STRIPES = { backgroundImage: "repeating-linear-gradient(135deg, #f1f5f9 0 
 // the cell of a bridge course the student does not take
 export function NotRequiredCell() {
   return (
-    <td className="w-[115px] min-w-[115px] border-r border-b border-gray-200 px-1.5 py-1.5 text-center" style={STRIPES} title="Bridge course – not required for this student">
+    <td className="w-[115px] min-w-[115px] border-r border-b border-gray-200 px-1.5 py-1.5 text-center" style={STRIPES} title="Not taken by this student (bridge course of another type, or the other elective)">
       <span className="text-[10px] font-medium text-slate-500">Not required</span>
     </td>
   );

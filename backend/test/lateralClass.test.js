@@ -70,3 +70,13 @@ test("exam fee per semester exam (DTE circular): 1-2 subjects 200, 3+ 300, marks
   assert.equal(f.total, 1000);
   assert.equal(examFeeFor([sem3("A", "NE")], {}, "2026-10-20").total, 0);
 });
+
+test("an elective: only the one chosen in its group (none chosen: all)", async () => {
+  const { takesSubject } = await import("../src/services/exams/rules.js");
+  const pa = { _id: "a1", subjectCategory: "ELECTIVE", electiveGroup: "E1" };
+  const pb = { _id: "b1", subjectCategory: "ELECTIVE", electiveGroup: "E1" };
+  const chosePa = { admissionType: "regular", electives: { E1: "a1" } };
+  assert.equal(takesSubject(chosePa, pa), true);
+  assert.equal(takesSubject(chosePa, pb), false);
+  assert.equal(takesSubject({ admissionType: "regular" }, pb), true);
+});

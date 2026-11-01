@@ -1,5 +1,15 @@
 import FinalIA from "../models/FinalIA.js";
 import { batchesOfClass, takesSubject } from "../services/exams/rules.js";
+import StudentElective from "../models/StudentElective.js";
+
+// { studentId: { [electiveGroup]: subjectId } } – the electives the HOD chose
+async function electivesOf(studentIds, semester) {
+  const map = {};
+  for (const e of await StudentElective.find({ student: { $in: studentIds }, semester }).select("student electiveGroup subject").lean()) {
+    (map[String(e.student)] ||= {})[e.electiveGroup] = String(e.subject);
+  }
+  return map;
+}
 import Student from "../models/Student.js";
 import Subject from "../models/Subject.js";
 
@@ -137,7 +147,7 @@ const subjects = await Subject.find({
   semester: semesterNumber,
 })
   .select(
-    "_id code name semester department sequence iaMax iaMin subjectCategory forAdmissionTypes"
+    "_id code name semester department sequence iaMax iaMin subjectCategory forAdmissionTypes electiveGroup"
   )
   .sort({
     sequence: 1,
@@ -180,9 +190,11 @@ const responseSubjects = subjects.map((subject) => {
     iaMax: subject.iaMax ?? null,
     iaMin: subject.iaMin ?? null,
 
-    // bridge courses: only the laterals of these types take them
+    // bridge courses: only the laterals of these types take them;
+    // electives: only the one chosen in the group
     subjectCategory: subject.subjectCategory || "REGULAR",
     forAdmissionTypes: subject.forAdmissionTypes || [],
+    electiveGroup: subject.electiveGroup || null,
 
     maxMarks:
       subject.iaMax ??
@@ -195,6 +207,7 @@ const responseSubjects = subjects.map((subject) => {
 // CREATE STUDENT RESPONSE
 // -------------------------------------------------
 
+const chosenElectives = await electivesOf(students.map((s) => s._id), semesterNumber);
 const responseStudents = students.map(
   (student) => {
     const existingStudent =
@@ -257,6 +270,9 @@ const responseStudents = students.map(
 
       admissionType:
         student.admissionType || "regular",
+
+      electives:
+        chosenElectives[String(student._id)] || {},
 
       semester:
         student.semester || "",
@@ -490,7 +506,7 @@ export const saveFinalIA = async (
           hodDepartment,
       })
         .select(
-          "_id code name semester department subjectCategory forAdmissionTypes"
+          "_id code name semester department subjectCategory forAdmissionTypes electiveGroup"
         )
         .lean();
 
@@ -608,6 +624,8 @@ export const saveFinalIA = async (
           "_id registerNumber name fatherName admissionType"
         )
         .lean();
+    const savedElectives = await electivesOf(dbStudents.map((s) => s._id), semesterNumber);
+    for (const st of dbStudents) st.electives = savedElectives[String(st._id)] || {};
 
     if (
       dbStudents.length !==

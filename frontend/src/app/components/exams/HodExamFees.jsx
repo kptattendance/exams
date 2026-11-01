@@ -5,10 +5,9 @@
 // fee to pay. Fee (DTE circular, set by the COE): for each semester exam he
 // writes – 1 or 2 subjects or 3+ (full semester) – plus the marks card fee and
 // the late fee by date; bridge courses are a separate exam.
-// Download as Excel and share it with the students.
+// Download as a PDF and share it with the students.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import * as XLSX from "xlsx";
 
 import Icon from "../shell/Icon";
 import { btn } from "../ui/Modal";
@@ -19,7 +18,7 @@ const rs = (n) => `Rs ${Number(n || 0).toLocaleString("en-IN")}`;
 const day = (iso) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "");
 const today = () => new Date().toISOString().slice(0, 10);
 const TYPE = { regular: "Regular", "lateral-puc": "Lateral (PUC)", "lateral-iti": "Lateral (ITI)", "lateral-iti-cross": "Lateral (ITI cross)" };
-// "Sem 3 (4 subjects): 300 + 50 + 100 late"
+// "Sem 3 (4 subjects): 300 + 50 + 100 late = 450"
 const examLine = (e) => `${e.label} (${e.count} subject${e.count === 1 ? "" : "s"}): ${e.fee} + ${e.marksCard}${e.late ? ` + ${e.late} late` : ""} = ${e.total}`;
 
 export default function HodExamFees() {
@@ -55,67 +54,24 @@ export default function HodExamFees() {
   const slabs = rules?.lateFees || [];
   const total = rows.reduce((a, r) => a + r.fee.total, 0);
 
+  // the colourful PDF (print page) of the list shown – to share with the students
   const download = () => {
-    const head = [
-      "Sl",
-      "Register No.",
-      "Roll No.",
-      "Name",
-      "Sem",
-      "Admission",
-      "Subjects (may write)",
-      "Back papers",
-      "Bridge courses",
-      "Not permitted",
-      "Decision awaited",
-      "Semester exams",
-      "Exam fee",
-      "Marks card fee",
-      `Late fee (on ${day(d.on)})`,
-      `TOTAL (on ${day(d.on)})`,
-      "How it is made up",
-      ...slabs.map((s) => `Total if paid from ${day(s.from)}`),
-    ];
-    const body = rows.map((r, i) => [
-      i + 1,
-      r.registerNumber,
-      r.rollNumber,
-      r.name,
-      r.semester,
-      TYPE[r.admissionType] || r.admissionType,
-      r.eligible.join(", "),
-      r.backPapers.join(", "),
-      r.bridge.join(", "),
-      r.notPermitted.join(", "),
-      r.pending.join(", "),
-      r.fee.exams.length,
-      r.fee.examFee,
-      r.fee.cardFee,
-      r.fee.lateFee,
-      r.fee.total,
-      r.fee.exams.map(examLine).join("; "),
-      ...slabs.map((s) => r.fee.base + r.fee.exams.length * (Number(s.amount) || 0)),
-    ]);
-    const title = [
-      [`${d.exam.name} – exam fee`],
-      [
-        `Department: ${deptLabel(d.department)} · For each semester exam: 1 or 2 subjects Rs ${rules.upTo2}, 3 or more / full semester Rs ${rules.threePlus}, + marks card Rs ${rules.marksCard}. Bridge courses are a separate exam.`,
-      ],
-      [slabs.length ? `Late fee for each semester exam: ${slabs.map((s) => `from ${day(s.from)} Rs ${s.amount}`).join(", ")}.` : "No late fee set."],
-      ["Only subjects the student may write are counted. Not permitted = attendance shortage (ANS) or IA below minimum (NE)."],
-      [],
-    ];
-    const ws = XLSX.utils.aoa_to_sheet([...title, head, ...body]);
-    ws["!cols"] = head.map((h, i) => ({ wch: [4, 13, 10, 26, 5, 14, 34, 18, 18, 20, 16, 9, 9, 9, 11, 11, 48][i] || Math.max(12, String(h).length + 2) }));
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Exam fee");
-    XLSX.writeFile(wb, `Exam_fee_${String(d.department).toUpperCase()}${sem ? `_Sem${sem}` : ""}_${d.on}.xlsx`);
+    try {
+      localStorage.setItem(
+        "kpt-exam-fees",
+        JSON.stringify({ exam: d.exam, department: d.department, on: d.on, rules, semester: sem, rows })
+      );
+    } catch {
+      toast.error("The browser blocked the PDF. Please allow site data and try again.");
+      return;
+    }
+    window.open("/print/exam-fees?auto=1", "_blank");
   };
 
   return (
     <div className="mx-auto max-w-6xl p-3 md:p-5">
       <h1 className="text-xl font-bold text-gray-800 md:text-2xl">Exam fee list</h1>
-      <p className="text-sm text-gray-500">Each student&apos;s subjects for the exam and the fee to pay – download the Excel and share it with the students.</p>
+      <p className="text-sm text-gray-500">Each student&apos;s subjects for the exam and the fee to pay – download the PDF and share it with the students.</p>
 
       <div className="mt-4 flex flex-wrap items-end gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
         <label className="block">
@@ -146,7 +102,7 @@ export default function HodExamFees() {
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name / reg no" className="h-10 w-52 rounded-lg border border-gray-300 px-3 text-sm" />
         <button onClick={download} disabled={!rows.length} className={`${btn.primary} ml-auto`}>
           <Icon name="download" className="h-4 w-4" />
-          Download Excel
+          Download PDF
         </button>
       </div>
 
