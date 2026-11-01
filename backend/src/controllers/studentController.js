@@ -7,6 +7,7 @@ import cloudinary from "../config/cloudinary.js";
 
 import XLSX from "xlsx";
 import axios from "axios";
+import { calendarDay } from "../services/studentImport/rules.js";
 
 // =====================================================
 // GOOGLE DRIVE FILE ID
@@ -463,7 +464,8 @@ export const bulkUploadStudents = async (
       let dobDate;
 
       if (dobValue instanceof Date) {
-        dobDate = dobValue;
+        // the calendar day of an Excel date cell (see studentImport/rules.js)
+        dobDate = calendarDay(dobValue);
       } else {
         dobDate =
           new Date(

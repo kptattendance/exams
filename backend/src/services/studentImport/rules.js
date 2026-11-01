@@ -86,8 +86,17 @@ const digits = (v) => {
   return String(v).replace(/\D/g, "");
 };
 
+// A date cell comes from the Excel library as midnight of the SERVER's time
+// zone, a few seconds early: 18-02-2008 is 2008-02-17T18:29:50Z on a server set
+// to India time (shown as 17-02-2008). Take the nearest calendar day, stored
+// as midnight UTC like the typed dates below – the same on any server.
+export function calendarDay(d) {
+  const local = d.getTime() - d.getTimezoneOffset() * 60000;
+  return new Date(Math.round(local / 864e5) * 864e5);
+}
+
 export function parseDate(v) {
-  if (v instanceof Date && !Number.isNaN(v.getTime())) return v;
+  if (v instanceof Date && !Number.isNaN(v.getTime())) return calendarDay(v);
   if (typeof v === "number" && v > 1000 && v < 80000) {
     // Excel serial date
     return new Date(Math.round((v - 25569) * 86400 * 1000));

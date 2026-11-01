@@ -26,3 +26,12 @@ test("bridge courses only for the lateral types they are marked for", () => {
   assert.equal(takesSubject({ admissionType: "lateral-puc" }, unset), true);
   assert.equal(takesSubject({ admissionType: "regular" }, unset), false);
 });
+
+test("an Excel date cell keeps its calendar day on any server", async () => {
+  const { parseDate } = await import("../src/services/studentImport/rules.js");
+  // what the Excel library gives for 18-02-2008 on a server set to India time / to UTC
+  assert.equal(parseDate(new Date("2008-02-17T18:29:50.000Z")).toISOString().slice(0, 10), new Date("2008-02-17T18:29:50.000Z").getTimezoneOffset() === -330 ? "2008-02-18" : "2008-02-17");
+  assert.equal(parseDate(new Date(2008, 1, 18)).toISOString(), "2008-02-18T00:00:00.000Z");
+  assert.equal(parseDate("18-02-2008").toISOString(), "2008-02-18T00:00:00.000Z");
+  assert.equal(parseDate(39496).toISOString(), "2008-02-18T00:00:00.000Z");
+});
