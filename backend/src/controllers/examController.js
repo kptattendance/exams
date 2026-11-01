@@ -40,6 +40,7 @@ import {
   summarize,
   mergeSubjects,
   effectiveOf,
+  examFeeFor,
   hasTheoryPaper,
   hasPracticalExam,
   examGroupKey,
@@ -102,8 +103,75 @@ function readExamBody(body, { partial = false } = {}) {
     if (!(m >= 0 && m <= 100)) errors.push("Minimum attendance must be between 0 and 100.");
     out["settings.minAttendance"] = m;
   }
+  if (body.fees !== undefined) {
+    const f = body.fees || {};
+    const per = Number(f.perSubject);
+    const back = Number(f.backPaper);
+    if (!(per >= 0 && per <= 10000)) errors.push("Fee per subject must be between 0 and 10000.");
+    if (!(back >= 0 && back <= 10000)) errors.push("Fee per back paper must be between 0 and 10000.");
+    const slabs = (Array.isArray(f.lateFees) ? f.lateFees : [])
+      .filter((s) => s && (s.from || s.amount))
+      .map((s) => ({ from: String(s.from || "").slice(0, 10), amount: Number(s.amount) }));
+    for (const s of slabs) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(s.from)) errors.push("Every late fee needs its start date.");
+      else if (!(s.amount >= 0 && s.amount <= 10000)) errors.push(`Late fee from ${s.from} must be between 0 and 10000.`);
+    }
+    out["settings.perSubjectFee"] = per;
+    out["settings.backPaperFee"] = back;
+    out["settings.lateFees"] = slabs.sort((a, b) => a.from.localeCompare(b.from));
+  }
   return { out, errors };
 }
+
+const feeRulesOf = (e) => ({
+  perSubject: e.settings?.perSubjectFee ?? 350,
+  backPaper: e.settings?.backPaperFee ?? 200,
+  lateFees: (e.settings?.lateFees || []).map((s) => ({ from: s.from, amount: s.amount })),
+});
+
+// GET /api/exams/hod/fee-list?exam=<id>&on=YYYY-MM-DD
+// HOD: his department's students in an exam – subjects they may write, back
+// papers, subjects not permitted, and the exam fee to pay (Excel on the page).
+// Without ?exam the list of exams to choose from.
+export const hodFeeList = async (req, res) => {
+  const role = req.user?.role;
+  const department = String(role === "hod" ? req.user.department || "" : req.query.department || "").toLowerCase();
+  if (!department) return fail(res, 400, role === "hod" ? "Your department is not set. Please ask the Admin." : "Choose the department.");
+  const exams = await Exam.find({}).select("name academicYear status semesters createdAt settings").sort({ createdAt: -1 }).limit(20).lean();
+  const exam = req.query.exam ? exams.find((e) => String(e._id) === String(req.query.exam)) : exams[0];
+  const list = exams.map((e) => ({ _id: e._id, name: e.name, academicYear: e.academicYear, status: e.status }));
+  if (!exam) return res.json({ exams: list, exam: null, rows: [] });
+
+  const on = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.on || "")) ? req.query.on : new Date().toISOString().slice(0, 10);
+  const rules = feeRulesOf(exam);
+  const regs = await ExamRegistration.find({ exam: exam._id, department })
+    .select("registerNumber rollNumber name semester admissionType subjects.code subjects.name subjects.kind subjects.status subjects.override subjects.reasons")
+    .sort({ semester: 1, rollNumber: 1, registerNumber: 1 })
+    .lean();
+  const rows = regs.map((r) => {
+    const subj = (r.subjects || []).map((s) => ({ code: s.code, name: s.name, kind: s.kind, status: effectiveOf(s), reasons: s.reasons || [] }));
+    return {
+      registerNumber: r.registerNumber,
+      rollNumber: r.rollNumber,
+      name: r.name,
+      semester: r.semester,
+      admissionType: r.admissionType || "regular",
+      eligible: subj.filter((s) => s.status === "ELIGIBLE" && s.kind !== "BACKLOG").map((s) => s.code),
+      backPapers: subj.filter((s) => s.status === "ELIGIBLE" && s.kind === "BACKLOG").map((s) => s.code),
+      notPermitted: subj.filter((s) => s.status === "ANS" || s.status === "NE").map((s) => `${s.code} (${s.status})`),
+      pending: subj.filter((s) => s.status === "PENDING").map((s) => s.code),
+      fee: examFeeFor(r.subjects || [], rules, on),
+    };
+  });
+  res.json({
+    exams: list,
+    exam: { _id: exam._id, name: exam.name, academicYear: exam.academicYear, status: exam.status },
+    department,
+    on,
+    rules,
+    rows,
+  });
+};
 
 function examView(exam, extra = {}) {
   const e = exam.toObject ? exam.toObject() : exam;
@@ -116,6 +184,7 @@ function examView(exam, extra = {}) {
     semesters: e.semesters,
     backPapers: e.backPapers,
     minAttendance: e.settings?.minAttendance ?? 75,
+    fees: feeRulesOf(e),
     status: e.status,
     createdAt: e.createdAt,
     createdByEmail: e.createdByEmail,
@@ -573,7 +642,8 @@ async function generateClassGroup(exam, department, semester) {
 
     const current = subjects.map(({ subject, kind }) => {
       const ia = sheetEntry(iaSheet, st._id, subject._id);
-      const att = sheetEntry(attSheet, st._id, subject._id);
+      // bridge courses have no attendance (they are not on the attendance sheet)
+      const att = kind === "BRIDGE" ? { state: "not-required" } : sheetEntry(attSheet, st._id, subject._id);
       const el = eligibilityFor(
         subject,
         { state: ia.state, marks: ia.value, maxMarks: ia.max },

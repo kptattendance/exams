@@ -177,8 +177,10 @@ export function eligibilityFor(subject, ia, attendance, minAttendance = 75) {
   let iaMarks = null;
   let iaMax = null;
 
-  // ---- attendance
-  if (attendance?.state !== "confirmed") {
+  // ---- attendance (a bridge course has none: state "not-required")
+  if (attendance?.state === "not-required") {
+    // nothing to check
+  } else if (attendance?.state !== "confirmed") {
     pending = true;
     reasons.push(notReady("Attendance", attendance?.state));
   } else if (!(attendance.maxClasses > 0)) {
@@ -242,6 +244,32 @@ export function backlogEligibility(lastStatus) {
 }
 
 export const effectiveOf = (s) => s.override?.status || s.status;
+
+// Late fee on a day ("YYYY-MM-DD"): the slab with the latest start on or before it
+export function lateFeeOn(lateFees = [], on) {
+  let fee = 0;
+  let from = "";
+  for (const s of lateFees || []) {
+    if (s?.from && s.from <= on && s.from >= from) {
+      fee = Number(s.amount) || 0;
+      from = s.from;
+    }
+  }
+  return fee;
+}
+
+// Exam fee of one registration. Only subjects the student may write (final
+// status ELIGIBLE, COE's decision included) are charged: current-semester ones
+// (regular, elective, bridge) at perSubject, back papers at backPaper, plus
+// the late fee in force on the day `on`.
+export function examFeeFor(subjects, { perSubject = 350, backPaper = 200, lateFees = [] } = {}, on) {
+  const eligible = (subjects || []).filter((s) => effectiveOf(s) === "ELIGIBLE");
+  const current = eligible.filter((s) => s.kind !== "BACKLOG").length;
+  const backs = eligible.filter((s) => s.kind === "BACKLOG").length;
+  const base = current * perSubject + backs * backPaper;
+  const late = eligible.length ? lateFeeOn(lateFees, on) : 0;
+  return { current, backPapers: backs, currentFee: current * perSubject, backPaperFee: backs * backPaper, base, late, total: base + late };
+}
 
 // incomplete = something is still missing (e.g. elective not chosen), so the
 // registration can't be final even if every listed subject is eligible

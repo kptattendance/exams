@@ -5,6 +5,7 @@ import { authenticateUser } from "../middlewares/authMiddleware.js";
 import { adminOnly, requireRole } from "../middlewares/requireRole.js";
 import {
   listExams,
+  hodFeeList,
   createExam,
   getExam,
   updateExam,
@@ -75,6 +76,9 @@ router.use(authenticateUser);
 // Setup (must come before "/:id")
 router.get("/setup/bridge-courses", VIEW, listBridgeCourses);
 router.put("/setup/bridge-courses", MANAGE, saveBridgeCourses);
+
+// HOD: his students' subjects and exam fee (Excel on his page)
+router.get("/hod/fee-list", requireRole("hod", "coe", "acoe", "admin"), hodFeeList);
 
 router.get("/", VIEW, listExams);
 router.post("/", MANAGE, createExam);

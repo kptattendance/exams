@@ -132,6 +132,7 @@ export const MENUS = {
         items: [
           { label: "Final IA", href: "/hod/final-ia", icon: "marks", pinned: true },
           { label: "Final attendance", href: "/hod/attendance", icon: "attendance", pinned: true },
+          { label: "Exam fee list", href: "/hod/exam-fees", icon: "money" },
         ],
       },
       {

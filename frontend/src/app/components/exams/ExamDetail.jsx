@@ -12,6 +12,7 @@ import Icon from "../shell/Icon";
 import Modal, { btn, field } from "../ui/Modal";
 import { useConfirm, useToast } from "../ui/Feedback";
 import { ExamForm } from "./ExamList";
+import ExamFeeSettings from "./ExamFeeSettings";
 import { T } from "../ui/table";
 import {
   ADMISSION_SHORT,
@@ -39,6 +40,7 @@ export default function ExamDetail({ id, basePath, canManage = false, canEditSub
   const [loadError, setLoadError] = useState("");
   const [gen, setGen] = useState(null); // progress while registering
   const [editing, setEditing] = useState(false);
+  const [feeOpen, setFeeOpen] = useState(false);
   const [addingBack, setAddingBack] = useState(false);
   const [listKey, setListKey] = useState(0);
   const [filters, setFilters] = useState({ cls: "", overall: "", issue: "", q: "" });
@@ -223,6 +225,10 @@ export default function ExamDetail({ id, basePath, canManage = false, canEditSub
                 <Icon name="edit" className="h-4 w-4" />
                 <span className="sm:hidden lg:inline">Edit</span>
               </button>
+              <button onClick={() => setFeeOpen(true)} className={btn.secondary} title="Exam fee per subject, per back paper and late fees">
+                <Icon name="money" className="h-4 w-4" />
+                <span className="sm:hidden lg:inline">Exam fee</span>
+              </button>
               {isAdmin && (
               <button onClick={remove} className={btn.danger} title="Delete examination">
                 <Icon name="trash" className="h-4 w-4" />
@@ -377,6 +383,7 @@ export default function ExamDetail({ id, basePath, canManage = false, canEditSub
       {canManage && editing && (
         <EditExam exam={exam} onClose={() => setEditing(false)} onSaved={(e) => (setEditing(false), load())} />
       )}
+      {canManage && feeOpen && <ExamFeeSettings exam={exam} onClose={() => setFeeOpen(false)} onSaved={() => (setFeeOpen(false), load())} />}
       {canEditSubjects && (
         <AddBackPaper
           open={addingBack}

@@ -40,6 +40,16 @@ const examSchema = new mongoose.Schema(
 
     settings: {
       minAttendance: { type: Number, default: 75, min: 0, max: 100 },
+
+      // Exam fee (HOD's fee list for the students): per current-semester
+      // subject, per back paper, and a late fee that grows with the date –
+      // each slab applies from its date ("YYYY-MM-DD") onwards
+      perSubjectFee: { type: Number, default: 350, min: 0 },
+      backPaperFee: { type: Number, default: 200, min: 0 },
+      lateFees: {
+        type: [new mongoose.Schema({ from: { type: String, required: true }, amount: { type: Number, required: true, min: 0 } }, { _id: false })],
+        default: [],
+      },
     },
 
     status: { type: String, enum: ["DRAFT", "PUBLISHED", "COMPLETED"], default: "DRAFT" },

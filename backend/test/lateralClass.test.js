@@ -35,3 +35,30 @@ test("an Excel date cell keeps its calendar day on any server", async () => {
   assert.equal(parseDate("18-02-2008").toISOString(), "2008-02-18T00:00:00.000Z");
   assert.equal(parseDate(39496).toISOString(), "2008-02-18T00:00:00.000Z");
 });
+
+test("a bridge course is decided by IA alone (no attendance)", async () => {
+  const { eligibilityFor } = await import("../src/services/exams/rules.js");
+  const subject = { iaMax: 50, iaMin: 20 };
+  const ok = eligibilityFor(subject, { state: "confirmed", marks: 30, maxMarks: 50 }, { state: "not-required" });
+  assert.equal(ok.status, "ELIGIBLE");
+  const low = eligibilityFor(subject, { state: "confirmed", marks: 10, maxMarks: 50 }, { state: "not-required" });
+  assert.equal(low.status, "NE");
+});
+
+test("exam fee: 350 per eligible subject, 200 per back paper, late fee by date", async () => {
+  const { examFeeFor, lateFeeOn } = await import("../src/services/exams/rules.js");
+  const subjects = [
+    { kind: "REGULAR", status: "ELIGIBLE" },
+    { kind: "BRIDGE", status: "ELIGIBLE" },
+    { kind: "REGULAR", status: "ANS" }, // not permitted: not charged
+    { kind: "REGULAR", status: "PENDING", override: { status: "ELIGIBLE" } }, // allowed by the COE
+    { kind: "BACKLOG", status: "ELIGIBLE" },
+  ];
+  const lateFees = [{ from: "2026-11-15", amount: 500 }, { from: "2026-11-25", amount: 2000 }];
+  assert.equal(lateFeeOn(lateFees, "2026-11-10"), 0);
+  assert.equal(lateFeeOn(lateFees, "2026-11-15"), 500);
+  assert.equal(lateFeeOn(lateFees, "2026-12-01"), 2000);
+  const f = examFeeFor(subjects, { perSubject: 350, backPaper: 200, lateFees }, "2026-11-20");
+  assert.deepEqual(f, { current: 3, backPapers: 1, currentFee: 1050, backPaperFee: 200, base: 1250, late: 500, total: 1750 });
+  assert.equal(examFeeFor([{ kind: "REGULAR", status: "NE" }], { lateFees }, "2026-12-01").total, 0);
+});
