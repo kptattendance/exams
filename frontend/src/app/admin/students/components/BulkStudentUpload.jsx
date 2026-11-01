@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import * as XLSX from "xlsx";
 
+import { usePopupMessage } from "../../../components/ui/Feedback";
 export default function StudentBulkUploadPage() {
   const { getToken } = useAuth();
 
@@ -14,6 +15,7 @@ export default function StudentBulkUploadPage() {
 
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
+  usePopupMessage(error); // shown as a popup too
 
   // =====================================================
   // API URL

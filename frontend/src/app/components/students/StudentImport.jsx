@@ -11,7 +11,7 @@ import axios from "axios";
 import * as XLSX from "xlsx";
 
 import Icon from "../shell/Icon";
-import { useConfirm, useToast } from "../ui/Feedback";
+import { useConfirm, useToast, usePopupMessage } from "../ui/Feedback";
 import { useIsAdmin } from "../useRole";
 
 const API = `${process.env.NEXT_PUBLIC_API_URL}/api/student-import`;
@@ -272,6 +272,7 @@ function useImportList(limit) {
   const api = useApi();
   const [list, setList] = useState(null);
   const [error, setError] = useState("");
+  usePopupMessage(error); // shown as a popup too
   const load = useCallback(() => {
     api("get", "/")
       .then((r) => {
@@ -313,6 +314,7 @@ function ImportTab({ openImportId, onOpened, onOpen, onShowHistory, undo, onChan
   const [stage, setStage] = useState("pick"); // pick | checking | preview | starting | running
   const [preview, setPreview] = useState(null);
   const [error, setError] = useState("");
+  usePopupMessage(error); // shown as a popup too
   const [importDoc, setImportDoc] = useState(null);
   const [finished, setFinished] = useState(false); // all students and photos done
 
@@ -895,6 +897,7 @@ function Progress({ initial, onReset, onUndo, undoBusy, onFinished }) {
   const [running, setRunning] = useState(initial.status !== "DONE");
   const [stopping, setStopping] = useState(false);
   const [error, setError] = useState("");
+  usePopupMessage(error); // shown as a popup too
   const [show, setShow] = useState("all");
   const [q, setQ] = useState("");
   const stop = useRef(false);

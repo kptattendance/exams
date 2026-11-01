@@ -11,6 +11,7 @@ import axios from "axios";
 import * as XLSX from "xlsx";
 import { sortOptions } from "../../../components/sortOptions";
 import { useIsAdmin } from "../../../components/useRole";
+import { usePopupMessage } from "../../../components/ui/Feedback";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const departments = [
@@ -95,6 +96,7 @@ export default function StudentTable({
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  usePopupMessage(error); // shown as a popup too
 
   // Filters
   const [search, setSearch] = useState("");
@@ -130,6 +132,7 @@ export default function StudentTable({
 
   // Messages
   const [message, setMessage] = useState("");
+  usePopupMessage(message, "success"); // shown as a popup too
   const [actionError, setActionError] =
     useState("");
 

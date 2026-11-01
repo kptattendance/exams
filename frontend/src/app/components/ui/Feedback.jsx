@@ -17,10 +17,46 @@
 //
 // <FeedbackProvider> is already placed in AppShell, so every signed-in
 // page can use these hooks.
+//
+// Messages are shown as a SweetAlert popup in the middle of the screen (not
+// a small toast in a corner), so nobody misses them: errors stay until OK is
+// clicked, success / info close by themselves. alert() is shown the same way,
+// and usePopupMessage(error) pops up a page's own error / message text.
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import Swal from "sweetalert2";
 
 import Icon from "../shell/Icon";
+
+const TITLE = { success: "Done", error: "Please check", info: "Information" };
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+// One popup: type "success" | "error" | "info"
+export function popup(type, message, ms) {
+  if (message === undefined || message === null || message === "") return;
+  if (typeof window === "undefined") return;
+  const error = type === "error";
+  Swal.fire({
+    icon: TITLE[type] ? type : "info",
+    title: TITLE[type] || TITLE.info,
+    html: `<div style="white-space:pre-line;font-size:15px;line-height:1.5">${esc(message)}</div>`,
+    confirmButtonText: "OK",
+    confirmButtonColor: "#0f172a",
+    timer: error ? undefined : Math.max(Number(ms) || 0, 3500),
+    timerProgressBar: !error,
+  });
+}
+
+// A page's own error / message state: pops up whenever it gets a new text
+export function usePopupMessage(message, type = "error") {
+  useEffect(() => {
+    if (message) popup(type, message);
+  }, [message, type]);
+}
+
+// alert("…") from older pages: error or success guessed from the words
+const ALERT_ERROR = /fail|error|could not|couldn't|cannot|can't|invalid|missing|not allowed|denied|please|wrong|unable/i;
+const ALERT_OK = /success|saved|deleted|updated|created|added|done|sent|uploaded/i;
 
 const FeedbackContext = createContext(null);
 
@@ -31,15 +67,21 @@ export function FeedbackProvider({ children }) {
 
   const dismiss = useCallback((id) => setToasts((t) => t.filter((x) => x.id !== id)), []);
 
-  const push = useCallback(
-    (type, message, ms = type === "error" ? 6000 : 4000) => {
-      const id = ++idRef.current;
-      setToasts((t) => [...t.slice(-3), { id, type, message }]);
-      setTimeout(() => dismiss(id), ms);
-      return id;
-    },
-    [dismiss]
-  );
+  // shown as a popup in the middle of the screen (see popup above)
+  const push = useCallback((type, message, ms) => {
+    const id = ++idRef.current;
+    popup(type, message, ms);
+    return id;
+  }, []);
+
+  // alert() on any page becomes the same popup
+  useEffect(() => {
+    const original = window.alert;
+    window.alert = (m) => popup(ALERT_ERROR.test(String(m)) ? "error" : ALERT_OK.test(String(m)) ? "success" : "info", String(m ?? ""));
+    return () => {
+      window.alert = original;
+    };
+  }, []);
 
   // Stable object, so pages can safely use it in effect dependencies
   const toast = useMemo(

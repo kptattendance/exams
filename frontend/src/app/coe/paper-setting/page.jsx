@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
 
-import { useConfirm, useToast } from "../../components/ui/Feedback";
+import { useConfirm, useToast, usePopupMessage } from "../../components/ui/Feedback";
 import { sortOptions } from "../../components/sortOptions";
 import { useIsAdmin } from "../../components/useRole";
 
@@ -95,6 +95,7 @@ export default function PaperSettingPage() {
   const [boardFilter, setBoardFilter] = useState(""); // board that handles the subject, e.g. SC for maths
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  usePopupMessage(error); // shown as a popup too
   const toast = useToast();
   const confirmDialog = useConfirm();
   const isAdmin = useIsAdmin();
@@ -815,6 +816,7 @@ function CreateModal({ api, defaultSessionValue, onClose, onCreated }) {
   const [examiners, setExaminers] = useState([]);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
+  usePopupMessage(err); // shown as a popup too
 
   const inAWeek = new Date(Date.now() + 7 * 864e5);
   inAWeek.setHours(17, 0, 0, 0);

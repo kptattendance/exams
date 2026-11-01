@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { sortOptions } from "../../components/sortOptions";
 
+import { usePopupMessage } from "../../components/ui/Feedback";
 const COLLEGE_CODE = "103";
 
 const DEPARTMENTS = [
@@ -77,6 +78,7 @@ export default function RegisterNumbersPage() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  usePopupMessage(error); // shown as a popup too
   const [success, setSuccess] = useState("");
 
   const selectedDepartment = useMemo(

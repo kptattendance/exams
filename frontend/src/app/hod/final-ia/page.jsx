@@ -7,7 +7,7 @@ import { useAuth } from "@clerk/nextjs";
 import { excelInstructionsSheet } from "../../components/ExcelFormatHelp";
 import HodSheetPanel, { openSignatureSheet } from "../../components/HodSheetPanel";
 import { batchFor, useAcademicYear } from "../../components/academicYear";
-import { useToast } from "../../components/ui/Feedback";
+import { useToast, usePopupMessage } from "../../components/ui/Feedback";
 import { BridgeBadge, BridgeLegend, LateralTag, NotRequiredCell, takesSubject } from "../../components/bridge";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -57,9 +57,11 @@ export default function FinalIAPage() {
 
   const [message, setMessage] =
     useState("");
+  usePopupMessage(message, "success"); // shown as a popup too
 
   const [error, setError] =
     useState("");
+  usePopupMessage(error); // shown as a popup too
 
   // ============================================================
   // LOAD FINAL IA

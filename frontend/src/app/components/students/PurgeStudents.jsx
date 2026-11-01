@@ -9,7 +9,7 @@
 import { useEffect, useState } from "react";
 
 import Modal from "../ui/Modal";
-import { useToast } from "../ui/Feedback";
+import { useToast, usePopupMessage } from "../ui/Feedback";
 import { errMsg, useApi } from "../exams/shared";
 
 const err = (e, fallback) => e?.response?.data?.message || errMsg(e, fallback);
@@ -32,6 +32,7 @@ export default function PurgeStudents({ ids, onClose, onDeleted }) {
   const [request, setRequest] = useState(null);
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
+  usePopupMessage(error); // shown as a popup too
 
   const sendCode = async () => {
     setBusy(true);
@@ -141,6 +142,7 @@ export function PurgeLog({ onClose }) {
   const api = useApi();
   const [items, setItems] = useState(null);
   const [error, setError] = useState("");
+  usePopupMessage(error); // shown as a popup too
 
   useEffect(() => {
     api("get", "/students/purge/log")

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { useAuth } from "@clerk/nextjs";
+import { usePopupMessage } from "../../components/ui/Feedback";
 import {
   Search,
   Download,
@@ -23,6 +24,7 @@ export default function HODFacultyPage() {
   const [faculty, setFaculty] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  usePopupMessage(error); // shown as a popup too
 
   const [search, setSearch] = useState("");
   const [department, setDepartment] = useState("");

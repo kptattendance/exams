@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
 
-import { useConfirm, useToast } from "../../../components/ui/Feedback";
+import { useConfirm, useToast, usePopupMessage } from "../../../components/ui/Feedback";
 import { ChangeList } from "../../../components/exams/ChangeList";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -31,6 +31,7 @@ export default function PaperUploadPage() {
   const [preview, setPreview] = useState(null);
   const [warnings, setWarnings] = useState([]);
   const [error, setError] = useState("");
+  usePopupMessage(error); // shown as a popup too
   const [file, setFile] = useState(null);
   const [progress, setProgress] = useState(0);
   const [uploading, setUploading] = useState(false);

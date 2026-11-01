@@ -12,7 +12,7 @@ import * as XLSX from "xlsx";
 
 import Icon from "../shell/Icon";
 import { btn } from "../ui/Modal";
-import { useToast } from "../ui/Feedback";
+import { useToast, usePopupMessage } from "../ui/Feedback";
 import { downloadBlob, errMsg, useApi } from "../exams/shared";
 
 const COLUMNS = [
@@ -58,6 +58,7 @@ export default function ExistingStudentImport() {
   const [job, setJob] = useState(null); // the import, while / after it runs
   const [busy, setBusy] = useState(""); // "check" | "import" | "process"
   const [error, setError] = useState("");
+  usePopupMessage(error); // shown as a popup too
   const [show, setShow] = useState("ALL");
   const [q, setQ] = useState("");
 

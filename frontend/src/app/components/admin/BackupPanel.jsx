@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import Icon from "../shell/Icon";
 import { btn } from "../ui/Modal";
-import { useToast } from "../ui/Feedback";
+import { useToast, usePopupMessage } from "../ui/Feedback";
 import { downloadBlob, errMsg, useApi } from "../exams/shared";
 
 const when = (d) => new Date(d).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
@@ -23,6 +23,7 @@ export default function BackupPanel() {
   const [busy, setBusy] = useState(false);
   const [reason, setReason] = useState("");
   const [error, setError] = useState("");
+  usePopupMessage(error); // shown as a popup too
 
   const load = useCallback(async () => {
     try {

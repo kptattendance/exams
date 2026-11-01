@@ -1082,6 +1082,9 @@ export const submitFinalIA = async (
               )
           );
 
+        // a bridge course this student does not take: no mark needed
+        if (mark?.notRequired) continue;
+
         if (
           !mark ||
           mark.marks ===

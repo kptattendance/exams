@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 
 import { useApi, programmeName } from "../components/exams/shared";
 
+import { usePopupMessage } from "../components/ui/Feedback";
 const same = (a, b) => String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
 
 export default function HODDashboard() {
@@ -15,6 +16,7 @@ export default function HODDashboard() {
   const [profile, setProfile] = useState(null);
   const [stats, setStats] = useState(null); // { students, subjects }
   const [error, setError] = useState("");
+  usePopupMessage(error); // shown as a popup too
 
   useEffect(() => {
     (async () => {

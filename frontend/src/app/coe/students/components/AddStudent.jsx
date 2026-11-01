@@ -5,6 +5,7 @@ import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
 import { sortOptions } from "../../../components/sortOptions";
 
+import { usePopupMessage } from "../../../components/ui/Feedback";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const departments = [
@@ -176,6 +177,7 @@ export default function AddStudent({
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  usePopupMessage(error); // shown as a popup too
   const [success, setSuccess] = useState("");
 
   // =====================================================

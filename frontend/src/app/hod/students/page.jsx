@@ -20,12 +20,14 @@ import {
 
 import { STUDENT_FIELDS, problemsOf } from "../../components/students/studentCheck";
 
+import { usePopupMessage } from "../../components/ui/Feedback";
 export default function HODStudentsPage() {
   const { getToken } = useAuth();
 
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  usePopupMessage(error); // shown as a popup too
 
   const [search, setSearch] = useState("");
   const [semester, setSemester] = useState("");

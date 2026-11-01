@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
 
+import { usePopupMessage } from "../components/ui/Feedback";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const STATUS = {
@@ -18,6 +19,7 @@ export default function FacultyHome() {
   const { getToken } = useAuth();
   const [papers, setPapers] = useState(null);
   const [error, setError] = useState("");
+  usePopupMessage(error); // shown as a popup too
 
   useEffect(() => {
     (async () => {

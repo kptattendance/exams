@@ -12,7 +12,7 @@ import { useMemo, useState } from "react";
 
 import Icon from "../shell/Icon";
 import { btn } from "../ui/Modal";
-import { useToast } from "../ui/Feedback";
+import { useToast, usePopupMessage } from "../ui/Feedback";
 import { errMsg, useApi } from "../exams/shared";
 
 const STATUS = {
@@ -30,6 +30,7 @@ export default function OldResultImport() {
   const [saved, setSaved] = useState(null);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  usePopupMessage(error); // shown as a popup too
   const [show, setShow] = useState("ALL"); // ALL | BACK | EVENING
   const [q, setQ] = useState("");
 
