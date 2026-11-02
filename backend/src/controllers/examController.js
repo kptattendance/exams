@@ -48,6 +48,7 @@ import {
   feeSummary,
 } from "../services/exams/rules.js";
 import { refreshAfterChange, refreshNote } from "../services/exams/autoRefresh.js";
+import { shiftOf, shiftOfSheet, studentShift } from "../services/evening.js";
 
 const DEPARTMENTS = ["at", "ch", "ce", "cs", "ec", "ee", "me", "ps"];
 const LOCK_MS = 25_000;
@@ -149,7 +150,7 @@ export const hodFeeList = async (req, res) => {
 
   const on = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.on || "")) ? req.query.on : new Date().toISOString().slice(0, 10);
   const rules = feeRulesOf(exam);
-  const regs = await ExamRegistration.find({ exam: exam._id, department })
+  const regs = await ExamRegistration.find({ exam: exam._id, department, ...studentShift(req) })
     .select("registerNumber rollNumber name semester admissionType subjects.code subjects.name subjects.semester subjects.kind subjects.status subjects.override subjects.reasons")
     .sort({ semester: 1, rollNumber: 1, registerNumber: 1 })
     .lean();
@@ -161,9 +162,10 @@ export const hodFeeList = async (req, res) => {
       name: r.name,
       semester: r.semester,
       admissionType: r.admissionType || "regular",
-      eligible: subj.filter((s) => s.status === "ELIGIBLE" && s.kind !== "BACKLOG" && s.kind !== "BRIDGE").map((s) => s.code),
-      backPapers: subj.filter((s) => s.status === "ELIGIBLE" && s.kind === "BACKLOG").map((s) => s.code),
-      bridge: subj.filter((s) => s.status === "ELIGIBLE" && s.kind === "BRIDGE").map((s) => s.code),
+      // every registered subject is charged (fee collected before eligibility is known)
+      eligible: subj.filter((s) => s.kind !== "BACKLOG" && s.kind !== "BRIDGE").map((s) => s.code),
+      backPapers: subj.filter((s) => s.kind === "BACKLOG").map((s) => s.code),
+      bridge: subj.filter((s) => s.kind === "BRIDGE").map((s) => s.code),
       notPermitted: subj.filter((s) => s.status === "ANS" || s.status === "NE").map((s) => `${s.code} (${s.status})`),
       pending: subj.filter((s) => s.status === "PENDING").map((s) => s.code),
       fee: examFeeFor(r.subjects || [], rules, on),
@@ -502,7 +504,7 @@ async function loadSheets(exam, department, semester) {
         }
         students.set(String(st.studentId), vals);
       }
-      map.set(d.batch, { status: d.status, subjects, students });
+      map.set(`${shiftOfSheet(d)}|${d.batch}`, { status: d.status, subjects, students });
     }
     return map;
   };
@@ -664,8 +666,8 @@ async function generateClassGroup(exam, department, semester) {
     const scheme = pickScheme(allSubjects, batchStartYear(st));
     const { subjects, warnings } = currentSubjectsFor(st, scheme, choices.get(sid) || {});
     // a lateral's 2-year batch (2026-2028) is in the sheet of his class (2025-2028)
-    const iaSheet = sheets.ia.get(classBatch(st.batch));
-    const attSheet = sheets.att.get(classBatch(st.batch));
+    const iaSheet = sheets.ia.get(`${shiftOf(st.registerNumber)}|${classBatch(st.batch)}`);
+    const attSheet = sheets.att.get(`${shiftOf(st.registerNumber)}|${classBatch(st.batch)}`);
 
     const current = subjects.map(({ subject, kind }) => {
       const ia = sheetEntry(iaSheet, st._id, subject._id);

@@ -71,7 +71,7 @@ function Sheet() {
         </button>
       </div>
 
-      <Letterhead compact />
+      <Letterhead compact evening={d.rows.length > 0 && d.rows.every((r) => String(r.registerNumber || "").startsWith("186"))} />
       <div className="mt-2 rounded-lg bg-gradient-to-r from-indigo-600 to-sky-500 px-4 py-2 text-center text-white">
         <p className="text-[14px] font-bold tracking-wide">EXAM FEE – {d.exam?.name}</p>
         <p className="text-[11px]">
@@ -96,7 +96,7 @@ function Sheet() {
         </div>
       </div>
       <p className="mt-1.5 text-[9.5px] leading-4 text-slate-600">
-        The fee is for each semester exam written (current semester, each back-paper semester, bridge courses separately). Only subjects the student may write are counted.
+        The fee is for each semester exam (current semester, each back-paper semester, bridge courses separately). Every registered subject is counted; the fee is not refundable.
         {slabs.length > 0 && (
           <>
             {" "}

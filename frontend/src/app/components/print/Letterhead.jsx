@@ -7,7 +7,8 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-export default function Letterhead({ compact = false, className = "" }) {
+// evening: the evening college (register numbers 186…)
+export default function Letterhead({ compact = false, evening = false, className = "" }) {
   const logo = compact ? "h-[17mm] w-auto" : "h-[24mm] w-auto";
   return (
     <div className={`flex items-center gap-2 border-b-2 border-[#d42f21] pb-1 ${className}`}>
@@ -23,7 +24,7 @@ export default function Letterhead({ compact = false, className = "" }) {
           DEPARTMENT OF TECHNICAL EDUCATION
         </p>
         <p className={`font-extrabold text-[#d42f21] ${compact ? "text-[12px]" : "text-[15px]"}`}>
-          KARNATAKA (GOVT.) POLYTECHNIC, MANGALURU
+          {evening ? "KARNATAKA (GOVT.) POLYTECHNIC (EVENING), MANGALURU" : "KARNATAKA (GOVT.) POLYTECHNIC, MANGALURU"}
         </p>
         <p className={`font-semibold text-[#2e74b5] ${compact ? "text-[8px]" : "text-[10.5px]"}`}>
           (First Autonomous Polytechnic in India from AICTE New Delhi)

@@ -15,6 +15,7 @@ export const ROLE_OPTIONS = [
   { value: "qp_scrutinizer", label: "QP scrutiniser", does: "Scrutinises the submitted question papers" },
   { value: "chief_examiner", label: "Chief Examiner", does: "On the exam date only, opens and prints the frozen question paper" },
   { value: "hod", label: "HOD", does: "Department IA, attendance, electives, practical batches" },
+  { value: "evening_principal", label: "Evening Principal", does: "Evening college (186…): students, IA, attendance, electives, fee list for EE and ME" },
 ];
 
 // Alphabetical in every drop-down

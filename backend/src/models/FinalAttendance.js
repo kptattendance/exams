@@ -123,6 +123,10 @@ const finalAttendanceSchema =
         trim: true,
       },
 
+      // DAY, or EVENING for the evening college (register numbers 186…);
+      // sheets saved before this have none = day (services/evening.js)
+      shift: { type: String, enum: ["DAY", "EVENING"], default: "DAY" },
+
       // Subjects for this semester/department
       subjects: {
         type: [attendanceSubjectSchema],
@@ -187,9 +191,11 @@ finalAttendanceSchema.index(
     department: 1,
     semester: 1,
     batch: 1,
+    shift: 1,
   },
   {
     unique: true,
+    name: "one_sheet_per_class_and_shift",
   }
 );
 

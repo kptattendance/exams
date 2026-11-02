@@ -11,6 +11,7 @@ import {
 import {authenticateUser} from "../middlewares/authMiddleware.js";
 import { forceAcademicYear } from "../services/academicYear.js";
 import { requireStepUp } from "../services/stepUp.js";
+import { asHodScope } from "../services/evening.js";
 
 const router = express.Router();
 
@@ -21,6 +22,7 @@ const router = express.Router();
 router.get(
   "/prepare",
   authenticateUser,
+  asHodScope, // Evening Principal acts as HOD of evening students
   forceAcademicYear, // running academic year, set by Admin
   prepareAttendance
 );
@@ -32,6 +34,7 @@ router.get(
 router.post(
   "/save",
   authenticateUser,
+  asHodScope, // Evening Principal acts as HOD of evening students
   forceAcademicYear, // running academic year, set by Admin
   requireStepUp("ia"),
   saveAttendance
@@ -44,6 +47,7 @@ router.post(
 router.get(
   "/get",
   authenticateUser,
+  asHodScope, // Evening Principal acts as HOD of evening students
   forceAcademicYear, // running academic year, set by Admin
   getAttendance
 );
@@ -55,6 +59,7 @@ router.get(
 router.post(
   "/submit",
   authenticateUser,
+  asHodScope, // Evening Principal acts as HOD of evening students
   forceAcademicYear, // running academic year, set by Admin
   requireStepUp("ia"),
   submitAttendance
@@ -63,6 +68,7 @@ router.post(
 router.post(
   "/confirm",
   authenticateUser,
+  asHodScope, // Evening Principal acts as HOD of evening students
   forceAcademicYear, // running academic year, set by Admin
   requireStepUp("ia"),
   confirmAttendance

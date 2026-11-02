@@ -265,14 +265,14 @@ export function lateFeeOn(lateFees = [], on) {
   return fee;
 }
 
-// Exam fee of one registration (DTE circular). Only subjects the student may
-// write (final status ELIGIBLE, COE's decision included) count. They are
-// grouped into semester exams – by the subject's semester; bridge courses are
+// Exam fee of one registration (DTE circular). EVERY registered subject counts
+// – also ANS / NE / waiting: the fee is collected from each student before
+// eligibility is announced and is not refunded. They are grouped into semester exams – by the subject's semester; bridge courses are
 // a separate exam. Each semester exam: upTo2 (1 or 2 subjects) or threePlus
 // (3 or more, i.e. the full semester) + marksCard + the late fee in force on
 // the day `on`.
 export function examFeeFor(subjects, { upTo2 = 200, threePlus = 300, marksCard = 50, lateFees = [] } = {}, on) {
-  const eligible = (subjects || []).filter((s) => effectiveOf(s) === "ELIGIBLE");
+  const eligible = subjects || []; // all registered subjects (see above)
   const late = lateFeeOn(lateFees, on);
   const byExam = new Map();
   for (const s of eligible) {

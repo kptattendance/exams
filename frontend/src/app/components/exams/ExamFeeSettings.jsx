@@ -121,7 +121,7 @@ export default function ExamFeeSettings({ exam, onClose, onSaved }) {
               from {day(s.from)}: + Rs {n(s.amount)} for each semester exam = Rs {full + small + 2 * n(s.amount)}
             </span>
           ))}
-          <span className="block text-slate-500">Only subjects the student may write are counted (not ANS / NE).</span>
+          <span className="block text-slate-500">Every registered subject is counted, also ANS / NE – the fee is collected before eligibility is announced and is not refunded.</span>
         </div>
       </div>
     </Modal>

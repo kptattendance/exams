@@ -116,6 +116,13 @@ const finalIASchema = new mongoose.Schema(
       trim: true,
     },
 
+
+    // DAY, or EVENING for the evening college (register numbers 186…);
+
+    // sheets saved before this have none = day (services/evening.js)
+
+    shift: { type: String, enum: ["DAY", "EVENING"], default: "DAY" },
+
     // All subjects for the selected semester
     subjects: {
       type: [finalIASubjectSchema],
@@ -179,9 +186,11 @@ finalIASchema.index(
     department: 1,
     semester: 1,
     batch: 1,
+    shift: 1,
   },
   {
     unique: true,
+    name: "one_sheet_per_class_and_shift",
   }
 );
 

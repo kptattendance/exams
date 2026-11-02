@@ -21,6 +21,8 @@ const connectDB = async () => {
       })
       .then((m) => {
         console.log(`✅ MongoDB connected.....: ${m.connection.host}`);
+        // IA / attendance sheets: unique per class AND shift (evening college)
+        import("../services/sheetIndexes.js").then((x) => x.updateSheetIndexes()).catch((e) => console.error(e.message));
         return m;
       })
       .catch((err) => {

@@ -10,6 +10,7 @@ import Subject from "../models/Subject.js";
 import StudentElective from "../models/StudentElective.js";
 import AuditLog from "../models/AuditLog.js";
 import { refreshAfterChange, refreshNote } from "../services/exams/autoRefresh.js";
+import { studentShift } from "../services/evening.js";
 
 const fail = (res, status, error) => res.status(status).json({ error });
 const ci = (v) => new RegExp(`^${String(v).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i");
@@ -49,7 +50,7 @@ export const getElectives = async (req, res) => {
       .select("code name electiveGroup schemeYear")
       .sort({ electiveGroup: 1, code: 1 })
       .lean(),
-    Student.find({ department: ci(department), semester, status: "active" })
+    Student.find({ ...studentShift(req), department: ci(department), semester, status: "active" })
       .select("registerNumber rollNumber name batch admissionType imageUrl")
       .sort({ registerNumber: 1 })
       .lean(),
@@ -80,7 +81,7 @@ export const saveElectives = async (req, res) => {
 
   const [subjects, students] = await Promise.all([
     Subject.find({ department: ci(department), semester, subjectCategory: "ELECTIVE" }).select("electiveGroup").lean(),
-    Student.find({
+    Student.find({ ...studentShift(req),
       _id: { $in: list.map((c) => c.studentId).filter((id) => mongoose.Types.ObjectId.isValid(id)) },
       department: ci(department),
     })

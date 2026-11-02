@@ -70,7 +70,7 @@ function Sheet() {
         </button>
       </div>
 
-      <Letterhead compact />
+      <Letterhead compact evening={students.length > 0 && students.every((st) => String(st.registerNumber || "").startsWith("186"))} />
       <p className="mt-2 text-center text-[13px] font-bold tracking-[0.12em]">{ia ? "FINAL INTERNAL ASSESSMENT (IA) MARKS" : "FINAL ATTENDANCE (%)"}</p>
       {verify && <p className="text-center text-[11px] font-semibold tracking-[0.2em]">VERIFICATION COPY</p>}
       <p className="mt-1 text-center text-[11.5px]">

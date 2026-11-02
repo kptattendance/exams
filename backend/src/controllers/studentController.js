@@ -9,6 +9,7 @@ import XLSX from "xlsx";
 import axios from "axios";
 import { calendarDay } from "../services/studentImport/rules.js";
 import { refreshAfterChange, refreshNote } from "../services/exams/autoRefresh.js";
+import { studentShift } from "../services/evening.js";
 
 // =====================================================
 // GOOGLE DRIVE FILE ID
@@ -1608,6 +1609,8 @@ export const getStudents = async (req, res) => {
       // HOD can only access own department.
 
       filter.department = hodDepartment;
+      // day students for a HOD, evening students for the Evening Principal
+      Object.assign(filter, studentShift(req));
     }
 
     // -------------------------------------------------

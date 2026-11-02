@@ -172,6 +172,7 @@ export default function SheetReview({ type }) {
                   <td className={T.td}>
                     <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-700">{s.department.toUpperCase()}</span>
                     <span className="ml-2 text-xs text-slate-500">{deptLabel(s.department)}</span>
+                    {s.shift === "EVENING" && <span className="ml-2 rounded-md bg-indigo-100 px-1.5 py-0.5 text-[11px] font-semibold text-indigo-800">Evening</span>}
                   </td>
                   <td className={`${T.td} text-xs font-semibold text-slate-700`}>{s.semester}</td>
                   <td className={`${T.td} text-xs text-slate-600`}>{s.batch}</td>
@@ -301,7 +302,7 @@ function ReviewModal({ type, id, onClose, onFreeze, onChanged }) {
       wide
       onClose={onClose}
       busy={busy}
-      title={sheet ? `${sheet.department.toUpperCase()} · Semester ${sheet.semester} · ${TITLE[type]}` : "Loading…"}
+      title={sheet ? `${sheet.department.toUpperCase()}${sheet.shift === "EVENING" ? " (Evening)" : ""} · Semester ${sheet.semester} · ${TITLE[type]}` : "Loading…"}
       subtitle={sheet ? `Batch ${sheet.batch} · ${sheet.academicYear} · ${sheet.students.length} students` : ""}
       footer={
         sheet &&

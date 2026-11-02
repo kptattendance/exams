@@ -83,7 +83,7 @@ function Ticket({ t, exam }) {
       className={`ticket ${dense ? "dense" : ""} flex flex-col border-b border-dashed border-slate-300 px-4 py-3 text-[10.5px] leading-snug print:border-0 print:px-0 print:py-[2mm]`}
     >
       <div className="flex min-h-0 flex-1 flex-col border-2 border-slate-900 px-3 pb-2 pt-1.5">
-        <Letterhead compact />
+        <Letterhead compact evening={String(t.registerNumber || "").startsWith("186")} />
 
         {/* heading */}
         <div className="mt-1 flex items-center justify-between gap-2">

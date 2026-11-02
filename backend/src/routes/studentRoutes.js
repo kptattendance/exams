@@ -17,6 +17,7 @@ import {
 import { authenticateUser } from "../middlewares/authMiddleware.js";
 import { requestPurge, confirmPurge, purgeLog } from "../controllers/studentPurgeController.js";
 import { uploadSingleImage } from "../middlewares/uploadImage.js";
+import { asHodScope } from "../services/evening.js";
 
 const router = express.Router();
 
@@ -91,6 +92,7 @@ router.post(
 router.get(
   "/",
   authenticateUser,
+  asHodScope, // Evening Principal: evening students of the chosen department
   getStudents
 );
 

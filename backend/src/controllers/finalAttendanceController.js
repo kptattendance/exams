@@ -2,6 +2,7 @@ import FinalAttendance from "../models/FinalAttendance.js";
 import { batchesOfClass } from "../services/exams/rules.js";
 import Student from "../models/Student.js";
 import Subject from "../models/Subject.js";
+import { sheetShift, shiftQuery, studentShift } from "../services/evening.js";
 
 // =====================================================
 // HELPERS
@@ -111,6 +112,7 @@ export const prepareAttendance = async (req, res) => {
 
     const students =
       await Student.find({
+        ...studentShift(req),
         department:
           hodDepartment,
 
@@ -166,6 +168,7 @@ const subjects =
 
     const existing =
       await FinalAttendance.findOne({
+        ...shiftQuery(req),
         academicYear:
           normalizedAcademicYear,
 
@@ -449,6 +452,7 @@ export const saveAttendance = async (
 
     let record =
       await FinalAttendance.findOne({
+        ...shiftQuery(req),
         academicYear:
           normalizedAcademicYear,
 
@@ -614,6 +618,7 @@ export const saveAttendance = async (
 
     const dbStudents =
       await Student.find({
+        ...studentShift(req),
         _id: {
           $in: studentIds,
         },
@@ -787,6 +792,7 @@ export const saveAttendance = async (
     if (!record) {
       record =
         new FinalAttendance({
+          shift: sheetShift(req),
           academicYear:
             normalizedAcademicYear,
 
@@ -943,9 +949,7 @@ export const getAttendance = async (
     // =================================================
 
     const record =
-      await FinalAttendance.findOne(
-        filter
-      ).lean();
+      await FinalAttendance.findOne({ ...filter, ...shiftQuery(req) }).lean();
 
     if (!record) {
       return res.status(200).json({
@@ -1111,6 +1115,7 @@ export const submitAttendance = async (
 
     const record =
       await FinalAttendance.findOne({
+        ...shiftQuery(req),
         academicYear:
           String(
             academicYear
@@ -1352,6 +1357,7 @@ export const confirmAttendance = async (
 
     const record =
       await FinalAttendance.findOne({
+        ...shiftQuery(req),
         academicYear:
           normalizedAcademicYear,
 

@@ -125,7 +125,7 @@ export default function HodExamFees() {
               <tr>
                 <th className="px-2 py-2">#</th>
                 <th className="px-2 py-2">Student</th>
-                <th className="px-2 py-2">Subjects (may write)</th>
+                <th className="px-2 py-2">Subjects</th>
                 <th className="px-2 py-2">Back papers / bridge</th>
                 <th className="px-2 py-2">Not permitted / awaited</th>
                 <th className="px-2 py-2 text-right">Fee</th>
@@ -168,7 +168,7 @@ export default function HodExamFees() {
         </div>
       )}
       <p className="mt-2 text-[11px] text-gray-500">
-        Only subjects the student may write are counted. &quot;Awaited&quot; = IA / attendance not confirmed yet – not counted until decided.
+        Every registered subject is counted, including back papers – the fee is collected before eligibility (ANS / NE) is announced and is not refunded. ANS / NE and &quot;Awaited&quot; are shown for information only.
       </p>
     </div>
   );

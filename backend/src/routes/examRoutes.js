@@ -51,6 +51,7 @@ import {
 } from "../controllers/valuationController.js";
 import { readiness, listResults, processResults, publishResults } from "../controllers/resultController.js";
 import { requireStepUp } from "../services/stepUp.js";
+import { asHodScope } from "../services/evening.js";
 
 const router = express.Router();
 
@@ -78,7 +79,7 @@ router.get("/setup/bridge-courses", VIEW, listBridgeCourses);
 router.put("/setup/bridge-courses", MANAGE, saveBridgeCourses);
 
 // HOD: his students' subjects and exam fee (Excel on his page)
-router.get("/hod/fee-list", requireRole("hod", "coe", "acoe", "admin"), hodFeeList);
+router.get("/hod/fee-list", asHodScope, requireRole("hod", "coe", "acoe", "admin"), hodFeeList);
 
 router.get("/", VIEW, listExams);
 router.post("/", MANAGE, createExam);

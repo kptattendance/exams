@@ -16,10 +16,29 @@ export const HOME_BY_ROLE = {
   qp_scrutinizer: "/scrutiny",
   chief_examiner: "/chief-examiner",
   hod: "/hod",
+  evening_principal: "/evening",
   staff: "/faculty",
 };
 
 export const MENUS = {
+  // Evening Principal: HOD work for all evening students (register numbers 186…)
+  evening: {
+    role: "Evening Principal",
+    home: "/evening",
+    sections: [
+      { title: "Overview", items: [{ label: "Start", href: "/evening", icon: "dashboard", pinned: true }] },
+      { title: "Students", items: [{ label: "Students", href: "/evening/students", icon: "students", pinned: true }] },
+      {
+        title: "Academic records",
+        items: [
+          { label: "Final IA", href: "/evening/final-ia", icon: "marks", pinned: true },
+          { label: "Final attendance", href: "/evening/attendance", icon: "attendance", pinned: true },
+          { label: "Electives", href: "/evening/electives", icon: "layers" },
+          { label: "Exam fee list", href: "/evening/exam-fees", icon: "money" },
+        ],
+      },
+    ],
+  },
   admin: {
     role: "Administrator",
     home: "/admin",

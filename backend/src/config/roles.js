@@ -13,6 +13,8 @@
 //   qp_scrutinizer – scrutinises the submitted question papers
 //   chief_examiner – on the exam date only, opens and prints the frozen question paper
 //   hod            – department: IA, attendance, electives, practical batches
+//   evening_principal – evening college (register numbers 186…): does for all
+//                    evening students what a HOD does (services/evening.js)
 //   staff          – faculty: question paper setting, practical marks
 //
 // Students do not sign in; results are looked up publicly.
@@ -27,6 +29,7 @@ export const ROLE_LABELS = {
   qp_scrutinizer: "QP scrutiniser",
   chief_examiner: "Chief Examiner",
   hod: "Head of Department",
+  evening_principal: "Evening Principal",
   staff: "Faculty",
 };
 

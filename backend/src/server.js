@@ -62,6 +62,7 @@ app.use(
       "Content-Type",
       "Authorization",
       "X-Step-Up", // verification passes, see services/stepUp.js
+      "X-Department", // Evening Principal's chosen department, see services/evening.js
     ],
 
     credentials: true,

@@ -12,6 +12,7 @@ async function electivesOf(studentIds, semester) {
 }
 import Student from "../models/Student.js";
 import Subject from "../models/Subject.js";
+import { sheetShift, shiftQuery, studentShift } from "../services/evening.js";
 
 // =====================================================
 // HELPERS
@@ -109,6 +110,7 @@ export const prepareFinalIA = async (req, res) => {
     // -------------------------------------------------
 
 const students = await Student.find({
+        ...studentShift(req),
   department: normalizedDepartment,
 
   semester: semesterNumber,
@@ -160,6 +162,7 @@ const subjects = await Subject.find({
 
     const existing =
       await FinalIA.findOne({
+        ...shiftQuery(req),
         academicYear:
           normalizedAcademicYear,
 
@@ -441,6 +444,7 @@ export const saveFinalIA = async (
 
     let record =
       await FinalIA.findOne({
+        ...shiftQuery(req),
         academicYear:
           normalizedAcademicYear,
 
@@ -603,6 +607,7 @@ export const saveFinalIA = async (
 
     const dbStudents =
       await Student.find({
+        ...studentShift(req),
         _id: {
           $in: studentIds,
         },
@@ -764,6 +769,7 @@ export const saveFinalIA = async (
     if (!record) {
       record =
         new FinalIA({
+          shift: sheetShift(req),
           academicYear:
             normalizedAcademicYear,
 
@@ -917,9 +923,7 @@ export const getFinalIA = async (
     }
 
     const record =
-      await FinalIA.findOne(
-        filter
-      ).lean();
+      await FinalIA.findOne({ ...filter, ...shiftQuery(req) }).lean();
 
     if (!record) {
       return res.status(200).json({
@@ -1005,6 +1009,7 @@ export const submitFinalIA = async (
 
     const record =
       await FinalIA.findOne({
+        ...shiftQuery(req),
         academicYear:
           String(
             academicYear
@@ -1241,6 +1246,7 @@ export const confirmFinalIA = async (
 
     const record =
       await FinalIA.findOne({
+        ...shiftQuery(req),
         academicYear:
           normalizedAcademicYear,
 

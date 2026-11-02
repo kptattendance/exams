@@ -64,6 +64,7 @@ function summary(doc, type) {
     department: doc.department,
     semester: doc.semester,
     batch: doc.batch,
+    shift: doc.shift === "EVENING" ? "EVENING" : "DAY",
     status: doc.status,
     students: (doc.students || []).length,
     subjects: (doc.subjects || []).length,

@@ -45,7 +45,7 @@ test("a bridge course is decided by IA alone (no attendance)", async () => {
   assert.equal(low.status, "NE");
 });
 
-test("exam fee per semester exam (DTE circular): 1-2 subjects 200, 3+ 300, marks card 50, late fee each", async () => {
+test("exam fee per semester exam (DTE circular): every registered subject, 1-2 subjects 200, 3+ 300, marks card 50, late fee each", async () => {
   const { examFeeFor, lateFeeOn } = await import("../src/services/exams/rules.js");
   const lateFees = [
     { from: "2026-09-10", amount: 50 },
@@ -66,9 +66,11 @@ test("exam fee per semester exam (DTE circular): 1-2 subjects 200, 3+ 300, marks
   // full semester only, paid in time: 300 + 50
   assert.equal(examFeeFor([sem3("A"), sem3("B"), sem3("C")], {}, "2026-09-01").total, 350);
   const f = examFeeFor(subjects, { lateFees }, "2026-09-15"); // late fee Rs 50 for each of the 3 exams
-  assert.deepEqual(f.exams.map((e) => [e.label, e.count, e.total]), [["Sem 3", 4, 400], ["Sem 1", 1, 300], ["Bridge", 1, 300]]);
+  // every registered subject counts – also ANS (D) and waiting (E): Sem 3 has 5
+  assert.deepEqual(f.exams.map((e) => [e.label, e.count, e.total]), [["Sem 3", 5, 400], ["Sem 1", 1, 300], ["Bridge", 1, 300]]);
   assert.equal(f.total, 1000);
-  assert.equal(examFeeFor([sem3("A", "NE")], {}, "2026-10-20").total, 0);
+  // an NE subject is still charged (fee collected before eligibility, not refunded)
+  assert.equal(examFeeFor([sem3("A", "NE")], {}, "2026-09-01").total, 250);
 });
 
 test("an elective: only the one chosen in its group (none chosen: all)", async () => {
