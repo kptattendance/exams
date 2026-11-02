@@ -79,6 +79,9 @@ const attendanceStudentSchema =
             default: null,
             min: 0,
           },
+
+          // the other elective of the group: this student does not take it
+          notRequired: { type: Boolean },
         },
       ],
     },

@@ -8,7 +8,7 @@ import { excelInstructionsSheet } from "../../components/ExcelFormatHelp";
 import HodSheetPanel, { openSignatureSheet } from "../../components/HodSheetPanel";
 import { batchFor, useAcademicYear } from "../../components/academicYear";
 import { useToast, usePopupMessage } from "../../components/ui/Feedback";
-import { BridgeBadge, BridgeLegend, LateralTag, NotRequiredCell, takesSubject } from "../../components/bridge";
+import { BridgeBadge, BridgeLegend, ChooseElectiveCell, ElectiveHeader, LateralTag, NotRequiredCell, electiveOf, sheetColumns, takesSubject } from "../../components/bridge";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -1617,15 +1617,16 @@ export default function FinalIAPage() {
 
                     {/* SUBJECTS */}
 
-                    {subjects.map(
-                      (subject) => (
+                    {sheetColumns(subjects).map(
+                      (column, i, all, subject = column.subjects[0]) => (
                         <th
-                          key={
-                            subject.subjectId
-                          }
+                          key={column.key}
                           className="w-[115px] min-w-[115px] max-w-[115px] border-r border-slate-600 px-2 py-2 text-center"
                         >
-
+                          {column.group ? (
+                            <ElectiveHeader column={column} />
+                          ) : (
+                          <>
                           <div className="text-xs font-bold">
                             {subject.code}
                           </div>
@@ -1635,6 +1636,8 @@ export default function FinalIAPage() {
                           </div>
 
                           <BridgeBadge subject={subject} />
+                          </>
+                          )}
 
                         </th>
                       )
@@ -1658,9 +1661,9 @@ export default function FinalIAPage() {
                       IA Marks
                     </th>
 
-                    {subjects.map((subject) => (
+                    {sheetColumns(subjects).map(({ key, subjects: [subject] }) => (
                       <th
-                        key={subject.subjectId}
+                        key={key}
                         className="w-[115px] min-w-[115px] border-r border-amber-200 bg-amber-50 px-1.5 py-1.5 text-center"
                       >
                         <div className="text-xs font-bold text-gray-800">
@@ -1771,10 +1774,13 @@ export default function FinalIAPage() {
                             MARKS
                         ================================================= */}
 
-                        {subjects.map(
-                          (subject) => {
+                        {sheetColumns(subjects).map(
+                          (column) => {
+                            // a shared elective column: the subject chosen for this student
+                            const subject = column.group ? electiveOf(student, column) : column.subjects[0];
+                            if (!subject) return <ChooseElectiveCell key={column.key} />;
                             if (!takesSubject(student, subject))
-                              return <NotRequiredCell key={subject.subjectId} />;
+                              return <NotRequiredCell key={column.key} />;
 
                             const mark =
                               getStudentMark(
@@ -1806,9 +1812,10 @@ export default function FinalIAPage() {
 
                             return (
                               <td
-                                key={subject.subjectId}
+                                key={column.key}
                                 className="w-[115px] min-w-[115px] border-r border-b border-gray-200 px-1.5 py-1.5"
                               >
+                                {column.group && <div className="mb-0.5 text-center text-[9px] font-semibold text-sky-800">{subject.code}</div>}
 
                                 <input
                                   type="number"

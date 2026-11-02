@@ -139,7 +139,7 @@ function Ticket({ t, exam }) {
               <th className="w-20 border border-slate-400 px-1.5 py-[2px]">Code</th>
               {/* the semester the subject belongs to (back papers: their own semester) */}
               <th className="w-10 border border-slate-400 px-1.5 py-[2px] text-center">Sem</th>
-              <th className="border border-slate-400 px-1.5 py-[2px]">Subject</th>
+              <th className="border border-slate-400 px-1.5 py-[2px]">Course</th>
               <th className="w-28 border border-slate-400 px-1.5 py-[2px]">Date</th>
               <th className="w-32 border border-slate-400 px-1.5 py-[2px]">Time</th>
               <th className="w-20 border border-slate-400 px-1.5 py-[2px]">Invigilator</th>
@@ -179,7 +179,7 @@ function Ticket({ t, exam }) {
 
         <p className="mt-1 text-[8.5px] leading-snug text-slate-600">
           Bring this hall ticket and your college ID card to every exam. Be seated 15 minutes before the start. Mobile phones and
-          other electronic devices are not allowed. Subjects marked “Not permitted” may not be written.
+          other electronic devices are not allowed. Courses marked “Not permitted” may not be written.
         </p>
 
         {/* signatures – pushed to the bottom of the half page */}

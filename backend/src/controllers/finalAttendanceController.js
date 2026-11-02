@@ -1,5 +1,15 @@
 import FinalAttendance from "../models/FinalAttendance.js";
-import { batchesOfClass } from "../services/exams/rules.js";
+import { batchesOfClass, takesSubject } from "../services/exams/rules.js";
+import StudentElective from "../models/StudentElective.js";
+
+// student -> { E1: subjectId } (the electives chosen by the HOD)
+async function electivesOf(studentIds, semester) {
+  const map = {};
+  for (const e of await StudentElective.find({ student: { $in: studentIds }, semester }).select("student electiveGroup subject").lean()) {
+    (map[String(e.student)] ||= {})[e.electiveGroup] = String(e.subject);
+  }
+  return map;
+}
 import Student from "../models/Student.js";
 import Subject from "../models/Subject.js";
 import { sheetShift, shiftQuery, studentShift } from "../services/evening.js";
@@ -154,13 +164,14 @@ const subjects =
     },
   })
     .select(
-      "_id code name department semester sequence subjectCategory"
+      "_id code name department semester sequence subjectCategory electiveGroup"
     )
     .sort({
       sequence: 1,
       code: 1,
     })
     .lean();
+    const chosenElectives = await electivesOf(students.map((s) => s._id), semesterNumber);
 
     // =================================================
     // EXISTING RECORD
@@ -215,6 +226,10 @@ const subjects =
 
             sequence:
               subject.sequence,
+
+            // electives: each student takes the one chosen for him
+            subjectCategory: subject.subjectCategory || "REGULAR",
+            electiveGroup: subject.electiveGroup || null,
 
             maxClasses:
               existingSubject
@@ -291,6 +306,9 @@ const subjects =
             imageUrl:
               student.imageUrl ||
               "",
+
+            electives:
+              chosenElectives[String(student._id)] || {},
 
             attendance,
           };
@@ -640,6 +658,8 @@ export const saveAttendance = async (
           "_id registerNumber name fatherName"
         )
         .lean();
+    const savedElectives = await electivesOf(dbStudents.map((s) => s._id), semesterNumber);
+    for (const st of dbStudents) st.electives = savedElectives[String(st._id)] || {};
 
     if (
       dbStudents.length !==
@@ -688,6 +708,13 @@ export const saveAttendance = async (
         const subject of
           processedSubjects
       ) {
+        // the other elective of the group: no attendance
+        const subjectDoc = dbSubjects.find((item) => String(item._id) === String(subject.subjectId));
+        if (subjectDoc && !takesSubject(dbStudent, subjectDoc)) {
+          processedAttendance.push({ subjectId: subject.subjectId, classesAttended: null, notRequired: true });
+          continue;
+        }
+
         const inputAttendance =
           inputStudent.attendance?.find(
             (item) =>
@@ -1210,6 +1237,9 @@ export const submitAttendance = async (
                 subject.subjectId
               )
           );
+
+        // the other elective: this student does not take it
+        if (attendance?.notRequired) continue;
 
         if (
           !attendance ||

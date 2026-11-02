@@ -8,7 +8,7 @@ import { excelInstructionsSheet } from "../../components/ExcelFormatHelp";
 import HodSheetPanel, { openSignatureSheet } from "../../components/HodSheetPanel";
 import { batchFor, useAcademicYear } from "../../components/academicYear";
 import { useToast, usePopupMessage } from "../../components/ui/Feedback";
-import { LateralTag } from "../../components/bridge";
+import { ChooseElectiveCell, ElectiveHeader, LateralTag, electiveOf, sheetColumns, takesSubject } from "../../components/bridge";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -838,6 +838,8 @@ export default function AttendancePage() {
 
                 ...subjects.map(
                   (subject) => {
+                    // the other elective: not taken
+                    if (!takesSubject(student, subject)) return "NA";
                     const attended =
                       getAttendanceValue(
                         student,
@@ -1256,6 +1258,7 @@ export default function AttendancePage() {
 
           subjects.forEach(
             (subject) => {
+              if (!takesSubject(updatedStudents[studentIndex], subject)) return;
               const columnIndex =
                 subjectColumnMap[
                 subject.subjectId
@@ -1408,7 +1411,7 @@ export default function AttendancePage() {
       students: students.map((st) => ({
         registerNumber: st.registerNumber,
         studentName: st.studentName,
-        values: Object.fromEntries(subjects.map((s) => [String(s.subjectId), getAttendanceValue(st, s.subjectId)])),
+        values: Object.fromEntries(subjects.map((s) => [String(s.subjectId), takesSubject(st, s) ? getAttendanceValue(st, s.subjectId) : "NA"])),
       })),
     });
 
@@ -1805,22 +1808,25 @@ export default function AttendancePage() {
 
                     {/* SUBJECTS */}
 
-                    {subjects.map(
-                      (subject) => (
+                    {sheetColumns(subjects).map(
+                      (column) => (
                         <th
-                          key={
-                            subject.subjectId
-                          }
+                          key={column.key}
                           className="w-[115px] min-w-[115px] max-w-[115px] border-r border-amber-500 px-2 py-2 text-center"
                         >
-
+                          {column.group ? (
+                            <ElectiveHeader column={column} dark={false} />
+                          ) : (
+                          <>
                           <div className="text-xs font-bold">
-                            {subject.code}
+                            {column.subjects[0].code}
                           </div>
 
                           <div className="mt-1 line-clamp-2 text-[10px] font-normal leading-tight text-amber-50">
-                            {subject.name}
+                            {column.subjects[0].name}
                           </div>
+                          </>
+                          )}
 
                         </th>
                       )
@@ -1921,8 +1927,11 @@ export default function AttendancePage() {
                             ATTENDANCE CELLS
                         ================================================= */}
 
-                        {subjects.map(
-                          (subject) => {
+                        {sheetColumns(subjects).map(
+                          (column) => {
+                            // a shared elective column: the subject chosen for this student
+                            const subject = column.group ? electiveOf(student, column) : column.subjects[0];
+                            if (!subject) return <ChooseElectiveCell key={column.key} />;
 
                             const attended =
                               getAttendanceValue(
@@ -1951,15 +1960,14 @@ export default function AttendancePage() {
 
                             return (
                               <td
-                                key={
-                                  subject.subjectId
-                                }
+                                key={column.key}
                                 className={`w-[115px] min-w-[115px] border-r border-b border-amber-200 px-1.5 py-1.5 ${percentage !== null &&
                                     percentage < SHORTAGE_BELOW
                                     ? "bg-red-50"
                                     : ""
                                   }`}
                               >
+                                {column.group && <div className="mb-0.5 text-center text-[9px] font-semibold text-sky-800">{subject.code}</div>}
 
                                 <input
                                   type="number"

@@ -43,6 +43,58 @@ export function BridgeBadge({ subject }) {
   );
 }
 
+// The columns of a HOD sheet on screen: every subject its own column, except
+// the electives of one group (PA / PB), which share ONE column – each student
+// enters only the subject chosen for him under Electives.
+//   -> [{ key, subjects: [subject], group: "E1" | null }]
+export function sheetColumns(subjects) {
+  const out = [];
+  const byGroup = new Map();
+  for (const s of subjects || []) {
+    const g = isElective(s) && s.electiveGroup ? String(s.electiveGroup).toUpperCase() : "";
+    if (!g) {
+      out.push({ key: String(s.subjectId), subjects: [s], group: null });
+      continue;
+    }
+    if (!byGroup.has(g)) {
+      const col = { key: `elective-${g}`, subjects: [], group: g };
+      byGroup.set(g, col);
+      out.push(col);
+    }
+    byGroup.get(g).subjects.push(s);
+  }
+  return out;
+}
+
+// Of a shared elective column: the student's subject, or null when none is
+// chosen for him yet
+export function electiveOf(student, column) {
+  const taken = column.subjects.filter((s) => takesSubject(student, s));
+  return taken.length === 1 ? taken[0] : null;
+}
+
+// header of a shared elective column
+export function ElectiveHeader({ column, dark = true }) {
+  return (
+    <>
+      <div className="text-xs font-bold">Elective {column.group}</div>
+      <div className={`mt-1 text-[10px] font-normal leading-tight ${dark ? "text-slate-300" : "text-amber-50"}`}>{column.subjects.map((s) => s.code).join(" / ")}</div>
+      <div className="mt-1 inline-block rounded bg-sky-200 px-1.5 py-0.5 text-[9px] font-bold text-sky-900">ONE PER STUDENT</div>
+    </>
+  );
+}
+
+// a student whose elective is not chosen yet
+export function ChooseElectiveCell({ href = "electives" }) {
+  return (
+    <td className="w-[115px] min-w-[115px] border-r border-b border-gray-200 bg-orange-50 px-1.5 py-1.5 text-center" title="Choose this student's elective on the Electives page first">
+      <a href={href} className="text-[10px] font-semibold text-orange-700 underline">
+        Choose elective
+      </a>
+    </td>
+  );
+}
+
 // under the student's name
 export function LateralTag({ student }) {
   if (!LATERAL.includes(student?.admissionType)) return null;
