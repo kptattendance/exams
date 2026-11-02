@@ -13,6 +13,7 @@ import { useConfirm, useToast } from "../ui/Feedback";
 import { deptLabel, errMsg, useApi } from "./shared";
 import { T } from "../ui/table";
 import { openSignatureSheet } from "../HodSheetPanel";
+import { useAcademicYear } from "../academicYear";
 
 const TITLE = { ia: "Final IA", attendance: "Final attendance" };
 const TABS = [
@@ -22,10 +23,13 @@ const TABS = [
 ];
 const fmt = (d) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "");
 
-export default function SheetReview({ type }) {
+// admin: the Admin's view – he may delete a sheet of the running year
+// (even a frozen one) so that the HOD enters it again
+export default function SheetReview({ type, admin = false }) {
   const api = useApi();
   const toast = useToast();
   const confirm = useConfirm();
+  const year = useAcademicYear();
 
   const [tab, setTab] = useState("submitted");
   const [list, setList] = useState(null);
@@ -84,7 +88,14 @@ export default function SheetReview({ type }) {
       <h2 className="text-2xl font-bold tracking-tight text-slate-950">{TITLE[type]}</h2>
       <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
         Sheets submitted by HODs appear here by themselves. Open one, check it, then freeze it or send it back.
+        {admin ? "" : " A frozen sheet that needs a correction: open it and click “Send back to HOD” – the marks stay, the HOD corrects and submits again."}
       </p>
+      {admin && (
+        <p className="mt-2 max-w-3xl rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm leading-6 text-red-900">
+          Admin: you can <b>delete</b> a sheet of the running year ({year}), even a frozen one – the HOD then enters it again from the start. For a small correction use
+          “Send back to HOD” instead: it keeps the marks.
+        </p>
+      )}
 
       <div className="no-scrollbar mt-5 flex gap-1 overflow-x-auto border-b border-slate-200">
         {TABS.map(([k, label]) => (
@@ -226,6 +237,8 @@ export default function SheetReview({ type }) {
           id={open}
           onClose={() => setOpen(null)}
           onFreeze={async (s) => (await freeze(s)) && setOpen(null)}
+          canDelete={admin}
+          year={year}
           onChanged={() => {
             setOpen(null);
             load();
@@ -264,9 +277,10 @@ function printCopy(type, sheet, copy) {
   });
 }
 
-function ReviewModal({ type, id, onClose, onFreeze, onChanged }) {
+function ReviewModal({ type, id, onClose, onFreeze, onChanged, canDelete = false, year = "" }) {
   const api = useApi();
   const toast = useToast();
+  const [deleting, setDeleting] = useState(false);
   const [sheet, setSheet] = useState(null);
   const [returning, setReturning] = useState(false);
   const [reason, setReason] = useState("");
@@ -281,6 +295,19 @@ function ReviewModal({ type, id, onClose, onFreeze, onChanged }) {
         onClose();
       });
   }, [api, type, id, toast, onClose]);
+
+  // Admin: delete the whole sheet (running year only; the server checks again)
+  const remove = async () => {
+    setBusy(true);
+    try {
+      const r = await api("delete", `/sheet-review/${type}/${id}`, { reason });
+      toast.success(r.data.message, 8000);
+      onChanged();
+    } catch (e) {
+      toast.error(errMsg(e, "Could not delete the sheet."));
+      setBusy(false);
+    }
+  };
 
   const sendBack = async () => {
     setBusy(true);
@@ -306,7 +333,20 @@ function ReviewModal({ type, id, onClose, onFreeze, onChanged }) {
       subtitle={sheet ? `Batch ${sheet.batch} · ${sheet.academicYear} · ${sheet.students.length} students` : ""}
       footer={
         sheet &&
-        (returning ? (
+        (deleting ? (
+          <>
+            <button onClick={() => setDeleting(false)} disabled={busy} className={btn.secondary}>
+              Back
+            </button>
+            <button
+              onClick={remove}
+              disabled={busy || reason.trim().length < 5}
+              className="inline-flex items-center justify-center rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-40"
+            >
+              Delete sheet
+            </button>
+          </>
+        ) : returning ? (
           <>
             <button onClick={() => setReturning(false)} disabled={busy} className={btn.secondary}>
               Back
@@ -322,8 +362,14 @@ function ReviewModal({ type, id, onClose, onFreeze, onChanged }) {
         ) : (
           <>
             {sheet.status !== "draft" && (
-              <button onClick={() => setReturning(true)} className={`${btn.secondary} sm:mr-auto`}>
+              <button onClick={() => setReturning(true)} className={`${btn.secondary} ${canDelete ? "" : "sm:mr-auto"}`}>
                 Send back to HOD
+              </button>
+            )}
+            {canDelete && sheet.academicYear === year && (
+              <button onClick={() => setDeleting(true)} className={`${btn.secondary} !text-red-700 sm:mr-auto`}>
+                <Icon name="trash" className="h-4 w-4" />
+                Delete sheet
               </button>
             )}
             {sheet.status !== "draft" && (
@@ -347,6 +393,25 @@ function ReviewModal({ type, id, onClose, onFreeze, onChanged }) {
     >
       {!sheet && <div className="h-64 animate-pulse rounded-xl bg-slate-50" />}
 
+      {sheet && deleting && (
+        <label className="block">
+          <span className="text-sm font-semibold text-red-800">
+            Delete this {TITLE[type]} sheet ({sheet.status === "confirmed" ? "frozen" : sheet.status === "submitted" ? "submitted" : "with the HOD"})?
+          </span>
+          <span className="mt-1 block text-sm text-slate-600">
+            All its {type === "ia" ? "marks" : "attendance"} are removed and the HOD must enter the sheet again and submit it. A copy is kept in the audit log. Write the reason:
+          </span>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            rows={3}
+            autoFocus
+            placeholder="e.g. Wrong batch entered – HOD will enter again"
+            className={`${field} mt-1.5 h-auto py-2.5`}
+          />
+        </label>
+      )}
+
       {sheet && returning && (
         <label className="block">
           <span className="text-sm font-semibold text-slate-800">What should the HOD correct?</span>
@@ -362,7 +427,7 @@ function ReviewModal({ type, id, onClose, onFreeze, onChanged }) {
         </label>
       )}
 
-      {sheet && !returning && (
+      {sheet && !returning && !deleting && (
         <>
           <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
             <span className="rounded-lg bg-red-50 px-2 py-1 text-red-700">

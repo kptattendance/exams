@@ -8,6 +8,7 @@
 //   GET  /api/sheet-review/:type/:id
 //   POST /api/sheet-review/:type/:id/freeze
 //   POST /api/sheet-review/:type/:id/return     { reason }
+//   DELETE /api/sheet-review/:type/:id          { reason }  Admin only, running year only
 
 import mongoose from "mongoose";
 
@@ -16,6 +17,7 @@ import FinalAttendance from "../models/FinalAttendance.js";
 import Subject from "../models/Subject.js";
 import AuditLog from "../models/AuditLog.js";
 import { refreshAfterChange, refreshNote } from "../services/exams/autoRefresh.js";
+import { getAcademicYear } from "../services/academicYear.js";
 
 const MODELS = { ia: FinalIA, attendance: FinalAttendance };
 const LABEL = { ia: "Final IA", attendance: "Final attendance" };
@@ -219,5 +221,37 @@ export const returnSheet = async (req, res) => {
   res.json({
     data: summary(doc.toObject(), req.params.type),
     message: `Sent back to the ${doc.department.toUpperCase()} HOD for correction.${refreshNote(auto)}`,
+  });
+};
+
+// DELETE /api/sheet-review/:type/:id  { reason }
+// Admin only: removes a sheet of the RUNNING academic year (even a frozen one)
+// so that the HOD enters it again from the start. Usually "Send back to HOD"
+// is enough – it keeps the marks. A full copy of the deleted sheet is kept in
+// the audit log.
+export const deleteSheet = async (req, res) => {
+  const Model = pickModel(req, res);
+  if (!Model) return;
+  const reason = String(req.body?.reason || "").trim();
+  if (reason.length < 5) return fail(res, 400, "Write why the sheet is deleted.");
+  const doc = await Model.findById(req.params.id).lean();
+  if (!doc) return fail(res, 404, "Sheet not found. It may have been deleted already.");
+  const year = await getAcademicYear();
+  if (doc.academicYear !== year)
+    return fail(res, 409, `Only sheets of the running academic year (${year}) can be deleted. This sheet is of ${doc.academicYear}.`);
+  await Model.deleteOne({ _id: doc._id });
+  await log(req, `${req.params.type.toUpperCase()}_SHEET_DELETED`, doc._id, {
+    academicYear: doc.academicYear,
+    department: doc.department,
+    semester: doc.semester,
+    batch: doc.batch,
+    shift: doc.shift || "DAY",
+    status: doc.status,
+    reason,
+    sheet: doc, // the full sheet, to restore it by hand if ever needed
+  });
+  const auto = doc.status === "confirmed" ? await refreshAfterChange([{ department: doc.department, semester: doc.semester }], `${LABEL[req.params.type]} deleted`) : null;
+  res.json({
+    message: `${LABEL[req.params.type]} of ${doc.department.toUpperCase()} semester ${doc.semester} (batch ${doc.batch}) deleted. The HOD can enter it again.${refreshNote(auto)}`,
   });
 };

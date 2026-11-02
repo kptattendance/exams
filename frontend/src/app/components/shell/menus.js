@@ -72,6 +72,8 @@ export const MENUS = {
           { label: "Subjects", href: "/admin/subjects", icon: "subjects", pinned: true },
           { label: "Bridge courses", href: "/admin/bridge-courses", icon: "bridge" },
           { label: "Practical marks corrections", href: "/admin/practical-marks", icon: "marks" },
+          { label: "Final IA sheets", href: "/admin/final-ia", icon: "marks" },
+          { label: "Final attendance sheets", href: "/admin/final-attendance", icon: "attendance" },
         ],
       },
       {
