@@ -137,6 +137,8 @@ function Ticket({ t, exam }) {
             <tr className="bg-slate-100 text-left">
               <th className="w-6 border border-slate-400 px-1.5 py-[2px]">#</th>
               <th className="w-20 border border-slate-400 px-1.5 py-[2px]">Code</th>
+              {/* the semester the subject belongs to (back papers: their own semester) */}
+              <th className="w-10 border border-slate-400 px-1.5 py-[2px] text-center">Sem</th>
               <th className="border border-slate-400 px-1.5 py-[2px]">Subject</th>
               <th className="w-28 border border-slate-400 px-1.5 py-[2px]">Date</th>
               <th className="w-32 border border-slate-400 px-1.5 py-[2px]">Time</th>
@@ -148,6 +150,7 @@ function Ticket({ t, exam }) {
               <tr key={s.code} className={s.permitted ? "" : "text-slate-500"}>
                 <td className="border border-slate-400 px-1.5 py-[2px]">{i + 1}</td>
                 <td className={`border border-slate-400 px-1.5 py-[2px] font-semibold ${s.permitted ? "" : "line-through"}`}>{s.code}</td>
+                <td className="border border-slate-400 px-1.5 py-[2px] text-center">{s.semester ?? "–"}</td>
                 <td className="border border-slate-400 px-1.5 py-[2px]">
                   <span className={s.permitted ? "" : "line-through"}>{s.name}</span>
                   {s.kind === "BACKLOG" && <span className="ml-1 text-[9.5px] font-semibold">(Back paper)</span>}
