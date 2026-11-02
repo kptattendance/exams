@@ -199,8 +199,8 @@ export function ExamForm({ value, onChange }) {
         <span className="text-sm font-semibold text-slate-800">Back papers</span>
         <div className="mt-2 space-y-2">
           {[
-            ["SAME_PARITY", "Only odd- or even-semester back papers, matching this exam", "Usual choice"],
-            ["ALL", "Back papers of every semester", ""],
+            ["ALL", "Back papers of every semester (1st, 2nd … together)", "Usual choice"],
+            ["SAME_PARITY", "Only odd- or even-semester back papers, matching this exam", ""],
             ["NONE", "No back papers in this exam", ""],
           ].map(([v, label, hint]) => (
             <label
@@ -251,7 +251,7 @@ function CreateExam({ open, onClose, basePath }) {
     name: suggestName(),
     academicYear: runningYear,
     semesters: new Date().getMonth() >= 5 ? [1, 3, 5] : [2, 4, 6],
-    backPapers: "SAME_PARITY",
+    backPapers: "ALL", // a student writes his back papers of every semester
     minAttendance: 75,
   }));
 
