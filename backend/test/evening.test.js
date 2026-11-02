@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { asHodScope, isEvening, shiftOf, shiftQuery, studentShift, sheetShift } from "../src/services/evening.js";
+import { batchLabel } from "../src/services/exams/practical.js";
 
 const run = (user, extra = {}) => {
   const req = { user: { ...user }, headers: {}, query: {}, body: {}, ...extra };
@@ -38,4 +39,10 @@ test("a day HOD sees only day students and the day sheet; COE is not limited", (
   assert.deepEqual(studentShift(coe), {});
   assert.deepEqual(shiftQuery(coe), {});
   assert.deepEqual(shiftQuery(run({ role: "coe" }, { query: { shift: "EVENING" } })), { shift: "EVENING" });
+});
+
+test("evening practical batches carry the branch in their label", () => {
+  assert.equal(batchLabel("25EE31P", 2), "25EE31P-B2");
+  assert.equal(batchLabel("25EE31P", 1, "ee"), "25EE31P-EV-EE1");
+  assert.equal(batchLabel("25ME31P", 3, "me"), "25ME31P-EV-ME3");
 });

@@ -15,7 +15,7 @@ import Icon from "../shell/Icon";
 import Modal, { btn, field } from "../ui/Modal";
 import { useConfirm, useToast } from "../ui/Feedback";
 import { errMsg, useApi } from "./shared";
-import { ExamSelect, NoExam, SLOTS, dept, sessionLabel, usePracticalExams } from "./practicalShared";
+import { ExamSelect, NoExam, SLOTS, dept, sessionLabel, usePracticalExams, useWorkspace } from "./practicalShared";
 
 const BATCH_SIZE = 30; // usual size of a batch (a lab); not a hard rule
 
@@ -33,7 +33,8 @@ const range = (list) => (list.length > 2 ? `${list[0]} … ${list[list.length - 
 export default function PracticalTimetable() {
   const api = useApi();
   const toast = useToast();
-  const { exams, examId, setExamId, department } = usePracticalExams();
+  const { exams, examId, setExamId, department, evening } = usePracticalExams();
+  const base = useWorkspace();
   const [data, setData] = useState(null); // schedule: batches, panels, check
   const [subjects, setSubjects] = useState([]); // practical subjects with counts
   const [from, setFrom] = useState("");
@@ -88,7 +89,16 @@ export default function PracticalTimetable() {
     <div className="mx-auto max-w-7xl px-4 py-6 pb-16 sm:px-6 lg:px-7">
       <h2 className="text-2xl font-bold tracking-tight text-slate-950">Practical batches &amp; time table</h2>
       <ExamSelect exams={exams} examId={examId} setExamId={setExamId} />
-      {department && <p className="mt-1 text-sm text-slate-500">Practical exams conducted by the {dept(department)} department</p>}
+      {department && (
+        <p className="mt-1 text-sm text-slate-500">
+          {evening ? `Evening college – practical exams of the ${dept(department)} evening students (every subject they take)` : `Practical exams conducted by the ${dept(department)} department`}
+        </p>
+      )}
+      {evening && (
+        <p className="mt-2 rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2 text-sm text-indigo-900">
+          Evening students work during the day: use the 5:00 PM – 8:00 PM column, or Sundays (untick “Leave out Sundays”). The examiners are the evening sets allotted by the COE.
+        </p>
+      )}
 
       {examId && data === null && <div className="mt-6 h-64 animate-pulse rounded-2xl bg-white" />}
 
@@ -234,7 +244,7 @@ export default function PracticalTimetable() {
 
           <p className="mt-3 text-xs text-slate-500">
             Need the subject-wise list or your students in other boards&apos; exams?{" "}
-            <a href="/hod/practical/subjects" className="font-semibold text-blue-700 underline">
+            <a href={`${base}/practical/subjects`} className="font-semibold text-blue-700 underline">
               Open the subject-wise view
             </a>
           </p>

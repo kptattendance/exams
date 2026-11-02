@@ -32,7 +32,10 @@ const practicalBatchSchema = new mongoose.Schema(
     code: { type: String, required: true },
     name: { type: String, default: "" },
     board: { type: String, default: "" },
-    department: { type: String, required: true, lowercase: true }, // the conducting department (from the board)
+    department: { type: String, required: true, lowercase: true }, // the conducting department (from the board); evening: the students' branch
+    // DAY, or EVENING: a batch of evening college students (register numbers
+    // 186…), made by the Evening Principal; batches made before this have none = day
+    shift: { type: String, enum: ["DAY", "EVENING"], default: "DAY" },
     semester: { type: Number, default: null },
     number: { type: Number, required: true }, // 1, 2, 3 … within the subject
     label: { type: String, required: true }, // "25CS31P-B1"
@@ -84,7 +87,7 @@ const practicalBatchSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-practicalBatchSchema.index({ exam: 1, code: 1, number: 1 }, { unique: true });
+practicalBatchSchema.index({ exam: 1, code: 1, department: 1, shift: 1, number: 1 }, { unique: true, name: "one_batch_number_per_subject_and_shift" });
 practicalBatchSchema.index({ panel: 1, status: 1 });
 
 const PracticalBatch = mongoose.models.PracticalBatch || mongoose.model("PracticalBatch", practicalBatchSchema);

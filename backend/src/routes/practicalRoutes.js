@@ -28,6 +28,7 @@ import {
   resendOrder,
 } from "../controllers/practicalController.js";
 import { requireStepUp } from "../services/stepUp.js";
+import { asHodScope } from "../services/evening.js";
 
 const router = express.Router();
 
@@ -39,7 +40,8 @@ const BATCHES = requireRole("hod", "coe", "acoe", "admin");
 const VIEW = requireRole("hod", "coe", "acoe", "admin", "office", "principal");
 const EXAMINER = requireRole("staff", "hod");
 
-router.use(authenticateUser);
+// the Evening Principal works as the HOD of the evening students (services/evening.js)
+router.use(authenticateUser, asHodScope);
 
 router.get("/exams", VIEW, practicalExams);
 router.get("/examiners", ALLOT, listExaminers);

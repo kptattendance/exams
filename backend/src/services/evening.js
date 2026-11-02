@@ -25,7 +25,7 @@ export const EVENING_DEPARTMENTS = String(process.env.EVENING_DEPARTMENTS || "ee
 export const isEvening = (registerNumber) => String(registerNumber || "").startsWith(EVENING_CODE);
 export const shiftOf = (registerNumber) => (isEvening(registerNumber) ? "EVENING" : "DAY");
 
-const EVENING_RX = new RegExp(`^${EVENING_CODE}`);
+export const EVENING_RX = new RegExp(`^${EVENING_CODE}`);
 
 export function asHodScope(req, res, next) {
   const role = String(req.user?.role || "").toLowerCase();

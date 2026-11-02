@@ -10,7 +10,7 @@ import Icon from "../shell/Icon";
 import { btn } from "../ui/Modal";
 import { useToast } from "../ui/Feedback";
 import { errMsg, useApi } from "./shared";
-import { ExamSelect, dept, usePracticalExams } from "./practicalShared";
+import { ExamSelect, deptShift, usePracticalExams } from "./practicalShared";
 
 const link = (examId, params) => `/print/practical-orders/${examId}?${new URLSearchParams(params)}`;
 
@@ -36,9 +36,10 @@ export default function OfficePracticalOrders() {
     };
   }, [api, examId, toast]);
 
-  const shown = (rows || []).filter((d) => !department || d.department === department);
+  // filter value "DAY|cs" or "EVENING|ee" (the evening college's sets)
+  const shown = (rows || []).filter((d) => !department || `${d.shift}|${d.department}` === department);
   const sets = shown.reduce((a, d) => a + d.panels.length, 0);
-  const scope = department ? { department } : {};
+  const scope = department ? { department: department.split("|")[1], shift: department.split("|")[0] } : {};
 
   return (
     <div>
@@ -56,8 +57,8 @@ export default function OfficePracticalOrders() {
             <select value={department} onChange={(e) => setDepartment(e.target.value)} className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm">
               <option value="">All departments</option>
               {rows.map((d) => (
-                <option key={d.department} value={d.department}>
-                  {dept(d.department)}
+                <option key={`${d.shift}|${d.department}`} value={`${d.shift}|${d.department}`}>
+                  {deptShift(d.department, d.shift)}
                 </option>
               ))}
             </select>
@@ -76,8 +77,8 @@ export default function OfficePracticalOrders() {
 
           <div className="mt-4 space-y-4">
             {shown.map((d) => (
-              <section key={d.department} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <p className="border-b border-slate-100 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-900">{dept(d.department)}</p>
+              <section key={`${d.shift}|${d.department}`} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <p className="border-b border-slate-100 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-900">{deptShift(d.department, d.shift)}</p>
                 <ul className="divide-y divide-slate-100">
                   {d.panels.map((p) => (
                     <li key={p._id} className="flex flex-col gap-3 px-4 py-3 text-sm sm:flex-row sm:items-center">

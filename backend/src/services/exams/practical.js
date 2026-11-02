@@ -9,7 +9,8 @@ import { effectiveOf, subjectFeePaid } from "./rules.js";
 export const ATTENDANCE = ["PRESENT", "ABSENT", "MALPRACTICE"];
 export const MAX_CODE_TRIES = 5;
 
-export const batchLabel = (code, number) => `${code}-B${number}`;
+// Evening college batches carry the branch: 25EE31P-EV-EE1
+export const batchLabel = (code, number, evening = "") => (evening ? `${code}-EV-${String(evening).toUpperCase()}${number}` : `${code}-B${number}`);
 
 // The HOD of a subject's BOARD conducts its practical exam, for the students
 // of every branch. Most boards are a department; these are the exceptions.

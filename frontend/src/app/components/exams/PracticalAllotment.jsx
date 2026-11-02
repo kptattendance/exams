@@ -11,7 +11,7 @@ import Icon from "../shell/Icon";
 import Modal, { btn, field } from "../ui/Modal";
 import { useConfirm, useToast } from "../ui/Feedback";
 import { errMsg, useApi } from "./shared";
-import { ExamSelect, NoExam, batchState, branches, dept, examinersOf, usePracticalExams, when } from "./practicalShared";
+import { ExamSelect, NoExam, batchState, branches, dept, deptShift, examinersOf, usePracticalExams, when } from "./practicalShared";
 
 export default function PracticalAllotment({ mode = "coe" }) {
   const api = useApi();
@@ -24,7 +24,7 @@ export default function PracticalAllotment({ mode = "coe" }) {
   const [batches, setBatches] = useState(null);
   const [department, setDepartment] = useState("");
   const [staff, setStaff] = useState([]);
-  const [allot, setAllot] = useState(null); // { department, panel? }
+  const [allot, setAllot] = useState(null); // { department, shift, panel? }
   const [secret, setSecret] = useState(null); // { title, name, code, emailed } shown once
   const [marks, setMarks] = useState(null); // batch id whose marks are open
 
@@ -53,11 +53,13 @@ export default function PracticalAllotment({ mode = "coe" }) {
       .catch(() => {});
   }, [api, admin]);
 
-  const shown = useMemo(() => (batches || []).filter((b) => !department || b.department === department), [batches, department]);
-  const conducting = useMemo(() => [...new Set((batches || []).map((b) => b.department))].sort(), [batches]);
+  // filter value "DAY|cs" or "EVENING|ee": the evening college's batches are listed apart
+  const shown = useMemo(() => (batches || []).filter((b) => !department || `${b.shift || "DAY"}|${b.department}` === department), [batches, department]);
+  const conducting = useMemo(() => [...new Set((batches || []).map((b) => `${b.shift || "DAY"}|${b.department}`))].sort(), [batches]);
+  const [fShift, fDept] = department ? department.split("|") : ["", ""];
   const submitted = shown.filter((b) => b.status === "SUBMITTED").length;
 
-  const title = (p) => `${dept(p.department)} – Set ${p.number}`;
+  const title = (p) => `${deptShift(p.department, p.shift)} – Set ${p.number}`;
 
   const newCode = async (p) => {
     const ok = await confirm({
@@ -128,7 +130,7 @@ export default function PracticalAllotment({ mode = "coe" }) {
         <ExaminerTable
           examId={examId}
           depts={depts}
-          onAllot={(department, panel) => setAllot({ department, panel })}
+          onAllot={(d, panel) => setAllot({ department: d.department, shift: d.shift, panel })}
           onOrder={sendOrder}
           onCode={newCode}
           onRemove={remove}
@@ -142,9 +144,9 @@ export default function PracticalAllotment({ mode = "coe" }) {
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <select value={department} onChange={(e) => setDepartment(e.target.value)} className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm" aria-label="Conducting department">
               <option value="">All departments</option>
-              {conducting.map((d) => (
-                <option key={d} value={d}>
-                  {dept(d)}
+              {conducting.map((k) => (
+                <option key={k} value={k}>
+                  {deptShift(k.split("|")[1], k.split("|")[0])}
                 </option>
               ))}
             </select>
@@ -152,7 +154,7 @@ export default function PracticalAllotment({ mode = "coe" }) {
               {shown.length} batch{shown.length === 1 ? "" : "es"} · <b className="text-slate-900">{submitted}</b> submitted
             </p>
             {shown.length > 0 && (
-              <a href={`/print/practical/${examId}?sheet=timetable${department ? `&department=${department}` : ""}`} target="_blank" rel="noreferrer" className={btn.secondary}>
+              <a href={`/print/practical/${examId}?sheet=timetable${department ? `&department=${fDept}&shift=${fShift}` : ""}`} target="_blank" rel="noreferrer" className={btn.secondary}>
                 <Icon name="download" className="h-4 w-4" />
                 Print time table
               </a>
@@ -171,7 +173,7 @@ export default function PracticalAllotment({ mode = "coe" }) {
                         {b.code} <span className="font-normal text-slate-600">{b.name}</span> · Batch {b.number}
                       </p>
                       <p className="mt-0.5 text-xs text-slate-500">
-                        {when(b)} · {b.count} students{b.branches.length > 0 && ` (${branches(b.branches)})`} · {dept(b.department)}
+                        {when(b)} · {b.count} students{b.branches.length > 0 && ` (${branches(b.branches)})`} · {deptShift(b.department, b.shift)}
                       </p>
                       <p className="mt-0.5 text-xs text-slate-600">
                         {b.allotted ? `${b.set ? `Set ${b.set} · ` : ""}Internal: ${b.internal.name} · External: ${b.external.name}` : "Examiner set not chosen"}
@@ -195,11 +197,12 @@ export default function PracticalAllotment({ mode = "coe" }) {
         <AllotModal
           examId={examId}
           department={allot.department}
+          shift={allot.shift}
           panel={allot.panel}
           staff={staff}
           onClose={() => setAllot(null)}
           onDone={(code) => {
-            if (code) setSecret({ title: dept(allot.department), name: code.name, code: code.code, emailed: false });
+            if (code) setSecret({ title: deptShift(allot.department, allot.shift), name: code.name, code: code.code, emailed: false });
             setAllot(null);
             load();
           }}
@@ -255,7 +258,7 @@ function ExaminerTable({ examId, depts, onAllot, onOrder, onCode, onRemove }) {
   const list = depts.filter((d) => {
     if (show !== "ALL" && stateOf(d) !== show) return false;
     if (!text) return true;
-    const hay = [dept(d.department), d.department, ...d.panels.flatMap((p) => [p.internal.name, p.external.name, p.external.college, p.external.email, p.external.phone])]
+    const hay = [deptShift(d.department, d.shift), d.department, d.shift === "EVENING" ? "evening" : "", ...d.panels.flatMap((p) => [p.internal.name, p.external.name, p.external.college, p.external.email, p.external.phone])]
       .join(" ")
       .toLowerCase();
     return hay.includes(text);
@@ -327,9 +330,10 @@ function ExaminerTable({ examId, depts, onAllot, onOrder, onCode, onRemove }) {
                   </td>
                   <td rowSpan={rows} className={td}>
                     <p className="font-semibold text-slate-950">{dept(d.department)}</p>
+                    {d.shift === "EVENING" && <span className="mr-1 mt-1 inline-block rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-semibold text-indigo-800">Evening college</span>}
                     <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${st.chip}`}>{st.label}</span>
                     {(d.subjects > 0 || d.panels.length > 0) && (
-                      <button onClick={() => onAllot(d.department)} className={`mt-2 ${d.panels.length ? act : "inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-700"}`}>
+                      <button onClick={() => onAllot(d)} className={`mt-2 ${d.panels.length ? act : "inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-700"}`}>
                         <Icon name="plus" className="h-3.5 w-3.5" />
                         {d.panels.length ? "Add another set" : "Allot examiners"}
                       </button>
@@ -353,7 +357,7 @@ function ExaminerTable({ examId, depts, onAllot, onOrder, onCode, onRemove }) {
               );
               if (!d.panels.length)
                 return (
-                  <tr key={d.department} className={tint}>
+                  <tr key={`${d.shift}-${d.department}`} className={tint}>
                     {head}
                     <td colSpan={5} className={`${td} text-xs ${d.subjects ? "font-semibold text-orange-700" : ""}`}>
                       {d.subjects ? "Allot the internal and external examiners." : "Nothing to allot."}
@@ -390,7 +394,7 @@ function ExaminerTable({ examId, depts, onAllot, onOrder, onCode, onRemove }) {
                   </td>
                   <td className={td}>
                     <div className="flex flex-wrap gap-1.5">
-                      <button onClick={() => onAllot(d.department, p)} className={act}>
+                      <button onClick={() => onAllot(d, p)} className={act}>
                         <Icon name="edit" className="h-3.5 w-3.5" />
                         Change
                       </button>
@@ -431,7 +435,7 @@ function ExaminerTable({ examId, depts, onAllot, onOrder, onCode, onRemove }) {
   );
 }
 
-function AllotModal({ examId, department, panel, staff, onClose, onDone }) {
+function AllotModal({ examId, department, shift, panel, staff, onClose, onDone }) {
   const api = useApi();
   const toast = useToast();
   const [internalId, setInternalId] = useState(panel?.internal.user || "");
@@ -459,7 +463,7 @@ function AllotModal({ examId, department, panel, staff, onClose, onDone }) {
   const save = async () => {
     setBusy(true);
     try {
-      const body = { department, internalId, external: { ...ext, userId: extId || null } };
+      const body = { department, shift, internalId, external: { ...ext, userId: extId || null } };
       const r = panel ? await api("patch", `/practicals/panels/${panel._id}`, body) : await api("post", `/practicals/${examId}/panels`, body);
       toast.success(r.data.message, 8000);
       onDone(r.data.code ? { code: r.data.code, name: ext.name } : null);
@@ -475,7 +479,11 @@ function AllotModal({ examId, department, panel, staff, onClose, onDone }) {
       onClose={onClose}
       busy={busy}
       title={panel ? `Change examiners – Set ${panel.number}` : "Allot an examiner set"}
-      subtitle={`${dept(department)} department · they conduct the practical exams the HOD gives them`}
+      subtitle={
+        shift === "EVENING"
+          ? `${dept(department)} – Evening college · they conduct the evening students' practical exams the Evening Principal gives them`
+          : `${dept(department)} department · they conduct the practical exams the HOD gives them`
+      }
       footer={
         <>
           <button onClick={onClose} disabled={busy} className={btn.secondary}>

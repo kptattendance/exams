@@ -19,7 +19,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 
 import { errMsg, useApi } from "../../../components/exams/shared";
-import { SLOTS, branches, dept, sessionLabel } from "../../../components/exams/practicalShared";
+import { SLOTS, branches, conductedBy, dept, sessionLabel } from "../../../components/exams/practicalShared";
 import { STATUS, filterOffice, roomsOf } from "../../../components/exams/OfficePractical";
 import Letterhead from "../../../components/print/Letterhead";
 import { useRole } from "../../../components/useRole";
@@ -32,10 +32,10 @@ const td = "border border-slate-700 px-2 py-1";
 const day = (iso) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }) : "__________");
 const session = (s) => sessionLabel(s) || "______";
 
-function Head({ exam, title, sub }) {
+function Head({ exam, title, sub, evening = false }) {
   return (
     <div className="text-center">
-      <p className="text-[14px] font-bold uppercase tracking-wide">Karnataka Government Polytechnic, Mangaluru</p>
+      <p className="text-[14px] font-bold uppercase tracking-wide">Karnataka Government Polytechnic{evening ? " (Evening)" : ""}, Mangaluru</p>
       <p className="text-[10px]">(Autonomous)</p>
       <p className="mt-1 text-[12px] font-semibold">{exam}</p>
       <p className="mt-1 text-[13px] font-bold tracking-[0.15em]">{title}</p>
@@ -50,6 +50,7 @@ function PrintPractical() {
   const batchId = search.get("batch");
   const department = search.get("department") || "";
   const branch = search.get("branch") || ""; // a HOD's view: his own exams + his students elsewhere
+  const shift = search.get("shift") || ""; // COE: DAY / EVENING batches only
   const sheet = search.get("sheet") || "";
   const office = OFFICE_SHEETS.includes(sheet);
   const grid = TT_SHEETS.includes(sheet);
@@ -69,10 +70,10 @@ function PrintPractical() {
       : grid
       ? api("get", `/practicals/${examId}/schedule`, undefined, { params: { department } })
       : batchId
-        ? api("get", `/practicals/batches/${batchId}`)
-        : api("get", `/practicals/${examId}/batches`, undefined, { params: branch ? { branch } : department ? { department } : {} });
+        ? api("get", `/practicals/batches/${batchId}`, undefined, { params: department ? { department } : {} })
+        : api("get", `/practicals/${examId}/batches`, undefined, { params: { ...(branch ? { branch } : department ? { department } : {}), ...(shift ? { shift } : {}) } });
     call.then((r) => setData(r.data)).catch((e) => setError(errMsg(e, "Could not load.")));
-  }, [api, examId, batchId, department, branch, office, grid, isLoaded, isSignedIn]);
+  }, [api, examId, batchId, department, branch, shift, office, grid, isLoaded, isSignedIn]);
 
   // "PDF" button of the office pages: open the print dialog once the sheet is drawn
   useEffect(() => {
@@ -111,10 +112,10 @@ function MarkList({ b }) {
   const done = b.status === "SUBMITTED";
   return (
     <div>
-      <Head exam={b.examName} title={done ? "PRACTICAL EXAMINATION – MARK LIST" : "PRACTICAL EXAMINATION – BLANK MARK LIST"} sub={`${b.code} – ${b.name}`} />
+      <Head exam={b.examName} title={done ? "PRACTICAL EXAMINATION – MARK LIST" : "PRACTICAL EXAMINATION – BLANK MARK LIST"} sub={`${b.code} – ${b.name}`} evening={b.shift === "EVENING"} />
       <div className="mt-3 flex items-end justify-between">
         <p className="text-[11px] leading-5">
-          Conducted by: {dept(b.department)} &nbsp;·&nbsp; Semester: {b.semester ?? "–"}
+          Conducted by: {conductedBy(b)} &nbsp;·&nbsp; Semester: {b.semester ?? "–"}
           <br />
           Date: {day(b.date)} &nbsp;·&nbsp; Session: {session(b.session)} &nbsp;·&nbsp; Lab: {b.lab || "__________"}
         </p>
@@ -190,7 +191,7 @@ function TimeTable({ exam, batches, department, branch }) {
               </td>
               <td className={td}>
                 <b>{b.code}</b> {b.name}
-                {branch && b.department !== branch && <span className="block text-[10px]">Conducted by {dept(b.department)}</span>}
+                {((branch && b.department !== branch) || b.shift === "EVENING") && <span className="block text-[10px]">Conducted by {conductedBy(b)}</span>}
               </td>
               <td className={`${td} text-center`}>{b.number}</td>
               <td className={td}>
@@ -253,13 +254,13 @@ function GridSheet({ sheet, data }) {
   return (
     <div>
       <style>{forStudents ? "" : "@page{size:A4 landscape;margin:10mm}"}</style>
-      <Letterhead />
+      <Letterhead evening={Boolean(data.evening)} />
       <div className="mt-2 text-center">
         <p className="text-[12px] font-semibold">{data.exam?.name}</p>
         <p className="mt-1 text-[13px] font-bold tracking-[0.15em]">
           {forStudents ? "PRACTICAL EXAMINATION – TIME TABLE FOR STUDENTS" : "PRACTICAL EXAMINATION – TIME TABLE AND EXAMINERS"}
         </p>
-        <p className="text-[12px]">Conducted by the {dept(data.department)} department</p>
+        <p className="text-[12px]">{data.evening ? `Evening college – ${dept(data.department)} students` : `Conducted by the ${dept(data.department)} department`}</p>
       </div>
       <table className="mt-4 w-full border-collapse">
         <thead>
@@ -321,7 +322,7 @@ function GridSheet({ sheet, data }) {
       )}
       {!forStudents && <MissingCheck check={data.check || []} />}
       {forStudents && <p className="mt-3 text-[10.5px]">Report to the lab 15 minutes before the time. Bring your hall ticket, ID card and record book.</p>}
-      <Signatures who={forStudents ? ["HOD", "Principal / Dean", "COE"] : ["HOD", "COE"]} />
+      <Signatures who={data.evening ? ["Principal (Evening)", "COE"] : forStudents ? ["HOD", "Principal / Dean", "COE"] : ["HOD", "COE"]} />
     </div>
   );
 }
@@ -408,7 +409,8 @@ const uniq = (list) => [...new Set(list.filter(Boolean))];
 function RoomSignatures({ batches }) {
   const internals = uniq(batches.map((b) => b.internal?.name));
   const externals = uniq(batches.map((b) => [b.external?.name, b.external?.college].filter(Boolean).join("|")));
-  const depts = uniq(batches.map((b) => dept(b.department)));
+  const depts = uniq(batches.map((b) => conductedBy(b)));
+  const evening = batches.length > 0 && batches.every((b) => b.shift === "EVENING");
   const cell = (title, lines) => (
     <div className="border-t border-slate-700 pt-1">
       <p className="font-semibold">{title}</p>
@@ -447,7 +449,7 @@ function RoomSignatures({ batches }) {
         )
       )}
       {cell(
-        "HOD",
+        evening ? "Principal (Evening)" : "HOD",
         depts.map((d) => <p key={d}>{d}</p>)
       )}
       {cell("COE", null)}
@@ -461,7 +463,7 @@ function RoomDiary({ exam, room }) {
   const count = (a) => students.filter((s) => s.attendance === a).length;
   return (
     <div>
-      <Letterhead />
+      <Letterhead evening={room.batches.every((b) => b.shift === "EVENING")} />
       <div className="mt-2 text-center">
         <p className="text-[12px] font-semibold">{exam}</p>
         <p className="mt-1 text-[13px] font-bold tracking-[0.15em]">PRACTICAL EXAMINATION – ROOM DIARY</p>
@@ -494,7 +496,7 @@ function RoomDiary({ exam, room }) {
               <td className={`${td} font-semibold`}>{b.label}</td>
               <td className={td}>
                 <b>{b.code}</b> {b.name}
-                <span className="block text-[10px]">Conducted by {dept(b.department)}</span>
+                <span className="block text-[10px]">Conducted by {conductedBy(b)}</span>
               </td>
               <td className={`${td} text-center`}>{b.count}</td>
               <td className={td}>{b.internal.name || "________________"}</td>
@@ -566,7 +568,7 @@ function ExaminerSignatures({ b }) {
 function BlankMarkList({ exam, b }) {
   return (
     <div>
-      <Letterhead />
+      <Letterhead evening={b.shift === "EVENING"} />
       <div className="mt-2 text-center">
         <p className="text-[12px] font-semibold">{exam}</p>
         <p className="mt-1 text-[13px] font-bold tracking-[0.15em]">PRACTICAL EXAMINATION – MARK LIST (ML) ENTRY SHEET</p>
@@ -576,7 +578,7 @@ function BlankMarkList({ exam, b }) {
       </div>
       <div className="mt-3 flex items-end justify-between">
         <p className="text-[11px] leading-5">
-          Conducted by: {dept(b.department)} &nbsp;·&nbsp; Semester: {b.semester ?? "–"} &nbsp;·&nbsp; Maximum marks: {b.max}
+          Conducted by: {conductedBy(b)} &nbsp;·&nbsp; Semester: {b.semester ?? "–"} &nbsp;·&nbsp; Maximum marks: {b.max}
           <br />
           Date: {day(b.date)} &nbsp;·&nbsp; Session: {session(b.session)} &nbsp;·&nbsp; Lab: {b.lab || "__________"}
         </p>

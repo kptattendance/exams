@@ -311,7 +311,8 @@ export function collegeParts(ext = {}, user = null) {
 //   order: { exam: { name }, panel, college: { code, name }, date, from, to, start }
 //   role "INTERNAL" (with person: { name, designation, department }): the same
 //   order for the internal examiner of our college, copy to his HOD
-function drawOrder(doc, A, { exam, panel, college = {}, date = new Date(), from = "", to = "", start = "", role = "EXTERNAL", person = null }) {
+//   evening: the evening college's examiner set (copy also to its Principal)
+function drawOrder(doc, A, { exam, panel, college = {}, date = new Date(), from = "", to = "", start = "", role = "EXTERNAL", person = null, evening = false }) {
   const F = A.F;
   const W = new Writer(doc, F, footer);
   const internal = role === "INTERNAL";
@@ -362,7 +363,7 @@ function drawOrder(doc, A, { exam, panel, college = {}, date = new Date(), from 
   W.para(PARA_2, body);
   const period = from && to ? `ದಿನಾಂಕ ${dmy(from)} ರಿಂದ ${dmy(to)} ರವರೆಗೆ` : "ಮುಂದೆ ತಿಳಿಸಲಾಗುವ ದಿನಾಂಕಗಳಂದು";
   W.para(
-    `ಮೇಲ್ಕಂಡ ವಿಷಯಕ್ಕೆ ಸಂಬಂಧಿಸಿದಂತೆ ${exam.name} ಪ್ರಾಯೋಗಿಕ ಪರೀಕ್ಷೆಗಳನ್ನು ${period} ನಮ್ಮ ಸಂಸ್ಥೆಯಲ್ಲಿ ನಡೆಸಲಾಗುವುದು. ಸದರಿ ಪ್ರಾಯೋಗಿಕ ಪರೀಕ್ಷೆಗಳಿಗೆ ತಮ್ಮನ್ನು ${asKn} (${internal ? "Internal" : "External"} Examiner) ನಿಯೋಜಿಸಲಾಗಿದೆ. ${
+    `ಮೇಲ್ಕಂಡ ವಿಷಯಕ್ಕೆ ಸಂಬಂಧಿಸಿದಂತೆ ${exam.name} ಪ್ರಾಯೋಗಿಕ ಪರೀಕ್ಷೆಗಳನ್ನು ${period} ${evening ? "ನಮ್ಮ ಸಂಸ್ಥೆಯ ಸಂಜೆ ಕಾಲೇಜಿನಲ್ಲಿ (Evening college)" : "ನಮ್ಮ ಸಂಸ್ಥೆಯಲ್ಲಿ"} ನಡೆಸಲಾಗುವುದು. ಸದರಿ ಪ್ರಾಯೋಗಿಕ ಪರೀಕ್ಷೆಗಳಿಗೆ ತಮ್ಮನ್ನು ${asKn} (${internal ? "Internal" : "External"} Examiner) ನಿಯೋಜಿಸಲಾಗಿದೆ. ${
       internal
         ? "ಕೋಷ್ಟಕ - 1 ರಲ್ಲಿ ನಮೂದಿಸಿದ ದಿನಾಂಕದಿಂದ ಪರೀಕ್ಷಾ ಕಾರ್ಯವನ್ನು ನಿರ್ವಹಿಸಲು ಸೂಚಿಸಿದೆ."
         : "ಕೋಷ್ಟಕ - 1 ರಲ್ಲಿ ನಮೂದಿಸಿದ ದಿನಾಂಕದಂದು ನಮ್ಮ ಸಂಸ್ಥೆಗೆ ಹಾಜರಾಗಿ ಪರೀಕ್ಷಾ ಕಾರ್ಯವನ್ನು ನಿರ್ವಹಿಸಲು ಸೂಚಿಸಿದೆ."
@@ -394,14 +395,18 @@ function drawOrder(doc, A, { exam, panel, college = {}, date = new Date(), from 
   // copy to the Principal of his college (internal examiner: to his HOD)
   W.y -= 6;
   W.para("ಪ್ರತಿಗಳು:", { size: 11, after: 0 });
+  const eveningCopy = () =>
+    W.para("2) ಪ್ರಾಂಶುಪಾಲರು, ಸಂಜೆ ಕಾಲೇಜು (Evening college), ಕರ್ನಾಟಕ (ಸರ್ಕಾರಿ) ಪಾಲಿಟೆಕ್ನಿಕ್, ಮಂಗಳೂರು — ಮಾಹಿತಿಗಾಗಿ.", { size: 11, x: M.left + 24, width: full - 24, after: 0 });
   if (internal) {
     W.para(`1) ವಿಭಾಗ ಮುಖ್ಯಸ್ಥರು, ${department} ವಿಭಾಗ — ಮಾಹಿತಿಗಾಗಿ.`, { size: 11, x: M.left + 24, width: full - 24, after: 0 });
+    if (evening) eveningCopy();
     return;
   }
   W.para(
     `1) ಪ್ರಾಂಶುಪಾಲರು, ${college.code ? `ಸಂಸ್ಥೆಯ ಕೋಡ್: ${college.code}, ` : ""}${collegeName || "________________"} — ಮಾಹಿತಿಗಾಗಿ ಹಾಗೂ ಸದರಿ ಉಪನ್ಯಾಸಕರನ್ನು ಪ್ರಾಯೋಗಿಕ ಪರೀಕ್ಷಾ ಕಾರ್ಯಕ್ಕೆ ಬಿಡುಗಡೆಗೊಳಿಸಲು ಕೋರಿದೆ.`,
     { size: 11, x: M.left + 24, width: full - 24, after: 0 }
   );
+  if (evening) eveningCopy();
 }
 
 // orders: [{ exam, panel, college, date, from, to, start }] -> PDF bytes (one order after another)

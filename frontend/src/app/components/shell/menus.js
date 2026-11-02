@@ -37,6 +37,13 @@ export const MENUS = {
           { label: "Exam fee list", href: "/evening/exam-fees", icon: "money" },
         ],
       },
+      {
+        title: "Practical exams",
+        items: [
+          { label: "Practical batches & time table", href: "/evening/practical", icon: "calendar" },
+          { label: "Track practical marks", href: "/evening/practical-marks", icon: "marks" },
+        ],
+      },
     ],
   },
   admin: {

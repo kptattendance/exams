@@ -12,12 +12,13 @@ import Icon from "../shell/Icon";
 import { btn, field } from "../ui/Modal";
 import { useConfirm, useToast } from "../ui/Feedback";
 import { errMsg, useApi } from "./shared";
-import { ExamSelect, NoExam, PracticalSteps, SLOTS, batchState, branches, dept, examinersOf, usePracticalExams, when } from "./practicalShared";
+import { ExamSelect, NoExam, PracticalSteps, SLOTS, batchState, branches, dept, examinersOf, usePracticalExams, useWorkspace, when } from "./practicalShared";
 
 export default function PracticalBatches() {
   const api = useApi();
   const toast = useToast();
   const { exams, examId, setExamId, department } = usePracticalExams();
+  const base = useWorkspace();
   const [data, setData] = useState(null);
   const [elsewhere, setElsewhere] = useState([]); // other boards' batches with our students
   const [open, setOpen] = useState(null); // subject code
@@ -148,7 +149,7 @@ export default function PracticalBatches() {
           </div>
 
           {list.length > 0 && list.some((s) => s.batches > 0) && (
-            <a href="/hod/practical-timetable" className={`${btn.primary} mt-4 mr-3`}>
+            <a href={base === "/hod" ? "/hod/practical-timetable" : `${base}/practical`} className={`${btn.primary} mt-4 mr-3`}>
               <Icon name="calendar" className="h-4 w-4" />
               Next: fix the practical time table
               <Icon name="chevronRight" className="h-4 w-4" />
@@ -368,7 +369,7 @@ function SubjectBatches({ examId, code, onClose }) {
                 </span>
                 <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${st.chip}`}>{st.label}</span>
                 {!b.isNew && !done && (
-                  <a href={`/print/practical/${examId}?batch=${b._id}`} target="_blank" rel="noreferrer" className={`${btn.small} ml-auto`}>
+                  <a href={`/print/practical/${examId}?batch=${b._id}&department=${department}`} target="_blank" rel="noreferrer" className={`${btn.small} ml-auto`}>
                     <Icon name="download" className="h-4 w-4" />
                     Print mark list
                   </a>

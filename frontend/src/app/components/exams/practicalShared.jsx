@@ -3,6 +3,7 @@
 // Small pieces shared by the practical exam screens.
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 import { useToast } from "../ui/Feedback";
 import { deptLabel, errMsg, useApi } from "./shared";
@@ -24,6 +25,17 @@ export const when = (b) => [fmtDay(b.date), sessionLabel(b.session), b.lab].filt
 
 // The department that conducts a practical exam (includes Science & English)
 export const dept = (d) => (String(d).toLowerCase() === "sc" ? "Science & English" : deptLabel(d));
+// "Electrical and Electronics Engineering – Evening" for the evening college's sets / batches
+export const deptShift = (d, shift) => `${dept(d)}${shift === "EVENING" ? " – Evening" : ""}`;
+// Evening college batches: who conducts them
+export const conductedBy = (b) => (b.shift === "EVENING" ? `Evening college (${String(b.department || "").toUpperCase()})` : dept(b.department));
+
+// The HOD pages live at /hod, the Evening Principal's (same screens) at /evening
+export function useWorkspace() {
+  const path = usePathname() || "";
+  return path.startsWith("/evening") ? "/evening" : "/hod";
+}
+
 export const branches = (list) => (list || []).map((d) => String(d).toUpperCase()).join(", ");
 
 // Where a batch stands
@@ -47,6 +59,7 @@ export function usePracticalExams() {
   const [exams, setExams] = useState(null);
   const [examId, setExamId] = useState("");
   const [department, setDepartment] = useState("");
+  const [evening, setEvening] = useState(false); // the Evening Principal
 
   useEffect(() => {
     (async () => {
@@ -55,6 +68,7 @@ export function usePracticalExams() {
         const list = Array.isArray(r.data?.data) ? r.data.data : [];
         setExams(list);
         setDepartment(r.data?.department || "");
+        setEvening(Boolean(r.data?.evening));
         if (list[0]) setExamId(list[0]._id);
       } catch (e) {
         setExams([]);
@@ -63,7 +77,7 @@ export function usePracticalExams() {
     })();
   }, [api, toast]);
 
-  return { exams, examId, setExamId, department };
+  return { exams, examId, setExamId, department, evening };
 }
 
 export function ExamSelect({ exams, examId, setExamId }) {

@@ -26,6 +26,7 @@ import AuditLog from "../models/AuditLog.js";
 import { sendPracticalAllotmentEmail, sendPracticalOrderEmail, sendPracticalScheduleEmail } from "../services/mailer.js";
 import { collegeParts, practicalOrdersPdf } from "../services/practicalOrder.js";
 import { effectiveOf } from "../services/exams/rules.js";
+import { EVENING_DEPARTMENTS, EVENING_ROLE, EVENING_RX } from "../services/evening.js";
 import {
   batchLabel,
   boardDepartment,
@@ -72,6 +73,49 @@ function departmentFor(req, requested) {
   return lower(requested);
 }
 
+// Evening college (register numbers 186…): its practical exams are run by the
+// Evening Principal, for each branch (EE / ME) on its own – its own examiner
+// sets (allotted by the COE) and its own batches. A HOD runs the day students
+// of his board's subjects. Other roles ask for the evening with ?shift=EVENING
+// (or shift in the body).
+function eveningOf(req) {
+  if (req.user?.role === "hod") return Boolean(req.user.evening);
+  return String(req.query?.shift || req.body?.shift || "").toUpperCase() === "EVENING";
+}
+const shiftFilter = (evening) => (evening ? { shift: "EVENING" } : { shift: { $ne: "EVENING" } });
+const sameShift = (doc, evening) => (doc?.shift === "EVENING") === Boolean(evening);
+const exactly = (v) => new RegExp(`^${String(v).replace(/[^a-z0-9]/gi, "")}$`, "i");
+
+// What one department's practical work covers (query parts)
+//   day     – day students of every branch, batches / sets of the department
+//   evening – evening students of that branch, its evening batches / sets
+function scopeOf(evening, department) {
+  return {
+    evening,
+    department,
+    regs: evening ? { department: exactly(department), registerNumber: EVENING_RX } : { registerNumber: { $not: EVENING_RX } },
+    batches: evening ? { department, shift: "EVENING" } : shiftFilter(false),
+    panels: { department, ...shiftFilter(evening) },
+  };
+}
+
+// The practical subjects of that work and the registrations taking them:
+//   day     – the subjects of the department's boards
+//   evening – every practical subject the evening students of the branch take
+async function practicalWork(exam, scope) {
+  const pick = "code name semester board";
+  if (scope.evening) {
+    const regs = await ExamRegistration.find({ exam: exam._id, ...scope.regs, "subjects.hasPractical": true }).select(REG_FIELDS).lean();
+    const taken = [...new Set(regs.flatMap((r) => r.subjects.filter((s) => s.hasPractical).map((s) => s.code)))];
+    const subjects = await Subject.find({ code: { $in: taken }, practicalExamMax: { $gt: 0 } }).select(pick).lean();
+    return { subjects, codes: [...new Set(subjects.map((s) => s.code))], regs };
+  }
+  const subjects = await Subject.find({ board: { $in: boardsOf(scope.department) }, practicalExamMax: { $gt: 0 } }).select(pick).lean();
+  const codes = [...new Set(subjects.map((s) => s.code))];
+  const regs = await ExamRegistration.find({ exam: exam._id, "subjects.code": { $in: codes }, ...scope.regs }).select(REG_FIELDS).lean();
+  return { subjects, codes, regs };
+}
+
 async function loadExam(req, res) {
   if (!isId(req.params.id)) return fail(res, 400, "Invalid exam id."), null;
   const exam = await Exam.findById(req.params.id).select("name academicYear status timetable.entries timetable.sessions").lean();
@@ -114,6 +158,7 @@ function panelView(p) {
   return {
     _id: p._id,
     department: p.department,
+    shift: p.shift === "EVENING" ? "EVENING" : "DAY",
     number: p.number,
     internal: { user: p.internal?.user || null, name: p.internal?.name || "", email: p.internal?.email || "", phone: p.internal?.phone || "" },
     external: {
@@ -143,6 +188,7 @@ function batchView(b, panel, { students = true, marks = false } = {}) {
     name: b.name,
     board: b.board,
     department: b.department,
+    shift: b.shift === "EVENING" ? "EVENING" : "DAY",
     semester: b.semester,
     number: b.number,
     label: b.label,
@@ -220,7 +266,8 @@ async function syncOpen(req, filter) {
 // GET /api/practicals/exams
 export const practicalExams = async (req, res) => {
   const exams = await Exam.find({ status: { $ne: "COMPLETED" } }).select("name academicYear status").sort({ createdAt: -1 }).lean();
-  res.json({ data: exams, department: req.user?.role === "hod" ? lower(req.user.department) : "" });
+  const hod = req.user?.role === "hod";
+  res.json({ data: exams, department: hod ? lower(req.user.department) : "", evening: hod && Boolean(req.user.evening) });
 };
 
 // GET /api/practicals/examiners – staff who can be an internal examiner, and
@@ -236,37 +283,56 @@ export const listExaminers = async (req, res) => {
 export const listPanels = async (req, res) => {
   const exam = await loadExam(req, res);
   if (!exam) return;
-  const only = req.user?.role === "hod" ? lower(req.user.department) : "";
+  const hod = req.user?.role === "hod";
+  const only = hod ? lower(req.user.department) : "";
+  const onlyEvening = hod && Boolean(req.user.evening);
 
   const [counts, panels, batches] = await Promise.all([
     ExamRegistration.aggregate([
       { $match: { exam: exam._id } },
       { $unwind: "$subjects" },
       { $match: { "subjects.hasPractical": true } },
-      { $group: { _id: "$subjects.code", students: { $sum: 1 } } },
+      {
+        $group: {
+          _id: { code: "$subjects.code", evening: { $regexMatch: { input: { $ifNull: ["$registerNumber", ""] }, regex: EVENING_RX } }, branch: "$department" },
+          students: { $sum: 1 },
+        },
+      },
     ]),
-    PracticalPanel.find({ exam: exam._id, ...(only ? { department: only } : {}) }).sort({ department: 1, number: 1 }).lean(),
-    PracticalBatch.aggregate([{ $match: { exam: exam._id } }, { $group: { _id: { department: "$department", status: "$status" }, n: { $sum: 1 } } }]),
+    PracticalPanel.find({ exam: exam._id, ...(only ? { department: only, ...shiftFilter(onlyEvening) } : {}) }).sort({ department: 1, number: 1 }).lean(),
+    PracticalBatch.aggregate([
+      { $match: { exam: exam._id } },
+      { $group: { _id: { department: "$department", evening: { $eq: ["$shift", "EVENING"] }, status: "$status" }, n: { $sum: 1 } } },
+    ]),
   ]);
-  const info = await subjectInfo(counts.map((c) => c._id));
+  const info = await subjectInfo([...new Set(counts.map((c) => c._id.code))]);
+  // one row per department, and one per evening branch (EE / ME evening)
   const rows = new Map();
-  const row = (d) => {
-    if (!rows.has(d)) rows.set(d, { department: d, subjects: 0, students: 0, batches: 0, submitted: 0, panels: [] });
-    return rows.get(d);
+  const row = (d, evening) => {
+    const key = `${evening ? "E" : "D"}|${d}`;
+    if (!rows.has(key)) rows.set(key, { department: d, shift: evening ? "EVENING" : "DAY", codes: new Set(), students: 0, batches: 0, submitted: 0, panels: [] });
+    return rows.get(key);
   };
-  for (const d of CONDUCTING_DEPARTMENTS) row(d);
+  for (const d of CONDUCTING_DEPARTMENTS) row(d, false);
+  for (const d of EVENING_DEPARTMENTS) row(d, true);
   for (const c of counts) {
-    const s = info.get(c._id);
+    const s = info.get(c._id.code);
     if (!s) continue;
-    row(s.department).subjects++;
-    row(s.department).students += c.students;
+    // day: the subject's board conducts it; evening: by the student's branch
+    const r = c._id.evening ? row(lower(c._id.branch), true) : row(s.department, false);
+    r.codes.add(c._id.code);
+    r.students += c.students;
   }
   for (const b of batches) {
-    row(b._id.department).batches += b.n;
-    if (b._id.status === "SUBMITTED") row(b._id.department).submitted += b.n;
+    const r = row(b._id.department, b._id.evening);
+    r.batches += b.n;
+    if (b._id.status === "SUBMITTED") r.submitted += b.n;
   }
-  for (const p of panels) row(p.department).panels.push(panelView(p));
-  res.json({ exam: examView(exam), data: [...rows.values()].filter((r) => !only || r.department === only) });
+  for (const p of panels) row(p.department, p.shift === "EVENING").panels.push(panelView(p));
+  const data = [...rows.values()]
+    .map(({ codes, ...r }) => ({ ...r, subjects: codes.size }))
+    .filter((r) => !only || (r.department === only && (r.shift === "EVENING") === onlyEvening));
+  res.json({ exam: examView(exam), data });
 };
 
 // Reads and checks the two examiners from the request
@@ -293,7 +359,10 @@ async function readExaminers(req) {
 
 // Tell everyone concerned. Returns who was reached.
 async function notifyAllotment(exam, panel, code) {
-  const hods = await User.find({ role: "hod", department: panel.department }).select("name email").lean();
+  const hods =
+    panel.shift === "EVENING"
+      ? await User.find({ role: EVENING_ROLE }).select("name email").lean() // the evening college's "HOD"
+      : await User.find({ role: "hod", department: panel.department }).select("name email").lean();
   // the internal examiner gets his own office order with the appointment
   const internalPdf = panel.internal?.email
     ? await internalOrderPdfOf(exam, panel).catch((e) => (console.error("Internal office order PDF failed:", e.message), null))
@@ -343,6 +412,7 @@ async function externalOrdersOf(exam, panels) {
       panel: p,
       college: collegeParts(p.external, byId.get(String(p.external?.user || ""))),
       date: p.allottedAt || new Date(),
+      evening: p.shift === "EVENING",
       ...(await orderDates(p.exam, p._id)),
     });
   return orders;
@@ -362,6 +432,7 @@ async function internalOrderOf(exam, panel) {
     person: { name: panel.internal.name, designation: u?.designation || "", department: u?.department || panel.department },
     college: { code: HOME_COLLEGE.code, name: HOME_COLLEGE.name },
     date: panel.allottedAt || new Date(),
+    evening: panel.shift === "EVENING",
     ...(await orderDates(panel.exam, panel._id)),
   };
 }
@@ -394,6 +465,7 @@ export const listOrders = async (req, res) => {
     filter._id = req.query.panel;
   }
   if (req.query.department) filter.department = lower(req.query.department);
+  if (req.query.shift) Object.assign(filter, shiftFilter(String(req.query.shift).toUpperCase() === "EVENING"));
   const panels = await PracticalPanel.find(filter).sort({ department: 1, number: 1 }).lean();
   if (who !== "external") {
     const withExt = panels.filter((p) => p.external?.name);
@@ -461,7 +533,7 @@ async function issueCode(req, panel, exam) {
 const allotReply = (panel, mail, code) => {
   const told = [mail.internal && "internal examiner", mail.external && "external examiner", mail.hod && "HOD"].filter(Boolean);
   return {
-    message: `Examiner set ${panel.number} of ${panel.department.toUpperCase()} saved. ${told.length ? `Email sent to: ${told.join(", ")}.` : "No email could be sent – please inform them."}${
+    message: `Examiner set ${panel.number} of ${panel.department.toUpperCase()}${panel.shift === "EVENING" ? " (Evening)" : ""} saved. ${told.length ? `Email sent to: ${told.join(", ")}.` : "No email could be sent – please inform them."}${
       mail.order ? " The office order went with the external examiner's email." : ""
     }`,
     // The code is shown to the COE only when it could not be emailed to the external examiner
@@ -474,18 +546,27 @@ export const addPanel = async (req, res) => {
   const exam = await loadExam(req, res);
   if (!exam) return;
   const department = lower(req.body?.department);
-  if (!CONDUCTING_DEPARTMENTS.includes(department)) return fail(res, 400, "Choose the department.");
+  const evening = String(req.body?.shift || "").toUpperCase() === "EVENING";
+  if (!(evening ? EVENING_DEPARTMENTS : CONDUCTING_DEPARTMENTS).includes(department)) return fail(res, 400, "Choose the department.");
   const ex = await readExaminers(req);
   if (ex.error) return fail(res, 400, ex.error);
-  const last = await PracticalPanel.findOne({ exam: exam._id, department }).sort({ number: -1 }).select("number").lean();
-  const panel = new PracticalPanel({ exam: exam._id, department, number: (last?.number || 0) + 1, ...ex, allottedAt: new Date(), allottedBy: who(req) });
+  const last = await PracticalPanel.findOne({ exam: exam._id, department, ...shiftFilter(evening) }).sort({ number: -1 }).select("number").lean();
+  const panel = new PracticalPanel({
+    exam: exam._id,
+    department,
+    shift: evening ? "EVENING" : "DAY",
+    number: (last?.number || 0) + 1,
+    ...ex,
+    allottedAt: new Date(),
+    allottedBy: who(req),
+  });
   const { code, mail } = await issueCode(req, panel, exam);
   // The department's first set takes the batches the HOD has already made
   if (panel.number === 1) {
-    const taken = await PracticalBatch.updateMany({ exam: exam._id, department, panel: null, status: "OPEN" }, { $set: { panel: panel._id } });
+    const taken = await PracticalBatch.updateMany({ exam: exam._id, department, panel: null, status: "OPEN", ...shiftFilter(evening) }, { $set: { panel: panel._id } });
     if (taken.modifiedCount) await sendSchedules(exam, [String(panel._id)]);
   }
-  await log(req, "PRACTICAL_EXAMINERS_ALLOTTED", panel._id, { department, set: panel.number, internal: ex.internal.email, external: ex.external.name, mail });
+  await log(req, "PRACTICAL_EXAMINERS_ALLOTTED", panel._id, { department, shift: panel.shift, set: panel.number, internal: ex.internal.email, external: ex.external.name, mail });
   res.json(allotReply(panel, mail, code));
 };
 
@@ -547,14 +628,13 @@ export const listSubjects = async (req, res) => {
   if (!exam) return;
   const department = departmentFor(req, req.query.department);
   if (!department) return fail(res, 400, "Department is required.");
-  await syncOpen(req, { exam: exam._id, department });
+  const scope = scopeOf(eveningOf(req), department);
+  await syncOpen(req, { exam: exam._id, department, ...shiftFilter(scope.evening) });
 
-  const subjects = await Subject.find({ board: { $in: boardsOf(department) }, practicalExamMax: { $gt: 0 } }).select("code name semester board").lean();
-  const codes = [...new Set(subjects.map((s) => s.code))];
-  const [regs, batches, panels] = await Promise.all([
-    ExamRegistration.find({ exam: exam._id, "subjects.code": { $in: codes } }).select(REG_FIELDS).lean(),
-    PracticalBatch.find({ exam: exam._id, code: { $in: codes } }).select("code status panel date students.registration").lean(),
-    PracticalPanel.find({ exam: exam._id, department }).sort({ number: 1 }).lean(),
+  const { subjects, codes, regs } = await practicalWork(exam, scope);
+  const [batches, panels] = await Promise.all([
+    PracticalBatch.find({ exam: exam._id, code: { $in: codes }, ...scope.batches }).select("code status panel date students.registration").lean(),
+    PracticalPanel.find({ exam: exam._id, ...scope.panels }).sort({ number: 1 }).lean(),
   ]);
   const data = [];
   for (const code of codes) {
@@ -578,7 +658,7 @@ export const listSubjects = async (req, res) => {
     });
   }
   data.sort((a, b) => (a.semester || 9) - (b.semester || 9) || a.code.localeCompare(b.code));
-  res.json({ exam: examView(exam), department, panels: panels.map(panelView), data });
+  res.json({ exam: examView(exam), department, evening: scope.evening, panels: panels.map(panelView), data });
 };
 
 async function subjectContext(req, res) {
@@ -587,16 +667,21 @@ async function subjectContext(req, res) {
   const code = codeOf(req);
   const info = (await subjectInfo([code])).get(code);
   if (!info) return fail(res, 404, `${code} has no practical exam.`), null;
-  if (req.user?.role === "hod" && lower(req.user.department) !== info.department)
+  const evening = eveningOf(req);
+  if (!evening && req.user?.role === "hod" && lower(req.user.department) !== info.department)
     return fail(res, 403, `The practical exam of ${code} is conducted by the ${info.board} board.`), null;
-  const regs = await ExamRegistration.find({ exam: exam._id, "subjects.code": code }).select(REG_FIELDS).lean();
+  // evening: the branch's own batches of the subject (any board)
+  const department = evening ? departmentFor(req, req.query.department || req.body?.department) : info.department;
+  if (!department) return fail(res, 400, "Department is required."), null;
+  const scope = scopeOf(evening, department);
+  const regs = await ExamRegistration.find({ exam: exam._id, "subjects.code": code, ...scope.regs }).select(REG_FIELDS).lean();
   const candidates = practicalCandidates(regs, code);
-  await syncOpen(req, { exam: exam._id, code });
+  await syncOpen(req, { exam: exam._id, code, ...scope.batches });
   const [batches, panels] = await Promise.all([
-    PracticalBatch.find({ exam: exam._id, code }).sort({ number: 1 }).lean(),
-    PracticalPanel.find({ exam: exam._id, department: info.department }).sort({ number: 1 }).lean(),
+    PracticalBatch.find({ exam: exam._id, code, ...scope.batches }).sort({ number: 1 }).lean(),
+    PracticalPanel.find({ exam: exam._id, ...scope.panels }).sort({ number: 1 }).lean(),
   ]);
-  return { exam, code, info, regs, candidates, batches, panels };
+  return { exam, code, info, regs, candidates, batches, panels, scope };
 }
 
 // GET /api/practicals/:id/subjects/:code – candidates, batches and the department's examiner sets
@@ -646,7 +731,7 @@ async function sendSchedules(exam, panelIds) {
 //   after: [{ number, date, session, lab, panel, students: [registrationId] }]
 // A batch left without students is removed. Returns { status, body }.
 async function arrange(req, ctx, after) {
-  const { exam, code, info, regs, candidates, batches, panels } = ctx;
+  const { exam, code, info, regs, candidates, batches, panels, scope } = ctx;
   const byId = new Map(candidates.map((c) => [String(c.registration), c]));
   const locked = new Map(batches.filter((b) => b.status === "SUBMITTED").map((b) => [b.number, b.students.map((s) => String(s.registration))]));
   const check = checkArrangement(after, new Set(byId.keys()), locked);
@@ -657,7 +742,7 @@ async function arrange(req, ctx, after) {
     .filter((a) => !locked.has(Number(a.number)))
     .map((a) => ({
       number: Number(a.number),
-      label: batchLabel(code, Number(a.number)),
+      label: batchLabel(code, Number(a.number), scope.evening ? scope.department : ""),
       date: /^\d{4}-\d{2}-\d{2}$/.test(a.date || "") ? a.date : "",
       session: SESSION_CODES.includes(a.session) ? a.session : "",
       lab: String(a.lab || "").trim().slice(0, 60),
@@ -668,7 +753,8 @@ async function arrange(req, ctx, after) {
 
   // ---- clashes with every other practical batch of the exam and with the written time table
   const [others, allPanels] = await Promise.all([
-    PracticalBatch.find({ exam: exam._id, code: { $ne: code } }).select("label date session lab panel students.registration students.registerNumber").lean(),
+    // every batch outside this subject's day / evening batches (both shifts share labs and examiners)
+    PracticalBatch.find({ exam: exam._id, _id: { $nin: batches.map((b) => b._id) } }).select("label date session lab panel students.registration students.registerNumber").lean(),
     PracticalPanel.find({ exam: exam._id }).select("internal.clerkId external.email external.name").lean(),
   ]);
   const pm = new Map(allPanels.map((p) => [String(p._id), p]));
@@ -707,7 +793,8 @@ async function arrange(req, ctx, after) {
     const set = {
       name: info.name,
       board: info.board,
-      department: info.department,
+      department: scope.evening ? scope.department : info.department,
+      shift: scope.evening ? "EVENING" : "DAY",
       semester: info.semester ?? null,
       label: a.label,
       max: info.max,
@@ -790,6 +877,9 @@ export const listBatches = async (req, res) => {
   const branch = lower(req.query.branch);
   if (branch) filter.$or = [{ department: branch }, { "students.department": branch }];
   else if (lower(req.query.department)) filter.department = lower(req.query.department);
+  // a HOD sees the day batches, the Evening Principal the evening ones
+  if (req.user?.role === "hod") Object.assign(filter, shiftFilter(Boolean(req.user.evening)));
+  else if (req.query.shift) Object.assign(filter, shiftFilter(String(req.query.shift).toUpperCase() === "EVENING"));
   await syncOpen(req, filter);
   const batches = await PracticalBatch.find(filter).lean();
   batches.sort((a, b) => (a.date || "9").localeCompare(b.date || "9") || sessionRank(a.session) - sessionRank(b.session) || a.label.localeCompare(b.label, undefined, { numeric: true }));
@@ -810,30 +900,30 @@ export const getSchedule = async (req, res) => {
   if (!exam) return;
   const department = departmentFor(req, req.query.department);
   if (!department) return fail(res, 400, "Department is required.");
-  const filter = { exam: exam._id, department };
+  const scope = scopeOf(eveningOf(req), department);
+  const filter = { exam: exam._id, department, ...shiftFilter(scope.evening) };
   await syncOpen(req, filter);
   const [batches, panels] = await Promise.all([
     PracticalBatch.find(filter).lean(),
-    PracticalPanel.find({ exam: exam._id, department }).sort({ number: 1 }).lean(),
+    PracticalPanel.find({ exam: exam._id, ...scope.panels }).sort({ number: 1 }).lean(),
   ]);
   batches.sort((a, b) => (a.date || "9").localeCompare(b.date || "9") || sessionRank(a.session) - sessionRank(b.session) || a.label.localeCompare(b.label, undefined, { numeric: true }));
   const pm = new Map(panels.map((p) => [String(p._id), p]));
   res.json({
     exam: examView(exam),
     department,
+    evening: scope.evening,
     panels: panels.map(panelView),
     batches: batches.map((b) => batchView(b, pm.get(String(b.panel)))),
-    check: await missingStudents(exam, department, batches),
+    check: await missingStudents(exam, scope, batches),
   });
 };
 
 // For each practical subject of the department: who registered for it but is
 // not in the time table – permitted students left out of every batch (to be
 // placed) and students not permitted (not eligible / fee not paid).
-async function missingStudents(exam, department, batches) {
-  const subjects = await Subject.find({ board: { $in: boardsOf(department) }, practicalExamMax: { $gt: 0 } }).select("code name").lean();
-  const codes = [...new Set(subjects.map((s) => s.code))];
-  const regs = await ExamRegistration.find({ exam: exam._id, "subjects.code": { $in: codes } }).select(REG_FIELDS).lean();
+async function missingStudents(exam, scope, batches) {
+  const { subjects, codes, regs } = await practicalWork(exam, scope);
   const out = [];
   for (const code of codes) {
     const takers = regs.filter((r) => r.subjects.some((x) => x.code === code && x.hasPractical));
@@ -868,28 +958,29 @@ export const saveSchedule = async (req, res) => {
   if (!exam) return;
   const department = departmentFor(req, req.body?.department);
   if (!department) return fail(res, 400, "Department is required.");
+  const evening = eveningOf(req);
   const items = Array.isArray(req.body?.items) ? req.body.items.filter((x) => isId(x?.batchId)) : [];
   if (!items.length) return fail(res, 400, "Nothing to save.");
 
   const [batches, allPanels] = await Promise.all([
-    PracticalBatch.find({ exam: exam._id }).select("code label department status date session lab panel students.registration students.registerNumber").lean(),
-    PracticalPanel.find({ exam: exam._id }).select("department internal.clerkId external.email external.name").lean(),
+    PracticalBatch.find({ exam: exam._id }).select("code label department shift status date session lab panel students.registration students.registerNumber").lean(),
+    PracticalPanel.find({ exam: exam._id }).select("department shift internal.clerkId external.email external.name").lean(),
   ]);
   const byId = new Map(batches.map((b) => [String(b._id), b]));
   const pm = new Map(allPanels.map((p) => [String(p._id), p]));
-  const own = allPanels.filter((p) => p.department === department);
+  const own = allPanels.filter((p) => p.department === department && sameShift(p, evening));
 
   const changes = new Map();
   for (const x of items) {
     const b = byId.get(String(x.batchId));
-    if (!b || b.department !== department) return fail(res, 404, "A batch in the time table is not conducted by your department.");
+    if (!b || b.department !== department || !sameShift(b, evening)) return fail(res, 404, "A batch in the time table is not conducted by your department.");
     if (b.status === "SUBMITTED") continue; // marks are final; its date stays as it was
     const panel = pm.get(String(x.panel || ""));
     changes.set(String(b._id), {
       date: /^\d{4}-\d{2}-\d{2}$/.test(x.date || "") ? x.date : "",
       session: SESSION_CODES.includes(x.session) ? x.session : "",
       lab: String(x.lab || "").trim().slice(0, 60),
-      panel: panel && panel.department === department ? String(panel._id) : own.length === 1 ? String(own[0]._id) : null,
+      panel: panel && panel.department === department && sameShift(panel, evening) ? String(panel._id) : own.length === 1 ? String(own[0]._id) : null,
     });
   }
   if (!changes.size) return fail(res, 400, "Nothing to save.");
@@ -933,7 +1024,7 @@ export const saveSchedule = async (req, res) => {
     saved++;
   }
   const mails = touched.size ? await sendSchedules(exam, touched) : 0;
-  await log(req, "PRACTICAL_TIMETABLE_SAVED", exam._id, { department, batches: saved, emails: mails });
+  await log(req, "PRACTICAL_TIMETABLE_SAVED", exam._id, { department, evening, batches: saved, emails: mails });
   res.json({
     message: saved
       ? `Time table saved (${saved} batch${saved === 1 ? "" : "es"} changed).${mails ? " The examiners were emailed their time table." : ""}`
@@ -1044,7 +1135,7 @@ export const getBatch = async (req, res) => {
   const { batch, panel } = await loadBatch(req);
   const role = req.user?.role;
   const mine = Boolean(batch) && isInternal(req, panel);
-  const allowed = batch && (role === "admin" || role === "coe" || role === "acoe" || (role === "hod" && lower(req.user.department) === batch.department) || mine);
+  const allowed = batch && (role === "admin" || role === "coe" || role === "acoe" || (role === "hod" && lower(req.user.department) === batch.department && sameShift(batch, req.user.evening)) || mine);
   if (!allowed) return fail(res, 404, "Batch not found.");
   const exam = await Exam.findById(batch.exam).select("name academicYear").lean();
   const unlocked = mine && batch.status === "OPEN" && isUnlocked(batch);

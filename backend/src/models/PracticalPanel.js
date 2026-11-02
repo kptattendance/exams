@@ -12,6 +12,9 @@ const practicalPanelSchema = new mongoose.Schema(
     exam: { type: mongoose.Schema.Types.ObjectId, ref: "Exam", required: true, index: true },
     department: { type: String, required: true, lowercase: true }, // the conducting department
     number: { type: Number, required: true }, // Set 1, Set 2 …
+    // DAY, or EVENING: the evening college's own sets (per branch, EE / ME);
+    // sets made before this have none = day
+    shift: { type: String, enum: ["DAY", "EVENING"], default: "DAY" },
 
     internal: {
       user: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
@@ -48,7 +51,7 @@ const practicalPanelSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-practicalPanelSchema.index({ exam: 1, department: 1, number: 1 }, { unique: true });
+practicalPanelSchema.index({ exam: 1, department: 1, shift: 1, number: 1 }, { unique: true, name: "one_set_number_per_department_and_shift" });
 practicalPanelSchema.index({ "internal.clerkId": 1 });
 
 const PracticalPanel = mongoose.models.PracticalPanel || mongoose.model("PracticalPanel", practicalPanelSchema);

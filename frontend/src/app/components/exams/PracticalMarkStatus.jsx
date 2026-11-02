@@ -8,7 +8,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { useToast } from "../ui/Feedback";
 import { errMsg, useApi } from "./shared";
-import { ExamSelect, NoExam, dept, fmtDay, sessionLabel, usePracticalExams } from "./practicalShared";
+import { ExamSelect, NoExam, dept, fmtDay, sessionLabel, usePracticalExams, useWorkspace } from "./practicalShared";
 
 // ENTERED: submitted · PENDING: date fixed, waiting · NOT_FIXED: no date yet
 const stateOf = (b) => (b.status === "SUBMITTED" ? "ENTERED" : b.date ? "PENDING" : "NOT_FIXED");
@@ -23,6 +23,7 @@ export default function PracticalMarkStatus() {
   const api = useApi();
   const toast = useToast();
   const { exams, examId, setExamId, department } = usePracticalExams();
+  const base = useWorkspace();
   const [batches, setBatches] = useState(null);
   const [show, setShow] = useState("ALL");
 
@@ -77,7 +78,7 @@ export default function PracticalMarkStatus() {
 
           {batches.length === 0 && (
             <p className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center text-sm text-slate-500">
-              No batches yet. Make them on <a href="/hod/practical" className="font-semibold text-blue-700 underline">Practical batches &amp; time table</a>.
+              No batches yet. Make them on <a href={`${base}/practical`} className="font-semibold text-blue-700 underline">Practical batches &amp; time table</a>.
             </p>
           )}
 

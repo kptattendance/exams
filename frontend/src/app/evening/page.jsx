@@ -9,6 +9,8 @@ const STEPS = [
   ["/evening/final-ia", "Final IA", "Enter the IA marks (Excel or on screen), then Submit – the Exam Officer freezes it."],
   ["/evening/attendance", "Final attendance", "Enter attendance %, then Submit."],
   ["/evening/exam-fees", "Exam fee list", "Each student's subjects and exam fee – PDF to share."],
+  ["/evening/practical", "Practical batches & time table", "After the COE allots the evening examiner sets: make the batches (usually 5:00 – 8:00 PM) and download the PDFs."],
+  ["/evening/practical-marks", "Track practical marks", "See which batches have their marks entered."],
 ];
 
 export default function EveningHome() {
