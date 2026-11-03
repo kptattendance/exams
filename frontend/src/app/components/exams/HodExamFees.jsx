@@ -19,7 +19,7 @@ const day = (iso) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("en-I
 const today = () => new Date().toISOString().slice(0, 10);
 const TYPE = { regular: "Regular", "lateral-puc": "Lateral (PUC)", "lateral-iti": "Lateral (ITI)", "lateral-iti-cross": "Lateral (ITI cross)" };
 // "Sem 3 (4 subjects): 300 + 50 + 100 late = 450"
-const examLine = (e) => `${e.label} (${e.count} subject${e.count === 1 ? "" : "s"}): ${e.fee} + ${e.marksCard}${e.late ? ` + ${e.late} late` : ""} = ${e.total}`;
+const examLine = (e) => `${e.label} (${e.count} subject${e.count === 1 ? "" : "s"}): ${e.fee}${e.marksCard ? ` + ${e.marksCard}` : ""}${e.late ? ` + ${e.late} late` : ""} = ${e.total}`;
 
 export default function HodExamFees() {
   const api = useApi();
@@ -108,7 +108,7 @@ export default function HodExamFees() {
 
       {rules && (
         <p className="mt-3 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-900">
-          For each semester exam: 1–2 subjects <b>{rs(rules.upTo2)}</b>, 3+ / full semester <b>{rs(rules.threePlus)}</b>, + marks card <b>{rs(rules.marksCard)}</b>
+          For each semester exam: 1–2 subjects <b>{rs(rules.upTo2)}</b>, 3+ / full semester <b>{rs(rules.threePlus)}</b>, + marks card <b>{rs(rules.marksCard)}</b> (not for bridge courses)
           {slabs.length > 0 && <> · late fee {slabs.map((s) => `from ${day(s.from)} ${rs(s.amount)}`).join(", ")}</>} (set by the COE) · {rows.length} students · total {rs(total)}
         </p>
       )}

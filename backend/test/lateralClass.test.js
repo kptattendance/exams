@@ -67,8 +67,10 @@ test("exam fee per semester exam (DTE circular): every registered subject, 1-2 s
   assert.equal(examFeeFor([sem3("A"), sem3("B"), sem3("C")], {}, "2026-09-01").total, 350);
   const f = examFeeFor(subjects, { lateFees }, "2026-09-15"); // late fee Rs 50 for each of the 3 exams
   // every registered subject counts – also ANS (D) and waiting (E): Sem 3 has 5
-  assert.deepEqual(f.exams.map((e) => [e.label, e.count, e.total]), [["Sem 3", 5, 400], ["Sem 1", 1, 300], ["Bridge", 1, 300]]);
-  assert.equal(f.total, 1000);
+  assert.deepEqual(f.exams.map((e) => [e.label, e.count, e.total]), [["Sem 3", 5, 400], ["Sem 1", 1, 300], ["Bridge", 1, 250]]);
+  // bridge courses: no marks card fee
+  assert.equal(f.exams.find((e) => e.label === "Bridge").marksCard, 0);
+  assert.equal(f.total, 950);
   // an NE subject is still charged (fee collected before eligibility, not refunded)
   assert.equal(examFeeFor([sem3("A", "NE")], {}, "2026-09-01").total, 250);
 });

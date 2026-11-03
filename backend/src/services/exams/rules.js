@@ -269,7 +269,8 @@ export function lateFeeOn(lateFees = [], on) {
 // – also ANS / NE / waiting: the fee is collected from each student before
 // eligibility is announced and is not refunded. They are grouped into semester exams – by the subject's semester; bridge courses are
 // a separate exam. Each semester exam: upTo2 (1 or 2 subjects) or threePlus
-// (3 or more, i.e. the full semester) + marksCard + the late fee in force on
+// (3 or more, i.e. the full semester) + marksCard (not for bridge courses –
+// they get no marks card) + the late fee in force on
 // the day `on`.
 export function examFeeFor(subjects, { upTo2 = 200, threePlus = 300, marksCard = 50, lateFees = [] } = {}, on) {
   const eligible = subjects || []; // all registered subjects (see above)
@@ -284,7 +285,9 @@ export function examFeeFor(subjects, { upTo2 = 200, threePlus = 300, marksCard =
     .sort(([a], [b]) => (a === "Bridge") - (b === "Bridge") || b.localeCompare(a, undefined, { numeric: true }))
     .map(([label, codes]) => {
       const fee = codes.length >= 3 ? threePlus : upTo2;
-      return { label, count: codes.length, codes, fee, marksCard, late, total: fee + marksCard + late };
+      // bridge courses get no marks card, so no marks card fee
+      const card = label === "Bridge" ? 0 : marksCard;
+      return { label, count: codes.length, codes, fee, marksCard: card, late, total: fee + card + late };
     });
   const sum = (k) => exams.reduce((a, e) => a + e[k], 0);
   const examFee = sum("fee");

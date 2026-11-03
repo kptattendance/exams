@@ -91,7 +91,7 @@ function Sheet() {
           <p className="text-[13px] font-bold text-indigo-900">{rs(rules.threePlus)}</p>
         </div>
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5">
-          <p className="text-[9.5px] font-semibold uppercase text-emerald-700">Marks card (each semester exam)</p>
+          <p className="text-[9.5px] font-semibold uppercase text-emerald-700">Marks card (each semester exam, not bridge)</p>
           <p className="text-[13px] font-bold text-emerald-900">{rs(rules.marksCard)}</p>
         </div>
       </div>
@@ -146,7 +146,7 @@ function Sheet() {
                 {r.fee.exams.length ? (
                   r.fee.exams.map((e) => (
                     <p key={e.label} className={`mb-0.5 inline-block w-full rounded border px-1.5 py-0.5 ${CHIP(e.label)}`}>
-                      <b>{e.label}</b> ({e.count} sub.): {e.fee} + {e.marksCard} card{e.late ? <span className="text-rose-700"> + {e.late} late</span> : ""} = <b>{e.total}</b>
+                      <b>{e.label}</b> ({e.count} sub.): {e.fee}{e.marksCard ? ` + ${e.marksCard} card` : ""}{e.late ? <span className="text-rose-700"> + {e.late} late</span> : ""} = <b>{e.total}</b>
                     </p>
                   ))
                 ) : (
