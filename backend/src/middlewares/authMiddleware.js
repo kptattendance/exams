@@ -30,6 +30,9 @@ async function clerkUser(userId) {
   return user;
 }
 
+// A student account may use only these (his own details); everything else is refused
+const STUDENT_PATHS = ["/api/students/me", "/api/users/me", "/api/settings/academic-year"];
+
 // Clerk too busy (too many requests) or not reachable – not the person's fault
 export const clerkBusy = (e) => e?.status === 429 || e?.status >= 500 || ["ECONNRESET", "ETIMEDOUT", "ENOTFOUND", "EAI_AGAIN"].includes(e?.code);
 
@@ -52,6 +55,13 @@ export const authenticateUser = async (req, res, next) => {
     }
 
     req.user = { ...user };
+
+    if (user.role === "student") {
+      const path = String(req.originalUrl || "").split("?")[0].replace(/\/+$/, "");
+      if (req.method !== "GET" || !STUDENT_PATHS.includes(path)) {
+        return res.status(403).json({ error: "Students can only see their own details." });
+      }
+    }
 
     next();
   } catch (error) {

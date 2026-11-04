@@ -17,6 +17,7 @@ export const HOME_BY_ROLE = {
   chief_examiner: "/chief-examiner",
   hod: "/hod",
   evening_principal: "/evening",
+  student: "/student", // only his own details
   staff: "/faculty",
 };
 

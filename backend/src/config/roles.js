@@ -17,7 +17,8 @@
 //                    evening students what a HOD does (services/evening.js)
 //   staff          – faculty: question paper setting, practical marks
 //
-// Students do not sign in; results are looked up publicly.
+// Students sign in too (role "student", set when they are imported): they see
+// only their own details (/api/students/me); the server refuses everything else.
 
 export const ROLE_LABELS = {
   admin: "Administrator",

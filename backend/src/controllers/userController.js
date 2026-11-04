@@ -1779,6 +1779,16 @@ export const getCurrentUser = async (
         clerkId,
       }).select("-__v");
 
+    // a student signs in too: he has a student record, not a staff one
+    if (!user && req.user.role === "student") {
+      const student = await Student.findOne({ clerkId }).select("name email registerNumber department").lean();
+      if (student)
+        return res.status(200).json({
+          success: true,
+          data: { ...student, role: "student" },
+        });
+    }
+
     if (!user) {
       return res.status(404).json({
         success: false,

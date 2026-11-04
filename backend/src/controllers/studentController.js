@@ -2190,3 +2190,42 @@ export const updateStudentPhoto = async (req, res) => {
     return res.status(500).json({ success: false, message: "Could not change the photo. Please try again." });
   }
 };
+
+// =====================================================
+// MY DETAILS (student login)
+// GET /api/students/me
+//
+// A signed-in student sees his own record – read only. Aadhaar is shown
+// with only its last 4 digits.
+// =====================================================
+const ADMISSION_LABEL = {
+  regular: "Regular",
+  "lateral-puc": "Lateral entry (PUC)",
+  "lateral-iti": "Lateral entry (ITI)",
+  "lateral-iti-cross": "Lateral entry (ITI, other branch)",
+};
+
+export const getMyStudentProfile = async (req, res) => {
+  try {
+    if (req.user?.role !== "student") return res.status(403).json({ success: false, message: "Only for students." });
+    const s = await Student.findOne({ clerkId: req.user.id })
+      .select(
+        "registerNumber rollNumber name fatherName motherName dob gender email phone parentPhone caste category aadhaarNumber satsNumber admissionType department admissionYear batch batchNumber semester status imageUrl"
+      )
+      .lean();
+    if (!s) return res.status(404).json({ success: false, message: "Your student record was not found. Please contact the college office." });
+    const digits = String(s.aadhaarNumber || "").replace(/\D/g, "");
+    return res.json({
+      success: true,
+      data: {
+        ...s,
+        aadhaarNumber: digits.length >= 4 ? `XXXX XXXX ${digits.slice(-4)}` : "",
+        admissionLabel: ADMISSION_LABEL[s.admissionType] || s.admissionType || "",
+        evening: isEvening(s.registerNumber),
+      },
+    });
+  } catch (error) {
+    console.error("My student profile error:", error);
+    return res.status(500).json({ success: false, message: "Could not load your details. Please try again." });
+  }
+};

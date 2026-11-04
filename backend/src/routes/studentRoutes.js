@@ -13,6 +13,7 @@ import {
   deleteMultipleStudents,
   bulkUploadStudents,
   updateStudentPhoto,
+  getMyStudentProfile,
 } from "../controllers/studentController.js";
 
 import { authenticateUser } from "../middlewares/authMiddleware.js";
@@ -96,6 +97,12 @@ router.get(
   asHodScope, // Evening Principal: evening students of the chosen department
   getStudents
 );
+
+// =====================================================
+// MY DETAILS – a signed-in student (before "/:id")
+// =====================================================
+
+router.get("/me", authenticateUser, getMyStudentProfile);
 
 // =====================================================
 // GET ONE
