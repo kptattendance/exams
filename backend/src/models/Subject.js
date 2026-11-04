@@ -106,6 +106,11 @@ const subjectSchema = new mongoose.Schema(
     //   ["lateral-iti", "lateral-iti-cross"]  both ITI types
     // Empty = not decided yet (exam registration then gives it to every
     // lateral student and shows a warning to the COE).
+    //   ["branch-change"]                     students who changed branch in
+    //                                         our college (register number in
+    //                                         the X series, e.g. 103EC25X01) –
+    //                                         the course of the department he
+    //                                         moved to
     // A branch-changed student automatically gets the bridge courses of
     // his new department, because the department is read from the student.
     // =====================================================
@@ -114,7 +119,7 @@ const subjectSchema = new mongoose.Schema(
       type: [
         {
           type: String,
-          enum: ["lateral-puc", "lateral-iti", "lateral-iti-cross"],
+          enum: ["lateral-puc", "lateral-iti", "lateral-iti-cross", "branch-change"],
         },
       ],
       default: [],

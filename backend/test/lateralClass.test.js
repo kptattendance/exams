@@ -84,3 +84,21 @@ test("an elective: only the one chosen in its group (none chosen: all)", async (
   assert.equal(takesSubject(chosePa, pb), false);
   assert.equal(takesSubject({ admissionType: "regular" }, pb), true);
 });
+
+test("a branch-change student (X series) takes the bridge course marked for branch change", async () => {
+  const { takesSubject, currentSubjectsFor, normalizeAdmissionTypes } = await import("../src/services/exams/rules.js");
+  const forChange = { _id: "b1", code: "25EE30B", subjectCategory: "BRIDGE", forAdmissionTypes: ["branch-change"] };
+  const forPuc = { _id: "b2", code: "25EE31B", subjectCategory: "BRIDGE", forAdmissionTypes: ["lateral-puc"] };
+  const notSet = { _id: "b3", code: "25EE32B", subjectCategory: "BRIDGE", forAdmissionTypes: [] };
+  const changed = { admissionType: "regular", registerNumber: "103EC25X01" };
+  const regular = { admissionType: "regular", registerNumber: "103EE25001" };
+  const puc = { admissionType: "lateral-puc", registerNumber: "103EE26701" };
+  assert.equal(takesSubject(changed, forChange), true);
+  assert.equal(takesSubject(changed, forPuc), false);
+  assert.equal(takesSubject(changed, notSet), false); // "not set" still means every lateral only
+  assert.equal(takesSubject(regular, forChange), false);
+  assert.equal(takesSubject(puc, forChange), false);
+  assert.equal(takesSubject(puc, forPuc), true);
+  assert.deepEqual(currentSubjectsFor(changed, [{ _id: "r1", code: "25EE31T" }, forChange, forPuc]).subjects.map((s) => [s.subject.code, s.kind]), [["25EE31T", "REGULAR"], ["25EE30B", "BRIDGE"]]);
+  assert.deepEqual(normalizeAdmissionTypes("PUC; branch change"), ["lateral-puc", "branch-change"]);
+});

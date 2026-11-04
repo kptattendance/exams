@@ -2,7 +2,8 @@
 
 // Tick which lateral students take each bridge course.
 // Bridge courses are different for PUC, ITI (same course) and ITI (cross course)
-// students, and for every department.
+// students, and for every department. "Branch change": students who moved to
+// this department inside our college (X series register number, 103EC25X01).
 // One table: a row per bridge course, a tick column per kind of lateral student;
 // filters for department, semester, students and a search.
 
@@ -16,6 +17,7 @@ const TYPES = [
   ["lateral-puc", "PUC"],
   ["lateral-iti", "ITI same"],
   ["lateral-iti-cross", "ITI cross"],
+  ["branch-change", "Branch change"],
 ];
 
 export default function BridgeCourses({ canManage = true }) {
@@ -113,7 +115,8 @@ export default function BridgeCourses({ canManage = true }) {
       <h2 className="text-2xl font-bold tracking-tight text-slate-950">Bridge courses</h2>
       <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
         Tick which lateral students study each bridge course. Exam registration uses this together with the student’s
-        department, so a branch-changed student automatically gets his new department’s bridge courses.
+        department. “Branch change” = students who moved to this department in our college (register number in the X series,
+        e.g. 103EC25X01): tick it on the bridge course they must write in their new department.
       </p>
 
       {subjects === null && <div className="mt-6 h-64 animate-pulse rounded-2xl bg-white" />}

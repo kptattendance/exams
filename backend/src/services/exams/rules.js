@@ -6,6 +6,15 @@
 // Kept separate so they can be unit-tested: test/examRules.test.js
 
 export const LATERAL_TYPES = ["lateral-puc", "lateral-iti", "lateral-iti-cross"];
+// Who a bridge course can be marked for: the lateral types, and students who
+// changed branch in our college (X series register number: 103EC25X01)
+export const BRIDGE_TYPES = [...LATERAL_TYPES, "branch-change"];
+export const isBranchChange = (registerNumber) => /^\d{3}[A-Z]{2}\d{2}X\d{2}$/i.test(String(registerNumber || "").trim());
+// The bridge types a student belongs to
+export const bridgeTypesOf = (student) => [
+  ...(LATERAL_TYPES.includes(student?.admissionType) ? [student.admissionType] : []),
+  ...(isBranchChange(student?.registerNumber) ? ["branch-change"] : []),
+];
 
 export const ADMISSION_LABEL = {
   regular: "Regular",
@@ -24,6 +33,9 @@ const TYPE_ALIASES = {
   "iti-cross": "lateral-iti-cross",
   cross: "lateral-iti-cross",
   "lateral-iti-cross": "lateral-iti-cross",
+  "branch-change": "branch-change",
+  branch: "branch-change",
+  x: "branch-change",
 };
 
 export function normalizeAdmissionTypes(input) {
@@ -38,10 +50,10 @@ export function normalizeAdmissionTypes(input) {
       continue;
     }
     const t = TYPE_ALIASES[key];
-    if (!t) throw new Error(`Unknown admission type "${p}". Use PUC, ITI or ITI-CROSS.`);
+    if (!t) throw new Error(`Unknown admission type "${p}". Use PUC, ITI, ITI-CROSS or BRANCH-CHANGE.`);
     out.add(t);
   }
-  return LATERAL_TYPES.filter((t) => out.has(t));
+  return BRIDGE_TYPES.filter((t) => out.has(t));
 }
 
 // A lateral student's batch may be stored as the two years he studies, e.g.
@@ -75,9 +87,10 @@ export function takesSubject(student, subject) {
     return !chosen || String(chosen) === String(subject._id ?? subject.subjectId);
   }
   if (category !== "BRIDGE") return true;
-  if (!LATERAL_TYPES.includes(student?.admissionType)) return false;
   const types = subject.forAdmissionTypes || [];
-  return types.length === 0 || types.includes(student.admissionType);
+  // not marked yet: every lateral
+  if (types.length === 0) return LATERAL_TYPES.includes(student?.admissionType);
+  return bridgeTypesOf(student).some((t) => types.includes(t));
 }
 
 export const batchStartYear = (student) => {
@@ -121,12 +134,13 @@ export function currentSubjectsFor(student, semesterSubjects, electiveChoices = 
       // internal test only: kept for IA and the result, never on the hall ticket
       out.push({ subject: s, kind: "AUDIT" });
     } else if (cat === "BRIDGE") {
-      if (!isLateral) continue;
       const types = s.forAdmissionTypes || [];
       if (types.length === 0) {
+        if (!isLateral) continue;
         out.push({ subject: s, kind: "BRIDGE" });
         warnings.push(`Bridge course ${s.code}: lateral types not set, given to all laterals.`);
-      } else if (types.includes(student.admissionType)) {
+      } else if (bridgeTypesOf(student).some((t) => types.includes(t))) {
+        // a lateral of a marked type, or a branch-change student (X series)
         out.push({ subject: s, kind: "BRIDGE" });
       }
     } else if (cat === "ELECTIVE") {
