@@ -245,3 +245,28 @@
   font-weight: 600;
   color: var(--color-slate-500);
 }
+
+/* Dark mouse pointer: the white Windows pointer is hard to see on the white
+   pages. A dark arrow (and a dark hand over anything clickable), each with a
+   thin white edge so it also shows on dark areas; the typing cursor is dark too.
+   Not in a layer, so it wins over Tailwind's cursor-pointer. */
+html {
+  cursor: url("/cursors/arrow.svg") 3 2, auto;
+}
+a[href],
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+label[for],
+select:not(:disabled),
+summary,
+.cursor-pointer,
+input[type="checkbox"]:not(:disabled),
+input[type="radio"]:not(:disabled),
+input[type="file"]:not(:disabled) {
+  cursor: url("/cursors/hand.svg") 12 2, pointer;
+}
+input,
+textarea,
+[contenteditable="true"] {
+  caret-color: #1d1842;
+}
