@@ -134,11 +134,11 @@ test("timetable clashes stop the save", () => {
   // no date yet → never a clash
   assert.deepEqual(findClashes([b("ENG-B1", { date: "", students: st("a") }), b("IT-B1", { students: st("a") })], changed), []);
   // the same student in two practicals
-  assert.match(findClashes([b("ENG-B1", { students: st("a", "b") }), b("IT-B1", { students: st("b") })], changed)[0], /B must attend both/);
+  assert.match(findClashes([b("ENG-B1", { students: st("a", "b") }), b("IT-B1", { students: st("b") })], changed)[0], /B is already in IT-B1/);
   // the same examiner set, the same person in two sets, the same lab
   assert.match(findClashes([b("ENG-B1", { set: "p1" }), b("IT-B1", { set: "p1" })], changed)[0], /same examiner/);
   assert.match(findClashes([b("ENG-B1", { set: "p1", internal: "u1" }), b("IT-B1", { set: "p2", internal: "u1" })], changed)[0], /same examiner/);
-  assert.match(findClashes([b("ENG-B1", { lab: "Lab 1" }), b("IT-B1", { lab: " lab 1 " })], changed)[0], /in Lab 1/);
+  assert.match(findClashes([b("ENG-B1", { lab: "Lab 1" }), b("IT-B1", { lab: " lab 1 " })], changed)[0], /Lab 1 is already used by IT-B1/);
   // a theory paper at the same time
   const written = new Map([["a", new Map([["2026-11-20|FN", "25SC11T"]])]]);
   assert.match(findClashes([b("ENG-B1", { students: st("a") })], changed, written)[0], /A writes the theory paper 25SC11T/);

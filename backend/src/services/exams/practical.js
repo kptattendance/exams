@@ -210,10 +210,15 @@ const overlap = (s1, s2, times = PRACTICAL_SESSIONS) => {
 export const slotOf = (b) => (b.date && b.session ? `${b.date}|${b.session}` : "");
 const same = (a, b) => Boolean(a) && Boolean(b) && String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
 const sessionName = (s) => PRACTICAL_SESSIONS[s]?.label || s;
+const dmy = (iso) => String(iso || "").split("-").reverse().join("-");
+// "25SC12P Physics Lab – batch 2" (just the label when nothing more is known)
+const batchName = (b) => (b.code ? `${b.code}${b.name ? ` ${b.name}` : ""} – batch ${b.number ?? "?"}` : b.label);
+const numbers = (list) => list.map((s) => s.registerNumber).join(", ");
 
 // Why the HOD's timetable cannot be saved.
 //   batches : every practical batch of the exam as it would be after saving
-//             [{ label, date, session, lab, set, internal, external, students: [{ id, registerNumber }] }]
+//             [{ label, code, name, number, date, session, lab, set, internal, external, examiners, students: [{ id, registerNumber }] }]
+//             (code / name / number / examiners only make the messages clearer)
 //             set = id of the examiner set; internal / external identify the persons
 //   changed : labels of the batches being saved (only these are checked)
 //   written : Map(studentId -> Map("date|session" -> paper code)) from the written timetable
@@ -229,23 +234,38 @@ export function findClashes(batches, changed, written = new Map(), paperTimes = 
   };
   for (const a of list) {
     if (!changed.has(a.label)) continue;
-    const at = `${a.date} ${sessionName(a.session)}`;
+    const at = `${dmy(a.date)} (${sessionName(a.session)})`;
+    // theory papers at the same time: the students of each paper together
+    const papers = new Map();
     for (const s of a.students || []) {
       for (const [key, paper] of written.get(String(s.id)) || []) {
         const [date, ps] = key.split("|");
-        if (date === a.date && meetsPaper(a.session, ps)) out.push(`${a.label}: ${s.registerNumber} writes the theory paper ${paper} on ${at}.`);
+        if (date === a.date && meetsPaper(a.session, ps)) {
+          if (!papers.has(paper)) papers.set(paper, []);
+          papers.get(paper).push(s);
+        }
       }
     }
+    for (const [paper, who] of papers)
+      out.push(
+        `${batchName(a)} on ${at}: ${numbers(who)} ${who.length === 1 ? "writes" : "write"} the theory paper ${paper} at that time. Choose another date / time for this batch.`
+      );
     for (const b of list) {
       if (b === a || b.date !== a.date || !overlap(a.session, b.session)) continue;
       if (changed.has(b.label) && b.label < a.label) continue; // report each pair once
       const ids = new Set((b.students || []).map((s) => String(s.id)));
       const both = (a.students || []).filter((s) => ids.has(String(s.id)));
       if (both.length)
-        out.push(`${a.label} and ${b.label} are both on ${at}, but ${both.slice(0, 3).map((s) => s.registerNumber).join(", ")}${both.length > 3 ? ` and ${both.length - 3} more` : ""} must attend both.`);
+        out.push(
+          `${numbers(both)} ${both.length === 1 ? "is" : "are"} already in ${batchName(b)} on ${at}. A student cannot attend two practical exams at the same time – remove ${
+            both.length === 1 ? "him" : "them"
+          } from ${batchName(a)} or choose another date / time.`
+        );
       if (same(a.set, b.set) || same(a.internal, b.internal) || same(a.external, b.external))
-        out.push(`${a.label} and ${b.label} are both on ${at} with the same examiner.`);
-      if (same(a.lab, b.lab)) out.push(`${a.label} and ${b.label} are both on ${at} in ${String(a.lab).trim()}.`);
+        out.push(
+          `The same examiner${a.examiners ? ` (${a.examiners})` : ""} is already conducting ${batchName(b)} on ${at}. Choose another examiner set or another date / time for ${batchName(a)}.`
+        );
+      if (same(a.lab, b.lab)) out.push(`${String(a.lab).trim()} is already used by ${batchName(b)} on ${at}. Choose another lab or another date / time for ${batchName(a)}.`);
     }
   }
   return [...new Set(out)];

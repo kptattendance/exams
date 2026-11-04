@@ -229,6 +229,11 @@ export default function FinalIAPage() {
       const max = Number(subject?.maxMarks ?? subject?.iaMax) || 0;
       const n = Number(value);
       if (!Number.isFinite(n) || n < 0) return;
+      // whole marks only – a decimal point is not taken
+      if (!/^\d+$/.test(String(value).trim())) {
+        toast.error(`${subject?.code || "IA marks"}: enter whole marks only – no decimals.`, 3500);
+        return;
+      }
       if (max > 0 && n > max) {
         toast.error(`${subject?.code || "This subject"}: IA marks cannot be more than ${max}.`, 3500);
         return;
@@ -1076,6 +1081,11 @@ export default function FinalIAPage() {
                 rejected.push(`${updatedStudents[studentIndex].registerNumber || updatedStudents[studentIndex].studentName} ${subject.code}: ${numericMark} (max ${cap})`);
                 return;
               }
+              // a decimal mark: not taken either, listed after the import
+              if (!Number.isInteger(numericMark)) {
+                rejected.push(`${updatedStudents[studentIndex].registerNumber || updatedStudents[studentIndex].studentName} ${subject.code}: ${numericMark} (decimal – whole marks only)`);
+                return;
+              }
 
               const marks =
                 updatedStudents[
@@ -1140,7 +1150,7 @@ export default function FinalIAPage() {
         );
         if (rejected.length)
           setError(
-            `${rejected.length} mark(s) in the Excel are more than the maximum and were NOT taken – enter them correctly: ${rejected.slice(0, 15).join("; ")}${rejected.length > 15 ? " …" : ""}`
+            `${rejected.length} mark(s) in the Excel are more than the maximum or have a decimal, and were NOT taken – enter them correctly (whole marks only): ${rejected.slice(0, 15).join("; ")}${rejected.length > 15 ? " …" : ""}`
           );
       } catch (err) {
         console.error(

@@ -727,6 +727,15 @@ export const saveFinalIA = async (
             });
           }
 
+          // IA marks are whole numbers – no decimals
+          if (!Number.isInteger(marks)) {
+            return res.status(400).json({
+              success: false,
+              message:
+                `IA mark ${marks} for ${dbStudent.registerNumber} in ${subject.code} has a decimal. Enter whole marks only (e.g. 18, not 17.5).`,
+            });
+          }
+
           if (
             marks >
             subject.maxMarks

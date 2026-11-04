@@ -55,6 +55,9 @@ const codeOf = (req) => String(req.params.code || "").toUpperCase();
 
 const UNLOCK_HOURS = 12;
 
+// The popup message of a refused time table: the first clash in full
+const clashOf = (clashes) => `Not saved. ${clashes[0]}${clashes.length > 1 ? ` (${clashes.length - 1} more problem${clashes.length > 2 ? "s" : ""} – see the list.)` : ""}`;
+
 const log = (req, action, entityId, details = {}) =>
   AuditLog.create({
     action,
@@ -754,19 +757,32 @@ async function arrange(req, ctx, after) {
   // ---- clashes with every other practical batch of the exam and with the written time table
   const [others, allPanels] = await Promise.all([
     // every batch outside this subject's day / evening batches (both shifts share labs and examiners)
-    PracticalBatch.find({ exam: exam._id, _id: { $nin: batches.map((b) => b._id) } }).select("label date session lab panel students.registration students.registerNumber").lean(),
-    PracticalPanel.find({ exam: exam._id }).select("internal.clerkId external.email external.name").lean(),
+    PracticalBatch.find({ exam: exam._id, _id: { $nin: batches.map((b) => b._id) } }).select("code name number label date session lab panel students.registration students.registerNumber").lean(),
+    PracticalPanel.find({ exam: exam._id }).select("internal.clerkId internal.name external.email external.name").lean(),
   ]);
   const pm = new Map(allPanels.map((p) => [String(p._id), p]));
   const slot = (x, students) => {
     const p = pm.get(String(x.panel || ""));
-    return { label: x.label, date: x.date, session: x.session, lab: x.lab, set: String(x.panel || ""), internal: p?.internal?.clerkId || "", external: p?.external?.email || p?.external?.name || "", students };
+    return {
+      label: x.label,
+      code: x.code,
+      name: x.name,
+      number: x.number,
+      date: x.date,
+      session: x.session,
+      lab: x.lab,
+      set: String(x.panel || ""),
+      internal: p?.internal?.clerkId || "",
+      external: p?.external?.email || p?.external?.name || "",
+      examiners: [p?.internal?.name, p?.external?.name].filter(Boolean).join(" / "),
+      students,
+    };
   };
   const fromDoc = (b) => slot(b, b.students.map((s) => ({ id: s.registration, registerNumber: s.registerNumber })));
   const all = [
     ...others.map(fromDoc),
     ...batches.filter((b) => b.status === "SUBMITTED").map(fromDoc),
-    ...next.filter((a) => a.students.length).map((a) => slot(a, a.students.map((id) => ({ id, registerNumber: byId.get(id).registerNumber })))),
+    ...next.filter((a) => a.students.length).map((a) => slot({ ...a, code, name: info.name }, a.students.map((id) => ({ id, registerNumber: byId.get(id).registerNumber })))),
   ];
   const paperSlot = new Map((exam.timetable?.entries || []).map((e) => [e.code, `${e.date}|${e.session}`]));
   const written = new Map(
@@ -774,7 +790,7 @@ async function arrange(req, ctx, after) {
   );
   const clashes = findClashes(all, new Set(next.map((a) => a.label)), written, exam.timetable?.sessions || {});
   if (clashes.length)
-    return { status: 409, body: { error: clashes.length === 1 ? clashes[0] : `${clashes.length} clashes in the time table. Nothing was saved.`, clashes } };
+    return { status: 409, body: { error: clashOf(clashes), clashes } };
 
   // ---- save
   const old = new Map(batches.map((b) => [b.number, b]));
@@ -963,8 +979,8 @@ export const saveSchedule = async (req, res) => {
   if (!items.length) return fail(res, 400, "Nothing to save.");
 
   const [batches, allPanels] = await Promise.all([
-    PracticalBatch.find({ exam: exam._id }).select("code label department shift status date session lab panel students.registration students.registerNumber").lean(),
-    PracticalPanel.find({ exam: exam._id }).select("department shift internal.clerkId external.email external.name").lean(),
+    PracticalBatch.find({ exam: exam._id }).select("code name number label department shift status date session lab panel students.registration students.registerNumber").lean(),
+    PracticalPanel.find({ exam: exam._id }).select("department shift internal.clerkId internal.name external.email external.name").lean(),
   ]);
   const byId = new Map(batches.map((b) => [String(b._id), b]));
   const pm = new Map(allPanels.map((p) => [String(p._id), p]));
@@ -991,12 +1007,16 @@ export const saveSchedule = async (req, res) => {
     const p = pm.get(String(x.panel || ""));
     return {
       label: x.label,
+      code: x.code,
+      name: x.name,
+      number: x.number,
       date: x.date,
       session: x.session,
       lab: x.lab,
       set: String(x.panel || ""),
       internal: p?.internal?.clerkId || "",
       external: p?.external?.email || p?.external?.name || "",
+      examiners: [p?.internal?.name, p?.external?.name].filter(Boolean).join(" / "),
       students: x.students.map((s) => ({ id: s.registration, registerNumber: s.registerNumber })),
     };
   };
@@ -1007,7 +1027,7 @@ export const saveSchedule = async (req, res) => {
   const written = new Map(regs.map((r) => [String(r._id), new Map(r.subjects.filter((s) => s.hasTheory && paperSlot.has(s.code)).map((s) => [paperSlot.get(s.code), s.code]))]));
   const clashes = findClashes(batches.map(slot), new Set(changed.map((b) => b.label)), written, exam.timetable?.sessions || {});
   if (clashes.length)
-    return fail(res, 409, clashes.length === 1 ? clashes[0] : `${clashes.length} clashes in the time table. Nothing was saved.`, { clashes });
+    return fail(res, 409, clashOf(clashes), { clashes });
 
   // ---- save
   const touched = new Set();
