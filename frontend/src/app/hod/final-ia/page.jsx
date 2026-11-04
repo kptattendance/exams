@@ -125,7 +125,6 @@ export default function FinalIAPage() {
 
       const data =
         response.data?.data;
-      console.log(response.data)
       if (!data) {
         throw new Error(
           "Invalid response received from server."
