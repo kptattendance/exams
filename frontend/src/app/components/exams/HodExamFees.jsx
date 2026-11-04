@@ -17,7 +17,7 @@ import { deptLabel, errMsg, useApi } from "./shared";
 const rs = (n) => `Rs ${Number(n || 0).toLocaleString("en-IN")}`;
 const day = (iso) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "");
 const today = () => new Date().toISOString().slice(0, 10);
-const TYPE = { regular: "Regular", "lateral-puc": "Lateral (PUC)", "lateral-iti": "Lateral (ITI)", "lateral-iti-cross": "Lateral (ITI cross)" };
+const TYPE = { regular: "Regular", "lateral-puc": "Lateral (PUC)", "lateral-iti": "Lateral (ITI)", "lateral-iti-cross": "Lateral (ITI cross)", "branch-change": "Branch change" };
 // "Sem 3 (4 subjects): 300 + 50 + 100 late = 450"
 const examLine = (e) => `${e.label} (${e.count} subject${e.count === 1 ? "" : "s"}): ${e.fee}${e.marksCard ? ` + ${e.marksCard}` : ""}${e.late ? ` + ${e.late} late` : ""} = ${e.total}`;
 

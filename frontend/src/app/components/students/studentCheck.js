@@ -8,6 +8,7 @@ const ADMISSION = {
   "lateral-puc": "Lateral (PUC)",
   "lateral-iti": "Lateral (ITI)",
   "lateral-iti-cross": "Lateral (ITI, other branch)",
+  "branch-change": "Branch change",
 };
 
 const dmy = (d) => {

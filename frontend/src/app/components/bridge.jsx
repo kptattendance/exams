@@ -10,9 +10,10 @@ const LATERAL = ["lateral-puc", "lateral-iti", "lateral-iti-cross"];
 const SHORT = { "lateral-puc": "PUC", "lateral-iti": "ITI", "lateral-iti-cross": "ITI cross", "branch-change": "Branch change" };
 // changed branch in our college: X series register number (103EC25X01)
 export const isBranchChange = (registerNumber) => /^\d{3}[A-Z]{2}\d{2}X\d{2}$/i.test(String(registerNumber || "").trim());
+const changedBranch = (student) => student?.admissionType === "branch-change" || isBranchChange(student?.registerNumber);
 const bridgeTypesOf = (student) => [
   ...(LATERAL.includes(student?.admissionType) ? [student.admissionType] : []),
-  ...(isBranchChange(student?.registerNumber) ? ["branch-change"] : []),
+  ...(changedBranch(student) ? ["branch-change"] : []),
 ];
 
 export const isBridge = (subject) => String(subject?.subjectCategory || "").toUpperCase() === "BRIDGE";
@@ -111,7 +112,7 @@ export function ChooseElectiveCell({ href = "electives" }) {
 // under the student's name
 export function LateralTag({ student }) {
   const lateral = LATERAL.includes(student?.admissionType);
-  const changed = isBranchChange(student?.registerNumber);
+  const changed = changedBranch(student);
   if (!lateral && !changed) return null;
   return (
     <>

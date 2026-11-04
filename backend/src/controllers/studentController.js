@@ -11,6 +11,7 @@ import { calendarDay } from "../services/studentImport/rules.js";
 import { refreshAfterChange, refreshNote } from "../services/exams/autoRefresh.js";
 import { isEvening, studentShift } from "../services/evening.js";
 import { audit } from "../models/AuditLog.js";
+import { purgeStudents } from "../services/studentPurge.js";
 import { Readable } from "stream";
 
 // =====================================================
@@ -1930,44 +1931,13 @@ export const deleteStudent = async (req, res) => {
     }
 
     // -----------------------------------------
-    // Delete Clerk account (older records only)
+    // Delete the student with everything that refers to him (elective
+    // choices, rows in the IA / attendance sheets, photo, login …) –
+    // nothing is left behind (services/studentPurge.js)
     // -----------------------------------------
-    if (student.clerkId) {
-      try {
-        await clerkClient.users.deleteUser(
-          student.clerkId
-        );
-      } catch (error) {
-        console.error(
-          "Clerk delete warning:",
-          error.message
-        );
-      }
-    }
-
-    // -----------------------------------------
-    // Delete Cloudinary image
-    // -----------------------------------------
-    if (
-      student.imagePublicId &&
-      req.cloudinary?.uploader
-    ) {
-      try {
-        await req.cloudinary.uploader.destroy(
-          student.imagePublicId
-        );
-      } catch (error) {
-        console.error(
-          "Cloudinary delete warning:",
-          error
-        );
-      }
-    }
-
-    // -----------------------------------------
-    // Delete MongoDB record
-    // -----------------------------------------
-    await Student.findByIdAndDelete(id);
+    const done = await purgeStudents([student._id]);
+    if (done.warnings.length) console.error("Delete student warnings:", done.warnings);
+    await audit(req, "STUDENT_DELETED", student._id, { registerNumber: student.registerNumber, name: student.name, removed: done.counts });
 
     return res.status(200).json({
       success: true,
@@ -2091,14 +2061,13 @@ export const deleteMultipleStudents = async (
     const kept = await withExamRecords(found.map((s) => s._id));
     const students = found.filter((s) => !kept.has(String(s._id)));
 
-    // Older records may still have a login; remove those in parallel
-    await Promise.allSettled(
-      students.filter((s) => s.clerkId).map((s) => clerkClient.users.deleteUser(s.clerkId))
-    );
-
-    await Student.deleteMany({
-      _id: { $in: students.map((s) => s._id) },
-    });
+    // Each with everything that refers to him (elective choices, sheet rows,
+    // photo, login …) – nothing is left behind (services/studentPurge.js)
+    if (students.length) {
+      const done = await purgeStudents(students.map((s) => s._id));
+      if (done.warnings.length) console.error("Bulk delete warnings:", done.warnings);
+      await audit(req, "STUDENTS_DELETED", null, { students: students.map((s) => s.registerNumber), removed: done.counts });
+    }
 
     return res.status(200).json({
       success: true,
@@ -2203,6 +2172,7 @@ const ADMISSION_LABEL = {
   "lateral-puc": "Lateral entry (PUC)",
   "lateral-iti": "Lateral entry (ITI)",
   "lateral-iti-cross": "Lateral entry (ITI, other branch)",
+  "branch-change": "Branch change",
 };
 
 export const getMyStudentProfile = async (req, res) => {

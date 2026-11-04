@@ -10,14 +10,16 @@ export const LATERAL_TYPES = ["lateral-puc", "lateral-iti", "lateral-iti-cross"]
 // changed branch in our college (X series register number: 103EC25X01)
 export const BRIDGE_TYPES = [...LATERAL_TYPES, "branch-change"];
 export const isBranchChange = (registerNumber) => /^\d{3}[A-Z]{2}\d{2}X\d{2}$/i.test(String(registerNumber || "").trim());
-// The bridge types a student belongs to
+// The bridge types a student belongs to: his lateral type, and branch change
+// (admission type "branch-change", or an X series register number)
 export const bridgeTypesOf = (student) => [
   ...(LATERAL_TYPES.includes(student?.admissionType) ? [student.admissionType] : []),
-  ...(isBranchChange(student?.registerNumber) ? ["branch-change"] : []),
+  ...(student?.admissionType === "branch-change" || isBranchChange(student?.registerNumber) ? ["branch-change"] : []),
 ];
 
 export const ADMISSION_LABEL = {
   regular: "Regular",
+  "branch-change": "Branch change",
   "lateral-puc": "Lateral (PUC)",
   "lateral-iti": "Lateral (ITI, same course)",
   "lateral-iti-cross": "Lateral (ITI, cross course)",
@@ -97,7 +99,7 @@ export const batchStartYear = (student) => {
   const m = /^(\d{4})-\d{4}$/.exec(classBatch(student?.batch));
   if (m) return Number(m[1]);
   if (!student?.admissionYear) return null;
-  return student.admissionType === "regular" || !student.admissionType
+  return !LATERAL_TYPES.includes(student.admissionType)
     ? student.admissionYear
     : student.admissionYear - 1;
 };

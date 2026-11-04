@@ -220,7 +220,8 @@ export default function Electives({ fixedDepartment = false }) {
                               <p className="truncate font-semibold text-slate-900">{st.name}</p>
                               <p className="text-xs tabular-nums text-slate-500">
                                 {st.registerNumber}
-                                {st.admissionType && st.admissionType !== "regular" && <span className="ml-1.5 rounded bg-violet-100 px-1 text-[10px] text-violet-800">Lateral</span>}
+                                {String(st.admissionType || "").startsWith("lateral") && <span className="ml-1.5 rounded bg-violet-100 px-1 text-[10px] text-violet-800">Lateral</span>}
+                                {st.admissionType === "branch-change" && <span className="ml-1.5 rounded bg-teal-100 px-1 text-[10px] text-teal-800">Branch change</span>}
                               </p>
                             </div>
                           </div>

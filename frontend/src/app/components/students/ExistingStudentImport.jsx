@@ -30,7 +30,7 @@ const COLUMNS = [
   ["Batch", "e.g. 2025-2028", true],
   ["Batch Number", "1 or 2", true],
   ["Semester", "1 to 6 (e.g. 3)", true],
-  ["Admission Type", "regular (empty = regular), lateral-iti, lateral-iti-cross, lateral-puc", false],
+  ["Admission Type", "regular (empty = regular), lateral-iti, lateral-iti-cross, lateral-puc, branch-change", false],
   ["Parent Phone", "", false],
   ["Caste", "", false],
   ["Category", "", false],

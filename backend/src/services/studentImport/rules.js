@@ -115,6 +115,7 @@ export function parseDate(v) {
 export function normalizeAdmissionType(v) {
   const s = squash(v);
   if (!s || s === "regular" || s === "reg") return s ? "regular" : "";
+  if (s.includes("branch") || s.includes("change")) return "branch-change";
   if (s.includes("cross")) return "lateral-iti-cross";
   if (s.includes("iti")) return "lateral-iti";
   if (s.includes("pu")) return "lateral-puc"; // lateralpu, latpu, lateralpuc, puc
@@ -216,8 +217,10 @@ export function cleanRow(raw, headerMap, rowNumber) {
 
   if (!s.admissionType) err("admissionType", "Admission type is missing.");
   else if (s.admissionType === "invalid")
-    err("admissionType", "Admission type must be regular, lateral-puc, lateral-iti or lateral-iti-cross.");
-  else {
+    err("admissionType", "Admission type must be regular, lateral-puc, lateral-iti, lateral-iti-cross or branch-change.");
+  else if (s.admissionType === "branch-change") {
+    // only in the 2nd / 3rd-year import (he keeps his register number) – checked there
+  } else {
     const expectedSem = ADMISSION_TYPES[s.admissionType].semester;
     if (!s.semester) s.semester = expectedSem;
     else if (s.semester !== expectedSem)

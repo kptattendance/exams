@@ -102,3 +102,17 @@ test("a branch-change student (X series) takes the bridge course marked for bran
   assert.deepEqual(currentSubjectsFor(changed, [{ _id: "r1", code: "25EE31T" }, forChange, forPuc]).subjects.map((s) => [s.subject.code, s.kind]), [["25EE31T", "REGULAR"], ["25EE30B", "BRIDGE"]]);
   assert.deepEqual(normalizeAdmissionTypes("PUC; branch change"), ["lateral-puc", "branch-change"]);
 });
+
+test("admission type branch-change also gets the branch-change bridge course", async () => {
+  const { takesSubject, batchStartYear } = await import("../src/services/exams/rules.js");
+  const { normalizeAdmissionType } = await import("../src/services/studentImport/rules.js");
+  const forChange = { _id: "b1", subjectCategory: "BRIDGE", forAdmissionTypes: ["branch-change"] };
+  const forIti = { _id: "b2", subjectCategory: "BRIDGE", forAdmissionTypes: ["lateral-iti"] };
+  const st = { admissionType: "branch-change", registerNumber: "103EE25040" };
+  assert.equal(takesSubject(st, forChange), true);
+  assert.equal(takesSubject(st, forIti), false);
+  assert.equal(takesSubject({ admissionType: "lateral-iti", registerNumber: "103EE26301" }, forIti), true);
+  assert.equal(normalizeAdmissionType("Branch Change"), "branch-change");
+  // joined in the 1st year, like a regular student
+  assert.equal(batchStartYear({ admissionType: "branch-change", admissionYear: 2025 }), 2025);
+});

@@ -26,6 +26,7 @@ import XLSX from "xlsx";
 import axios from "axios";
 import { clerkClient } from "@clerk/express";
 import { clerkBusy } from "../middlewares/authMiddleware.js";
+import { purgeStudents } from "../services/studentPurge.js";
 
 import cloudinary from "../config/cloudinary.js";
 import Student from "../models/Student.js";
@@ -133,6 +134,9 @@ async function analyse(buffer, { existing = false } = {}) {
     .map(({ raw, rowNumber }) => {
       const row = cleanRow(raw, map, rowNumber);
       if (existing) checkExistingRow(row, raw, map);
+      // a branch-change student already has his register number
+      else if (row.student.admissionType === "branch-change")
+        row.problems.push({ level: "error", field: "admissionType", message: "Branch-change students are added with the 2nd / 3rd-year import (they keep their register number)." });
       return row;
     });
 
@@ -699,8 +703,10 @@ export const uploadStudentPhoto = async (req, res) => {
 };
 
 // ====================================================================
-// Undo an import: delete its students, logins and photos, and give the
-// register numbers back (only if nobody has taken later numbers since)
+// Undo an import: delete its students with everything that refers to them
+// (exam registrations, results, elective choices, sheet rows, logins,
+// photos), and give the register numbers back (only if nobody has taken
+// later numbers since)
 // ====================================================================
 
 // POST /api/student-import/:id/undo   { confirm: "UNDO" }
@@ -725,22 +731,23 @@ export const undoImport = async (req, res) => {
 
   const deadline = Date.now() + 7 * 1000; // fits a 10-second server limit
   const problems = [];
-  for (const row of doc.rows) {
-    if (Date.now() > deadline) break;
-    if (row.state === "UNDONE") continue;
+  // a few students at a time, each with all his records
+  while (Date.now() < deadline) {
+    const batch = doc.rows.filter((r) => r.state !== "UNDONE").slice(0, 8);
+    if (!batch.length) break;
     try {
-      if (row.student) {
-        const st = await Student.findById(row.student).select("clerkId imagePublicId");
-        if (st) {
-          if (st.clerkId) await clerkClient.users.deleteUser(st.clerkId).catch(() => {});
-          if (st.imagePublicId) cloudinary.uploader.destroy(st.imagePublicId).catch(() => {});
-          await Student.deleteOne({ _id: st._id });
-        }
-        row.student = null;
+      const ids = batch.map((r) => r.student).filter(Boolean);
+      if (ids.length) {
+        const done = await purgeStudents(ids);
+        problems.push(...done.warnings);
       }
-      row.state = "UNDONE";
+      for (const row of batch) {
+        row.student = null;
+        row.state = "UNDONE";
+      }
     } catch (e) {
-      problems.push(`${row.registerNumber}: ${e.message}`);
+      problems.push(`${batch[0].registerNumber}: ${e.message}`);
+      break;
     }
   }
 

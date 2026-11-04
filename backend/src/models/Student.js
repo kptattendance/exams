@@ -135,11 +135,13 @@ const studentSchema = new mongoose.Schema(
       index: true,
     },
 
-    // regular | lateral-puc | lateral-iti | lateral-iti-cross
+    // regular | lateral-puc | lateral-iti | lateral-iti-cross | branch-change
     // Decides the register-number series and the bridge courses.
+    // branch-change: a regular student who moved to another branch in our
+    // college (his register number is usually in the X series, 103EC25X01)
     admissionType: {
       type: String,
-      enum: ["regular", "lateral-puc", "lateral-iti", "lateral-iti-cross"],
+      enum: ["regular", "lateral-puc", "lateral-iti", "lateral-iti-cross", "branch-change"],
       default: "regular",
     },
 
@@ -241,7 +243,8 @@ const studentSchema = new mongoose.Schema(
 // Regular admitted 2026 -> 2026-2029
 // Lateral joining 2nd year in 2027 -> 2026-2029 (same class as the regulars)
 studentSchema.statics.batchFor = (admissionYear, admissionType = "regular") => {
-  const start = admissionType === "regular" ? admissionYear : admissionYear - 1;
+  // laterals join in the 2nd year; regular and branch-change students in the 1st
+  const start = ["lateral-puc", "lateral-iti", "lateral-iti-cross"].includes(admissionType) ? admissionYear - 1 : admissionYear;
   return `${start}-${start + 3}`;
 };
 

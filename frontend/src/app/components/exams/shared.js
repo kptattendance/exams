@@ -54,6 +54,7 @@ export const ADMISSION_SHORT = {
   "lateral-puc": "Lateral PUC",
   "lateral-iti": "Lateral ITI",
   "lateral-iti-cross": "Lateral ITI cross",
+  "branch-change": "Branch change",
 };
 
 // Per-subject decision
