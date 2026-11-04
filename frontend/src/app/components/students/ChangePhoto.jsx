@@ -5,6 +5,7 @@
 // Cloudinary by the server.
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 import Modal, { btn } from "../ui/Modal";
 import { useToast } from "../ui/Feedback";
@@ -23,7 +24,9 @@ export default function ChangePhotoButton({ student, onChanged, className = "" }
       >
         Change photo
       </button>
-      {open && <PhotoModal student={student} onClose={() => setOpen(false)} onChanged={onChanged} />}
+      {/* drawn on the page itself: inside a table row (sticky columns, scrolling
+          area) the window would be squeezed into the table */}
+      {open && createPortal(<PhotoModal student={student} onClose={() => setOpen(false)} onChanged={onChanged} />, document.body)}
     </>
   );
 }
