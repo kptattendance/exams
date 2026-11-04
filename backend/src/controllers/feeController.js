@@ -522,6 +522,7 @@ export const exportFees = async (req, res) => {
 };
 
 // POST /api/exams/:id/fees/clear   Admin only
+//   { regIds: [...] }                   the students ticked on the page
 //   { registerNumbers: [...] }          those students
 //   { department, semester }            one class ("backlog" = back-paper students)
 //   { all: true }                       every student of the exam
@@ -540,7 +541,9 @@ export const clearFees = async (req, res) => {
     .map((r) => String(r).trim().toUpperCase())
     .filter(Boolean);
   const department = String(req.body?.department || "").trim().toLowerCase();
-  if (regNos.length) filter.registerNumber = { $in: [...new Set(regNos)] };
+  const regIds = (Array.isArray(req.body?.regIds) ? req.body.regIds : []).map(String).filter(isId);
+  if (regIds.length) filter._id = { $in: regIds };
+  else if (regNos.length) filter.registerNumber = { $in: [...new Set(regNos)] };
   else if (department === "backlog") filter.group = { $in: ["backlog", "manual"] };
   else if (department) {
     filter.department = department;

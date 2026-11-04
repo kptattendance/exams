@@ -38,6 +38,8 @@ const fmtDate = (d) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "2-di
 
 export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref, initialStatus = "", mode = "", transactionsHref = "" }) {
   const txnMode = mode === "transactions";
+  // Admin's "Delete fees" screen: tick students who have a fee entered, delete
+  const delMode = mode === "delete";
   const isAdmin = useIsAdmin();
   const [clearOpen, setClearOpen] = useState(false); // Admin: delete fee records
   const api = useApi();
@@ -54,7 +56,8 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
   const [page, setPage] = useState(1);
   const [paying, setPaying] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [picked, setPicked] = useState(() => new Set()); // registration ids ticked for "Mark as paid"
+  const [picked, setPicked] = useState(() => new Set()); // registration ids ticked for "Mark as paid" (delete screen: for "Delete")
+  const [clearIds, setClearIds] = useState(null); // delete screen: the ticked students being deleted
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false); // fee collection report (PDF)
@@ -182,7 +185,7 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
   const counts = data?.counts || {};
   const total = (counts.PAID || 0) + (counts.PARTIAL || 0) + (counts.UNPAID || 0);
   const items = data?.data || [];
-  const pickable = items.filter((r) => r.items.some((i) => !i.paid)).map((r) => r._id);
+  const pickable = items.filter((r) => (delMode ? hasFeeEntered(r) : r.items.some((i) => !i.paid))).map((r) => r._id);
   const allPicked = pickable.length > 0 && pickable.every((id) => picked.has(id));
   const sel = "h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-slate-400";
 
@@ -196,7 +199,10 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
       )}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0">
-          <h2 className="text-2xl font-bold tracking-tight text-slate-950">{txnMode ? "Fee transactions" : "Fee verification"}</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-950">{delMode ? "Delete fee records" : txnMode ? "Fee transactions" : "Fee verification"}</h2>
+          {delMode && (
+            <p className="mt-1 text-sm text-slate-500">Admin only. Tick the students whose fee entries are wrong (e.g. made while testing) and delete them – they become “not paid”.</p>
+          )}
           {txnMode && (
             <p className="mt-1 text-sm text-slate-500">Students already marked paid – add the transaction no., amount and date (type them or scan the receipt).</p>
           )}
@@ -214,13 +220,13 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
         </div>
         {examId && (
           <div className="flex flex-wrap gap-2">
-            {canEdit && !txnMode && (
+            {canEdit && !txnMode && !delMode && (
               <button onClick={() => setBulkOpen(true)} className={btn.primary}>
                 <Icon name="check" className="h-4 w-4" />
                 Bulk mark as paid
               </button>
             )}
-            {canEdit && !txnMode && (
+            {canEdit && !txnMode && !delMode && (
               <button onClick={() => setUploading(true)} className={btn.secondary}>
                 <Icon name="report" className="h-4 w-4" />
                 Upload Excel
@@ -234,10 +240,10 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
               <Icon name="report" className="h-4 w-4" />
               Fee report (PDF)
             </button>
-            {isAdmin && !txnMode && (
+            {isAdmin && delMode && (
               <button onClick={() => setClearOpen(true)} className={btn.danger}>
                 <Icon name="trash" className="h-4 w-4" />
-                Delete fee records
+                Whole class / every student…
               </button>
             )}
           </div>
@@ -308,7 +314,7 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
             </div>
           </div>
 
-          {canEdit && !txnMode && (
+          {canEdit && !txnMode && !delMode && (
             <p className="mt-3 text-xs text-slate-500">
               Tick students and click <b>Mark as paid</b>, use <b>✓ Paid</b> on a row, or <b>Bulk mark as paid</b> (paste register numbers or a whole
               class). Transaction no., amount and date can be added later
@@ -336,10 +342,20 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
               <button onClick={() => setPicked(new Set())} className="text-xs font-semibold text-blue-700 hover:underline">
                 Clear
               </button>
-              <button onClick={markPickedPaid} disabled={bulkBusy} className={`${btn.primary} ml-auto py-2`}>
-                <Icon name="check" className="h-4 w-4" />
-                {bulkBusy ? "Saving…" : "Mark as paid"}
-              </button>
+              {delMode ? (
+                <button
+                  onClick={() => setClearIds([...picked])}
+                  className="ml-auto inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                >
+                  <Icon name="trash" className="h-4 w-4" />
+                  Delete fee records ({picked.size})
+                </button>
+              ) : (
+                <button onClick={markPickedPaid} disabled={bulkBusy} className={`${btn.primary} ml-auto py-2`}>
+                  <Icon name="check" className="h-4 w-4" />
+                  {bulkBusy ? "Saving…" : "Mark as paid"}
+                </button>
+              )}
             </div>
           )}
 
@@ -359,11 +375,11 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
                       <th className={`${T.th} w-8`}>
                         <input
                           type="checkbox"
-                          aria-label="Select all not-paid students on this page"
+                          aria-label={delMode ? "Select all students on this page" : "Select all not-paid students on this page"}
                           checked={allPicked}
                           disabled={!pickable.length}
                           onChange={() => setPicked(allPicked ? new Set() : new Set(pickable))}
-                          className="h-4 w-4 accent-blue-600"
+                          className={`h-4 w-4 ${delMode ? "accent-red-600" : "accent-blue-600"}`}
                         />
                       </th>
                     )}
@@ -382,6 +398,7 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
                       sl={(page - 1) * 40 + i + 1}
                       reg={r}
                       canEdit={canEdit}
+                      delMode={delMode}
                       picked={picked.has(r._id)}
                       onPick={() => togglePick(r._id)}
                       onQuickPaid={() => quickPaid(r)}
@@ -440,13 +457,18 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
           }}
         />
       )}
-      {clearOpen && (
+      {(clearOpen || clearIds) && (
         <ClearFeesModal
           examId={examId}
           classOptions={classOptions}
-          onClose={() => setClearOpen(false)}
+          regIds={clearIds}
+          onClose={() => {
+            setClearOpen(false);
+            setClearIds(null);
+          }}
           onDone={() => {
             setClearOpen(false);
+            setClearIds(null);
             setPicked(new Set());
             load();
           }}
@@ -669,17 +691,20 @@ const initials = (name = "") =>
     .slice(0, 2)
     .toUpperCase();
 
-function FeeRow({ sl, reg, canEdit, picked, onPick, onQuickPaid, onPay }) {
+// Something is entered for this student: a paid mark or a transaction
+const hasFeeEntered = (reg) => reg.items.some((i) => i.paid) || (reg.payments || []).length > 0;
+
+function FeeRow({ sl, reg, canEdit, delMode = false, picked, onPick, onQuickPaid, onPay }) {
   const st = FEE[reg.feeStatus] || FEE.UNPAID;
   const unpaid = reg.items.filter((i) => !i.paid).length;
   const [busy, setBusy] = useState(false);
   const payments = reg.payments || [];
   return (
-    <tr className={`${T.row} ${picked ? "bg-blue-50/50" : ""}`}>
+    <tr className={`${T.row} ${picked ? (delMode ? "bg-red-50/60" : "bg-blue-50/50") : ""}`}>
       {canEdit && (
         <td className={T.td}>
-          {unpaid > 0 && (
-            <input type="checkbox" aria-label={`Select ${reg.name}`} checked={picked} onChange={onPick} className="h-4 w-4 accent-blue-600" />
+          {(delMode ? hasFeeEntered(reg) : unpaid > 0) && (
+            <input type="checkbox" aria-label={`Select ${reg.name}`} checked={picked} onChange={onPick} className={`h-4 w-4 ${delMode ? "accent-red-600" : "accent-blue-600"}`} />
           )}
         </td>
       )}
@@ -738,7 +763,7 @@ function FeeRow({ sl, reg, canEdit, picked, onPick, onQuickPaid, onPay }) {
       {canEdit && (
         <td className={`${T.td} text-right`}>
           <div className="flex justify-end gap-1.5">
-            {unpaid > 0 && (
+            {unpaid > 0 && !delMode && (
               <button
                 onClick={async () => {
                   setBusy(true);
@@ -1270,7 +1295,8 @@ const Count = ({ n, label, tone }) => (
 
 // Admin: delete the fee records entered for some students (e.g. while testing):
 // paid marks and transactions. They become "not paid". A copy stays in the audit log.
-function ClearFeesModal({ examId, classOptions, onClose, onDone }) {
+//   regIds: the students ticked on the page (then no choice is asked)
+function ClearFeesModal({ examId, classOptions, regIds = null, onClose, onDone }) {
   const api = useApi();
   const toast = useToast();
   const [scope, setScope] = useState("list"); // list | class | all
@@ -1281,11 +1307,13 @@ function ClearFeesModal({ examId, classOptions, onClose, onDone }) {
   const [busy, setBusy] = useState(false);
 
   const regNos = [...new Set(text.split(/[\s,;]+/).map((x) => x.trim().toUpperCase()).filter(Boolean))];
-  const ready = reason.trim().length >= 5 && typed.trim().toUpperCase() === "DELETE" && (scope === "all" || (scope === "list" ? regNos.length > 0 : Boolean(cls)));
+  const ready =
+    reason.trim().length >= 5 && typed.trim().toUpperCase() === "DELETE" && (regIds?.length > 0 || scope === "all" || (scope === "list" ? regNos.length > 0 : Boolean(cls)));
 
   const run = async () => {
     const body = { reason };
-    if (scope === "list") body.registerNumbers = regNos;
+    if (regIds?.length) body.regIds = regIds;
+    else if (scope === "list") body.registerNumbers = regNos;
     else if (scope === "class") {
       const [d, s] = cls === "backlog" ? ["backlog", ""] : cls.split("-");
       body.department = d;
@@ -1327,6 +1355,11 @@ function ClearFeesModal({ examId, classOptions, onClose, onDone }) {
         </>
       }
     >
+      {regIds?.length > 0 ? (
+        <p className="rounded-xl bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-900">
+          {regIds.length} ticked student{regIds.length === 1 ? "" : "s"}
+        </p>
+      ) : (
       <div className="space-y-2">
         {opt("list", "These register numbers")}
         {scope === "list" && (
@@ -1352,6 +1385,7 @@ function ClearFeesModal({ examId, classOptions, onClose, onDone }) {
         )}
         {opt("all", "Every student of this examination")}
       </div>
+      )}
       <label className="mt-4 block">
         <span className="text-sm font-semibold text-slate-800">Reason</span>
         <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Entered while testing the software" className={`${field} mt-1`} />
