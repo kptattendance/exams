@@ -976,6 +976,45 @@ export const uploadFinalPdf = async (req, res) => {
 };
 
 // GET /api/paper-setting/exam-day   (Chief Examiner) – today's frozen papers and when each opens
+// POST /api/paper-setting/:id/choose-for-exam   { chosen: true | false }   (COE)
+// Chooses this frozen set as THE paper of the examination (the other sets of
+// the subject are unchosen). Only before the exam day – on the day itself the
+// choice can no longer be made or changed.
+export const chooseForExam = async (req, res) => {
+  try {
+    if (!isId(req.params.id)) return fail(res, 400, "Invalid id.");
+    const paper = await PaperSetting.findById(req.params.id).populate(POPULATE[0]);
+    if (!paper) return fail(res, 404, "Paper not found.");
+    if (!paper.frozenAt || !paper.finalPdf) return fail(res, 409, "Only a frozen paper (final PDF uploaded) can be chosen for the examination.");
+    const chosen = req.body?.chosen !== false;
+    const slot = await scheduleFor(paper.subject?.code, paper.examSession);
+    if (slot && slot.entry.date <= todayIST())
+      return fail(res, 403, `The set must be chosen before the exam day. ${paper.subject.code} is written on ${slot.entry.date.split("-").reverse().join("-")}.`);
+
+    if (chosen) {
+      // one set per subject + session + paper type
+      await PaperSetting.updateMany(
+        { subject: paper.subject._id, examSession: paper.examSession, paperType: paper.paperType, _id: { $ne: paper._id } },
+        { $set: { examSetChosenAt: null, examSetChosenBy: "" } }
+      );
+      paper.examSetChosenAt = new Date();
+      paper.examSetChosenBy = req.user.email || req.user.id;
+    } else {
+      paper.examSetChosenAt = null;
+      paper.examSetChosenBy = "";
+    }
+    await paper.save();
+    await audit(req, chosen ? "QP_SET_CHOSEN" : "QP_SET_UNCHOSEN", paper._id, { subject: paper.subject.code, setNo: paper.setNo, examSession: paper.examSession });
+    res.json({
+      message: chosen
+        ? `Set ${paper.setNo} of ${paper.subject.code} is chosen for the examination. Only this set will reach the Chief Examiner.`
+        : `Set ${paper.setNo} of ${paper.subject.code} is no longer chosen.`,
+    });
+  } catch (err) {
+    handleError(res, err, "chooseForExam");
+  }
+};
+
 export const examDayList = async (req, res) => {
   try {
     const today = todayIST();
@@ -987,13 +1026,17 @@ export const examDayList = async (req, res) => {
       }
     }
     const subjects = await Subject.find({ code: { $in: [...slots.keys()] } }).select("_id").lean();
-    const papers = await PaperSetting.find({
+    const frozen = await PaperSetting.find({
       subject: { $in: subjects.map((s) => s._id) },
       frozenAt: { $ne: null },
       examSession: sessionOfDate(today),
     })
       .populate(POPULATE[0])
       .lean();
+    // only the set the COE chose for the exam; the other sets stay locked
+    const papers = frozen.filter((p) => p.examSetChosenAt);
+    const chosenFor = new Set(papers.map((p) => `${p.subject?.code}|${p.paperType}`));
+    const noSet = [...new Set(frozen.filter((p) => !chosenFor.has(`${p.subject?.code}|${p.paperType}`)).map((p) => p.subject?.code))].sort();
     const now = new Date();
     const data = papers
       .map((p) => {
@@ -1014,7 +1057,7 @@ export const examDayList = async (req, res) => {
         };
       })
       .sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt) || a.subject.code.localeCompare(b.subject.code) || a.setNo - b.setNo);
-    res.json({ data, today });
+    res.json({ data, today, noSet });
   } catch (err) {
     handleError(res, err, "examDayList");
   }
@@ -1026,6 +1069,7 @@ export const examDayPrint = async (req, res) => {
     if (!isId(req.params.id)) return fail(res, 400, "Invalid id.");
     const paper = await PaperSetting.findById(req.params.id).populate(POPULATE[0]);
     if (!paper?.frozenAt || !paper.finalPdf) return fail(res, 404, "Frozen paper not found.");
+    if (!paper.examSetChosenAt) return fail(res, 403, "This set was not chosen for the examination. Contact the COE.");
     const slot = await scheduleFor(paper.subject?.code, paper.examSession);
     if (!slot || slot.entry.date !== todayIST()) return fail(res, 403, "This paper is not scheduled for today.");
     const w = printWindow(slot.entry, slot.sessions);

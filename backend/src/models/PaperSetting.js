@@ -112,6 +112,11 @@ const paperSettingSchema = new mongoose.Schema(
       type: [new mongoose.Schema({ at: Date, by: String, ip: String, copy: Number }, { _id: false })],
       default: [],
     },
+    // The set the COE chose for the examination (one per subject + session +
+    // paper type), BEFORE the exam day. Only this set reaches the Chief
+    // Examiner; the other frozen sets stay locked.
+    examSetChosenAt: { type: Date, default: null },
+    examSetChosenBy: { type: String, default: "" },
 
     scrutiny: {
       status: { type: String, enum: ["PENDING", "IN_PROGRESS", "DONE"], default: "PENDING" },

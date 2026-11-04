@@ -50,6 +50,26 @@ const STATUS_LABEL = {
   CANCELLED: "Cancelled",
 };
 
+// Where a paper is in the whole journey (the status filter)
+const STAGES = [
+  ["ASSIGNED", "Waiting for upload"],
+  ["UPLOADED", "Draft uploaded"],
+  ["RETURNED", "Returned for correction"],
+  ["WAIT_SCRUTINY", "Submitted – waiting for scrutiny"],
+  ["IN_SCRUTINY", "Under scrutiny"],
+  ["SCRUTINY_DONE", "Scrutiny finished – final PDF to upload"],
+  ["FROZEN", "Frozen – set not chosen"],
+  ["CHOSEN", "Frozen – chosen for the exam"],
+  ["CANCELLED", "Cancelled"],
+];
+const stageOf = (p) => {
+  if (p.status !== "SUBMITTED") return p.status;
+  if (p.frozenAt) return p.examSetChosenAt ? "CHOSEN" : "FROZEN";
+  if (p.scrutiny?.status === "DONE") return "SCRUTINY_DONE";
+  if (p.scrutiny?.status === "IN_PROGRESS") return "IN_SCRUTINY";
+  return "WAIT_SCRUTINY";
+};
+
 const inputCls =
   "h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100";
 
@@ -117,7 +137,6 @@ export default function PaperSettingPage() {
     try {
       const params = new URLSearchParams();
       if (session) params.set("examSession", session);
-      if (statusFilter) params.set("status", statusFilter);
       if (deptFilter) params.set("department", deptFilter);
       const res = await api("get", `/paper-setting?${params}`);
       setPapers(res.data?.data || []);
@@ -126,7 +145,7 @@ export default function PaperSettingPage() {
     } finally {
       setLoading(false);
     }
-  }, [api, session, statusFilter, deptFilter]);
+  }, [api, session, deptFilter]);
 
   useEffect(() => {
     load();
@@ -139,9 +158,10 @@ export default function PaperSettingPage() {
       allPapers.filter(
         (p) =>
           (!typeFilter || (isExternal(p.examiner) ? "EXTERNAL" : "INTERNAL") === typeFilter) &&
-          (!boardFilter || String(p.subject?.board || "").toUpperCase() === boardFilter)
+          (!boardFilter || String(p.subject?.board || "").toUpperCase() === boardFilter) &&
+          (!statusFilter || stageOf(p) === statusFilter)
       ),
-    [allPapers, typeFilter, boardFilter]
+    [allPapers, typeFilter, boardFilter, statusFilter]
   );
   const boards = useMemo(
     () => [...new Set([...allPapers.map((p) => String(p.subject?.board || "").toUpperCase()).filter(Boolean), ...(boardFilter ? [boardFilter] : [])])].sort(),
@@ -261,6 +281,24 @@ export default function PaperSettingPage() {
     input.click();
   };
 
+  // The set that is given for the examination (before the exam day)
+  const chooseSet = async (p, chosen) => {
+    const others = allPapers.filter((x) => x._id !== p._id && x.subject?._id === p.subject?._id && x.paperType === p.paperType && x.examSetChosenAt);
+    const ok = await confirmDialog({
+      title: chosen ? `Give Set ${p.setNo} of ${p.subject?.code} for the examination?` : `Unchoose Set ${p.setNo} of ${p.subject?.code}?`,
+      message: chosen
+        ? `Only this set will reach the Chief Examiner on the exam day; the other sets stay locked.${others.length ? `\n\nSet ${others.map((x) => x.setNo).join(", ")} is chosen now – it will be unchosen.` : ""}\n\nThe choice can be made or changed only before the exam day.`
+        : "Then no set of this subject reaches the Chief Examiner until you choose one again (before the exam day).",
+      confirmText: chosen ? "Choose this set" : "Unchoose",
+      tone: chosen ? undefined : "danger",
+    });
+    if (!ok) return;
+    act(p._id, async () => {
+      const r = await api("post", `/paper-setting/${p._id}/choose-for-exam`, { chosen });
+      flash(r.data?.message || "Saved.");
+    });
+  };
+
   const renderActions = (p, busy) => (
     <div className="flex flex-wrap gap-1.5">
       {["ASSIGNED", "UPLOADED", "RETURNED"].includes(p.status) && (
@@ -286,9 +324,25 @@ export default function PaperSettingPage() {
           {/* After scrutiny: download the Word file, set the pages, upload the final PDF.
               Once the PDF is uploaded the paper is frozen – nobody opens it before the exam. */}
           {p.frozenAt ? (
-            <span className="rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700" title="Opens only for the Chief Examiner on the exam date">
-              🔒 Frozen {fmtDate(p.frozenAt)}
-            </span>
+            <>
+              <span className="rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700" title="Opens only for the Chief Examiner on the exam date">
+                🔒 Frozen {fmtDate(p.frozenAt)}
+              </span>
+              {p.examSetChosenAt ? (
+                <>
+                  <span className="rounded-lg bg-violet-600 px-2.5 py-1.5 text-xs font-semibold text-white" title={`Chosen by ${p.examSetChosenBy} on ${fmtDate(p.examSetChosenAt)}`}>
+                    ★ Exam set
+                  </span>
+                  <SmallBtn disabled={busy} onClick={() => chooseSet(p, false)}>
+                    Unchoose
+                  </SmallBtn>
+                </>
+              ) : (
+                <SmallBtn tone="dark" disabled={busy} onClick={() => chooseSet(p, true)}>
+                  Choose for exam
+                </SmallBtn>
+              )}
+            </>
           ) : p.scrutiny?.status === "DONE" ? (
             <>
               <SmallBtn tone="dark" disabled={busy} onClick={() => download(p)}>
@@ -454,8 +508,8 @@ ${
           <option value="EXTERNAL">External (other colleges)</option>
         </select>
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={`${inputCls} lg:w-56`}>
-          <option value="">All statuses</option>
-          {Object.entries(STATUS_LABEL).map(([k, v]) => (
+          <option value="">All stages</option>
+          {STAGES.map(([k, v]) => (
             <option key={k} value={k}>
               {v}
             </option>

@@ -90,12 +90,18 @@ export default function ChiefExaminerPage() {
         Each paper opens 1 hour before its session and closes when the session ends. Every copy carries your name and the time.
       </p>
 
+      {data?.noSet?.length > 0 && (
+        <p className="mt-4 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-900">
+          <b>No set chosen by the COE for:</b> {data.noSet.join(", ")}. Contact the COE office.
+        </p>
+      )}
+
       <div className={`mt-5 ${T.wrap}`}>
         {!data && <div className="h-40 animate-pulse" />}
         {data && papers.length === 0 && (
           <div className="px-6 py-14 text-center">
             <Icon name="lock" className="mx-auto h-8 w-8 text-slate-300" />
-            <p className="mt-2 text-sm font-medium text-slate-600">No frozen question paper is scheduled for today.</p>
+            <p className="mt-2 text-sm font-medium text-slate-600">No question paper is scheduled for today.</p>
           </div>
         )}
         {papers.length > 0 && (

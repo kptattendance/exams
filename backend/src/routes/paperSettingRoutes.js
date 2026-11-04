@@ -24,6 +24,7 @@ import {
   uploadFinalPdf,
   examDayList,
   examDayPrint,
+  chooseForExam,
   downloadPaper,
   getAuditTrail,
   myAssignments,
@@ -80,6 +81,8 @@ router.delete("/:id", adminOnly, requireStepUp("qp"), deleteAssignment);
 router.get("/:id/download", requireRole(...CONTENT_READERS), requireStepUp("qp"), downloadPaper);
 // COE: final PDF after page setting – freezes the paper for good
 router.post("/:id/final-pdf", requireRole(...CONTENT_READERS), requireStepUp("qp"), uploadPdf, uploadFinalPdf);
+// COE: which frozen set is THE exam paper (before the exam day)
+router.post("/:id/choose-for-exam", requireRole(...CONTENT_READERS), requireStepUp("qp"), chooseForExam);
 // Chief Examiner: open and print on the exam date, from 1 hour before the session
 router.get("/:id/exam-print", requireRole("chief_examiner"), requireStepUp("qp"), examDayPrint);
 router.get("/:id/audit", requireRole(...CONTENT_READERS), getAuditTrail);
