@@ -21,6 +21,7 @@ import {
 import { STUDENT_FIELDS, problemsOf } from "../../components/students/studentCheck";
 
 import { usePopupMessage } from "../../components/ui/Feedback";
+import ChangePhotoButton from "../../components/students/ChangePhoto";
 export default function HODStudentsPage() {
   const { getToken } = useAuth();
 
@@ -556,6 +557,9 @@ export default function HODStudentsPage() {
                                     {Object.keys(problems).length} to check
                                   </span>
                                 )}
+                                <span className="block">
+                                  <ChangePhotoButton student={student} onChanged={fetchStudents} className="mt-1 rounded-md border border-amber-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-amber-700 hover:bg-amber-50" />
+                                </span>
                               </span>
                             </div>
                           </td>
@@ -627,6 +631,7 @@ export default function HODStudentsPage() {
                                 {student.registerNumber ||
                                   "No register number"}
                               </p>
+                              <ChangePhotoButton student={student} onChanged={fetchStudents} className="mt-1 rounded-md border border-amber-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-amber-700 hover:bg-amber-50" />
                             </div>
 
                             <span className="text-xs text-gray-500">

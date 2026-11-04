@@ -907,6 +907,7 @@ function Progress({ initial, onReset, onUndo, undoBusy, onFinished }) {
     setStopping(false);
     setRunning(true);
     setError("");
+    let waits = 0; // the sign-in service was busy this many times in a row
     while (!stop.current) {
       try {
         const r = await api("post", `/${initial._id}/process`);
@@ -917,7 +918,17 @@ function Progress({ initial, onReset, onUndo, undoBusy, onFinished }) {
           else toast.success(`All ${sm.created} students imported.`);
           break;
         }
+        // Clerk allows only so many new accounts at a time: wait, then carry on
+        if (r.data.busy) await new Promise((res) => setTimeout(res, 5000));
+        waits = 0;
       } catch (e) {
+        // busy for a moment (not a real sign-in problem): wait and try again
+        const busy = e?.response?.status === 503 || e?.response?.status === 429 || e?.response?.data?.busy;
+        if (busy && waits < 12) {
+          waits++;
+          await new Promise((res) => setTimeout(res, 5000));
+          continue;
+        }
         setError(errMsg(e, "Processing paused because of a network problem."));
         break;
       }

@@ -9,7 +9,9 @@ import XLSX from "xlsx";
 import axios from "axios";
 import { calendarDay } from "../services/studentImport/rules.js";
 import { refreshAfterChange, refreshNote } from "../services/exams/autoRefresh.js";
-import { studentShift } from "../services/evening.js";
+import { isEvening, studentShift } from "../services/evening.js";
+import { audit } from "../models/AuditLog.js";
+import { Readable } from "stream";
 
 // =====================================================
 // GOOGLE DRIVE FILE ID
@@ -1834,6 +1836,7 @@ export const updateStudent = async (req, res) => {
     // -----------------------------------------
     // PHOTO
     // -----------------------------------------
+    const oldPhotoId = req.cloudinaryResult ? student.imagePublicId : "";
     if (req.cloudinaryResult) {
       student.imageUrl =
         req.cloudinaryResult.secure_url;
@@ -1846,6 +1849,10 @@ export const updateStudent = async (req, res) => {
     // Save MongoDB
     // -----------------------------------------
     await student.save();
+
+    // the replaced photo is removed from Cloudinary
+    if (oldPhotoId && oldPhotoId !== student.imagePublicId)
+      await cloudinary.uploader.destroy(oldPhotoId).catch((e) => console.error("Old photo not deleted:", e.message));
 
     // -----------------------------------------
     // Update Clerk
@@ -2116,5 +2123,70 @@ export const deleteMultipleStudents = async (
       message: "Failed to delete selected students.",
       error: error.message,
     });
+  }
+};
+
+// =====================================================
+// CHANGE PHOTO ONLY
+// PUT /api/students/:id/photo   (multipart, field "image")
+//
+// Admin, Principal, COE, Office: any student. HOD: his own department's day
+// students; Evening Principal: the evening students. Only the photo changes.
+// The new photo goes to Cloudinary, the old one is deleted there, and the
+// photo in the exam registrations (hall tickets) is updated too.
+// =====================================================
+const PHOTO_FOLDER = "kpt-examination/students";
+
+function uploadPhoto(buffer) {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: PHOTO_FOLDER, resource_type: "image", transformation: [{ width: 600, height: 800, crop: "limit", quality: "auto:good" }] },
+      (err, result) => (err ? reject(err) : resolve(result))
+    );
+    Readable.from(buffer).pipe(stream);
+  });
+}
+
+export const updateStudentPhoto = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, message: "Choose the photo." });
+    if (!String(req.file.mimetype || "").startsWith("image/")) return res.status(400).json({ success: false, message: "Only a photo (JPG or PNG) can be uploaded." });
+
+    const student = await Student.findById(req.params.id).select("name registerNumber department imageUrl imagePublicId");
+    if (!student) return res.status(404).json({ success: false, message: "Student not found." });
+
+    // a HOD: only his own department; day students for a HOD, evening ones for the Evening Principal
+    if (req.user?.role === "hod") {
+      const own = String(student.department || "").toLowerCase() === String(req.user.department || "").toLowerCase();
+      if (!own || isEvening(student.registerNumber) !== Boolean(req.user.evening))
+        return res.status(403).json({ success: false, message: "You can change photos of your own department's students only." });
+    }
+
+    const up = await uploadPhoto(req.file.buffer);
+    const oldId = student.imagePublicId;
+    student.imageUrl = up.secure_url;
+    student.imagePublicId = up.public_id;
+    await student.save();
+
+    // hall tickets read the photo from the exam registration
+    await ExamRegistration.updateMany({ student: student._id }, { $set: { imageUrl: up.secure_url } });
+
+    let oldDeleted = false;
+    if (oldId && oldId !== up.public_id) {
+      oldDeleted = await cloudinary.uploader
+        .destroy(oldId)
+        .then((r) => r?.result === "ok")
+        .catch((e) => (console.error("Old photo not deleted:", e.message), false));
+    }
+    await audit(req, "STUDENT_PHOTO_CHANGED", student._id, { registerNumber: student.registerNumber, oldPhoto: oldId || "", newPhoto: up.public_id, oldDeleted });
+
+    return res.json({
+      success: true,
+      message: `Photo of ${student.name || student.registerNumber} changed.`,
+      data: { _id: student._id, imageUrl: student.imageUrl },
+    });
+  } catch (error) {
+    console.error("Change photo error:", error);
+    return res.status(500).json({ success: false, message: "Could not change the photo. Please try again." });
   }
 };

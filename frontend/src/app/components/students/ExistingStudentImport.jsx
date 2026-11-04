@@ -105,12 +105,23 @@ export default function ExistingStudentImport() {
   // creates the students a few at a time until all are done
   const run = async (id) => {
     setBusy("process");
+    let waits = 0; // the sign-in service was busy this many times in a row
     for (let i = 0; i < 400; i++) {
       try {
         const r = await api("post", `/student-import/${id}/process`);
         setJob(r.data.data);
         if (r.data.done) break;
+        // Clerk allows only so many new accounts at a time: wait, then carry on
+        if (r.data.busy) await new Promise((res) => setTimeout(res, 5000));
+        waits = 0;
       } catch (e) {
+        // busy for a moment (not a real sign-in problem): wait and try again
+        const busy = e?.response?.status === 503 || e?.response?.status === 429 || e?.response?.data?.busy;
+        if (busy && waits < 12) {
+          waits++;
+          await new Promise((res) => setTimeout(res, 5000));
+          continue;
+        }
         setError(errMsg(e, "Processing stopped. Click Continue to resume."));
         break;
       }

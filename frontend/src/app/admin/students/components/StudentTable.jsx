@@ -14,6 +14,7 @@ import PurgeStudents, { PurgeLog } from "../../../components/students/PurgeStude
 import { sortOptions } from "../../../components/sortOptions";
 
 import { usePopupMessage } from "../../../components/ui/Feedback";
+import ChangePhotoButton from "../../../components/students/ChangePhoto";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const departments = [
@@ -1542,6 +1543,8 @@ const downloadStudentsExcel = () => {
                     >
                       Edit
                     </button>
+
+                    <ChangePhotoButton student={student} onChanged={fetchStudents} />
 
                     <button
                       type="button"

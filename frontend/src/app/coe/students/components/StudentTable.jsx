@@ -12,6 +12,7 @@ import * as XLSX from "xlsx";
 import { sortOptions } from "../../../components/sortOptions";
 import { useIsAdmin } from "../../../components/useRole";
 import { usePopupMessage } from "../../../components/ui/Feedback";
+import ChangePhotoButton from "../../../components/students/ChangePhoto";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const departments = [
@@ -1154,6 +1155,8 @@ const downloadStudentsExcel = () => {
                             >
                               Edit
                             </button>
+
+                            <ChangePhotoButton student={student} onChanged={fetchStudents} />
 
                             {isAdmin && (
                             <button

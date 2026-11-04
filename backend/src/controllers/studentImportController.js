@@ -25,6 +25,7 @@ import mongoose from "mongoose";
 import XLSX from "xlsx";
 import axios from "axios";
 import { clerkClient } from "@clerk/express";
+import { clerkBusy } from "../middlewares/authMiddleware.js";
 
 import cloudinary from "../config/cloudinary.js";
 import Student from "../models/Student.js";
@@ -471,6 +472,9 @@ async function createStudent(row, importId) {
     return student._id;
   } catch (e) {
     if (clerkUser?.id) await clerkClient.users.deleteUser(clerkUser.id).catch(() => {});
+    // Clerk busy (too many accounts made in a short time): not a fault of
+    // this student – he stays waiting and is made in the next step
+    if (clerkBusy(e)) throw Object.assign(new Error("The sign-in service is busy."), { busy: true });
     const msg =
       e?.errors?.[0]?.longMessage ||
       e?.errors?.[0]?.message ||
@@ -532,14 +536,19 @@ export const processImport = async (req, res) => {
   try {
     // 1) students
     let created = 0;
+    let busy = false;
     for (const row of doc.rows) {
-      if (row.state !== "PENDING" || created >= 4 || Date.now() > deadline) continue;
+      if (busy || row.state !== "PENDING" || created >= 4 || Date.now() > deadline) continue;
       row.attempts += 1;
       try {
         row.student = await createStudent(row, doc._id);
         row.state = "CREATED";
         row.error = "";
       } catch (e) {
+        if (e.busy) {
+          busy = true; // stays PENDING; the page waits a little and carries on
+          continue;
+        }
         row.state = "FAILED";
         row.error = e.message;
       }
@@ -575,7 +584,7 @@ export const processImport = async (req, res) => {
     doc.markModified("rows");
     doc.lockedUntil = new Date(0);
     await doc.save();
-    res.json({ data: importView(doc), done: !stillWorking });
+    res.json({ data: importView(doc), done: !stillWorking, busy });
   } catch (e) {
     console.error("[studentImport] process:", e);
     await StudentImport.updateOne({ _id: doc._id }, { $set: { lockedUntil: new Date(0) } });

@@ -12,6 +12,7 @@ import {
   updateStudentStatus,
   deleteMultipleStudents,
   bulkUploadStudents,
+  updateStudentPhoto,
 } from "../controllers/studentController.js";
 
 import { authenticateUser } from "../middlewares/authMiddleware.js";
@@ -104,6 +105,21 @@ router.get(
   "/:id",
   authenticateUser,
   getStudentById
+);
+
+// =====================================================
+// CHANGE PHOTO ONLY (before "/:id"); old photo removed from Cloudinary
+// =====================================================
+
+const uploadPhoto = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+
+router.put(
+  "/:id/photo",
+  authenticateUser,
+  asHodScope, // Evening Principal: evening students
+  STUDENT_EDITORS,
+  uploadPhoto.single("image"),
+  updateStudentPhoto
 );
 
 // =====================================================
