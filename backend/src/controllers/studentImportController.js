@@ -271,7 +271,9 @@ const excelError = (res, e, where) => {
 // (cleanRow is made for 1st-year admissions, so its semester rule is relaxed here.)
 // A student who changed branch inside our college keeps his first branch's
 // code and gets an X series: 103EC25X01 is now an EE student.
-const REGNO_RE = new RegExp(`^(?:${COLLEGE_CODE}|${EVENING_CODE})(${DEPARTMENTS.map((d) => d.toUpperCase()).join("|")})(\\d{2})(\\d{3}|X\\d{2})$`);
+// A student transferred from another college keeps that college's register
+// number, so any 3-digit college code is taken: 189EC25044.
+const REGNO_RE = new RegExp(`^(?:\\d{3})(${DEPARTMENTS.map((d) => d.toUpperCase()).join("|")})(\\d{2})(\\d{3}|X\\d{2})$`);
 function checkExistingRow(row, raw, map) {
   const s = row.student;
   const header = Object.keys(map).find((h) => map[h] === "registerNumberGiven");
@@ -290,12 +292,16 @@ function checkExistingRow(row, raw, map) {
 
   const m = s.registerNumber.match(REGNO_RE);
   if (!s.registerNumber) row.problems.push({ level: "error", field: "registerNumber", message: "Register number is missing." });
-  else if (!m) row.problems.push({ level: "error", field: "registerNumber", message: `Register number ${s.registerNumber} does not look like ${COLLEGE_CODE}CS25001 (or ${EVENING_CODE}EE25001 for the evening college, ${COLLEGE_CODE}EC25X01 after a branch change).` });
+  else if (!m) row.problems.push({ level: "error", field: "registerNumber", message: `Register number ${s.registerNumber} does not look like ${COLLEGE_CODE}CS25001 (or ${EVENING_CODE}EE25001 for the evening college, ${COLLEGE_CODE}EC25X01 after a branch change, 189EC25044 for a student transferred from another college).` });
   // branch change (X series): the number keeps the old branch, the department is the new one
   else if (s.department && m[1].toLowerCase() !== s.department && !m[3].startsWith("X"))
     row.problems.push({ level: "error", field: "registerNumber", message: `Register number is for ${m[1]} but the department is ${s.department.toUpperCase()}.` });
   else if (s.admissionYear && Number(m[2]) !== s.admissionYear % 100)
     row.problems.push({ level: "warning", field: "registerNumber", message: `Register number year (20${m[2]}) differs from the admission year ${s.admissionYear}.` });
+  // another college's code: a transferred student – just a note, it is imported as it is
+  const college = s.registerNumber.slice(0, 3);
+  if (m && college !== COLLEGE_CODE && college !== EVENING_CODE)
+    row.problems.push({ level: "warning", field: "registerNumber", message: `Register number of another college (${college}) – a transferred student; it is kept as it is.` });
 }
 
 // POST /api/student-import/preview            (1st year)
