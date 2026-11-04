@@ -71,7 +71,7 @@ export default function ExamFeeSettings({ exam, onClose, onSaved }) {
       }
     >
       <div className="space-y-5">
-        <p className="text-xs text-slate-500">Charged for each semester exam a student writes (his current semester, each back-paper semester, and the bridge courses separately). Bridge courses have no marks card fee.</p>
+        <p className="text-xs text-slate-500">Charged for each semester exam a student writes (his current semester, each back-paper semester, and the bridge courses separately).</p>
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="block">
             <span className="text-sm font-semibold text-slate-800">1 or 2 subjects</span>

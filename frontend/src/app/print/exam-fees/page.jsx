@@ -91,7 +91,7 @@ function Sheet() {
           <p className="text-[13px] font-bold text-indigo-900">{rs(rules.threePlus)}</p>
         </div>
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5">
-          <p className="text-[9.5px] font-semibold uppercase text-emerald-700">Marks card (each semester exam, not bridge)</p>
+          <p className="text-[9.5px] font-semibold uppercase text-emerald-700">Marks card (each semester exam)</p>
           <p className="text-[13px] font-bold text-emerald-900">{rs(rules.marksCard)}</p>
         </div>
       </div>
