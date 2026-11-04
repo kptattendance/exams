@@ -30,7 +30,7 @@ router.post("/adduser", authenticateUser, requireStepUp("users"), uploadSingleIm
 router.get("/getusers", authenticateUser, getUsers);
 router.get("/getuser/:id", authenticateUser, getUserById);
 router.put("/updateuser/:id", authenticateUser, requireStepUp("users"), uploadSingleImage, updateUser);
-router.delete("/deleteuser/:id", authenticateUser, requireStepUp("users"), deleteUser);
+router.delete("/deleteuser/:id", authenticateUser, requireStepUp("delete"), deleteUser);
 
 router.post("/syncuser", authenticateUser, syncUser);
 router.get(  "/me",  authenticateUser,  getCurrentUser);
@@ -40,7 +40,7 @@ router.get("/clerk-users", authenticateUser, getClerkUsers);
 router.delete(
   "/clerk-users/:clerkId",
   authenticateUser,
-  requireStepUp("users"),
+  requireStepUp("delete"),
   deleteClerkUser
 );
 

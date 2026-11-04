@@ -16,6 +16,6 @@ router.get("/", VIEW, listSheets);
 router.get("/:type/:id", VIEW, getSheet);
 router.post("/:type/:id/freeze", DECIDE, requireStepUp("ia"), freezeSheet);
 router.post("/:type/:id/return", DECIDE, requireStepUp("ia"), returnSheet);
-router.delete("/:type/:id", adminOnly, requireStepUp("ia"), deleteSheet); // running year only
+router.delete("/:type/:id", adminOnly, requireStepUp("delete"), deleteSheet); // running year only
 
 export default router;

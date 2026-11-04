@@ -20,6 +20,7 @@ import { authenticateUser } from "../middlewares/authMiddleware.js";
 import { requestPurge, confirmPurge, purgeLog } from "../controllers/studentPurgeController.js";
 import { uploadSingleImage } from "../middlewares/uploadImage.js";
 import { asHodScope } from "../services/evening.js";
+import { requireStepUp } from "../services/stepUp.js";
 
 const router = express.Router();
 
@@ -155,6 +156,7 @@ router.delete(
   "/bulk-delete",
   authenticateUser,
   adminOnly,
+  requireStepUp("delete"), // type DELETE + a fresh code
   deleteMultipleStudents
 );
 
@@ -162,6 +164,7 @@ router.delete(
   "/:id",
   authenticateUser,
   adminOnly,
+  requireStepUp("delete"),
   deleteStudent
 );
 

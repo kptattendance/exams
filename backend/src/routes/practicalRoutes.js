@@ -48,7 +48,7 @@ router.get("/examiners", ALLOT, listExaminers);
 router.get("/my", EXAMINER, myBatches);
 
 router.patch("/panels/:panelId", ALLOT, updatePanel);
-router.delete("/panels/:panelId", ALLOT, removePanel);
+router.delete("/panels/:panelId", ALLOT, requireStepUp("delete"), removePanel);
 router.post("/panels/:panelId/code", ALLOT, reissueCode);
 router.post("/panels/:panelId/order", ALLOT, resendOrder); // office order for the external examiner
 

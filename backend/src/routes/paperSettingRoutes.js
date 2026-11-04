@@ -69,7 +69,7 @@ router.get("/exam-day", requireRole("chief_examiner"), examDayList);
 // Syllabus / scheme PDFs sent with the email (before "/:id")
 router.get("/syllabus", requireRole(...MANAGERS), listSyllabus);
 router.post("/syllabus", requireRole(...MANAGERS), uploadPdf, addSyllabus);
-router.delete("/syllabus/:id", requireRole(...MANAGERS), removeSyllabus);
+router.delete("/syllabus/:id", requireRole(...MANAGERS), requireStepUp("delete"), removeSyllabus);
 router.get("/", requireRole(...MANAGERS), listAssignments);
 router.post("/", requireRole(...MANAGERS), createAssignment);
 router.patch("/:id", requireRole(...MANAGERS), updateAssignment);
@@ -77,7 +77,7 @@ router.post("/:id/send-email", requireRole(...MANAGERS), resendEmail);
 router.post("/:id/cancel", requireRole(...MANAGERS), cancelAssignment);
 router.post("/:id/request-scheme", requireRole(...MANAGERS), requestScheme);
 // Deleting an assignment (with its paper) is for the Admin only; COE can cancel
-router.delete("/:id", adminOnly, requireStepUp("qp"), deleteAssignment);
+router.delete("/:id", adminOnly, requireStepUp("delete"), deleteAssignment);
 router.get("/:id/download", requireRole(...CONTENT_READERS), requireStepUp("qp"), downloadPaper);
 // COE: final PDF after page setting – freezes the paper for good
 router.post("/:id/final-pdf", requireRole(...CONTENT_READERS), requireStepUp("qp"), uploadPdf, uploadFinalPdf);

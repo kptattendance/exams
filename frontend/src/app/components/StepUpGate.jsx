@@ -17,14 +17,17 @@ const STORE = "kpt-step-up";
 
 // scope -> { token, expiresAt }
 const passes = new Map();
+// A delete is confirmed by typing DELETE and a fresh code; its pass is kept
+// only in this open page (never saved), so a reload asks again.
+const ONLY_IN_PAGE = new Set(["delete"]);
 function loadPasses() {
   try {
-    for (const [k, v] of Object.entries(JSON.parse(sessionStorage.getItem(STORE) || "{}"))) passes.set(k, v);
+    for (const [k, v] of Object.entries(JSON.parse(sessionStorage.getItem(STORE) || "{}"))) if (!ONLY_IN_PAGE.has(k)) passes.set(k, v);
   } catch {}
 }
 function savePasses() {
   try {
-    sessionStorage.setItem(STORE, JSON.stringify(Object.fromEntries(passes)));
+    sessionStorage.setItem(STORE, JSON.stringify(Object.fromEntries([...passes].filter(([k]) => !ONLY_IN_PAGE.has(k)))));
   } catch {}
 }
 const validTokens = () =>
@@ -136,6 +139,8 @@ export default function StepUpGate() {
 }
 
 function CodeDialog({ ask, onDone }) {
+  const del = ask.scope === "delete";
+  const [typed, setTyped] = useState(""); // a delete: "DELETE" typed first
   const [sent, setSent] = useState(null); // { requestId, channel, to, minutes }
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -185,10 +190,27 @@ function CodeDialog({ ask, onDone }) {
     <div className="fixed inset-0 z-[90] flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-[2px]" onClick={() => !busy && onDone(false)} />
       <form onSubmit={verify} className="relative w-full max-w-sm rounded-t-3xl bg-white p-6 shadow-2xl sm:rounded-3xl">
-        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-50 text-xl">🔒</span>
-        <h2 className="mt-3 text-lg font-bold tracking-tight text-slate-950">Verification needed</h2>
-        <p className="mt-1 text-sm text-slate-600">
-          For <b>{ask.label}</b>, type the 6-digit code{" "}
+        <span className={`flex h-11 w-11 items-center justify-center rounded-full text-xl ${del ? "bg-red-50" : "bg-blue-50"}`}>{del ? "⚠️" : "🔒"}</span>
+        <h2 className="mt-3 text-lg font-bold tracking-tight text-slate-950">{del ? "Confirm the delete" : "Verification needed"}</h2>
+        {del && (
+          <>
+            <p className="mt-1 text-sm text-red-800">
+              You are about to <b>delete records</b>. This cannot be undone. Make sure this is really what you want.
+            </p>
+            <label className="mt-3 block text-sm font-semibold text-slate-800">
+              1. Type <b>DELETE</b>
+              <input
+                value={typed}
+                onChange={(e) => setTyped(e.target.value)}
+                autoFocus
+                autoComplete="off"
+                className="mt-1 h-11 w-full rounded-xl border border-red-200 px-3 text-sm font-semibold uppercase tracking-wide outline-none focus:border-red-400"
+              />
+            </label>
+          </>
+        )}
+        <p className="mt-3 text-sm text-slate-600">
+          {del ? <b>2. </b> : null}For <b>{ask.label}</b>, type the 6-digit code{" "}
           {sent ? (
             <>
               sent by {sent.channel === "sms" ? "SMS" : "email"} to <b>{sent.to}</b>.
@@ -202,7 +224,7 @@ function CodeDialog({ ask, onDone }) {
           onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
           inputMode="numeric"
           autoComplete="one-time-code"
-          autoFocus
+          autoFocus={!del}
           disabled={!sent}
           placeholder="••••••"
           className="mt-4 h-12 w-full rounded-xl border border-slate-300 text-center text-xl font-bold tracking-[0.5em] outline-none focus:border-slate-500 disabled:bg-slate-50"
@@ -218,10 +240,10 @@ function CodeDialog({ ask, onDone }) {
           </button>
           <button
             type="submit"
-            disabled={busy || !sent || code.length !== 6}
-            className="rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
+            disabled={busy || !sent || code.length !== 6 || (del && typed.trim().toUpperCase() !== "DELETE")}
+            className={`rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-40 ${del ? "bg-red-600" : "bg-slate-950"}`}
           >
-            {busy && sent ? "Checking…" : "Verify"}
+            {busy && sent ? "Checking…" : del ? "Delete" : "Verify"}
           </button>
         </div>
         {sent && <p className="mt-3 text-[11px] text-slate-400">The code is valid for {sent.minutes} minutes. All verifications are logged.</p>}

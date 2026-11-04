@@ -31,6 +31,10 @@ export const SCOPES = {
   ia: { label: "IA and attendance", minutes: 30 },
   fees: { label: "fee verification", minutes: 30 },
   marks: { label: "marks entry", minutes: 30 },
+  // Every delete, by anyone: type DELETE and a fresh code. The pass lives
+  // 2 minutes and only in the open page (not saved), so one bulk delete or an
+  // "Undo import" that runs in steps finishes with one code.
+  delete: { label: "deleting records", minutes: 2 },
 };
 
 const secret = () =>

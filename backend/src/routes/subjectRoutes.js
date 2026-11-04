@@ -1,4 +1,5 @@
 import express from "express";
+import { requireStepUp } from "../services/stepUp.js";
 
 import {
   createSubject,
@@ -53,6 +54,7 @@ router.delete(
   "/deletesubject/:id",
   authenticateUser,
   adminOnly,
+  requireStepUp("delete"), // type DELETE + a fresh code
   deleteSubject
 );
 

@@ -86,14 +86,14 @@ router.get("/", VIEW, listExams);
 router.post("/", MANAGE, createExam);
 router.get("/:id", VIEW, getExam);
 router.patch("/:id", MANAGE, updateExam);
-router.delete("/:id", adminOnly, deleteExam); // Admin only
+router.delete("/:id", adminOnly, requireStepUp("delete"), deleteExam); // Admin only
 
 router.post("/:id/generate", MANAGE, startGeneration);
 router.post("/:id/process", MANAGE, processGeneration);
 
 router.get("/:id/registrations", VIEW, listRegistrations);
 router.post("/:id/registrations/:regId/override", MANAGE, overrideSubject);
-router.delete("/:id/registrations/:regId/subjects/:subjectId", REGISTER, removeManualSubject);
+router.delete("/:id/registrations/:regId/subjects/:subjectId", REGISTER, requireStepUp("delete"), removeManualSubject);
 router.post("/:id/back-papers", REGISTER, addBackPapers);
 router.get("/:id/export", VIEW, exportRegistrations);
 
@@ -105,8 +105,8 @@ router.post("/:id/fees/import", FEES, requireStepUp("fees"), excel, importFees);
 router.post("/:id/registrations/:regId/fee", FEES, recordFee); // no OTP – the office marks hundreds of students one by one
 router.post("/:id/fees/mark-paid", FEES, markPaidBulk);
 router.post("/:id/registrations/:regId/payments", FEES, addPayment);
-router.delete("/:id/registrations/:regId/payments/:paymentId", FEES, deletePayment);
-router.post("/:id/fees/clear", adminOnly, requireStepUp("fees"), clearFees); // Admin: delete fee records (e.g. test entries)
+router.delete("/:id/registrations/:regId/payments/:paymentId", FEES, requireStepUp("delete"), deletePayment);
+router.post("/:id/fees/clear", adminOnly, requireStepUp("delete"), clearFees); // Admin: delete fee records (e.g. test entries)
 
 // Timetable (written exams)
 router.get("/:id/timetable", VIEW, getTimetable);
