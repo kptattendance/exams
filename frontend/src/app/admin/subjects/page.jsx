@@ -108,7 +108,7 @@ export default function SubjectsPage() {
   const [search, setSearch] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("");
   const [semesterFilter, setSemesterFilter] = useState("");
-  const [subjectTypeFilter, setSubjectTypeFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState(""); // REGULAR | ELECTIVE | BRIDGE | AUDIT
   const [boardFilter, setBoardFilter] = useState("");
   const [schemeYearFilter, setSchemeYearFilter] = useState("");
 
@@ -330,10 +330,10 @@ const emptyForm = {
         !semesterFilter ||
         String(subject.semester) === semesterFilter;
 
-      const matchesSubjectType =
-        !subjectTypeFilter ||
-        String(subject.subjectType).toUpperCase() ===
-          subjectTypeFilter.toUpperCase();
+      const matchesCategory =
+        !categoryFilter ||
+        String(subject.subjectCategory || "REGULAR").toUpperCase() ===
+          categoryFilter;
 
       const matchesBoard =
         !boardFilter ||
@@ -348,7 +348,7 @@ const emptyForm = {
         matchesSearch &&
         matchesDepartment &&
         matchesSemester &&
-        matchesSubjectType &&
+        matchesCategory &&
         matchesBoard &&
         matchesSchemeYear
       );
@@ -358,7 +358,7 @@ const emptyForm = {
     search,
     departmentFilter,
     semesterFilter,
-    subjectTypeFilter,
+    categoryFilter,
     boardFilter,
     schemeYearFilter,
   ]);
@@ -371,7 +371,7 @@ const emptyForm = {
     setSearch("");
     setDepartmentFilter("");
     setSemesterFilter("");
-    setSubjectTypeFilter("");
+    setCategoryFilter("");
     setBoardFilter("");
     setSchemeYearFilter("");
   };
@@ -380,7 +380,7 @@ const emptyForm = {
     search ||
     departmentFilter ||
     semesterFilter ||
-    subjectTypeFilter ||
+    categoryFilter ||
     boardFilter ||
     schemeYearFilter;
 
@@ -1157,27 +1157,21 @@ const openEditModal = (subject) => {
             ))}
           </select>
 
-          {/* SUBJECT TYPE */}
+          {/* CATEGORY */}
 
           <select
-            value={subjectTypeFilter}
+            value={categoryFilter}
             onChange={(e) =>
-              setSubjectTypeFilter(e.target.value)
+              setCategoryFilter(e.target.value)
             }
+            aria-label="Category"
             className="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 outline-none focus:border-amber-400 focus:bg-white focus:ring-4 focus:ring-amber-50"
           >
-            <option value="">
-              All Types
-            </option>
-
-            {subjectTypes.map((type) => (
-              <option
-                key={type.value}
-                value={type.value}
-              >
-                {type.value}
-              </option>
-            ))}
+            <option value="">All Categories</option>
+            <option value="REGULAR">Regular</option>
+            <option value="ELECTIVE">Elective</option>
+            <option value="BRIDGE">Bridge course</option>
+            <option value="AUDIT">Audit course</option>
           </select>
 
           {/* BOARD */}
