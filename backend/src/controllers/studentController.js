@@ -2195,8 +2195,8 @@ export const updateStudentPhoto = async (req, res) => {
 // MY DETAILS (student login)
 // GET /api/students/me
 //
-// A signed-in student sees his own record – read only. Aadhaar is shown
-// with only its last 4 digits.
+// A signed-in student sees his own record – read only, with his full Aadhaar
+// number (decrypted here; the encrypted value never leaves the server).
 // =====================================================
 const ADMISSION_LABEL = {
   regular: "Regular",
@@ -2210,16 +2210,24 @@ export const getMyStudentProfile = async (req, res) => {
     if (req.user?.role !== "student") return res.status(403).json({ success: false, message: "Only for students." });
     const s = await Student.findOne({ clerkId: req.user.id })
       .select(
-        "registerNumber rollNumber name fatherName motherName dob gender email phone parentPhone caste category aadhaarNumber satsNumber admissionType department admissionYear batch batchNumber semester status imageUrl"
+        "registerNumber name fatherName motherName dob gender email caste category aadhaarNumber +aadhaarEncrypted satsNumber admissionType department admissionYear batch batchNumber semester status imageUrl"
       )
       .lean();
     if (!s) return res.status(404).json({ success: false, message: "Your student record was not found. Please contact the college office." });
-    const digits = String(s.aadhaarNumber || "").replace(/\D/g, "");
+    let aadhaar = "";
+    try {
+      aadhaar = decryptAadhaar(s.aadhaarEncrypted);
+    } catch {
+      aadhaar = "";
+    }
+    // older records may still hold the plain number
+    if (!aadhaar && /^\d{12}$/.test(String(s.aadhaarNumber || ""))) aadhaar = s.aadhaarNumber;
+    delete s.aadhaarEncrypted;
     return res.json({
       success: true,
       data: {
         ...s,
-        aadhaarNumber: digits.length >= 4 ? `XXXX XXXX ${digits.slice(-4)}` : "",
+        aadhaarNumber: aadhaar ? aadhaar.replace(/(\d{4})(?=\d)/g, "$1 ") : "",
         admissionLabel: ADMISSION_LABEL[s.admissionType] || s.admissionType || "",
         evening: isEvening(s.registerNumber),
       },

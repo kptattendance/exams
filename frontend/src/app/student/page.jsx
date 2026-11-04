@@ -47,9 +47,7 @@ export default function StudentHome() {
       title: "Academic details",
       rows: [
         ["Register number", me.registerNumber],
-        ["Roll number", me.rollNumber],
         ["Department", me.department ? `${String(me.department).toUpperCase()} – ${deptLabel(me.department)}` : ""],
-        ["College", me.evening ? "Evening college" : "Day college"],
         ["Semester", me.semester],
         ["Batch", me.batch],
         ["Batch number", me.batchNumber],
@@ -72,11 +70,7 @@ export default function StudentHome() {
     },
     {
       title: "Contact details",
-      rows: [
-        ["Email", me.email],
-        ["Phone", me.phone],
-        ["Parent's phone", me.parentPhone],
-      ],
+      rows: [["Email", me.email]],
     },
     {
       title: "Identification",
