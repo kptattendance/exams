@@ -2050,10 +2050,14 @@ const openEditModal = (subject) => {
     <option value="BRIDGE">
       Bridge
     </option>
+
+    <option value="AUDIT">
+      Audit course (internal test only, no end exam)
+    </option>
   </select>
 
   <p className="mt-1 text-[10px] text-slate-400">
-    Regular for normal subjects, Elective when students choose one of two (e.g. 340PA / 340PB), Bridge for bridge courses.
+    Regular for normal subjects, Elective when students choose one of two (e.g. 340PA / 340PB), Bridge for bridge courses, Audit course when there is only an internal test (not on the hall ticket, no exam fee; the student must pass the internal test).
   </p>
 
   {form.subjectCategory === "ELECTIVE" && (

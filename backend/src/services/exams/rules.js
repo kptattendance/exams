@@ -117,6 +117,9 @@ export function currentSubjectsFor(student, semesterSubjects, electiveChoices = 
     const cat = (s.subjectCategory || "REGULAR").toUpperCase();
     if (cat === "REGULAR") {
       out.push({ subject: s, kind: "REGULAR" });
+    } else if (cat === "AUDIT") {
+      // internal test only: kept for IA and the result, never on the hall ticket
+      out.push({ subject: s, kind: "AUDIT" });
     } else if (cat === "BRIDGE") {
       if (!isLateral) continue;
       const types = s.forAdmissionTypes || [];
@@ -273,7 +276,8 @@ export function lateFeeOn(lateFees = [], on) {
 // they get no marks card) + the late fee in force on
 // the day `on`.
 export function examFeeFor(subjects, { upTo2 = 200, threePlus = 300, marksCard = 50, lateFees = [] } = {}, on) {
-  const eligible = subjects || []; // all registered subjects (see above)
+  // all registered subjects (see above) – except audit courses: no exam, no fee
+  const eligible = (subjects || []).filter((s) => s.kind !== "AUDIT");
   const late = lateFeeOn(lateFees, on);
   const byExam = new Map();
   for (const s of eligible) {

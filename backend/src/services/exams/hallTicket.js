@@ -30,7 +30,8 @@ export function ticketFor(reg, { entries = [], sessions = {}, published = false 
   const slot = new Map(entries.map((e) => [e.code, e]));
   const reasons = [];
 
-  const subjects = (reg.subjects || []).map((s) => {
+  // audit courses: internal test only – no exam, so not on the hall ticket
+  const subjects = (reg.subjects || []).filter((s) => s.kind !== "AUDIT").map((s) => {
     const eff = effectiveOf(s);
     const feePaid = subjectFeePaid(reg, s);
     const e = s.hasTheory ? slot.get(s.code) : null;

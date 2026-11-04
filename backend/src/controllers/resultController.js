@@ -72,7 +72,7 @@ async function compute(exam, moderation) {
       status: r.status,
       points: r.status === "PASS" ? (r.gradePoint ?? null) : 0,
       credit: r.credit ?? subject?.credit ?? 0,
-      kind: subject?.subjectCategory === "BRIDGE" ? "BRIDGE" : "REGULAR",
+      kind: ["BRIDGE", "AUDIT"].includes(subject?.subjectCategory) ? subject.subjectCategory : "REGULAR",
     });
   }
 

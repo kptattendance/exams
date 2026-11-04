@@ -29,6 +29,12 @@ const forWhom = (subject) => (subject.forAdmissionTypes || []).map((t) => SHORT[
 
 // under the subject code in the table header
 export function BridgeBadge({ subject }) {
+  if (String(subject?.subjectCategory || "").toUpperCase() === "AUDIT")
+    return (
+      <div className="mt-1 inline-block rounded bg-amber-200 px-1.5 py-0.5 text-[9px] font-bold text-amber-900" title="Audit course – internal test only, no semester-end exam; the student must pass it">
+        AUDIT · IA only
+      </div>
+    );
   if (isElective(subject))
     return (
       <div className="mt-1 inline-block rounded bg-sky-200 px-1.5 py-0.5 text-[9px] font-bold text-sky-900" title="Elective – each student takes the one chosen under Electives">

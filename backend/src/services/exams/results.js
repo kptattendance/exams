@@ -39,9 +39,12 @@ export function scaleCie(marks, sheetMax, subjectMax) {
   return sheetMax && subjectMax && Number(sheetMax) !== Number(subjectMax) ? round2((m / sheetMax) * subjectMax) : m;
 }
 
+// An audit course has no semester-end exam: the internal test (CIE) alone decides
+const isAudit = (subject) => String(subject?.subjectCategory || "").toUpperCase() === "AUDIT";
+
 // The semester-end exams of a subject: a theory paper, a practical exam, or both
 const parts = (subject) =>
-  [
+  isAudit(subject) ? [] : [
     { key: "theory", label: "Theory", max: Number(subject.theoryExamMax) || 0, min: subject.theoryExamMin },
     { key: "practical", label: "Practical", max: Number(subject.practicalExamMax) || 0, min: subject.practicalExamMin },
   ]
@@ -49,7 +52,7 @@ const parts = (subject) =>
     .map((p) => ({ ...p, min: minimumOf(p.max, p.min) }));
 
 const totalMaxOf = (subject) =>
-  Number(subject.totalMax) || (Number(subject.iaMax) || 0) + parts(subject).reduce((a, p) => a + p.max, 0);
+  isAudit(subject) ? Number(subject.iaMax) || 0 : Number(subject.totalMax) || (Number(subject.iaMax) || 0) + parts(subject).reduce((a, p) => a + p.max, 0);
 
 // Result of one student in one subject.
 //   input : { eligibility, permitted, cie, theory: { attendance, marks }, practical: { attendance, marks },
@@ -87,7 +90,8 @@ export function courseResult(subject, input = {}) {
     if (got + EPS < p.min) short.push(p.label);
   }
   out.total = round2(total);
-  if (total + EPS < minimumOf(max, subject.totalMin)) short.push("Total");
+  // (an audit course: the CIE minimum above is the only one)
+  if (!isAudit(subject) && total + EPS < minimumOf(max, subject.totalMin)) short.push("Total");
   if (short.length) return end("FAIL", "F", `Below the minimum in ${short.join(", ")}.`);
   return { ...out, status: "PASS", ...gradeFor(total, max) };
 }
@@ -137,10 +141,10 @@ export function moderationFor(items, limit = 0) {
 }
 
 // SGPA / CGPA = Σ (credit × grade points) / Σ credit, to two decimals.
-// Bridge courses and non-credit courses are left out; a subject not passed counts 0.
+// Bridge courses, audit courses and non-credit courses are left out; a subject not passed counts 0.
 //   courses : [{ credit, points, kind, status }]   points === null → not known yet
 export function gradePointAverage(courses) {
-  const counted = courses.filter((c) => Number(c.credit) > 0 && c.kind !== "BRIDGE");
+  const counted = courses.filter((c) => Number(c.credit) > 0 && c.kind !== "BRIDGE" && c.kind !== "AUDIT");
   const registered = counted.reduce((a, c) => a + Number(c.credit), 0);
   const earned = counted.filter((c) => c.status === "PASS").reduce((a, c) => a + Number(c.credit), 0);
   const unknown = counted.some((c) => c.points === null || c.points === undefined || c.status === "WITHHELD" || c.status === "INCOMPLETE");

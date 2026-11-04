@@ -10,7 +10,7 @@
 import mongoose from "mongoose";
 
 export const ELIGIBILITY = ["ELIGIBLE", "ANS", "NE", "PENDING"];
-export const SUBJECT_KINDS = ["REGULAR", "ELECTIVE", "BRIDGE", "BACKLOG"];
+export const SUBJECT_KINDS = ["REGULAR", "ELECTIVE", "BRIDGE", "BACKLOG", "AUDIT"];
 
 const feeSchema = new mongoose.Schema(
   {

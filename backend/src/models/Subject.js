@@ -71,11 +71,14 @@ const subjectSchema = new mongoose.Schema(
     // REGULAR  = Normal subject
     // ELECTIVE = Elective subject
     // BRIDGE   = Bridge course
+    // AUDIT    = Audit course: internal test only, no semester-end exam
+    //            (not on the hall ticket, no exam fee); the student must
+    //            pass the internal test for his result to be declared
     // =====================================================
 
     subjectCategory: {
       type: String,
-      enum: ["REGULAR", "ELECTIVE", "BRIDGE"],
+      enum: ["REGULAR", "ELECTIVE", "BRIDGE", "AUDIT"],
       default: "REGULAR",
       uppercase: true,
       trim: true,

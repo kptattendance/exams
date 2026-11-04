@@ -77,6 +77,7 @@ export const KIND = {
   ELECTIVE: "Elective",
   BRIDGE: "Bridge",
   BACKLOG: "Back paper",
+  AUDIT: "Audit course",
 };
 
 export const SHEET = {

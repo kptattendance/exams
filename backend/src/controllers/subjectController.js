@@ -121,14 +121,14 @@ const validateSubjectCategory = (
   electiveGroup
 ) => {
   if (
-    !["REGULAR", "ELECTIVE", "BRIDGE"].includes(
+    !["REGULAR", "ELECTIVE", "BRIDGE", "AUDIT"].includes(
       subjectCategory
     )
   ) {
     return {
       valid: false,
       message:
-        "subjectCategory must be REGULAR, ELECTIVE or BRIDGE.",
+        "subjectCategory must be REGULAR, ELECTIVE, BRIDGE or AUDIT.",
     };
   }
 
