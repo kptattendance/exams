@@ -520,3 +520,59 @@ export const exportFees = async (req, res) => {
   });
   res.send(buf);
 };
+
+// POST /api/exams/:id/fees/clear   Admin only
+//   { registerNumbers: [...] }          those students
+//   { department, semester }            one class ("backlog" = back-paper students)
+//   { all: true }                       every student of the exam
+//   + reason
+// Deletes the fee records entered for these students – the paid marks of the
+// regular fee and of every back paper, and all their transactions – e.g.
+// after testing. A full copy is kept in the audit log.
+export const clearFees = async (req, res) => {
+  const { id } = req.params;
+  if (!isId(id)) return fail(res, 400, "Invalid exam id.");
+  const reason = String(req.body?.reason || "").trim();
+  if (reason.length < 5) return fail(res, 400, "Write why the fee records are deleted.");
+
+  const filter = { exam: id };
+  const regNos = (Array.isArray(req.body?.registerNumbers) ? req.body.registerNumbers : [])
+    .map((r) => String(r).trim().toUpperCase())
+    .filter(Boolean);
+  const department = String(req.body?.department || "").trim().toLowerCase();
+  if (regNos.length) filter.registerNumber = { $in: [...new Set(regNos)] };
+  else if (department === "backlog") filter.group = { $in: ["backlog", "manual"] };
+  else if (department) {
+    filter.department = department;
+    if (req.body?.semester) filter.semester = Number(req.body.semester);
+  } else if (req.body?.all !== true) return fail(res, 400, "Choose the students: register numbers, a class, or every student.");
+  // only students that have something entered
+  filter.$or = [{ "regularFee.paid": true }, { "subjects.fee.paid": true }, { "payments.0": { $exists: true } }];
+
+  const regs = await ExamRegistration.find(filter);
+  if (!regs.length) return fail(res, 404, "No fee is recorded for these students.");
+
+  const unpaid = { paid: false, receiptNo: "", paidOn: null, by: "", at: null };
+  const backup = [];
+  let payments = 0;
+  for (const reg of regs) {
+    backup.push({
+      registerNumber: reg.registerNumber,
+      regularFee: reg.regularFee?.toObject?.() || reg.regularFee,
+      backPapers: reg.subjects.filter((s) => s.fee?.paid).map((s) => ({ code: s.code, fee: s.fee?.toObject?.() || s.fee })),
+      payments: reg.payments.map((p) => p.toObject()),
+    });
+    payments += reg.payments.length;
+    reg.regularFee = unpaid;
+    for (const s of reg.subjects) if (s.fee?.paid) s.fee = unpaid;
+    reg.payments = [];
+    reg.markModified("subjects");
+    reg.markModified("regularFee");
+    recount(reg);
+    await reg.save();
+  }
+  await logAction(req, "EXAM_FEES_CLEARED", id, { reason, students: regs.length, payments, backup });
+  res.json({
+    message: `Fee records deleted for ${regs.length} student${regs.length === 1 ? "" : "s"}${payments ? ` (${payments} transaction${payments === 1 ? "" : "s"})` : ""}. They are now "not paid".`,
+  });
+};

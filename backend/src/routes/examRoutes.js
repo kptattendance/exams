@@ -29,6 +29,7 @@ import {
   markPaidBulk,
   addPayment,
   deletePayment,
+  clearFees,
 } from "../controllers/feeController.js";
 import { getTimetable, saveTimetable, suggest, publishTimetable } from "../controllers/timetableController.js";
 import { listHallTickets } from "../controllers/hallTicketController.js";
@@ -105,6 +106,7 @@ router.post("/:id/registrations/:regId/fee", FEES, recordFee); // no OTP – the
 router.post("/:id/fees/mark-paid", FEES, markPaidBulk);
 router.post("/:id/registrations/:regId/payments", FEES, addPayment);
 router.delete("/:id/registrations/:regId/payments/:paymentId", FEES, deletePayment);
+router.post("/:id/fees/clear", adminOnly, requireStepUp("fees"), clearFees); // Admin: delete fee records (e.g. test entries)
 
 // Timetable (written exams)
 router.get("/:id/timetable", VIEW, getTimetable);

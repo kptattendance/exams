@@ -24,6 +24,7 @@ import { useConfirm, useToast } from "../ui/Feedback";
 import { ADMISSION_SHORT, DEPARTMENTS, downloadBlob, errMsg, useApi } from "./shared";
 import { T } from "../ui/table";
 import { scanReceipt } from "./receiptScan";
+import { useIsAdmin } from "../useRole";
 
 const FEE = {
   PAID: { label: "Paid", dot: "bg-emerald-500", text: "text-emerald-700" },
@@ -37,6 +38,8 @@ const fmtDate = (d) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "2-di
 
 export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref, initialStatus = "", mode = "", transactionsHref = "" }) {
   const txnMode = mode === "transactions";
+  const isAdmin = useIsAdmin();
+  const [clearOpen, setClearOpen] = useState(false); // Admin: delete fee records
   const api = useApi();
   const toast = useToast();
   const confirm = useConfirm();
@@ -231,6 +234,12 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
               <Icon name="report" className="h-4 w-4" />
               Fee report (PDF)
             </button>
+            {isAdmin && !txnMode && (
+              <button onClick={() => setClearOpen(true)} className={btn.danger}>
+                <Icon name="trash" className="h-4 w-4" />
+                Delete fee records
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -431,6 +440,19 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
           }}
         />
       )}
+      {clearOpen && (
+        <ClearFeesModal
+          examId={examId}
+          classOptions={classOptions}
+          onClose={() => setClearOpen(false)}
+          onDone={() => {
+            setClearOpen(false);
+            setPicked(new Set());
+            load();
+          }}
+        />
+      )}
+
       {reportOpen && <FeeReportModal examId={examId} semesters={data?.exam?.semesters || [1, 2, 3, 4, 5, 6]} onClose={() => setReportOpen(false)} />}
 
       {uploading && (
@@ -1245,3 +1267,105 @@ const Count = ({ n, label, tone }) => (
     <p className="text-xs font-medium text-slate-500">{label}</p>
   </div>
 );
+
+// Admin: delete the fee records entered for some students (e.g. while testing):
+// paid marks and transactions. They become "not paid". A copy stays in the audit log.
+function ClearFeesModal({ examId, classOptions, onClose, onDone }) {
+  const api = useApi();
+  const toast = useToast();
+  const [scope, setScope] = useState("list"); // list | class | all
+  const [text, setText] = useState("");
+  const [cls, setCls] = useState("");
+  const [reason, setReason] = useState("");
+  const [typed, setTyped] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const regNos = [...new Set(text.split(/[\s,;]+/).map((x) => x.trim().toUpperCase()).filter(Boolean))];
+  const ready = reason.trim().length >= 5 && typed.trim().toUpperCase() === "DELETE" && (scope === "all" || (scope === "list" ? regNos.length > 0 : Boolean(cls)));
+
+  const run = async () => {
+    const body = { reason };
+    if (scope === "list") body.registerNumbers = regNos;
+    else if (scope === "class") {
+      const [d, s] = cls === "backlog" ? ["backlog", ""] : cls.split("-");
+      body.department = d;
+      if (s) body.semester = s;
+    } else body.all = true;
+    setBusy(true);
+    try {
+      const r = await api("post", `/exams/${examId}/fees/clear`, body);
+      toast.success(r.data.message, 8000);
+      onDone();
+    } catch (e) {
+      toast.error(errMsg(e, "Could not delete the fee records."));
+      setBusy(false);
+    }
+  };
+
+  const opt = (v, label) => (
+    <label className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm ${scope === v ? "border-red-400 bg-red-50/60" : "border-slate-200"}`}>
+      <input type="radio" name="clearScope" checked={scope === v} onChange={() => setScope(v)} className="accent-red-600" />
+      {label}
+    </label>
+  );
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      busy={busy}
+      title="Delete fee records"
+      subtitle="Admin only · paid marks and transactions are removed; the students become “not paid”"
+      footer={
+        <>
+          <button onClick={onClose} disabled={busy} className={btn.secondary}>
+            Cancel
+          </button>
+          <button onClick={run} disabled={busy || !ready} className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-40">
+            {busy ? "Deleting…" : "Delete fee records"}
+          </button>
+        </>
+      }
+    >
+      <div className="space-y-2">
+        {opt("list", "These register numbers")}
+        {scope === "list" && (
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={3}
+            placeholder="103CS25001, 103CS25002 … (one per line or separated by commas)"
+            className={`${field} h-auto py-2.5`}
+          />
+        )}
+        {scope === "list" && regNos.length > 0 && <p className="text-xs text-slate-500">{regNos.length} register number{regNos.length === 1 ? "" : "s"}</p>}
+        {opt("class", "One class")}
+        {scope === "class" && (
+          <select value={cls} onChange={(e) => setCls(e.target.value)} className={field}>
+            <option value="">Choose the class</option>
+            {classOptions.map(([v, l]) => (
+              <option key={v} value={v}>
+                {l}
+              </option>
+            ))}
+          </select>
+        )}
+        {opt("all", "Every student of this examination")}
+      </div>
+      <label className="mt-4 block">
+        <span className="text-sm font-semibold text-slate-800">Reason</span>
+        <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Entered while testing the software" className={`${field} mt-1`} />
+      </label>
+      <label className="mt-3 block">
+        <span className="text-sm font-semibold text-slate-800">
+          Type <b>DELETE</b> to confirm
+        </span>
+        <input value={typed} onChange={(e) => setTyped(e.target.value)} className={`${field} mt-1`} />
+      </label>
+      <p className="mt-3 text-xs leading-5 text-slate-500">
+        Only students with a fee entered are changed. A full copy of what is deleted is kept in the audit log. Hall tickets and practical batches follow the new “not paid”
+        status.
+      </p>
+    </Modal>
+  );
+}
