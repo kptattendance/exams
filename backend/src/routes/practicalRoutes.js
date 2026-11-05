@@ -29,6 +29,17 @@ import {
 } from "../controllers/practicalController.js";
 import { requireStepUp } from "../services/stepUp.js";
 import { asHodScope } from "../services/evening.js";
+import { lockedExamGuard } from "../services/examLock.js";
+import PracticalPanel from "../models/PracticalPanel.js";
+import PracticalBatch from "../models/PracticalBatch.js";
+
+// The examination a practical request is about: /:id/…, /panels/:panelId/…, /batches/:batchId/…
+async function examOf(req) {
+  const [a, b] = req.path.split("/").filter(Boolean);
+  if (a === "panels") return (await PracticalPanel.findById(b).select("exam").lean())?.exam;
+  if (a === "batches") return (await PracticalBatch.findById(b).select("exam").lean())?.exam;
+  return a;
+}
 
 const router = express.Router();
 
@@ -42,6 +53,8 @@ const EXAMINER = requireRole("staff", "hod");
 
 // the Evening Principal works as the HOD of the evening students (services/evening.js)
 router.use(authenticateUser, asHodScope);
+// Results published: no change to this examination (Admin: reason + code)
+router.use(lockedExamGuard(examOf));
 
 router.get("/exams", VIEW, practicalExams);
 router.get("/examiners", ALLOT, listExaminers);

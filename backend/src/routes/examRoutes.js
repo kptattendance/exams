@@ -52,6 +52,7 @@ import {
 } from "../controllers/valuationController.js";
 import { readiness, listResults, processResults, publishResults } from "../controllers/resultController.js";
 import { requireStepUp } from "../services/stepUp.js";
+import { lockedExamGuard } from "../services/examLock.js";
 import { asHodScope } from "../services/evening.js";
 
 const router = express.Router();
@@ -74,6 +75,8 @@ const excel = multer({
 }).single("file");
 
 router.use(authenticateUser);
+// Results published: no change to this examination (Admin: reason + code)
+router.use("/:id", lockedExamGuard((req) => req.params.id));
 
 // Setup (must come before "/:id")
 router.get("/setup/bridge-courses", VIEW, listBridgeCourses);

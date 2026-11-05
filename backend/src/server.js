@@ -64,6 +64,7 @@ app.use(
       "Authorization",
       "X-Step-Up", // verification passes, see services/stepUp.js
       "X-Department", // Evening Principal's chosen department, see services/evening.js
+      "X-Unlock-Reason", // Admin changing a locked examination, see services/examLock.js
     ],
 
     credentials: true,

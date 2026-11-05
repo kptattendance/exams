@@ -48,7 +48,8 @@ export async function refreshClasses(classes, reason = "") {
   const out = { refreshed: 0, pending: 0 };
   if (!list.length) return out;
 
-  const exams = await Exam.find({ status: { $ne: "COMPLETED" }, "generation.finishedAt": { $ne: null } });
+  // published results lock an examination: it is never refreshed again (services/examLock.js)
+  const exams = await Exam.find({ status: { $ne: "COMPLETED" }, "generation.finishedAt": { $ne: null }, "results.publishedAt": null });
   for (const exam of exams) {
     const running = exam.generation?.lockedUntil && exam.generation.lockedUntil > new Date();
     for (const c of list) {
@@ -84,9 +85,10 @@ export async function refreshAfterChange(classes, reason) {
 
 // The classes of one exam still marked "out of date" (e.g. before hall tickets)
 export async function refreshStale(examId) {
-  const exam = await Exam.findById(examId).select("generation.stale").lean();
+  const exam = await Exam.findById(examId).select("generation.stale results.publishedAt").lean();
   const stale = exam?.generation?.stale || [];
-  if (!stale.length) return { refreshed: 0, pending: 0 };
+  // results published: the examination is locked (services/examLock.js)
+  if (!stale.length || exam?.results?.publishedAt) return { refreshed: 0, pending: 0 };
   return refreshAfterChange(
     stale.map((s) => (s.key === BACKLOG ? { backlog: true } : { department: s.department, semester: s.semester })),
     "refresh before hall tickets"

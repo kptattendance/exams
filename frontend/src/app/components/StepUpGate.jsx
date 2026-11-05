@@ -19,7 +19,7 @@ const STORE = "kpt-step-up";
 const passes = new Map();
 // A delete is confirmed by typing DELETE and a fresh code; its pass is kept
 // only in this open page (never saved), so a reload asks again.
-const ONLY_IN_PAGE = new Set(["delete"]);
+const ONLY_IN_PAGE = new Set(["delete", "unlock"]);
 function loadPasses() {
   try {
     for (const [k, v] of Object.entries(JSON.parse(sessionStorage.getItem(STORE) || "{}"))) if (!ONLY_IN_PAGE.has(k)) passes.set(k, v);
@@ -47,6 +47,20 @@ async function stepUpOf(error) {
 }
 
 let openPrompt = null; // set by the mounted component
+let openReason = null; // Admin changing a locked examination: asks why (services/examLock.js)
+
+// The 423 body of a locked examination, when it asks the Admin for a reason
+async function lockOf(error) {
+  if (error?.response?.status !== 423) return null;
+  let d = error.response.data;
+  try {
+    if (typeof Blob !== "undefined" && d instanceof Blob) d = JSON.parse(await d.text());
+    else if (d instanceof ArrayBuffer) d = JSON.parse(new TextDecoder().decode(d));
+  } catch {
+    return null;
+  }
+  return d?.needReason ? d : null;
+}
 
 // The sign-in token (Clerk) lives only about a minute. Waiting for the code
 // usually takes longer, so the code check and the repeated request must use a
@@ -66,6 +80,7 @@ const waiting = new Map(); // scope -> promise, so parallel requests share one p
 
 export default function StepUpGate() {
   const [ask, setAsk] = useState(null); // { scope, label, auth, resolve }
+  const [why, setWhy] = useState(null); // { exam, message, resolve } – locked examination
   const installed = useRef(false);
   const { getToken } = useAuth();
 
@@ -81,6 +96,7 @@ export default function StepUpGate() {
     installed.current = true;
     loadPasses();
     openPrompt = (info) => new Promise((resolve) => setAsk({ ...info, resolve }));
+    openReason = (info) => new Promise((resolve) => setWhy({ ...info, resolve }));
 
     const reqId = axios.interceptors.request.use((config) => {
       if (API && String(config.url || "").startsWith(API)) {
@@ -94,6 +110,18 @@ export default function StepUpGate() {
     });
 
     const resId = axios.interceptors.response.use(undefined, async (error) => {
+      // a locked examination: the Admin says why, then the request is repeated
+      // (and the server asks for the code next)
+      const lock = await lockOf(error);
+      if (lock && error.config && !error.config._unlockTried && openReason) {
+        const reason = await openReason({ exam: lock.exam, message: lock.error });
+        if (!reason) throw Object.assign(error, { message: "Change cancelled." });
+        const cfg = error.config;
+        cfg._unlockTried = true;
+        if (typeof cfg.headers?.set === "function") cfg.headers.set("X-Unlock-Reason", encodeURIComponent(reason));
+        else cfg.headers = { ...(cfg.headers || {}), "X-Unlock-Reason": encodeURIComponent(reason) };
+        return axios(cfg);
+      }
       const step = await stepUpOf(error);
       const config = error.config;
       if (!step || !config || config._stepUpTried || !openPrompt) throw error;
@@ -123,9 +151,20 @@ export default function StepUpGate() {
       axios.interceptors.request.eject(reqId);
       axios.interceptors.response.eject(resId);
       openPrompt = null;
+      openReason = null;
     };
   }, []);
 
+  if (why)
+    return (
+      <ReasonDialog
+        why={why}
+        onDone={(reason) => {
+          why.resolve(reason);
+          setWhy(null);
+        }}
+      />
+    );
   if (!ask) return null;
   return (
     <CodeDialog
@@ -135,6 +174,47 @@ export default function StepUpGate() {
         setAsk(null);
       }}
     />
+  );
+}
+
+// Admin: the results of this examination are published – why change it?
+function ReasonDialog({ why, onDone }) {
+  const [text, setText] = useState("");
+  return (
+    <div className="fixed inset-0 z-[90] flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-[2px]" onClick={() => onDone(null)} />
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (text.trim().length >= 5) onDone(text.trim());
+        }}
+        className="relative w-full max-w-md rounded-t-3xl bg-white p-6 shadow-2xl sm:rounded-3xl"
+      >
+        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-amber-50 text-xl">🔐</span>
+        <h2 className="mt-3 text-lg font-bold tracking-tight text-slate-950">Locked examination</h2>
+        <p className="mt-1 text-sm text-slate-600">{why.message}</p>
+        <label className="mt-4 block text-sm font-semibold text-slate-800">
+          Reason for this change
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={3}
+            autoFocus
+            placeholder="e.g. Revaluation result – marks changed as per order no. …"
+            className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-slate-500"
+          />
+        </label>
+        <p className="mt-2 text-[11px] text-slate-500">A verification code is asked next. The change and this reason are written to the activity log.</p>
+        <div className="mt-5 flex justify-end gap-2">
+          <button type="button" onClick={() => onDone(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700">
+            Cancel
+          </button>
+          <button type="submit" disabled={text.trim().length < 5} className="rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-40">
+            Continue
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
 

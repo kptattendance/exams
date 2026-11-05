@@ -35,6 +35,8 @@ export const SCOPES = {
   // 2 minutes and only in the open page (not saved), so one bulk delete or an
   // "Undo import" that runs in steps finishes with one code.
   delete: { label: "deleting records", minutes: 2 },
+  // Admin changing an examination whose results are published (services/examLock.js)
+  unlock: { label: "changing a locked examination", minutes: 2 },
 };
 
 const secret = () =>
