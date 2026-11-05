@@ -8,7 +8,7 @@ import cloudinary from "../config/cloudinary.js";
 
 import XLSX from "xlsx";
 import axios from "axios";
-import { calendarDay } from "../services/studentImport/rules.js";
+import { calendarDay, satsOf } from "../services/studentImport/rules.js";
 import { refreshAfterChange, refreshNote } from "../services/exams/autoRefresh.js";
 import { isEvening, studentShift } from "../services/evening.js";
 import { audit } from "../models/AuditLog.js";
@@ -389,12 +389,11 @@ export const bulkUploadStudents = async (
             ""
         ).trim();
 
-      const satsNumber =
-        String(
-          row.SATSNumber ||
-            row.satsNumber ||
-            ""
-        ).trim();
+      const satsNumber = satsOf(
+        row.SATSNumber ||
+          row.satsNumber ||
+          ""
+      ); // leading zeros put back
 
       const department =
         String(
@@ -1441,7 +1440,7 @@ export const createStudent = async (req, res) => {
         String(aadhaarNumber || "").trim(),
 
       satsNumber:
-        String(satsNumber || "").trim(),
+        satsOf(satsNumber || ""), // leading zeros put back
 
       department:
         normalizedDepartment,

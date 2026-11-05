@@ -79,6 +79,13 @@ export function mapHeaders(headers) {
 
 const text = (v) => (v === null || v === undefined ? "" : String(v).replace(/\s+/g, " ").trim());
 
+/** SATS numbers have 9 digits and often start with 0 (045489917). Excel keeps
+ *  them as a number and drops the zeros (45489917) – put them back. */
+export const satsOf = (v) => {
+  const s = text(v).toUpperCase();
+  return /^\d{7,8}$/.test(s) ? s.padStart(9, "0") : s;
+};
+
 /** Excel can give numbers like 9901024445 or 9.9e9 – keep digits only. */
 const digits = (v) => {
   if (v === null || v === undefined || v === "") return "";
@@ -171,7 +178,7 @@ export function cleanRow(raw, headerMap, rowNumber) {
     semester: parseInt(digits(r.semester), 10) || null,
     status: text(r.status).toLowerCase() || "active",
     admissionType: normalizeAdmissionType(r.admissionType),
-    satsNumber: text(r.satsNumber).toUpperCase(),
+    satsNumber: satsOf(r.satsNumber),
     photoUrl: text(r.photo),
   };
 
