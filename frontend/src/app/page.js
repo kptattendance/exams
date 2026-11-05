@@ -7,23 +7,6 @@ import { Show, SignInButton } from "@clerk/nextjs";
 import Navbar from "./components/Navbar";
 import Icon from "./components/shell/Icon";
 
-// The examination cycle, in order – all of it runs in the portal.
-const CYCLE = [
-  { label: "Question papers", note: "Encrypted upload, scrutiny, exam set chosen by the COE" },
-  { label: "IA & attendance", note: "Final IA and attendance sheets from every department" },
-  { label: "Registration & fees", note: "Subjects, back papers and exam fee for each student" },
-  { label: "Hall tickets & timetable", note: "Eligibility, timetable, rooms and seating" },
-  { label: "Valuation & marks", note: "Practicals, valuation, mark entry and moderation" },
-  { label: "Results", note: "Results published, mark cards and promotion" },
-];
-
-const PEOPLE = [
-  { title: "Students", note: "Your details and the courses on your hall ticket", icon: "students" },
-  { title: "Heads of department", note: "Students, electives, IA, attendance and practicals", icon: "faculty" },
-  { title: "COE office", note: "Registration, fees, timetable, hall tickets and results", icon: "ticket" },
-  { title: "Examiners & faculty", note: "Question papers, valuation and mark entry", icon: "valuation" },
-];
-
 function SignInAction({ light = false }) {
   const cls = light
     ? "bg-white text-[#1D1842] hover:bg-slate-100 shadow-lg shadow-black/20"
@@ -55,12 +38,12 @@ export default function Home() {
 
       <main className="flex min-h-[calc(100vh-4rem)] flex-col bg-slate-50">
         {/* -------- Hero: the college building -------- */}
-        <section className="relative isolate overflow-hidden">
+        <section className="relative isolate flex flex-1 flex-col overflow-hidden">
           <Image src="/clgimg1.jpg" alt="Karnataka (Govt.) Polytechnic, Mangaluru – main building" fill priority sizes="100vw" className="-z-20 object-cover object-[60%_40%]" />
           {/* dark at the left (and bottom on phones) so the words stay readable */}
           <div className="absolute inset-0 -z-10 bg-gradient-to-t from-[#1D1842] via-[#1D1842]/80 to-[#1D1842]/30 sm:bg-gradient-to-r sm:from-[#1D1842]/95 sm:via-[#1D1842]/75 sm:to-[#8E0D3C]/20" />
 
-          <div className="mx-auto flex min-h-[560px] max-w-6xl flex-col justify-end px-4 pb-10 pt-24 sm:min-h-[600px] sm:justify-center sm:px-6 sm:py-20">
+          <div className="mx-auto flex w-full min-h-[560px] max-w-6xl flex-1 flex-col justify-end px-4 pb-10 pt-24 sm:min-h-[600px] sm:justify-center sm:px-6 sm:py-20">
             <div className="max-w-2xl text-white">
               <div className="flex items-center gap-2.5">
                 {[
@@ -91,9 +74,7 @@ export default function Home() {
           </div>
         </section>
 
-      
-
-        <footer className="mt-auto border-t border-slate-200 bg-white">
+        <footer className="border-t border-slate-200 bg-white">
           <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 px-4 py-6 text-center text-sm text-slate-500 sm:flex-row sm:justify-between sm:px-6 sm:text-left">
             <div className="flex items-center gap-3">
               <Image src="/lh-kpt-crest.png" alt="" width={32} height={36} className="h-9 w-auto" />
