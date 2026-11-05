@@ -39,7 +39,7 @@ function SignInAction({ light = false }) {
       <Show when="signed-out">
         <SignInButton mode="modal">
           <button className={`inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl px-6 py-3.5 text-[15px] font-semibold transition sm:w-auto ${cls}`}>
-            Sign in with college email
+            Sign in with your email
             <Icon name="arrowRight" className="h-4 w-4" />
           </button>
         </SignInButton>
@@ -91,23 +91,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* -------- Who uses it -------- */}
-        <section className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
-        
-
       
-
-          {/* -------- Sign in again at the end (phones) -------- */}
-          <div className="mt-12 flex flex-col items-center gap-4 rounded-3xl bg-gradient-to-r from-[#1D1842] to-[#8E0D3C] px-6 py-8 text-center text-white sm:flex-row sm:justify-between sm:px-10 sm:text-left">
-            <div>
-              <p className="text-lg font-bold">Ready to sign in?</p>
-              <p className="mt-1 text-sm text-slate-200">Use the email your college account was created with.</p>
-            </div>
-            <div className="w-full sm:w-auto">
-              <SignInAction light />
-            </div>
-          </div>
-        </section>
 
         <footer className="mt-auto border-t border-slate-200 bg-white">
           <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 px-4 py-6 text-center text-sm text-slate-500 sm:flex-row sm:justify-between sm:px-6 sm:text-left">
