@@ -27,6 +27,7 @@ import stepUpRoutes from "./routes/stepUpRoutes.js";
 
 
 import connectDB from "./config/db.js";
+import { apiLimiter, otpLimiter } from "./middlewares/rateLimits.js";
 dotenv.config();
 
 const app = express();
@@ -72,6 +73,10 @@ app.use(
 );
 
 app.use(clerkMiddleware());
+
+// no hammering the server: limits per signed-in person (middlewares/rateLimits.js)
+app.use("/api", apiLimiter);
+app.use("/api/otp/request", otpLimiter);
 
 // Make sure MongoDB is connected before any API route runs.
 // If it is not reachable, reply with a clear error instead of crashing.
