@@ -187,19 +187,20 @@ export default function HODStudentsPage() {
       result = result.filter((student) => Object.keys(problemsOf(student)).length > 0);
     }
 
+    // roll-number order (then register number)
     result.sort((a, b) => {
-      const registerCompare = compareNatural(
-        a.registerNumber,
-        b.registerNumber
+      const rollCompare = compareNatural(
+        a.rollNumber,
+        b.rollNumber
       );
 
-      if (registerCompare !== 0) {
-        return registerCompare;
+      if (rollCompare !== 0) {
+        return rollCompare;
       }
 
       return compareNatural(
-        a.rollNumber,
-        b.rollNumber
+        a.registerNumber,
+        b.registerNumber
       );
     });
 

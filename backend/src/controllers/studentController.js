@@ -1665,11 +1665,14 @@ export const getStudents = async (req, res) => {
     const students =
       await Student.find(filter)
         .select(requesterRole === "hod" ? "+aadhaarEncrypted" : "")
+        // class by class, in roll-number order (numbers inside compared as numbers)
         .sort({
           semester: 1,
+          department: 1,
+          rollNumber: 1,
           registerNumber: 1,
-          name: 1,
         })
+        .collation({ locale: "en", numericOrdering: true })
         .lean();
 
     // The HOD cross-checks his own students' details, so he gets the full

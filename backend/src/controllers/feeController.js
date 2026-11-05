@@ -140,7 +140,8 @@ export const listFees = async (req, res) => {
   const page = Math.max(Number(req.query.page) || 1, 1);
   const [items, total] = await Promise.all([
     ExamRegistration.find(filter)
-      .sort({ semester: 1, department: 1, registerNumber: 1 })
+      .sort({ semester: 1, department: 1, rollNumber: 1, registerNumber: 1 })
+      .collation({ locale: "en", numericOrdering: true })
       .skip((page - 1) * limit)
       .limit(limit)
       .lean(),
@@ -343,7 +344,7 @@ export const feeTemplate = async (req, res) => {
   await ensureFeeStatus(exam._id);
   const filter = baseFilter(req.params.id, req.query);
   filter.feeStatus = { $in: ["PARTIAL", "UNPAID"] };
-  const regs = await ExamRegistration.find(filter).sort({ semester: 1, department: 1, registerNumber: 1 }).lean();
+  const regs = await ExamRegistration.find(filter).sort({ semester: 1, department: 1, rollNumber: 1, registerNumber: 1 }).collation({ locale: "en", numericOrdering: true }).lean();
 
   const rows = regs.map((r) => {
     const due = feeItems(r).filter((i) => !i.paid);
@@ -483,7 +484,7 @@ export const exportFees = async (req, res) => {
   const filter = baseFilter(req.params.id, req.query);
   if (req.query.status === "PENDING") filter.feeStatus = { $in: ["PARTIAL", "UNPAID"] };
   else if (["PAID", "PARTIAL", "UNPAID"].includes(req.query.status)) filter.feeStatus = req.query.status;
-  const regs = await ExamRegistration.find(filter).sort({ semester: 1, department: 1, registerNumber: 1 }).lean();
+  const regs = await ExamRegistration.find(filter).sort({ semester: 1, department: 1, rollNumber: 1, registerNumber: 1 }).collation({ locale: "en", numericOrdering: true }).lean();
 
   const rows = [];
   for (const r of regs) {

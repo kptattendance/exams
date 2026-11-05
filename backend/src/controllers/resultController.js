@@ -176,7 +176,8 @@ export const listResults = async (req, res) => {
   }
   const regs = await ExamRegistration.find(filter)
     .select("registerNumber name department semester admissionType result")
-    .sort({ registerNumber: 1 })
+    .sort({ semester: 1, department: 1, rollNumber: 1, registerNumber: 1 })
+    .collation({ locale: "en", numericOrdering: true })
     .limit(300)
     .lean();
   res.json({ data: regs });

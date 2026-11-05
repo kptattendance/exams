@@ -153,6 +153,7 @@ export const hodFeeList = async (req, res) => {
   const regs = await ExamRegistration.find({ exam: exam._id, department, ...studentShift(req) })
     .select("registerNumber rollNumber name semester admissionType subjects.code subjects.name subjects.semester subjects.kind subjects.status subjects.override subjects.reasons")
     .sort({ semester: 1, rollNumber: 1, registerNumber: 1 })
+    .collation({ locale: "en", numericOrdering: true })
     .lean();
   const rows = regs.map((r) => {
     const subj = (r.subjects || []).map((s) => ({ code: s.code, name: s.name, kind: s.kind, status: effectiveOf(s), reasons: s.reasons || [] }));
@@ -793,7 +794,8 @@ export const listRegistrations = async (req, res) => {
   const page = Math.max(Number(req.query.page) || 1, 1);
   const [items, total] = await Promise.all([
     ExamRegistration.find(filter)
-      .sort({ semester: 1, department: 1, registerNumber: 1 })
+      .sort({ semester: 1, department: 1, rollNumber: 1, registerNumber: 1 })
+      .collation({ locale: "en", numericOrdering: true })
       .skip((page - 1) * limit)
       .limit(limit)
       .lean(),
@@ -939,7 +941,7 @@ export const exportRegistrations = async (req, res) => {
   const filter = { exam: exam._id };
   if (req.query.department) filter.department = String(req.query.department).toLowerCase();
   if (req.query.semester) filter.semester = Number(req.query.semester);
-  const regs = await ExamRegistration.find(filter).sort({ semester: 1, department: 1, registerNumber: 1 }).lean();
+  const regs = await ExamRegistration.find(filter).sort({ semester: 1, department: 1, rollNumber: 1, registerNumber: 1 }).collation({ locale: "en", numericOrdering: true }).lean();
 
   const rows = [];
   for (const r of regs) {
