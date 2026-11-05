@@ -13,6 +13,8 @@ import { refreshAfterChange, refreshNote } from "../services/exams/autoRefresh.j
 import { isEvening, studentShift } from "../services/evening.js";
 import { audit } from "../models/AuditLog.js";
 import { binStudents } from "../services/recycleBin.js";
+import { changeStudentEmail, EmailChangeError } from "../services/studentEmail.js";
+import { clerkBusy } from "../middlewares/authMiddleware.js";
 import { Readable } from "stream";
 
 // =====================================================
@@ -2234,5 +2236,26 @@ export const getMyStudentProfile = async (req, res) => {
   } catch (error) {
     console.error("My student profile error:", error);
     return res.status(500).json({ success: false, message: "Could not load your details. Please try again." });
+  }
+};
+
+// PUT /api/students/:id/email   { email }   – Admin only
+// Changes the email of the student's login account (same Clerk user, the old
+// address is deleted from Clerk) and of the student record.
+export const changeStudentEmailCtrl = async (req, res) => {
+  try {
+    const r = await changeStudentEmail(req.params.id, req.body?.email);
+    await audit(req, "STUDENT_EMAIL_CHANGED", r.student._id, { registerNumber: r.student.registerNumber, from: r.oldEmail, to: r.newEmail });
+    return res.json({
+      success: true,
+      message: `Email of ${r.student.registerNumber} changed to ${r.newEmail}. The student now signs in with this email.`,
+      data: { _id: r.student._id, email: r.newEmail },
+    });
+  } catch (e) {
+    if (e instanceof EmailChangeError) return res.status(e.status).json({ success: false, message: e.message });
+    if (clerkBusy(e)) return res.status(503).json({ success: false, message: "The login service is busy. Please try again in a minute." });
+    console.error("Change student email error:", e);
+    const clerkMsg = e?.errors?.[0]?.longMessage || e?.errors?.[0]?.message;
+    return res.status(500).json({ success: false, message: clerkMsg ? `Could not change the email: ${clerkMsg}` : "Could not change the email. Please try again." });
   }
 };

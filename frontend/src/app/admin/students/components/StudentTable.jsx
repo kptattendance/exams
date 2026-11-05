@@ -15,6 +15,7 @@ import { sortOptions } from "../../../components/sortOptions";
 
 import { usePopupMessage } from "../../../components/ui/Feedback";
 import ChangePhotoButton from "../../../components/students/ChangePhoto";
+import ChangeEmailButton from "../../../components/students/ChangeEmail";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const departments = [
@@ -1546,6 +1547,8 @@ const downloadStudentsExcel = () => {
 
                     <ChangePhotoButton student={student} onChanged={fetchStudents} />
 
+                    <ChangeEmailButton student={student} onChanged={fetchStudents} />
+
                     <button
                       type="button"
                       onClick={() =>
@@ -1832,7 +1835,7 @@ const downloadStudentsExcel = () => {
                 </h2>
 
                 <p className="mt-0.5 text-xs text-slate-400">
-                  Register number and email cannot be changed. Roll number can be edited.
+                  Register number cannot be changed. To change the email use &quot;Change email&quot; in the list. Roll number can be edited.
                 </p>
               </div>
 

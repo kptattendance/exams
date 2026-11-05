@@ -14,6 +14,7 @@ import {
   bulkUploadStudents,
   updateStudentPhoto,
   getMyStudentProfile,
+  changeStudentEmailCtrl,
 } from "../controllers/studentController.js";
 
 import { authenticateUser } from "../middlewares/authMiddleware.js";
@@ -129,6 +130,9 @@ router.put(
   uploadPhoto.single("image"),
   updateStudentPhoto
 );
+
+// Admin: change a student's email – login account (Clerk) and record together
+router.put("/:id/email", authenticateUser, requireRole("admin"), requireStepUp("users"), changeStudentEmailCtrl);
 
 // =====================================================
 // UPDATE
