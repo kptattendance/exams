@@ -15,7 +15,7 @@ import XLSX from "xlsx";
 import Exam from "../models/Exam.js";
 import ExamRegistration from "../models/ExamRegistration.js";
 import AuditLog from "../models/AuditLog.js";
-import { feeItems, feeSummary, parsePays, ADMISSION_LABEL } from "../services/exams/rules.js";
+import { feeItems, feeSummary, parsePays, ADMISSION_LABEL, subjectFeePaid } from "../services/exams/rules.js";
 import { recount } from "./examController.js";
 
 const isId = (id) => mongoose.Types.ObjectId.isValid(id);
@@ -90,6 +90,19 @@ function feeView(r) {
     overall: r.overall,
     feeStatus: r.feeStatus,
     items,
+    // every course of the exam (audit courses have no exam fee): what each fee
+    // covers, so the office can cross-check with the student / receipt
+    courses: (r.subjects || [])
+      .filter((s) => s.kind !== "AUDIT")
+      .map((s) => ({
+        code: s.code,
+        name: s.name || "",
+        semester: s.semester || null,
+        kind: s.kind,
+        fee: s.kind === "BACKLOG" ? String(s.subject) : "REGULAR",
+        paid: subjectFeePaid(r, s),
+      }))
+      .sort((a, b) => (a.semester || 0) - (b.semester || 0) || String(a.code).localeCompare(String(b.code))),
     payments: (r.payments || []).map((p) => ({
       _id: p._id,
       txnNo: p.txnNo,

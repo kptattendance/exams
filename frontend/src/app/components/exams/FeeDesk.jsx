@@ -386,6 +386,7 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
                     <th className={T.thNum}>Sl.</th>
                     <th className={T.th}>Student</th>
                     <th className={T.th}>Class</th>
+                    <th className={T.th}>Courses</th>
                     <th className={T.th}>Fees</th>
                     <th className={T.th}>Status</th>
                     {canEdit && <th className={`${T.th} text-right`}>Action</th>}
@@ -694,6 +695,32 @@ const initials = (name = "") =>
 // Something is entered for this student: a paid mark or a transaction
 const hasFeeEntered = (reg) => reg.items.some((i) => i.paid) || (reg.payments || []).length > 0;
 
+// The courses of a student's exam: a tick when the fee that covers it is paid
+const COURSE_TAG = { BACKLOG: "Back", BRIDGE: "Bridge" };
+function CourseList({ courses = [], only = null }) {
+  const list = only ? courses.filter((c) => c.fee === only) : courses;
+  if (!list.length) return <span className="text-xs text-slate-300">—</span>;
+  return (
+    <ul className="space-y-0.5">
+      {list.map((c) => (
+        <li key={`${c.code}-${c.kind}`} className="flex items-start gap-1.5 text-[11px] leading-4">
+          {c.paid ? (
+            <Icon name="check" className="mt-0.5 h-3 w-3 shrink-0 text-emerald-600" strokeWidth={2.5} />
+          ) : (
+            <span className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
+          )}
+          <span className="min-w-0">
+            <span className={`font-semibold tabular-nums ${c.paid ? "text-emerald-800" : "text-slate-800"}`}>{c.code}</span>
+            {c.semester ? <span className="text-slate-400"> · S{c.semester}</span> : null}
+            {COURSE_TAG[c.kind] && <span className="font-semibold text-violet-700"> · {COURSE_TAG[c.kind]}</span>}
+            {c.name && <span className="block text-slate-500">{c.name}</span>}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function FeeRow({ sl, reg, canEdit, delMode = false, picked, onPick, onQuickPaid, onPay }) {
   const st = FEE[reg.feeStatus] || FEE.UNPAID;
   const unpaid = reg.items.filter((i) => !i.paid).length;
@@ -728,6 +755,9 @@ function FeeRow({ sl, reg, canEdit, delMode = false, picked, onPick, onQuickPaid
       <td className={`${T.td} whitespace-nowrap text-xs text-slate-600`}>
         {reg.department.toUpperCase()} · Sem {reg.semester}
         <p className="text-[11px] text-slate-400">{ADMISSION_SHORT[reg.admissionType] || reg.admissionType}</p>
+      </td>
+      <td className={`${T.td} min-w-[220px] max-w-[320px]`}>
+        <CourseList courses={reg.courses} />
       </td>
       <td className={T.td}>
         <div className="flex flex-wrap gap-1">
@@ -887,8 +917,13 @@ function PayModal({ examId, reg: initialReg, onClose, onSaved, onChanged }) {
                     key={i.key}
                     className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 text-sm ${keys.includes(i.key) ? "border-blue-600 bg-blue-50/60" : "border-slate-200"}`}
                   >
-                    <input type="checkbox" checked={keys.includes(i.key)} onChange={() => toggle(i.key)} className="h-4 w-4 accent-blue-600" />
-                    <span className="flex-1 font-medium text-slate-900">{i.label}</span>
+                    <input type="checkbox" checked={keys.includes(i.key)} onChange={() => toggle(i.key)} className="h-4 w-4 shrink-0 self-start mt-0.5 accent-blue-600" />
+                    <span className="min-w-0 flex-1">
+                      <span className="font-medium text-slate-900">{i.label}</span>
+                      <span className="mt-1 block">
+                        <CourseList courses={reg.courses} only={i.key} />
+                      </span>
+                    </span>
                     {(i.eligibility === "ANS" || i.eligibility === "NE") && (
                       <span className="text-xs font-semibold text-red-600">Not permitted ({i.eligibility})</span>
                     )}
@@ -921,6 +956,9 @@ function PayModal({ examId, reg: initialReg, onClose, onSaved, onChanged }) {
                       <span className="block text-xs text-slate-600">
                         {i.receiptNo ? `Receipt ${i.receiptNo} · ` : ""}
                         {fmtDate(i.paidOn)} · {i.by}
+                      </span>
+                      <span className="mt-1 block">
+                        <CourseList courses={reg.courses} only={i.key} />
                       </span>
                     </span>
                     <button onClick={() => setRemoving(i)} className="text-xs font-semibold text-red-600 hover:underline">

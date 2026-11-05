@@ -93,32 +93,9 @@ export default function Home() {
 
         {/* -------- Who uses it -------- */}
         <section className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
-          <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-[#8E0D3C]">Who signs in</h2>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {PEOPLE.map((p) => (
-              <div key={p.title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1D1842]/5 text-[#1D1842]">
-                  <Icon name={p.icon} className="h-5 w-5" />
-                </span>
-                <p className="mt-3 font-semibold text-slate-950">{p.title}</p>
-                <p className="mt-1 text-sm leading-6 text-slate-500">{p.note}</p>
-              </div>
-            ))}
-          </div>
+        
 
-          {/* -------- The examination cycle -------- */}
-          <h2 className="mt-12 text-xs font-bold uppercase tracking-[0.18em] text-[#8E0D3C]">The examination, step by step</h2>
-          <ol className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {CYCLE.map((s, i) => (
-              <li key={s.label} className="flex gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#1D1842] to-[#8E0D3C] text-sm font-bold tabular-nums text-white">{i + 1}</span>
-                <span className="min-w-0">
-                  <span className="block font-semibold text-slate-950">{s.label}</span>
-                  <span className="mt-0.5 block text-sm leading-6 text-slate-500">{s.note}</span>
-                </span>
-              </li>
-            ))}
-          </ol>
+      
 
           {/* -------- Sign in again at the end (phones) -------- */}
           <div className="mt-12 flex flex-col items-center gap-4 rounded-3xl bg-gradient-to-r from-[#1D1842] to-[#8E0D3C] px-6 py-8 text-center text-white sm:flex-row sm:justify-between sm:px-10 sm:text-left">
@@ -138,7 +115,7 @@ export default function Home() {
               <Image src="/lh-kpt-crest.png" alt="" width={32} height={36} className="h-9 w-auto" />
               <div>
                 <p className="font-semibold text-slate-700">Office of the Controller of Examinations</p>
-                <p className="text-xs">Karnataka (Govt.) Polytechnic, Mangaluru · &ldquo;Labour is Dignity&rdquo;</p>
+                <p className="text-xs">Karnataka (Govt.) Polytechnic, Mangaluru</p>
               </div>
             </div>
             <Link href="/privacy" className="font-medium text-slate-600 hover:text-slate-950">
