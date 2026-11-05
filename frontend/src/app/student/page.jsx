@@ -1,11 +1,12 @@
 "use client";
 
-// Student dashboard: his photo and every detail the college has on record –
-// read only. Wrong details: tell the HOD / office, who correct them.
+// Student dashboard: his photo, his details on record and the courses of his
+// examination that print on the hall ticket – read only. Anything wrong or
+// missing: tell the HOD / office, who check and correct it.
 
 import { useEffect, useState } from "react";
 
-import { deptLabel, errMsg, useApi } from "../components/exams/shared";
+import { errMsg, useApi } from "../components/exams/shared";
 import { usePopupMessage } from "../components/ui/Feedback";
 
 const dmy = (d) => {
@@ -15,11 +16,52 @@ const dmy = (d) => {
 };
 const cap = (s) => (s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) : "");
 
-const STATUS = {
-  active: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  passed: "bg-blue-50 text-blue-700 ring-blue-200",
-  detained: "bg-orange-50 text-orange-700 ring-orange-200",
-};
+const KIND = { BACKLOG: ["Back paper", "bg-amber-50 text-amber-800 ring-amber-200"], BRIDGE: ["Bridge course", "bg-violet-50 text-violet-700 ring-violet-200"] };
+
+// the courses that print on his hall ticket
+function ExamCourses({ exam }) {
+  return (
+    <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <h2 className="text-sm font-bold uppercase tracking-wide text-[#8E0D3C]">My exam courses</h2>
+      {!exam ? (
+        <p className="mt-3 text-sm leading-6 text-slate-500">You are not registered for an examination yet. Please check again later.</p>
+      ) : (
+        <>
+          <p className="mt-1 text-sm font-semibold text-slate-800">
+            {exam.name}
+            {exam.academicYear ? ` · ${exam.academicYear}` : ""}
+          </p>
+          <p className="mt-2 rounded-xl bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-900">
+            Below are the courses that will be printed on your hall ticket. Please check them. If any course is missing or wrong, tell your HOD or the college
+            office at once.
+          </p>
+          {exam.subjects.length === 0 ? (
+            <p className="mt-3 text-sm text-slate-500">No courses yet.</p>
+          ) : (
+            <ol className="mt-3 divide-y divide-slate-100">
+              {exam.subjects.map((c, i) => (
+                <li key={c.code} className="flex items-start gap-3 py-2.5">
+                  <span className="mt-0.5 w-5 shrink-0 text-right text-xs tabular-nums text-slate-400">{i + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold tabular-nums text-slate-950">{c.code}</p>
+                    <p className="break-words text-sm leading-5 text-slate-700">{c.name}</p>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {c.semester ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">Sem {c.semester}</span> : null}
+                      {KIND[c.kind] && <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${KIND[c.kind][1]}`}>{KIND[c.kind][0]}</span>}
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
+          <p className="mt-2 text-right text-xs text-slate-500">
+            {exam.subjects.length} course{exam.subjects.length === 1 ? "" : "s"}
+          </p>
+        </>
+      )}
+    </section>
+  );
+}
 
 export default function StudentHome() {
   const api = useApi();
@@ -43,19 +85,6 @@ export default function StudentHome() {
     );
 
   const sections = [
-    {
-      title: "Academic details",
-      rows: [
-        ["Register number", me.registerNumber],
-        ["Department", me.department ? `${String(me.department).toUpperCase()} – ${deptLabel(me.department)}` : ""],
-        ["Semester", me.semester],
-        ["Batch", me.batch],
-        ["Batch number", me.batchNumber],
-        ["Admission year", me.admissionYear],
-        ["Admission type", me.admissionLabel],
-        ["Status", cap(me.status)],
-      ],
-    },
     {
       title: "Personal details",
       rows: [
@@ -82,7 +111,7 @@ export default function StudentHome() {
   ];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 sm:space-y-5">
       {/* photo and the main details */}
       <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="h-16 bg-gradient-to-r from-[#1D1842] to-[#8E0D3C] sm:h-20" />
@@ -102,21 +131,16 @@ export default function StudentHome() {
           <div className="min-w-0 flex-1">
             <h1 className="text-xl font-bold tracking-tight text-slate-950 sm:text-2xl">{me.name}</h1>
             <p className="mt-1 text-base font-semibold tabular-nums text-slate-700">{me.registerNumber}</p>
-            <p className="mt-0.5 text-sm text-slate-500">
-              {me.department ? deptLabel(me.department) : ""}
-              {me.semester ? ` · Semester ${me.semester}` : ""}
-            </p>
           </div>
-          {me.status && (
-            <span className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 ${STATUS[me.status] || "bg-slate-100 text-slate-600 ring-slate-200"}`}>{cap(me.status)}</span>
-          )}
         </div>
       </section>
 
+      <ExamCourses exam={me.exam} />
+
       {/* every detail on record */}
-      <div className="grid gap-5 md:grid-cols-2">
+      <div className="grid gap-4 sm:gap-5 md:grid-cols-2">
         {sections.map((s) => (
-          <section key={s.title} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <section key={s.title} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
             <h2 className="text-sm font-bold uppercase tracking-wide text-[#8E0D3C]">{s.title}</h2>
             <dl className="mt-3 divide-y divide-slate-100">
               {s.rows.map(([label, value]) => (

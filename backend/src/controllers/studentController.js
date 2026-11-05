@@ -1,6 +1,7 @@
 import Student from "../models/Student.js";
 import { decryptAadhaar } from "../services/studentCrypto.js";
 import ExamRegistration from "../models/ExamRegistration.js";
+import Exam from "../models/Exam.js";
 import CourseResult from "../models/CourseResult.js";
 import { clerkClient } from "@clerk/express";
 import cloudinary from "../config/cloudinary.js";
@@ -2197,6 +2198,30 @@ export const getMyStudentProfile = async (req, res) => {
     // older records may still hold the plain number
     if (!aadhaar && /^\d{12}$/.test(String(s.aadhaarNumber || ""))) aadhaar = s.aadhaarNumber;
     delete s.aadhaarEncrypted;
+
+    // the subjects of his latest examination (not completed) – the courses that
+    // print on his hall ticket (audit courses have no exam), for him to check
+    let exam = null;
+    const regs = await ExamRegistration.find({ student: s._id }).select("exam subjects.code subjects.name subjects.semester subjects.kind").lean();
+    if (regs.length) {
+      const exams = await Exam.find({ _id: { $in: regs.map((r) => r.exam) }, status: { $ne: "COMPLETED" } })
+        .select("name academicYear createdAt")
+        .sort({ createdAt: -1 })
+        .limit(1)
+        .lean();
+      const e = exams[0];
+      const reg = e && regs.find((r) => String(r.exam) === String(e._id));
+      if (reg)
+        exam = {
+          name: e.name,
+          academicYear: e.academicYear,
+          subjects: (reg.subjects || [])
+            .filter((x) => x.kind !== "AUDIT")
+            .map((x) => ({ code: x.code, name: x.name, semester: x.semester, kind: x.kind }))
+            .sort((a, b) => (a.semester || 0) - (b.semester || 0) || String(a.code).localeCompare(String(b.code))),
+        };
+    }
+
     return res.json({
       success: true,
       data: {
@@ -2204,6 +2229,7 @@ export const getMyStudentProfile = async (req, res) => {
         aadhaarNumber: aadhaar ? aadhaar.replace(/(\d{4})(?=\d)/g, "$1 ") : "",
         admissionLabel: ADMISSION_LABEL[s.admissionType] || s.admissionType || "",
         evening: isEvening(s.registerNumber),
+        exam,
       },
     });
   } catch (error) {
