@@ -617,7 +617,7 @@ const openEditModal = (subject) => {
 
   const handleDelete = async (subject) => {
     const confirmed = window.confirm(
-      `Delete "${subject.code} - ${subject.name}"?`
+      `Delete "${subject.code} - ${subject.name}"?\n\nIt goes to the Recycle bin; the Admin can restore it there within 30 days.`
     );
 
     if (!confirmed) return;

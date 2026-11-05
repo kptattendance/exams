@@ -26,7 +26,7 @@ import XLSX from "xlsx";
 import axios from "axios";
 import { clerkClient } from "@clerk/express";
 import { clerkBusy } from "../middlewares/authMiddleware.js";
-import { purgeStudents } from "../services/studentPurge.js";
+import { binStudents, binnedEmails } from "../services/recycleBin.js";
 
 import cloudinary from "../config/cloudinary.js";
 import Student from "../models/Student.js";
@@ -159,6 +159,7 @@ async function analyse(buffer, { existing = false } = {}) {
     Student.find({ rollNumber: { $in: rollKeys } }).select("rollNumber department admissionYear registerNumber").lean(),
     clerkEmailsInUse(emails),
   ]);
+  const inBin = await binnedEmails(emails);
   const emailTaken = new Map(byEmail.map((s) => [s.email, s.registerNumber]));
   const aadhaarTaken = new Set([...byAadhaar.map((s) => s.aadhaarHash), ...byAadhaar.map((s) => s.aadhaarNumber)]);
   const rollTaken = new Map(byRoll.map((s) => [`${s.rollNumber}|${s.department}|${s.admissionYear}`, s.registerNumber]));
@@ -167,6 +168,8 @@ async function analyse(buffer, { existing = false } = {}) {
     const s = row.student;
     if (s.email && emailTaken.has(s.email))
       row.problems.push({ level: "error", field: "email", message: `Email already used by student ${emailTaken.get(s.email)}.` });
+    else if (s.email && inBin.has(s.email))
+      row.problems.push({ level: "error", field: "email", message: `This email belongs to ${inBin.get(s.email)}, who is in the Recycle bin. Restore him there, or delete him for good first.` });
     else if (s.email && clerkInUse.has(s.email))
       row.problems.push({ level: "error", field: "email", message: "A login account already exists with this email." });
     if (s.aadhaar && (aadhaarTaken.has(hashAadhaar(s.aadhaar)) || aadhaarTaken.has(s.aadhaar)))
@@ -738,7 +741,8 @@ export const undoImport = async (req, res) => {
     try {
       const ids = batch.map((r) => r.student).filter(Boolean);
       if (ids.length) {
-        const done = await purgeStudents(ids);
+        // to the Recycle bin (restorable for 30 days)
+        const done = await binStudents(ids, { by: req.user?.email || "", reason: `Undo import ${doc.fileName || ""}`.trim() });
         problems.push(...done.warnings);
       }
       for (const row of batch) {

@@ -650,7 +650,7 @@ const downloadStudentsExcel = () => {
 
   const handleDelete = async (student) => {
     const confirmed = window.confirm(
-      `Delete ${student.name}?\n\nThis action cannot be undone.`
+      `Delete ${student.name}?\n\nIt goes to the Recycle bin with all the student's records; the Admin can restore it there within 30 days.`
     );
 
     if (!confirmed) return;
@@ -705,7 +705,7 @@ const downloadStudentsExcel = () => {
     if (!selectedStudents.length) return;
 
     const confirmed = window.confirm(
-      `Delete ${selectedStudents.length} selected student(s)?\n\nThis action cannot be undone.`
+      `Delete ${selectedStudents.length} selected student(s)?\n\nThey go to the Recycle bin with all their records; the Admin can restore them there within 30 days.`
     );
 
     if (!confirmed) return;

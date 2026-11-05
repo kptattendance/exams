@@ -18,6 +18,7 @@ import Subject from "../models/Subject.js";
 import AuditLog from "../models/AuditLog.js";
 import { refreshAfterChange, refreshNote } from "../services/exams/autoRefresh.js";
 import { getAcademicYear } from "../services/academicYear.js";
+import { binSheet } from "../services/recycleBin.js";
 
 const MODELS = { ia: FinalIA, attendance: FinalAttendance };
 const LABEL = { ia: "Final IA", attendance: "Final attendance" };
@@ -239,7 +240,8 @@ export const deleteSheet = async (req, res) => {
   const year = await getAcademicYear();
   if (doc.academicYear !== year)
     return fail(res, 409, `Only sheets of the running academic year (${year}) can be deleted. This sheet is of ${doc.academicYear}.`);
-  await Model.deleteOne({ _id: doc._id });
+  // to the Recycle bin (restorable for 30 days)
+  await binSheet(req.params.type, doc, { by: who(req), reason });
   await log(req, `${req.params.type.toUpperCase()}_SHEET_DELETED`, doc._id, {
     academicYear: doc.academicYear,
     department: doc.department,
@@ -252,6 +254,6 @@ export const deleteSheet = async (req, res) => {
   });
   const auto = doc.status === "confirmed" ? await refreshAfterChange([{ department: doc.department, semester: doc.semester }], `${LABEL[req.params.type]} deleted`) : null;
   res.json({
-    message: `${LABEL[req.params.type]} of ${doc.department.toUpperCase()} semester ${doc.semester} (batch ${doc.batch}) deleted. The HOD can enter it again.${refreshNote(auto)}`,
+    message: `${LABEL[req.params.type]} of ${doc.department.toUpperCase()} semester ${doc.semester} (batch ${doc.batch}) moved to the Recycle bin (restorable for 30 days). The HOD can enter it again.${refreshNote(auto)}`,
   });
 };

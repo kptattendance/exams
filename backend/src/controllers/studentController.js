@@ -11,7 +11,7 @@ import { calendarDay } from "../services/studentImport/rules.js";
 import { refreshAfterChange, refreshNote } from "../services/exams/autoRefresh.js";
 import { isEvening, studentShift } from "../services/evening.js";
 import { audit } from "../models/AuditLog.js";
-import { purgeStudents } from "../services/studentPurge.js";
+import { binStudents } from "../services/recycleBin.js";
 import { Readable } from "stream";
 
 // =====================================================
@@ -1931,17 +1931,18 @@ export const deleteStudent = async (req, res) => {
     }
 
     // -----------------------------------------
-    // Delete the student with everything that refers to him (elective
-    // choices, rows in the IA / attendance sheets, photo, login …) –
-    // nothing is left behind (services/studentPurge.js)
+    // The student with everything that refers to him (elective choices,
+    // rows in the IA / attendance sheets …) goes to the Recycle bin for 30
+    // days – nothing is left behind, and the Admin can restore it all
+    // (services/recycleBin.js)
     // -----------------------------------------
-    const done = await purgeStudents([student._id]);
+    const done = await binStudents([student._id], { by: req.user?.email || "", reason: "Deleted on the Students page" });
     if (done.warnings.length) console.error("Delete student warnings:", done.warnings);
     await audit(req, "STUDENT_DELETED", student._id, { registerNumber: student.registerNumber, name: student.name, removed: done.counts });
 
     return res.status(200).json({
       success: true,
-      message: "Student deleted successfully.",
+      message: "Student moved to the Recycle bin. The Admin can restore him there within 30 days.",
     });
 
   } catch (error) {
@@ -2061,10 +2062,10 @@ export const deleteMultipleStudents = async (
     const kept = await withExamRecords(found.map((s) => s._id));
     const students = found.filter((s) => !kept.has(String(s._id)));
 
-    // Each with everything that refers to him (elective choices, sheet rows,
-    // photo, login …) – nothing is left behind (services/studentPurge.js)
+    // Each with everything that refers to him goes to the Recycle bin for 30
+    // days (services/recycleBin.js)
     if (students.length) {
-      const done = await purgeStudents(students.map((s) => s._id));
+      const done = await binStudents(students.map((s) => s._id), { by: req.user?.email || "", reason: "Deleted on the Students page" });
       if (done.warnings.length) console.error("Bulk delete warnings:", done.warnings);
       await audit(req, "STUDENTS_DELETED", null, { students: students.map((s) => s.registerNumber), removed: done.counts });
     }
@@ -2072,7 +2073,7 @@ export const deleteMultipleStudents = async (
     return res.status(200).json({
       success: true,
       message:
-        `${students.length} student(s) deleted.` +
+        `${students.length} student(s) moved to the Recycle bin (restorable for 30 days).` +
         (kept.size
           ? ` ${kept.size} not deleted because they are in an examination or have results (mark them inactive instead).`
           : ""),

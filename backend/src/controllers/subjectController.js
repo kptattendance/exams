@@ -2,6 +2,7 @@ import Subject from "../models/Subject.js";
 import { parse } from "csv-parse/sync";
 import { normalizeAdmissionTypes } from "../services/exams/rules.js";
 import { refreshAfterChange, refreshNote } from "../services/exams/autoRefresh.js";
+import { binSubject } from "../services/recycleBin.js";
 
 // =====================================================
 // VALID DEPARTMENTS
@@ -809,7 +810,7 @@ export const deleteSubject = async (
     const { id } = req.params;
 
     const subject =
-      await Subject.findByIdAndDelete(id);
+      await Subject.findById(id).lean();
 
     if (!subject) {
       return res.status(404).json({
@@ -817,9 +818,12 @@ export const deleteSubject = async (
       });
     }
 
+    // to the Recycle bin (restorable for 30 days)
+    await binSubject(subject, { by: req.user?.email || "", reason: "Deleted on the Subjects page" });
+
     const auto = await refreshAfterChange([subject], "subject deleted");
     return res.status(200).json({
-      message: `Subject deleted successfully.${refreshNote(auto)}`,
+      message: `Subject moved to the Recycle bin (restorable for 30 days).${refreshNote(auto)}`,
     });
   } catch (error) {
     console.error(

@@ -48,7 +48,9 @@ export async function purgeSummary(ids) {
   };
 }
 
-export async function purgeStudents(ids) {
+//   keepLoginAndPhoto: the Recycle bin removes those only when the student is
+//                      deleted for good (services/recycleBin.js)
+export async function purgeStudents(ids, { keepLoginAndPhoto = false } = {}) {
   const _ids = oid(ids);
   const students = await Student.find({ _id: { $in: _ids } }).select("registerNumber name clerkId imagePublicId").lean();
   const found = students.map((s) => s._id);
@@ -98,7 +100,7 @@ export async function purgeStudents(ids) {
   // Photos and logins (failures are listed, the records are still removed)
   const warnings = [];
   await Promise.all(
-    students.map(async (s) => {
+    (keepLoginAndPhoto ? [] : students).map(async (s) => {
       if (s.imagePublicId) {
         try {
           await cloudinary.uploader.destroy(s.imagePublicId);
@@ -115,7 +117,7 @@ export async function purgeStudents(ids) {
       }
     })
   );
-  counts.photos = students.filter((s) => s.imagePublicId).length;
+  counts.photos = keepLoginAndPhoto ? 0 : students.filter((s) => s.imagePublicId).length;
 
   counts.students = (await Student.deleteMany({ _id: { $in: found } })).deletedCount;
   return {

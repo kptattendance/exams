@@ -399,7 +399,7 @@ function ReviewModal({ type, id, onClose, onFreeze, onChanged, canDelete = false
             Delete this {TITLE[type]} sheet ({sheet.status === "confirmed" ? "frozen" : sheet.status === "submitted" ? "submitted" : "with the HOD"})?
           </span>
           <span className="mt-1 block text-sm text-slate-600">
-            All its {type === "ia" ? "marks" : "attendance"} are removed and the HOD must enter the sheet again and submit it. A copy is kept in the audit log. Write the reason:
+            The HOD must enter the sheet again and submit it. The deleted sheet goes to the Recycle bin, where the Admin can restore it within 30 days. Write the reason:
           </span>
           <textarea
             value={reason}

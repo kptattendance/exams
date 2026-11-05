@@ -81,7 +81,10 @@ export const MENUS = {
       },
       {
         title: "Administration",
-        items: [{ label: "Settings", href: "/admin/settings", icon: "settings" }],
+        items: [
+          { label: "Settings", href: "/admin/settings", icon: "settings" },
+          { label: "Recycle bin", href: "/admin/recycle-bin", icon: "trash" },
+        ],
       },
     ],
   },

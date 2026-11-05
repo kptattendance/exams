@@ -132,8 +132,8 @@ function useUndoFlow() {
       title: "Undo this import?",
       message:
         `This removes the ${created} ${created === 1 ? "student" : "students"} created from “${doc.fileName}”, ` +
-        "including their login accounts and photos, and frees their register numbers so the Excel can be imported again.\n\n" +
-        "Use this only if the import was a mistake. It cannot be reversed.",
+        "with all their records, and frees their register numbers so the Excel can be imported again.\n\n" +
+        "The students go to the Recycle bin, where the Admin can restore them within 30 days (as long as their register numbers are not given to others).",
       confirmText: "Undo import",
       tone: "danger",
       requireText: "UNDO",
