@@ -38,12 +38,11 @@ export default function Navbar() {
     <nav className="sticky top-0 z-30 border-b border-slate-200/70 bg-slate-50/85 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
         <Link href="/" className="flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-950 text-[11px] font-bold tracking-wide text-white ring-4 ring-white">
-            KPT
-          </span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/lh-kpt-crest.png" alt="KPT" className="h-10 w-auto" />
           <span className="leading-tight">
-            <span className="block text-[15px] font-bold tracking-tight text-slate-950">Examinations</span>
-            <span className="hidden text-xs text-slate-500 sm:block">Government Polytechnic, Mangaluru</span>
+            <span className="block text-[15px] font-bold tracking-tight text-slate-950">KPT Examinations</span>
+            <span className="hidden text-xs text-slate-500 sm:block">Karnataka (Govt.) Polytechnic, Mangaluru</span>
           </span>
         </Link>
 

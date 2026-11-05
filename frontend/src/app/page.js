@@ -1,119 +1,146 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { Show, SignInButton } from "@clerk/nextjs";
 
 import Navbar from "./components/Navbar";
 import Icon from "./components/shell/Icon";
 
-// The examination cycle, in order. `live` = available in the portal today.
+// The examination cycle, in order – all of it runs in the portal.
 const CYCLE = [
-  { label: "Question paper setting", note: "Encrypted upload by examiners", live: true },
-  { label: "Register numbers", note: "Generated per semester", live: true },
-  { label: "Internal assessment & attendance", note: "Final IA and attendance records", live: true },
-  { label: "Hall tickets & time table", note: "Eligibility and seating", live: false },
-  { label: "Valuation & mark entry", note: "Marks, grace marks, moderation", live: false },
-  { label: "Results & mark cards", note: "Promotion and course completion", live: false },
+  { label: "Question papers", note: "Encrypted upload, scrutiny, exam set chosen by the COE" },
+  { label: "IA & attendance", note: "Final IA and attendance sheets from every department" },
+  { label: "Registration & fees", note: "Subjects, back papers and exam fee for each student" },
+  { label: "Hall tickets & timetable", note: "Eligibility, timetable, rooms and seating" },
+  { label: "Valuation & marks", note: "Practicals, valuation, mark entry and moderation" },
+  { label: "Results", note: "Results published, mark cards and promotion" },
 ];
 
-const REG_NO = ["1", "0", "6", "C", "S", "2", "4", "0", "1", "7"];
+const PEOPLE = [
+  { title: "Students", note: "Your details and the courses on your hall ticket", icon: "students" },
+  { title: "Heads of department", note: "Students, electives, IA, attendance and practicals", icon: "faculty" },
+  { title: "COE office", note: "Registration, fees, timetable, hall tickets and results", icon: "ticket" },
+  { title: "Examiners & faculty", note: "Question papers, valuation and mark entry", icon: "valuation" },
+];
+
+function SignInAction({ light = false }) {
+  const cls = light
+    ? "bg-white text-[#1D1842] hover:bg-slate-100 shadow-lg shadow-black/20"
+    : "bg-[#1D1842] text-white hover:bg-[#2a2360] shadow-lg shadow-[#1D1842]/20";
+  return (
+    <>
+      <Show when="signed-in">
+        <Link href="/auth/check" className={`inline-flex w-full items-center justify-center gap-2 rounded-xl px-6 py-3.5 text-[15px] font-semibold transition sm:w-auto ${cls}`}>
+          Go to my dashboard
+          <Icon name="arrowRight" className="h-4 w-4" />
+        </Link>
+      </Show>
+      <Show when="signed-out">
+        <SignInButton mode="modal">
+          <button className={`inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl px-6 py-3.5 text-[15px] font-semibold transition sm:w-auto ${cls}`}>
+            Sign in with college email
+            <Icon name="arrowRight" className="h-4 w-4" />
+          </button>
+        </SignInButton>
+      </Show>
+    </>
+  );
+}
 
 export default function Home() {
   return (
     <>
       <Navbar />
 
-      <main className="relative flex min-h-[calc(100vh-4rem)] flex-col overflow-hidden bg-slate-50">
-        <div className="ruled-paper pointer-events-none absolute inset-0 opacity-70" />
+      <main className="flex min-h-[calc(100vh-4rem)] flex-col bg-slate-50">
+        {/* -------- Hero: the college building -------- */}
+        <section className="relative isolate overflow-hidden">
+          <Image src="/clgimg1.jpg" alt="Karnataka (Govt.) Polytechnic, Mangaluru – main building" fill priority sizes="100vw" className="-z-20 object-cover object-[60%_40%]" />
+          {/* dark at the left (and bottom on phones) so the words stay readable */}
+          <div className="absolute inset-0 -z-10 bg-gradient-to-t from-[#1D1842] via-[#1D1842]/80 to-[#1D1842]/30 sm:bg-gradient-to-r sm:from-[#1D1842]/95 sm:via-[#1D1842]/75 sm:to-[#8E0D3C]/20" />
 
-        <section className="relative mx-auto grid w-full max-w-6xl flex-1 items-center gap-12 px-4 pb-16 pt-12 sm:px-6 lg:grid-cols-[1.05fr_1fr] lg:gap-16 lg:py-16">
-          {/* -------- Left: message -------- */}
-          <div>
-            <p className="text-sm font-semibold text-blue-700">Karnataka Government Polytechnic, Mangaluru</p>
-
-            <h1 className="mt-4 text-[2.6rem] font-bold leading-[1.05] tracking-[-0.03em] text-slate-950 sm:text-6xl">
-              Examinations, from question paper to mark card.
-            </h1>
-
-            <p className="mt-6 max-w-xl text-lg leading-8 text-slate-600">
-              One place for the COE office, heads of department, faculty and examiners to run every
-              semester&apos;s examinations securely.
-            </p>
-
-            <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Show when="signed-in">
-                <Link
-                  href="/auth/check"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-6 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-slate-950/15 transition hover:bg-slate-800"
-                >
-                  Go to my dashboard
-                  <Icon name="arrowRight" className="h-4 w-4" />
-                </Link>
-              </Show>
-              <Show when="signed-out">
-                <SignInButton mode="modal">
-                  <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-slate-950 px-6 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-slate-950/15 transition hover:bg-slate-800">
-                    Sign in with college email
-                  </button>
-                </SignInButton>
-              </Show>
-              <p className="flex items-center gap-2 text-sm text-slate-500">
-                <Icon name="shield" className="h-4 w-4 text-blue-600" />
-                Only accounts created by the college can sign in.
-              </p>
-            </div>
-          </div>
-
-          {/* -------- Right: answer-sheet card -------- */}
-          <div className="relative">
-            <div className="absolute -inset-3 hidden -rotate-2 rounded-[22px] bg-white/60 shadow-md sm:block" />
-            <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
-              <span className="margin-rule pointer-events-none absolute inset-y-0 left-8 w-[5.5px] opacity-80 sm:left-12" />
-
-              <div className="border-b border-blue-100 py-5 pl-12 pr-4 sm:pl-20 sm:pr-7">
-                <p className="text-xs font-medium text-slate-500">Register number</p>
-                <div className="mt-2 flex gap-[3px] sm:gap-1">
-                  {REG_NO.map((c, i) => (
-                    <span
-                      key={i}
-                      className="flex h-9 w-[26px] items-center justify-center rounded-[5px] border border-slate-300 font-semibold tabular-nums text-blue-800 sm:h-10 sm:w-8 sm:text-lg"
-                    >
-                      {c}
-                    </span>
-                  ))}
-                </div>
+          <div className="mx-auto flex min-h-[560px] max-w-6xl flex-col justify-end px-4 pb-10 pt-24 sm:min-h-[600px] sm:justify-center sm:px-6 sm:py-20">
+            <div className="max-w-2xl text-white">
+              <div className="flex items-center gap-2.5">
+                {[
+                  ["/lh-karnataka.png", "Government of Karnataka"],
+                  ["/lh-kpt-crest.png", "KPT crest"],
+                  ["/lh-jubilee.png", "Platinum Jubilee"],
+                ].map(([src, alt]) => (
+                  <span key={src} className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/95 p-1.5 shadow-md sm:h-16 sm:w-16">
+                    <Image src={src} alt={alt} width={60} height={60} className="h-full w-full object-contain" />
+                  </span>
+                ))}
               </div>
 
-              <ol className="divide-y divide-blue-100/80 pl-12 pr-4 sm:pl-20 sm:pr-7">
-                {CYCLE.map((step, i) => (
-                  <li key={step.label} className="flex min-h-[58px] items-center gap-3 py-2">
-                    <span className="w-5 shrink-0 text-sm font-semibold tabular-nums text-slate-400">{i + 1}</span>
-                    <span className="min-w-0 flex-1">
-                      <span className={`block text-[15px] font-semibold ${step.live ? "text-slate-900" : "text-slate-400"}`}>
-                        {step.label}
-                      </span>
-                      <span className="block truncate text-xs text-slate-500">{step.note}</span>
-                    </span>
-                    {step.live ? (
-                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                        <Icon name="check" className="h-3.5 w-3.5" strokeWidth={2.25} />
-                        Live
-                      </span>
-                    ) : (
-                      <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
-                        Coming
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ol>
+              <p className="mt-6 text-xs font-semibold uppercase tracking-[0.18em] text-amber-200 sm:text-sm">Karnataka (Govt.) Polytechnic, Mangaluru</p>
+              <h1 className="mt-3 text-[2.1rem] font-bold leading-[1.08] tracking-[-0.02em] sm:text-5xl lg:text-6xl">Examinations, from question paper to results.</h1>
+              <p className="mt-5 max-w-xl text-base leading-7 text-slate-200 sm:text-lg sm:leading-8">
+                One secure place for students, heads of department, the COE office, faculty and examiners to run every semester&apos;s examinations.
+              </p>
+
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
+                <SignInAction light />
+                <p className="flex items-center justify-center gap-2 text-sm text-slate-300 sm:justify-start">
+                  <Icon name="shield" className="h-4 w-4 text-amber-200" />
+                  Only accounts created by the college can sign in.
+                </p>
+              </div>
             </div>
           </div>
         </section>
 
-        <footer className="relative mt-auto border-t border-slate-200/80 bg-white/70">
-          <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-            <p>Office of the Controller of Examinations, KPT Mangaluru</p>
+        {/* -------- Who uses it -------- */}
+        <section className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
+          <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-[#8E0D3C]">Who signs in</h2>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {PEOPLE.map((p) => (
+              <div key={p.title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1D1842]/5 text-[#1D1842]">
+                  <Icon name={p.icon} className="h-5 w-5" />
+                </span>
+                <p className="mt-3 font-semibold text-slate-950">{p.title}</p>
+                <p className="mt-1 text-sm leading-6 text-slate-500">{p.note}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* -------- The examination cycle -------- */}
+          <h2 className="mt-12 text-xs font-bold uppercase tracking-[0.18em] text-[#8E0D3C]">The examination, step by step</h2>
+          <ol className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {CYCLE.map((s, i) => (
+              <li key={s.label} className="flex gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#1D1842] to-[#8E0D3C] text-sm font-bold tabular-nums text-white">{i + 1}</span>
+                <span className="min-w-0">
+                  <span className="block font-semibold text-slate-950">{s.label}</span>
+                  <span className="mt-0.5 block text-sm leading-6 text-slate-500">{s.note}</span>
+                </span>
+              </li>
+            ))}
+          </ol>
+
+          {/* -------- Sign in again at the end (phones) -------- */}
+          <div className="mt-12 flex flex-col items-center gap-4 rounded-3xl bg-gradient-to-r from-[#1D1842] to-[#8E0D3C] px-6 py-8 text-center text-white sm:flex-row sm:justify-between sm:px-10 sm:text-left">
+            <div>
+              <p className="text-lg font-bold">Ready to sign in?</p>
+              <p className="mt-1 text-sm text-slate-200">Use the email your college account was created with.</p>
+            </div>
+            <div className="w-full sm:w-auto">
+              <SignInAction light />
+            </div>
+          </div>
+        </section>
+
+        <footer className="mt-auto border-t border-slate-200 bg-white">
+          <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 px-4 py-6 text-center text-sm text-slate-500 sm:flex-row sm:justify-between sm:px-6 sm:text-left">
+            <div className="flex items-center gap-3">
+              <Image src="/lh-kpt-crest.png" alt="" width={32} height={36} className="h-9 w-auto" />
+              <div>
+                <p className="font-semibold text-slate-700">Office of the Controller of Examinations</p>
+                <p className="text-xs">Karnataka (Govt.) Polytechnic, Mangaluru · &ldquo;Labour is Dignity&rdquo;</p>
+              </div>
+            </div>
             <Link href="/privacy" className="font-medium text-slate-600 hover:text-slate-950">
               Privacy policy
             </Link>
