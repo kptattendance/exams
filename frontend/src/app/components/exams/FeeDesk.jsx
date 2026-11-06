@@ -23,7 +23,7 @@ import Modal, { btn, field } from "../ui/Modal";
 import { useConfirm, useToast } from "../ui/Feedback";
 import { ADMISSION_SHORT, DEPARTMENTS, downloadBlob, errMsg, useApi } from "./shared";
 import { T } from "../ui/table";
-import { scanNumber, scanReceipt } from "./receiptScan";
+import { scanChallanFast, scanNumber, scanReceipt } from "./receiptScan";
 import CameraCapture from "./CameraCapture";
 import { useIsAdmin } from "../useRole";
 
@@ -1049,9 +1049,18 @@ function Payments({ examId, reg, markKeys, onChanged }) {
     const i = scanRow.current;
     setScan({ row: i, progress: 0 });
     try {
-      const r = await scanReceipt(file, (p) => setScan({ row: i, progress: p }));
-      const number = box ? await scanNumber(box).catch(() => "") : "";
-      const txnNo = number || r.txnNo;
+      const progress = (p) => setScan({ row: i, progress: p });
+      // quickest first: the camera box, or the fixed places on a challan page;
+      // the whole page only when the number is not found there
+      let r = null;
+      if (box) {
+        const b = await scanNumber(box).catch(() => null);
+        if (b?.txnNo) r = { txnNo: b.txnNo, amount: "", paidOn: b.paidOn };
+      } else {
+        r = await scanChallanFast(file, progress).catch(() => null);
+      }
+      if (!r) r = await scanReceipt(file, progress);
+      const txnNo = r.txnNo;
       // amount not readable: the balance to pay, for the office to check
       const balance = reg.due ? Math.max(0, reg.due.total - (reg.amountPaid || 0)) : 0;
       const amount = r.amount || (balance ? String(balance) : "");

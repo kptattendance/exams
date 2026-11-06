@@ -30,21 +30,76 @@ export async function scanReceipt(file, onProgress) {
 }
 
 // Only the reference number, from the close-up box of the camera window:
-// one line, letters C R K and digits only. -> "CR0926020200197034" or ""
+// one line, letters C R K, digits and the date marks.
+// -> { txnNo: "CR0926020200197034", paidOn: "2026-09-09" } (empty when not read)
 export async function scanNumber(image, onProgress) {
   const worker = await getWorker(onProgress);
-  await worker.setParameters({ tessedit_char_whitelist: "CRKO0123456789 ", tessedit_pageseg_mode: "7" });
+  await worker.setParameters({ tessedit_char_whitelist: "CRKO0123456789/: ", tessedit_pageseg_mode: "7" });
   try {
     const { data } = await worker.recognize(image);
     const text = data?.text || "";
+    const paidOn = notFuture(findDate(text));
     const challan = findChallan(text);
-    if (challan) return challan;
-    const long = text.replace(/O/g, "0").replace(/\s+/g, "").match(/\d{10,22}/);
-    if (!long) return "";
+    if (challan) return { txnNo: challan, paidOn };
+    const long = text.replace(/O/g, "0").replace(/[\s/:]+/g, " ").match(/\d{10,22}/);
+    if (!long) return { txnNo: "", paidOn };
     // a challan number read without its "CR"
-    return long[0].length >= 16 ? `CR${long[0].slice(0, 16)}` : long[0];
+    return { txnNo: long[0].length >= 16 ? `CR${long[0].slice(0, 16)}` : long[0], paidOn };
   } finally {
     await worker.setParameters({ tessedit_char_whitelist: "", tessedit_pageseg_mode: "3" });
+  }
+}
+
+// ------------------------------------------------------------------ fast challan
+// A Khajane-II challan (A4, scanned or photographed) always has the date and
+// the Challan Reference Number on one row about a quarter down the page, and
+// the amount in the right-hand column below. Only those two parts are read –
+// about a second instead of the whole page. Returns null when the number is
+// not found there (another kind of receipt): then the whole page is read.
+const REF_ROW = { x: 0.2, y: 0.22, w: 0.62, h: 0.18 };
+const AMOUNT_BOX = { x: 0.62, y: 0.5, w: 0.36, h: 0.22 };
+
+function cropOf(bmp, r, width) {
+  const sx = Math.round(bmp.width * r.x);
+  const sy = Math.round(bmp.height * r.y);
+  const sw = Math.round(bmp.width * r.w);
+  const sh = Math.round(bmp.height * r.h);
+  const c = document.createElement("canvas");
+  c.width = width;
+  c.height = Math.max(1, Math.round((sh * width) / sw));
+  const g = c.getContext("2d");
+  g.imageSmoothingQuality = "high";
+  g.filter = "grayscale(1) contrast(1.5)";
+  g.drawImage(bmp, sx, sy, sw, sh, 0, 0, c.width, c.height);
+  return c;
+}
+
+export async function scanChallanFast(file, onProgress) {
+  if (typeof createImageBitmap !== "function") return null;
+  const bmp = await createImageBitmap(file).catch(() => null);
+  if (!bmp) return null;
+  try {
+    if (bmp.height < bmp.width) return null; // not an upright A4 page
+    const worker = await getWorker(onProgress);
+    const { data } = await worker.recognize(cropOf(bmp, REF_ROW, 1400));
+    const text = data?.text || "";
+    const txnNo = findChallan(text);
+    if (!txnNo) return null;
+    let amount = "";
+    await worker.setParameters({ tessedit_char_whitelist: "0123456789.,", tessedit_pageseg_mode: "6" });
+    try {
+      const { data: a } = await worker.recognize(cropOf(bmp, AMOUNT_BOX, 900));
+      // "250.00" – the largest rupee amount there (amount = grand total)
+      const sums = [...String(a?.text || "").matchAll(/\d[\d,]{0,7}\.\d{2}\b/g)].map((m) => Number(m[0].replace(/,/g, ""))).filter((n) => n > 0 && n < 1000000);
+      if (sums.length) amount = String(Math.max(...sums));
+    } catch {
+      amount = "";
+    } finally {
+      await worker.setParameters({ tessedit_char_whitelist: "", tessedit_pageseg_mode: "3" });
+    }
+    return { txnNo, amount, paidOn: notFuture(findDate(text)) };
+  } finally {
+    bmp.close?.();
   }
 }
 
@@ -59,6 +114,7 @@ const iso = (y, m, d) => {
   if (!(y > 2000 && m >= 1 && m <= 12 && d >= 1 && d <= 31)) return "";
   return `${y}-${pad(m)}-${pad(d)}`;
 };
+const notFuture = (d) => (d && d <= new Date().toISOString().slice(0, 10) ? d : "");
 
 // Khajane-II challan: "Challan Reference Number" CR0926020200197034 (CR + digits).
 // The camera may read O for 0, a space inside, or C R / CK.
