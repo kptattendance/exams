@@ -128,7 +128,7 @@ function readExamBody(body, { partial = false } = {}) {
   return { out, errors };
 }
 
-const feeRulesOf = (e) => ({
+export const feeRulesOf = (e) => ({
   upTo2: e.settings?.feeUpTo2 ?? 200,
   threePlus: e.settings?.feeThreePlus ?? 300,
   marksCard: e.settings?.marksCardFee ?? 50,

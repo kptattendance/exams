@@ -23,7 +23,8 @@ import Modal, { btn, field } from "../ui/Modal";
 import { useConfirm, useToast } from "../ui/Feedback";
 import { ADMISSION_SHORT, DEPARTMENTS, downloadBlob, errMsg, useApi } from "./shared";
 import { T } from "../ui/table";
-import { scanReceipt } from "./receiptScan";
+import { scanNumber, scanReceipt } from "./receiptScan";
+import CameraCapture from "./CameraCapture";
 import { useIsAdmin } from "../useRole";
 
 const FEE = {
@@ -126,7 +127,7 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
   }, [exam]);
 
   const replace = (reg) => {
-    setData((d) => ({ ...d, data: d.data.map((x) => (x._id === reg._id ? reg : x)) }));
+    setData((d) => ({ ...d, data: d.data.map((x) => (x._id === reg._id ? { ...reg, due: reg.due || x.due } : x)) }));
   };
 
   // One click: every unpaid fee of this student, details can come later
@@ -695,6 +696,23 @@ const initials = (name = "") =>
 // Something is entered for this student: a paid mark or a transaction
 const hasFeeEntered = (reg) => reg.items.some((i) => i.paid) || (reg.payments || []).length > 0;
 
+// The exam fee the student is to pay (as on today), as on the HOD's list:
+// "To pay ₹350" and "Sem 3 (3): 300 + 50 = 350"
+const dueLine = (e) => `${e.label} (${e.count}): ${e.fee}${e.marksCard ? ` + ${e.marksCard}` : ""}${e.late ? ` + ${e.late} late` : ""} = ${e.total}`;
+function DueNote({ due, big = false }) {
+  if (!due) return null;
+  return (
+    <div className={big ? "" : "mt-1"}>
+      <p className={`${big ? "text-base" : "text-xs"} font-bold tabular-nums text-slate-900`}>To pay {rupees(due.total)}</p>
+      {due.exams.map((e) => (
+        <p key={e.label} className="whitespace-nowrap text-[10px] tabular-nums text-slate-500">
+          {dueLine(e)}
+        </p>
+      ))}
+    </div>
+  );
+}
+
 // The courses of a student's exam: a tick when the fee that covers it is paid
 const COURSE_TAG = { BACKLOG: "Back", BRIDGE: "Bridge" };
 function CourseList({ courses = [], only = null }) {
@@ -789,6 +807,7 @@ function FeeRow({ sl, reg, canEdit, delMode = false, picked, onPick, onQuickPaid
             {rupees(reg.amountPaid)} · {payments.length} txn{payments.length === 1 ? "" : "s"}
           </p>
         )}
+        <DueNote due={reg.due} />
       </td>
       {canEdit && (
         <td className={`${T.td} text-right`}>
@@ -835,8 +854,9 @@ function PayModal({ examId, reg: initialReg, onClose, onSaved, onChanged }) {
   const openKeys = keys.filter((k) => unpaid.some((i) => i.key === k));
 
   const changed = (r) => {
-    setReg(r);
-    onChanged?.(r);
+    const next = { ...r, due: r.due || reg.due };
+    setReg(next);
+    onChanged?.(next);
   };
 
   const send = async (body, ok) => {
@@ -908,6 +928,17 @@ function PayModal({ examId, reg: initialReg, onClose, onSaved, onChanged }) {
         <div className="grid gap-6 lg:grid-cols-[1fr_1.35fr]">
           {/* left: the fees */}
           <div>
+          {reg.due && (
+            <div className="mb-4 flex items-start justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
+              <DueNote due={reg.due} big />
+              <p className="text-right text-xs leading-5 text-slate-600">
+                Paid so far <b className="tabular-nums text-slate-900">{rupees(reg.amountPaid || 0)}</b>
+                {reg.due.total - (reg.amountPaid || 0) > 0 && (
+                  <span className="block font-semibold text-red-700">Balance {rupees(reg.due.total - (reg.amountPaid || 0))}</span>
+                )}
+              </p>
+            </div>
+          )}
           {unpaid.length > 0 && (
             <>
               <p className="text-sm font-semibold text-slate-800">Paying for</p>
@@ -997,23 +1028,37 @@ function Payments({ examId, reg, markKeys, onChanged }) {
   const filled = rows.filter((r) => r.txnNo.trim() || r.amount !== "");
   const newTotal = filled.reduce((a, r) => a + (Number(r.amount) || 0), 0);
 
+  const [camera, setCamera] = useState(false); // webcam window open
   const startScan = (i) => {
     scanRow.current = i;
-    fileRef.current?.click();
+    // a phone opens its own camera from the file box; a computer uses the webcam window
+    const phone = typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches;
+    if (!phone && navigator.mediaDevices?.getUserMedia) setCamera(true);
+    else fileRef.current?.click();
   };
 
-  const onScan = async (e) => {
+  const onScan = (e) => {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (!file) return;
+    if (file) readPhoto(file);
+  };
+
+  // file: the whole picture; box: the close-up of the reference number (camera window)
+  const readPhoto = async (file, box = null) => {
+    setCamera(false);
     const i = scanRow.current;
     setScan({ row: i, progress: 0 });
     try {
       const r = await scanReceipt(file, (p) => setScan({ row: i, progress: p }));
+      const number = box ? await scanNumber(box).catch(() => "") : "";
+      const txnNo = number || r.txnNo;
+      // amount not readable: the balance to pay, for the office to check
+      const balance = reg.due ? Math.max(0, reg.due.total - (reg.amountPaid || 0)) : 0;
+      const amount = r.amount || (balance ? String(balance) : "");
       setRows((list) =>
-        list.map((row, j) => (j === i ? { ...row, txnNo: r.txnNo || row.txnNo, amount: r.amount || row.amount, paidOn: r.paidOn || row.paidOn, source: "SCAN", scanned: true } : row))
+        list.map((row, j) => (j === i ? { ...row, txnNo: txnNo || row.txnNo, amount: amount || row.amount, paidOn: r.paidOn || row.paidOn, source: "SCAN", scanned: true } : row))
       );
-      if (!r.txnNo && !r.amount) toast.info("Could not read the details clearly. Please type them.");
+      if (!txnNo) toast.info("Could not read the reference number clearly. Hold the challan closer, or type it.");
     } catch {
       toast.error("Could not read the image. Please type the details.");
     }
@@ -1122,7 +1167,7 @@ function Payments({ examId, reg, markKeys, onChanged }) {
           {rows.map((r, i) => (
             <div key={i} className="grid grid-cols-[1.4fr_0.9fr_1fr_auto] items-end gap-2">
               <label className="block min-w-0">
-                {i === 0 && <span className="text-[11px] font-semibold text-slate-600">Txn / UTR / receipt no.</span>}
+                {i === 0 && <span className="text-[11px] font-semibold text-slate-600">Challan ref. / UTR / receipt no.</span>}
                 <input value={r.txnNo} onChange={(e) => setRow(i, { txnNo: e.target.value })} className={`${cell} ${i === 0 ? "mt-1" : ""}`} />
               </label>
               <label className="block min-w-0">
@@ -1139,9 +1184,19 @@ function Payments({ examId, reg, markKeys, onChanged }) {
                   onClick={() => startScan(i)}
                   disabled={Boolean(scan)}
                   className="flex h-10 items-center rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                  title="Read the details from a photo of the receipt"
+                  title="Take a photo of the challan / receipt – the reference number, amount and date are filled in"
                 >
-                  {scan?.row === i ? `${scan.progress}%` : <Icon name="ticket" className="h-4 w-4" />}
+                  {scan?.row === i ? (
+                    `${scan.progress}%`
+                  ) : (
+                    <>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
+                        <path d="M4 8h3l1.5-2h7L17 8h3v11H4z" strokeLinejoin="round" />
+                        <circle cx="12" cy="13" r="3.5" />
+                      </svg>
+                      <span className="ml-1">Scan</span>
+                    </>
+                  )}
                 </button>
                 {rows.length > 1 && (
                   <button type="button" onClick={() => setRows((list) => list.filter((_, j) => j !== i))} className="flex h-10 w-8 items-center justify-center rounded-lg text-lg text-slate-400 hover:bg-white hover:text-red-600" aria-label="Remove this row">
@@ -1154,6 +1209,16 @@ function Payments({ examId, reg, markKeys, onChanged }) {
           ))}
         </div>
         <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onScan} />
+        {camera && (
+          <CameraCapture
+            onPhoto={readPhoto}
+            onClose={() => setCamera(false)}
+            onFile={() => {
+              setCamera(false);
+              fileRef.current?.click();
+            }}
+          />
+        )}
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <button type="button" onClick={() => setRows((list) => [...list, blank()])} className={btn.small}>

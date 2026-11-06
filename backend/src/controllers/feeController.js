@@ -15,8 +15,8 @@ import XLSX from "xlsx";
 import Exam from "../models/Exam.js";
 import ExamRegistration from "../models/ExamRegistration.js";
 import AuditLog from "../models/AuditLog.js";
-import { feeItems, feeSummary, parsePays, ADMISSION_LABEL, subjectFeePaid } from "../services/exams/rules.js";
-import { recount } from "./examController.js";
+import { feeItems, feeSummary, parsePays, ADMISSION_LABEL, subjectFeePaid, examFeeFor } from "../services/exams/rules.js";
+import { recount, feeRulesOf } from "./examController.js";
 
 const isId = (id) => mongoose.Types.ObjectId.isValid(id);
 const fail = (res, status, error, extra = {}) => res.status(status).json({ error, ...extra });
@@ -134,9 +134,12 @@ function baseFilter(examId, query) {
 // GET /api/exams/:id/fees?department=&semester=&status=PAID|PARTIAL|UNPAID|PENDING&q=&page=
 export const listFees = async (req, res) => {
   if (!isId(req.params.id)) return fail(res, 400, "Invalid exam id.");
-  const exam = await Exam.findById(req.params.id).select("name academicYear semesters").lean();
+  const exam = await Exam.findById(req.params.id).select("name academicYear semesters settings").lean();
   if (!exam) return fail(res, 404, "Exam not found.");
   await ensureFeeStatus(exam._id);
+  // the fee each student is to pay, as on today (same as the HOD's exam fee list)
+  const rules = feeRulesOf(exam);
+  const on = new Date().toISOString().slice(0, 10);
 
   const filter = baseFilter(req.params.id, req.query);
   const counts = await ExamRegistration.aggregate([{ $match: filter }, { $group: { _id: "$feeStatus", n: { $sum: 1 } } }]);
@@ -161,8 +164,8 @@ export const listFees = async (req, res) => {
     ExamRegistration.countDocuments(filter),
   ]);
   res.json({
-    exam,
-    data: items.map(feeView),
+    exam: { _id: exam._id, name: exam.name, academicYear: exam.academicYear, semesters: exam.semesters },
+    data: items.map((r) => ({ ...feeView(r), due: examFeeFor(r.subjects || [], rules, on) })),
     total,
     page,
     pages: Math.max(1, Math.ceil(total / limit)),

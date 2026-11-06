@@ -29,6 +29,25 @@ export async function scanReceipt(file, onProgress) {
   return { ...parseReceipt(text), text };
 }
 
+// Only the reference number, from the close-up box of the camera window:
+// one line, letters C R K and digits only. -> "CR0926020200197034" or ""
+export async function scanNumber(image, onProgress) {
+  const worker = await getWorker(onProgress);
+  await worker.setParameters({ tessedit_char_whitelist: "CRKO0123456789 ", tessedit_pageseg_mode: "7" });
+  try {
+    const { data } = await worker.recognize(image);
+    const text = data?.text || "";
+    const challan = findChallan(text);
+    if (challan) return challan;
+    const long = text.replace(/O/g, "0").replace(/\s+/g, "").match(/\d{10,22}/);
+    if (!long) return "";
+    // a challan number read without its "CR"
+    return long[0].length >= 16 ? `CR${long[0].slice(0, 16)}` : long[0];
+  } finally {
+    await worker.setParameters({ tessedit_char_whitelist: "", tessedit_pageseg_mode: "3" });
+  }
+}
+
 // ------------------------------------------------------------------ parsing
 
 const MONTHS = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
@@ -41,7 +60,19 @@ const iso = (y, m, d) => {
   return `${y}-${pad(m)}-${pad(d)}`;
 };
 
+// Khajane-II challan: "Challan Reference Number" CR0926020200197034 (CR + digits).
+// The camera may read O for 0, a space inside, or C R / CK.
+function findChallan(text) {
+  const m = String(text).toUpperCase().match(/\bC\s?[RK]\s?([0-9OIL\s]{14,22})/);
+  if (!m) return "";
+  // the number is CR + 16 digits; stop there (the next column may follow)
+  const digits = m[1].replace(/\s+/g, "").replace(/O/g, "0").replace(/[IL]/g, "1").slice(0, 16);
+  return /^\d{14,16}$/.test(digits) ? `CR${digits}` : "";
+}
+
 function findTxn(lines, text) {
+  const challan = findChallan(text);
+  if (challan) return challan;
   // Label followed by the number, on the same line or the next one
   const label =
     /(utr|u\.t\.r|upi\s*ref|ref(erence)?\s*(no|number|id)?|txn|transaction\s*(id|no|number|ref)?|receipt\s*(no|number)|challan\s*(no|number)?|bank\s*ref|rrn|order\s*id|payment\s*id)/i;
@@ -73,8 +104,13 @@ function findAmount(lines) {
 }
 
 function findDate(text) {
-  let m = text.match(/\b(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})\b/); // 12-11-2026 (Indian order)
-  if (m) return iso(m[3], m[2], m[1]);
+  // 12-11-2026 (Indian order) – the first one that is a real date (not e.g. a
+  // head of account like 0202-02-101-0-01-000)
+  for (const d of text.matchAll(/\b(\d{1,2})[-/.](\d{1,2})[-/.](\d{4}|\d{2})\b/g)) {
+    const v = iso(d[3], d[2], d[1]);
+    if (v) return v;
+  }
+  let m;
   m = text.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]{3})[a-z]*,?\s+(\d{2,4})\b/); // 12 Nov 2026
   if (m && MONTHS[m[2].toLowerCase()]) return iso(m[3], MONTHS[m[2].toLowerCase()], m[1]);
   m = text.match(/\b([A-Za-z]{3})[a-z]*\s+(\d{1,2}),?\s+(\d{4})\b/); // Nov 12, 2026
