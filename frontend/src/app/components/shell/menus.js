@@ -10,8 +10,8 @@ export const HOME_BY_ROLE = {
   principal: "/coe", // view only; the server refuses changes
   coe: "/coe",
   acoe: "/coe",
-  office: "/office",
-  exam_officer: "/office", // old name of office
+  office: "/office/fees", // the office starts on fee verification
+  exam_officer: "/office/fees", // old name of office
   exam_clerk: "/clerk",
   qp_scrutinizer: "/scrutiny",
   chief_examiner: "/chief-examiner",
@@ -194,12 +194,8 @@ export const MENUS = {
   // subject changes for hall tickets, absentees, paper-setter orders
   office: {
     role: "Exam section (office)",
-    home: "/office",
+    home: "/office/fees",
     sections: [
-      {
-        title: "Overview",
-        items: [{ label: "Dashboard", href: "/office", icon: "dashboard", pinned: true }],
-      },
       {
         title: "Before the exam",
         items: [
@@ -208,7 +204,6 @@ export const MENUS = {
           { label: "Final IA", href: "/office/final-ia", icon: "marks" },
           { label: "Final attendance", href: "/office/final-attendance", icon: "attendance" },
           { label: "Examinations", href: "/office/examinations", icon: "paper" },
-          { label: "Time table", href: "/office/timetable", icon: "calendar" },
           { label: "Hall tickets", href: "/office/hall-tickets", icon: "ticket", pinned: true },
           { label: "Paper setter orders", href: "/office/paper-orders", icon: "report" },
         ],

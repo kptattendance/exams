@@ -205,7 +205,7 @@ function TodayChip() {
 const WORKSPACES = [
   { label: "Admin", href: "/admin" },
   { label: "COE", href: "/coe" },
-  { label: "Office", href: "/office" },
+  { label: "Office", href: "/office/fees" },
   { label: "QP scrutiny", href: "/scrutiny" },
   { label: "Chief examiner", href: "/chief-examiner" },
   { label: "Exam clerk", href: "/clerk" },
