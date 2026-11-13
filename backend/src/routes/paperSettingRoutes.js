@@ -15,6 +15,7 @@ import {
   listOrders,
   getOrder,
   listForScrutiny,
+  scrutinyChanges,
   scrutinyScheme,
   startScrutiny,
   finishScrutiny,
@@ -87,6 +88,7 @@ router.post("/:id/choose-for-exam", requireRole(...CONTENT_READERS), requireStep
 router.get("/:id/exam-print", requireRole("chief_examiner"), requireStepUp("qp"), examDayPrint);
 router.get("/:id/audit", requireRole(...CONTENT_READERS), getAuditTrail);
 router.get("/:id/order", requireRole(...ORDER_PRINTERS), getOrder);
+router.get("/:id/scrutiny/changes", SCRUTINY, scrutinyChanges);
 router.get("/:id/scrutiny/scheme", SCRUTINY, requireStepUp("qp"), scrutinyScheme);
 router.post("/:id/scrutiny/start", SCRUTINY, requireStepUp("qp"), startScrutiny);
 router.post("/:id/scrutiny/finish", SCRUTINY, requireStepUp("qp"), finishScrutiny);

@@ -65,7 +65,7 @@ export function hasPass(header, userId, scope) {
 }
 
 export const requireStepUp = (scope) => (req, res, next) => {
-  if (process.env.STEP_UP_DISABLED === "true") return next();
+  if (String(process.env.STEP_UP_DISABLED || "").trim().replace(/^["']|["']$/g, "").toLowerCase() === "true") return next(); // "true", "TRUE", " true", "\"true\""
   if (hasPass(req.headers["x-step-up"], req.user?.id, scope)) return next();
   return res.status(428).json({
     error: `Verification needed for ${SCOPES[scope].label}.`,

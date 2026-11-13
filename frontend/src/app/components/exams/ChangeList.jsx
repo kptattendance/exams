@@ -16,7 +16,7 @@ export function ChangeList({ changes = [] }) {
                 {c.after ? `after: ${c.after}` : "at the beginning"}
               </p>
             )}
-            <p className={`whitespace-pre-wrap px-3 py-1 ${c.op === "removed" ? "bg-red-50 text-red-800" : "bg-emerald-50 text-emerald-800"}`}>
+            <p className={`whitespace-pre-wrap break-words px-3 py-1 [overflow-wrap:anywhere] ${c.op === "removed" ? "bg-red-50 text-red-800" : "bg-emerald-50 text-emerald-800"}`}>
               {c.op === "removed" ? "− " : "+ "}
               {c.text}
             </p>

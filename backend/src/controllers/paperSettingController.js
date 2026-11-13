@@ -687,7 +687,8 @@ async function buildPreview(buffer) {
 // A scheme counts once it is submitted (older papers: uploaded with the paper)
 const schemeReady = (p) => Boolean(p.schemeFile && (p.schemeSubmittedAt || !p.schemeRequested));
 
-const scrutinyView = (p) => ({
+// withChanges false: the list (the changed lines are fetched when "Changes" is opened)
+const scrutinyView = (p, withChanges = true) => ({
   _id: p._id,
   subject: p.subject && { code: p.subject.code, name: p.subject.name, semester: p.subject.semester, department: p.subject.department },
   examSession: p.examSession,
@@ -702,7 +703,7 @@ const scrutinyView = (p) => ({
     note: p.scrutiny?.note || "",
     added: p.scrutiny?.added || 0,
     removed: p.scrutiny?.removed || 0,
-    changes: p.scrutiny?.changes || [],
+    changes: withChanges ? p.scrutiny?.changes || [] : null,
     editUrl: p.scrutiny?.docId ? scrutinyDocUrl(p.scrutiny.docId) : "",
   },
 });
@@ -721,10 +722,23 @@ export const listForScrutiny = async (req, res) => {
   try {
     const filter = { status: "SUBMITTED" };
     if (req.query.examSession) filter.examSession = String(req.query.examSession).toUpperCase();
-    const papers = await PaperSetting.find(filter).populate(POPULATE[0]).sort({ submittedAt: 1 }).lean();
-    res.json({ data: papers.map(scrutinyView) });
+    // the changed lines (most of the size) are left out – sent when "Changes" is opened
+    const papers = await PaperSetting.find(filter).select("-scrutiny.changes").populate(POPULATE[0]).sort({ submittedAt: 1 }).lean();
+    res.json({ data: papers.map((p) => scrutinyView(p, false)) });
   } catch (err) {
     handleError(res, err, "listForScrutiny");
+  }
+};
+
+// GET /api/paper-setting/:id/scrutiny/changes   – the changed lines of one paper
+export const scrutinyChanges = async (req, res) => {
+  try {
+    if (!isId(req.params.id)) return fail(res, 400, "Invalid id.");
+    const p = await PaperSetting.findOne({ _id: req.params.id, status: "SUBMITTED" }).select("scrutiny.changes").lean();
+    if (!p) return fail(res, 404, "Submitted paper not found.");
+    res.json({ changes: p.scrutiny?.changes || [] });
+  } catch (err) {
+    handleError(res, err, "scrutinyChanges");
   }
 };
 

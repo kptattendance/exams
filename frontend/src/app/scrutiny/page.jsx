@@ -134,6 +134,19 @@ export default function ScrutinyPage() {
     }
   };
 
+  // the changed lines are loaded when "Changes" is opened (the list is lighter)
+  const toggleChanges = async (p) => {
+    if (open === p._id) return setOpen("");
+    setOpen(p._id);
+    if (p.scrutiny.changes) return;
+    try {
+      const r = await api("get", `/paper-setting/${p._id}/scrutiny/changes`);
+      setPapers((list) => list.map((x) => (x._id === p._id ? { ...x, scrutiny: { ...x.scrutiny, changes: r.data.changes || [] } } : x)));
+    } catch (e) {
+      toast.error(errMsg(e, "Could not load the changes."));
+    }
+  };
+
   const showScheme = async (p) => {
     try {
       const r = await api("get", `/paper-setting/${p._id}/scrutiny/scheme`);
@@ -226,7 +239,7 @@ export default function ScrutinyPage() {
       )}
       {s.status === "DONE" && (
         <button
-          onClick={() => setOpen(open === p._id ? "" : p._id)}
+          onClick={() => toggleChanges(p)}
           title="Changes made"
           className={`${pill} border-slate-200 bg-white text-slate-700 hover:bg-slate-50`}
         >
@@ -245,7 +258,7 @@ export default function ScrutinyPage() {
           {s.note}
         </p>
       )}
-      <ChangeList changes={s.changes} />
+      {s.changes ? <ChangeList changes={s.changes} /> : <p className="text-xs text-slate-500">Loading the changes…</p>}
     </div>
   );
 
@@ -335,7 +348,7 @@ export default function ScrutinyPage() {
       {!papers && <div className="mt-4 h-72 animate-pulse rounded-2xl bg-white" />}
 
       {papers && (
-        <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="mt-3 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
           {shown.length === 0 && (
             <div className="px-6 py-14 text-center">
               <Icon name="paper" className="mx-auto h-8 w-8 text-slate-300" />
@@ -396,7 +409,7 @@ export default function ScrutinyPage() {
                         <tr className="bg-slate-50/70">
                           <td />
                           <td colSpan={6} className="px-3 pb-4 pt-1">
-                            {changesPanel(s)}
+                            <div className="w-0 min-w-full">{changesPanel(s)}</div>
                           </td>
                         </tr>
                       )}

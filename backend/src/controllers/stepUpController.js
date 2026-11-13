@@ -16,7 +16,8 @@ import { SCOPES, issuePass, smsReady, indianMobile, sendOtpSms, maskMobile, mask
 
 const CODE_MINUTES = 5;
 const MAX_TRIES = 5;
-const MAX_REQUESTS = 5; // per user per 15 minutes
+const MAX_REQUESTS = 20; // per login per 15 minutes (a login may be shared, e.g. scrutiny)
+const SHARED_CODES = 20; // still-valid codes of the same login checked on verify
 
 const fail = (res, status, error) => res.status(status).json({ error });
 const hashOf = (code, salt) => crypto.scryptSync(String(code).replace(/\s+/g, ""), salt, 32).toString("hex");
@@ -94,15 +95,34 @@ export const verifyOtp = async (req, res) => {
   if (!doc || doc.expiresAt < new Date()) return fail(res, 410, "The code has expired. Ask for a new one.");
   if (doc.attempts >= MAX_TRIES) return fail(res, 429, "Too many wrong codes. Ask for a new one.");
 
-  const a = Buffer.from(hashOf(code, doc.salt), "hex");
-  const b = Buffer.from(doc.hash, "hex");
-  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+  const matches = (d) => {
+    const a = Buffer.from(hashOf(code, d.salt), "hex");
+    const b = Buffer.from(d.hash, "hex");
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+  };
+  let used = matches(doc) ? doc : null;
+  if (!used) {
+    // One login shared by several people (e.g. scrutiny): all their codes go to
+    // the same inbox. A code from another of this login's still-valid requests
+    // for the same work is accepted too, so nobody needs to know whose it is.
+    const others = await SecurityCode.find({
+      _id: { $ne: doc._id },
+      requestedBy: req.user.id,
+      purpose: doc.purpose,
+      expiresAt: { $gt: new Date() },
+      attempts: { $lt: MAX_TRIES },
+    })
+      .sort({ createdAt: -1 })
+      .limit(SHARED_CODES);
+    used = others.find(matches) || null;
+  }
+  if (!used) {
     doc.attempts += 1;
     await doc.save();
     await log(req, "OTP_WRONG", { scope: doc.payload?.scope, attempts: doc.attempts });
-    return fail(res, 400, `Wrong code. ${Math.max(0, MAX_TRIES - doc.attempts)} tries left.`);
+    return fail(res, 400, `Wrong code. ${Math.max(0, MAX_TRIES - doc.attempts)} tries left. Use the newest code in the email.`);
   }
-  await SecurityCode.deleteOne({ _id: doc._id });
+  await SecurityCode.deleteOne({ _id: used._id });
   const pass = issuePass(req.user.id, doc.payload.scope);
   await log(req, "OTP_VERIFIED", { scope: pass.scope, until: pass.expiresAt });
   res.json(pass);

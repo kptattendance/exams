@@ -34,10 +34,10 @@ export const apiLimiter = rateLimit({
   message: { error: "Too many requests in a short time. Please wait a minute and try again." },
 });
 
-// verification codes (email / SMS – each costs): 10 in 10 minutes per person
+// verification codes (email / SMS – each costs): 30 in 10 minutes per login (a login may be shared)
 export const otpLimiter = rateLimit({
   ...common,
   windowMs: 10 * 60 * 1000,
-  limit: 10,
+  limit: 30,
   message: { error: "Too many verification codes asked for. Please wait 10 minutes and try again." },
 });
