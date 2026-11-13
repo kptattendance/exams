@@ -261,23 +261,25 @@ export function findDuplicatesInFile(rows) {
 
 // ------------------------------------------------------- register numbers
 
-export const seriesKey = (dept, yy, type) => `regno:${dept.toUpperCase()}:${yy}:${type}`;
+// code: COLLEGE_CODE (day, 103 – keys unchanged) or EVENING_CODE (186 – its own series)
+export const seriesKey = (dept, yy, type, code = COLLEGE_CODE) =>
+  code === COLLEGE_CODE ? `regno:${dept.toUpperCase()}:${yy}:${type}` : `regno:${code}:${dept.toUpperCase()}:${yy}:${type}`;
 
-export function formatRegisterNumber(dept, yy, serial) {
-  return `${COLLEGE_CODE}${dept.toUpperCase()}${String(yy).padStart(2, "0")}${String(serial).padStart(3, "0")}`;
+export function formatRegisterNumber(dept, yy, serial, code = COLLEGE_CODE) {
+  return `${code}${dept.toUpperCase()}${String(yy).padStart(2, "0")}${String(serial).padStart(3, "0")}`;
 }
 
 /** Natural sort so AT26009 < AT26010 */
 const naturalCompare = (a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
 
 /** Groups valid rows by series, sorted by roll number. */
-export function groupBySeries(rows) {
+export function groupBySeries(rows, code = COLLEGE_CODE) {
   const groups = new Map();
   for (const row of rows) {
     const s = row.student;
     const yy = s.admissionYear % 100;
-    const key = seriesKey(s.department, yy, s.admissionType);
-    if (!groups.has(key)) groups.set(key, { key, department: s.department, yy, type: s.admissionType, rows: [] });
+    const key = seriesKey(s.department, yy, s.admissionType, code);
+    if (!groups.has(key)) groups.set(key, { key, code, department: s.department, yy, type: s.admissionType, rows: [] });
     groups.get(key).rows.push(row);
   }
   for (const g of groups.values()) g.rows.sort((a, b) => naturalCompare(a.student.rollNumber, b.student.rollNumber));
@@ -303,7 +305,7 @@ export function assignRegisterNumbers(groups, lastUsed) {
         row.student.registerNumber = "";
         continue;
       }
-      row.student.registerNumber = formatRegisterNumber(g.department, g.yy, next);
+      row.student.registerNumber = formatRegisterNumber(g.department, g.yy, next, g.code);
       row.student.serial = next;
       next++;
     }
@@ -312,8 +314,8 @@ export function assignRegisterNumbers(groups, lastUsed) {
 }
 
 /** Highest serial in an existing register number list that falls in this series' range. */
-export function highestExistingSerial(registerNumbers, dept, yy, type) {
-  const prefix = formatRegisterNumber(dept, yy, 0).slice(0, -3);
+export function highestExistingSerial(registerNumbers, dept, yy, type, code = COLLEGE_CODE) {
+  const prefix = formatRegisterNumber(dept, yy, 0, code).slice(0, -3);
   const { start, end } = ADMISSION_TYPES[type];
   let max = 0;
   for (const rn of registerNumbers) {

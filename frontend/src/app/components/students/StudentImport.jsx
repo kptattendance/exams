@@ -317,6 +317,8 @@ function ImportTab({ openImportId, onOpened, onOpen, onShowHistory, undo, onChan
   usePopupMessage(error); // shown as a popup too
   const [importDoc, setImportDoc] = useState(null);
   const [finished, setFinished] = useState(false); // all students and photos done
+  // Day college: 103 numbers; evening college (working students, EE / ME): 186 numbers
+  const [college, setCollege] = useState("DAY");
 
   useEffect(() => {
     if (!openImportId) return;
@@ -336,6 +338,7 @@ function ImportTab({ openImportId, onOpened, onOpen, onShowHistory, undo, onChan
     setStage("checking");
     try {
       const body = new FormData();
+      body.append("college", college);
       body.append("file", f);
       const r = await api("post", "/preview", body);
       setPreview(r.data);
@@ -351,6 +354,7 @@ function ImportTab({ openImportId, onOpened, onOpen, onShowHistory, undo, onChan
     setStage("starting");
     try {
       const body = new FormData();
+      body.append("college", college);
       body.append("file", file);
       const r = await api("post", "/", body);
       setImportDoc(r.data.data);
@@ -387,11 +391,37 @@ function ImportTab({ openImportId, onOpened, onOpen, onShowHistory, undo, onChan
 
       {(stage === "pick" || stage === "checking") && (
         <>
+          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+            <p className="text-sm font-semibold text-slate-800">Which college are these students of?</p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              {[
+                ["DAY", "Day college", "Register numbers 103… (e.g. 103EE26001)"],
+                ["EVENING", "Evening college (working students)", "Register numbers 186… (e.g. 186EE26001) – EE and ME only"],
+              ].map(([v, label, hint]) => (
+                <label
+                  key={v}
+                  className={`flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5 ${college === v ? "border-blue-600 bg-blue-50/60 ring-2 ring-blue-100" : "border-slate-200 hover:border-slate-300"}`}
+                >
+                  <input type="radio" name="college" checked={college === v} disabled={stage === "checking"} onChange={() => setCollege(v)} className="mt-1 h-4 w-4 accent-blue-600" />
+                  <span>
+                    <span className="block text-sm font-semibold text-slate-900">{label}</span>
+                    <span className="block text-xs text-slate-500">{hint}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
           <Dropzone busy={stage === "checking"} fileName={file?.name} onFile={check} />
           {stage === "pick" && <RecentImports onOpen={onOpen} onUndo={(d) => undoThen(d)} onShowHistory={onShowHistory} />}
         </>
       )}
 
+      {(stage === "preview" || stage === "starting") && preview && (
+        <p className={`rounded-xl px-4 py-2 text-sm font-semibold ${college === "EVENING" ? "bg-indigo-50 text-indigo-800" : "bg-slate-100 text-slate-700"}`}>
+          {college === "EVENING" ? "Evening college – register numbers 186…" : "Day college – register numbers 103…"}
+          <span className="font-normal"> (to change it, choose another file and pick the college first)</span>
+        </p>
+      )}
       {(stage === "preview" || stage === "starting") && preview && (
         <Preview
           preview={preview}

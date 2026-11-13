@@ -50,7 +50,7 @@ import {
   hasErrors,
 } from "../services/studentImport/rules.js";
 import { refreshAfterChange, refreshNote } from "../services/exams/autoRefresh.js";
-import { shiftOf } from "../services/evening.js";
+import { shiftOf, EVENING_DEPARTMENTS } from "../services/evening.js";
 
 const PHOTO_FOLDER = "kpt-examination/students";
 const isId = (id) => mongoose.Types.ObjectId.isValid(id);
@@ -114,7 +114,10 @@ async function clerkEmailsInUse(emails) {
  * Full check of an uploaded Excel. Returns cleaned rows with problems and
  * TENTATIVE register numbers (based on numbers already used).
  */
-async function analyse(buffer, { existing = false } = {}) {
+// college (1st-year import): "DAY" -> 103 numbers, "EVENING" -> 186 numbers
+async function analyse(buffer, { existing = false, college = "DAY" } = {}) {
+  const evening = !existing && college === "EVENING";
+  const code = evening ? EVENING_CODE : COLLEGE_CODE;
   const { headers, rows } = readWorkbook(buffer);
   const { map, missing: missingNew } = mapHeaders(headers);
   // existing students: the register number is required, the admission type is
@@ -138,6 +141,9 @@ async function analyse(buffer, { existing = false } = {}) {
       // a branch-change student already has his register number
       else if (row.student.admissionType === "branch-change")
         row.problems.push({ level: "error", field: "admissionType", message: "Branch-change students are added with the 2nd / 3rd-year import (they keep their register number)." });
+      // evening college: only its branches (EE, ME)
+      if (evening && row.student.department && !EVENING_DEPARTMENTS.includes(row.student.department))
+        row.problems.push({ level: "error", field: "department", message: `The evening college has only ${EVENING_DEPARTMENTS.map((d) => d.toUpperCase()).join(" and ")}. Is this a day student? Then import him with "Day college (103)".` });
       return row;
     });
 
@@ -177,8 +183,8 @@ async function analyse(buffer, { existing = false } = {}) {
       row.problems.push({ level: "error", field: "email", message: "A login account already exists with this email." });
     if (s.aadhaar && (aadhaarTaken.has(hashAadhaar(s.aadhaar)) || aadhaarTaken.has(s.aadhaar)))
       row.problems.push({ level: "error", field: "aadhaar", message: "A student with this Aadhaar number already exists." });
-    // 1st-year import: day college (103 numbers are made here); 2nd/3rd year: from the given number
-    const rk = `${s.rollNumber}|${s.department}|${s.admissionYear}|${existing ? shiftOf(String(s.registerNumber || "")) : "DAY"}`;
+    // 1st-year import: the college chosen on the page; 2nd/3rd year: from the given number
+    const rk = `${s.rollNumber}|${s.department}|${s.admissionYear}|${existing ? shiftOf(String(s.registerNumber || "")) : evening ? "EVENING" : "DAY"}`;
     if (rollTaken.has(rk))
       row.problems.push({ level: "error", field: "rollNumber", message: `Already imported as ${rollTaken.get(rk)}.` });
   }
@@ -199,8 +205,8 @@ async function analyse(buffer, { existing = false } = {}) {
   }
 
   // ---- tentative register numbers for rows without errors
-  const groups = groupBySeries(cleaned.filter((r) => !hasErrors(r)));
-  const prefixes = [...new Set(groups.map((g) => formatRegisterNumber(g.department, g.yy, 0).slice(0, -3)))];
+  const groups = groupBySeries(cleaned.filter((r) => !hasErrors(r)), code);
+  const prefixes = [...new Set(groups.map((g) => formatRegisterNumber(g.department, g.yy, 0, g.code).slice(0, -3)))];
   const [takenDocs, counters] = await Promise.all([
     existingStudents(prefixes),
     Counter.find({ _id: { $in: groups.map((g) => g.key) } }).lean(),
@@ -210,11 +216,11 @@ async function analyse(buffer, { existing = false } = {}) {
   for (const g of groups) {
     const range = ADMISSION_TYPES[g.type];
     const fromCounter = counters.find((c) => c._id === g.key)?.seq || 0;
-    const fromStudents = highestExistingSerial(taken, g.department, g.yy, g.type);
+    const fromStudents = highestExistingSerial(taken, g.department, g.yy, g.type, g.code);
     lastUsed[g.key] = Math.max(fromCounter, fromStudents);
 
     // Tell the user why a series does not start at 001 / 301 / 401 / 701
-    const prefix = formatRegisterNumber(g.department, g.yy, 0).slice(0, -3);
+    const prefix = formatRegisterNumber(g.department, g.yy, 0, g.code).slice(0, -3);
     g.holders = takenDocs
       .filter((d) => {
         const serial = parseInt(d.registerNumber.slice(prefix.length), 10);
@@ -329,7 +335,7 @@ export const previewImport = async (req, res) => {
   try {
     if (!req.file) return fail(res, 400, "Please choose the Excel file.");
     const existing = req.importMode === "EXISTING";
-    const { rows, groups } = await analyse(req.file.buffer, { existing });
+    const { rows, groups } = await analyse(req.file.buffer, { existing, college: collegeOf(req) });
     const payload = previewPayload(req.file.originalname, rows, groups);
     if (existing) payload.rows.forEach((r, i) => (r.registerNumber = rows[i].student.registerNumber));
     res.json(payload);
@@ -342,11 +348,14 @@ export const previewImport = async (req, res) => {
 // Starting an import: reserve register numbers for every row at once
 // ====================================================================
 
+// "Day college (103)" / "Evening college (186)" chosen on the 1st-year import page
+const collegeOf = (req) => (String(req.body?.college || "").toUpperCase() === "EVENING" ? "EVENING" : "DAY");
+
 async function reserveSeries(group) {
   const range = ADMISSION_TYPES[group.type];
-  const prefix = formatRegisterNumber(group.department, group.yy, 0).slice(0, -3);
+  const prefix = formatRegisterNumber(group.department, group.yy, 0, group.code).slice(0, -3);
   const taken = await existingNumbers([prefix]);
-  const floor = Math.max(range.start - 1, highestExistingSerial(taken, group.department, group.yy, group.type));
+  const floor = Math.max(range.start - 1, highestExistingSerial(taken, group.department, group.yy, group.type, group.code));
 
   // Make sure the counter is never behind numbers already in the database…
   await Counter.updateOne({ _id: group.key }, { $max: { seq: floor } }, { upsert: true });
@@ -410,7 +419,7 @@ export const startImport = async (req, res) => {
   const existing = req.importMode === "EXISTING";
   try {
     if (!req.file) return fail(res, 400, "Please choose the Excel file.");
-    const { rows, groups } = await analyse(req.file.buffer, { existing });
+    const { rows, groups } = await analyse(req.file.buffer, { existing, college: collegeOf(req) });
 
     if (rows.some(hasErrors)) {
       return fail(res, 400, "Fix the errors in the Excel and upload it again. Nothing was imported.", {
@@ -428,7 +437,7 @@ export const startImport = async (req, res) => {
     for (const g of groups) {
       const first = await reserveSeries(g);
       reserved.push({ key: g.key, first, last: first + g.rows.length - 1 });
-      g.rows.forEach((row, i) => importRows.push(importRowOf(row.student, formatRegisterNumber(g.department, g.yy, first + i))));
+      g.rows.forEach((row, i) => importRows.push(importRowOf(row.student, formatRegisterNumber(g.department, g.yy, first + i, g.code))));
     }
     importRows.sort((a, b) => a.registerNumber.localeCompare(b.registerNumber));
 
@@ -445,6 +454,7 @@ export const startImport = async (req, res) => {
       fileName: doc.fileName,
       students: importRows.length,
       series: existing ? undefined : groups.map((g) => `${g.key} x${g.rows.length}`),
+      college: existing ? undefined : collegeOf(req),
       semesters: existing ? [...new Set(rows.map((r) => r.student.semester))] : undefined,
     });
 
@@ -803,25 +813,27 @@ export const repairNumbering = async (req, res) => {
 
     const changes = [];
     for (const c of counters) {
-      const [, dept, yy, type] = c._id.split(":");
+      // day: regno:AT:26:regular   evening: regno:186:EE:26:regular
+      const parts = c._id.split(":");
+      const [code, dept, yy, type] = parts.length === 5 ? parts.slice(1) : [COLLEGE_CODE, ...parts.slice(1)];
       const range = ADMISSION_TYPES[type];
       if (!range) continue;
-      const prefix = formatRegisterNumber(dept.toLowerCase(), Number(yy), 0).slice(0, -3);
+      const prefix = formatRegisterNumber(dept.toLowerCase(), Number(yy), 0, code).slice(0, -3);
 
       const inUse = await existingNumbers([prefix]);
       for (const imp of openImports) {
         for (const r of imp.rows || []) if (r.state !== "UNDONE" && r.registerNumber) inUse.push(r.registerNumber);
       }
-      const highest = Math.max(range.start - 1, highestExistingSerial(inUse, dept.toLowerCase(), Number(yy), type));
+      const highest = Math.max(range.start - 1, highestExistingSerial(inUse, dept.toLowerCase(), Number(yy), type, code));
 
       if (highest !== c.seq) {
         // Only change it if nobody issued a number in the meantime
         const out = await Counter.updateOne({ _id: c._id, seq: c.seq }, { $set: { seq: highest } });
         if (out.modifiedCount) {
           changes.push({
-            series: `${dept} ${range.label} 20${yy}`,
-            from: c.seq <= range.start - 1 ? "none" : formatRegisterNumber(dept.toLowerCase(), Number(yy), c.seq),
-            nextNumber: formatRegisterNumber(dept.toLowerCase(), Number(yy), highest + 1),
+            series: `${code === COLLEGE_CODE ? "" : "Evening "}${dept} ${range.label} 20${yy}`,
+            from: c.seq <= range.start - 1 ? "none" : formatRegisterNumber(dept.toLowerCase(), Number(yy), c.seq, code),
+            nextNumber: formatRegisterNumber(dept.toLowerCase(), Number(yy), highest + 1, code),
           });
         }
       }
