@@ -25,6 +25,7 @@ import { ADMISSION_SHORT, DEPARTMENTS, downloadBlob, errMsg, useApi } from "./sh
 import { T } from "../ui/table";
 import { scanNumber, scanReceipt } from "./receiptScan";
 import CameraCapture from "./CameraCapture";
+import CollegeSelect, { EveningTag } from "../ui/CollegeFilter";
 import { useIsAdmin } from "../useRole";
 
 const FEE = {
@@ -52,6 +53,7 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
   const [data, setData] = useState(null);
   const [status, setStatus] = useState(initialStatus);
   const [cls, setCls] = useState("");
+  const [college, setCollege] = useState(""); // DAY (103) / EVENING (186)
   const [q, setQ] = useState("");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -85,13 +87,14 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
     const t = setTimeout(() => setQuery(q.trim()), 300);
     return () => clearTimeout(t);
   }, [q]);
-  useEffect(() => setPage(1), [query, status, cls, examId, txn]);
-  useEffect(() => setPicked(new Set()), [query, status, cls, examId, page, txn]);
+  useEffect(() => setPage(1), [query, status, cls, examId, txn, college]);
+  useEffect(() => setPicked(new Set()), [query, status, cls, examId, page, txn, college]);
 
   const params = useMemo(() => {
     const p = { page, limit: 40 };
     if (status) p.status = status;
     if (txn) p.txn = txn;
+    if (college) p.college = college;
     if (query) p.q = query;
     if (cls === "backlog") p.department = "backlog";
     else if (cls) {
@@ -100,7 +103,7 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
       p.semester = s;
     }
     return p;
-  }, [page, status, query, cls, txn]);
+  }, [page, status, query, cls, txn, college]);
 
   const load = useCallback(async () => {
     if (!examId) return;
@@ -350,6 +353,7 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
               />
             </div>
             <div className="flex flex-wrap gap-2">
+              <CollegeSelect value={college} onChange={setCollege} className={T.field} />
               <select value={cls} onChange={(e) => setCls(e.target.value)} className={T.field}>
                 <option value="">All classes</option>
                 {classOptions.map(([v, l]) => (
@@ -831,7 +835,10 @@ function FeeRow({ sl, reg, canEdit, delMode = false, picked, onPick, onQuickPaid
           )}
           <div className="min-w-0">
             <p className="truncate font-medium text-slate-950">{reg.name}</p>
-            <p className="text-[11px] font-semibold tabular-nums text-slate-500">{reg.registerNumber}</p>
+            <p className="text-[11px] font-semibold tabular-nums text-slate-500">
+              {reg.registerNumber}
+              <EveningTag registerNumber={reg.registerNumber} />
+            </p>
           </div>
         </div>
       </td>

@@ -48,7 +48,7 @@ import {
   feeSummary,
 } from "../services/exams/rules.js";
 import { refreshAfterChange, refreshNote } from "../services/exams/autoRefresh.js";
-import { shiftOf, shiftOfSheet, studentShift } from "../services/evening.js";
+import { collegeFilter, shiftOf, shiftOfSheet, studentShift } from "../services/evening.js";
 
 const DEPARTMENTS = ["at", "ch", "ce", "cs", "ec", "ee", "me", "ps"];
 const LOCK_MS = 25_000;
@@ -777,7 +777,7 @@ function regListView(r) {
 export const listRegistrations = async (req, res) => {
   if (!isId(req.params.id)) return fail(res, 400, "Invalid exam id.");
   const { department, semester, overall, issue, q } = req.query;
-  const filter = { exam: new mongoose.Types.ObjectId(req.params.id) };
+  const filter = { exam: new mongoose.Types.ObjectId(req.params.id), ...collegeFilter(req.query) };
   if (department === "backlog") filter.group = { $in: ["backlog", "manual"] };
   else if (department) filter.department = String(department).toLowerCase();
   if (semester && department !== "backlog") filter.semester = Number(semester);

@@ -14,6 +14,7 @@ import AuditLog from "../models/AuditLog.js";
 import { ticketFor } from "../services/exams/hallTicket.js";
 import { ADMISSION_LABEL } from "../services/exams/rules.js";
 import { refreshStale } from "../services/exams/autoRefresh.js";
+import { collegeFilter } from "../services/evening.js";
 
 const isId = (id) => mongoose.Types.ObjectId.isValid(id);
 const fail = (res, status, error) => res.status(status).json({ error });
@@ -26,7 +27,7 @@ export const listHallTickets = async (req, res) => {
   const exam = await Exam.findById(req.params.id).lean();
 
   const { department, semester, q, state } = req.query;
-  const filter = { exam: exam._id };
+  const filter = { exam: exam._id, ...collegeFilter(req.query) };
   if (department === "backlog") filter.group = { $in: ["backlog", "manual"] };
   else if (department) filter.department = String(department).toLowerCase();
   if (semester && department !== "backlog") filter.semester = Number(semester);

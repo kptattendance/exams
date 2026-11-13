@@ -10,7 +10,7 @@ import XLSX from "xlsx";
 import axios from "axios";
 import { calendarDay, satsOf } from "../services/studentImport/rules.js";
 import { refreshAfterChange, refreshNote } from "../services/exams/autoRefresh.js";
-import { isEvening, studentShift } from "../services/evening.js";
+import { collegeFilter, isEvening, studentShift } from "../services/evening.js";
 import { audit } from "../models/AuditLog.js";
 import { binStudents } from "../services/recycleBin.js";
 import { changeStudentEmail, EmailChangeError } from "../services/studentEmail.js";
@@ -1626,6 +1626,9 @@ export const getStudents = async (req, res) => {
       filter.department =
         department.trim().toLowerCase();
     }
+
+    // others may choose: ?college=DAY (103) / EVENING (186)
+    if (requesterRole !== "hod") Object.assign(filter, collegeFilter(req.query));
 
     // -------------------------------------------------
     // SEMESTER

@@ -8,6 +8,8 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 
 import { useConfirm, useToast } from "../ui/Feedback";
 import { DEPARTMENTS, KIND, errMsg, useApi } from "./shared";
+import MalpracticeCases from "./MalpracticeCases";
+import CollegeSelect from "../ui/CollegeFilter";
 
 const OUTCOME = {
   PASS: { label: "Pass", chip: "bg-emerald-50 text-emerald-700" },
@@ -38,6 +40,7 @@ export default function Results() {
   const [busy, setBusy] = useState(false);
   const [department, setDepartment] = useState(DEPARTMENTS[0].value);
   const [semester, setSemester] = useState("");
+  const [college, setCollege] = useState(""); // DAY (103) / EVENING (186)
   const [rows, setRows] = useState(null);
   const [open, setOpen] = useState("");
 
@@ -79,12 +82,12 @@ export default function Results() {
     if (!examId || !processedAt) return setRows(null);
     setRows(null);
     try {
-      const r = await api("get", `/exams/${examId}/results`, undefined, { params: { department, semester } });
+      const r = await api("get", `/exams/${examId}/results`, undefined, { params: { department, semester, ...(college ? { college } : {}) } });
       setRows(r.data.data);
     } catch (e) {
       toast.error(errMsg(e, "Could not load the class."));
     }
-  }, [api, examId, processedAt, department, semester, toast]);
+  }, [api, examId, processedAt, department, semester, college, toast]);
 
   useEffect(() => {
     loadRows();
@@ -223,9 +226,12 @@ export default function Results() {
         </div>
       )}
 
+      {state && <MalpracticeCases examId={examId} published={Boolean(publishedAt)} onChanged={load} />}
+
       {state && processedAt && (
         <>
           <div className="mt-5 flex flex-wrap gap-2">
+            <CollegeSelect value={college} onChange={setCollege} />
             <select value={department} onChange={(e) => setDepartment(e.target.value)} className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm">
               {DEPARTMENTS.map((d) => (
                 <option key={d.value} value={d.value}>

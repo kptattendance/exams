@@ -14,6 +14,7 @@ import { useConfirm, useToast } from "../ui/Feedback";
 import { ExamForm } from "./ExamList";
 import ExamFeeSettings from "./ExamFeeSettings";
 import { T } from "../ui/table";
+import CollegeSelect from "../ui/CollegeFilter";
 import {
   ADMISSION_SHORT,
   DECISION,
@@ -720,7 +721,7 @@ function SheetTable({ readiness, semesters }) {
 
 // One class's students in a pop-up (same list, filters and actions as the Students tab)
 function ClassModal({ cls, examId, classes, canManage, canEditSubjects, onChanged, onDownload, onClose }) {
-  const [filters, setFilters] = useState({ cls: cls.key, overall: "", issue: "", q: "" });
+  const [filters, setFilters] = useState({ cls: cls.key, overall: "", issue: "", q: "", college: "" });
   const title = cls.key === "backlog" ? "Back papers only" : `${cls.department.toUpperCase()} · Semester ${cls.semester}`;
   return (
     <Modal
@@ -818,6 +819,7 @@ function StudentList({ examId, classes, filters, setFilters, fixedClass = false,
     if (filters.overall) p.overall = filters.overall;
     if (filters.issue) p.issue = filters.issue;
     if (filters.q) p.q = filters.q;
+    if (filters.college) p.college = filters.college;
     return p;
   }, [filters, page]);
 
@@ -881,6 +883,7 @@ function StudentList({ examId, classes, filters, setFilters, fixedClass = false,
             ))}
           </select>
           )}
+          <CollegeSelect value={filters.college} onChange={(v) => setFilters((f) => ({ ...f, college: v }))} className={sel} />
           <select value={filters.overall} onChange={(e) => setFilters((f) => ({ ...f, overall: e.target.value }))} className={sel}>
             <option value="">Any result</option>
             {Object.entries(OVERALL).map(([k, o]) => (

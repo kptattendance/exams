@@ -10,6 +10,7 @@ import Icon from "../shell/Icon";
 import { btn } from "../ui/Modal";
 import { useToast } from "../ui/Feedback";
 import { ADMISSION_SHORT, errMsg, useApi } from "./shared";
+import CollegeSelect from "../ui/CollegeFilter";
 import { T } from "../ui/table";
 
 const DEPTS = ["at", "ch", "ce", "cs", "ec", "ee", "me", "ps"];
@@ -22,6 +23,7 @@ export default function HallTickets({ timetableHref }) {
   const [examId, setExamId] = useState("");
   const [data, setData] = useState(null);
   const [cls, setCls] = useState("");
+  const [college, setCollege] = useState(""); // DAY (103) / EVENING (186)
   const [state, setState] = useState("");
   const [q, setQ] = useState("");
   const [query, setQuery] = useState("");
@@ -45,7 +47,7 @@ export default function HallTickets({ timetableHref }) {
     const t = setTimeout(() => setQuery(q.trim()), 300);
     return () => clearTimeout(t);
   }, [q]);
-  useEffect(() => setPage(1), [cls, state, query, examId]);
+  useEffect(() => setPage(1), [cls, state, query, examId, college]);
 
   const filter = useMemo(() => {
     const p = {};
@@ -56,8 +58,9 @@ export default function HallTickets({ timetableHref }) {
       p.semester = s;
     }
     if (query) p.q = query;
+    if (college) p.college = college;
     return p;
-  }, [cls, query]);
+  }, [cls, query, college]);
 
   useEffect(() => {
     if (!examId) return;
@@ -162,6 +165,7 @@ export default function HallTickets({ timetableHref }) {
               <Icon name="search" className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
               <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Register number or name" className={`${T.field} w-60 pl-8`} />
             </div>
+            <CollegeSelect value={college} onChange={setCollege} className={T.field} />
             <select value={cls} onChange={(e) => setCls(e.target.value)} className={T.field}>
               <option value="">All classes</option>
               {classes.map(([v, l]) => (

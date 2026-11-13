@@ -113,6 +113,25 @@ const resultCourseSchema = new mongoose.Schema(
   { _id: false }
 );
 
+// The Malpractice Enquiry Committee's decision (KPT 10.2), recorded by the COE
+//   PSC      – performance in the chosen subject(s) cancelled
+//   PEC      – performance in all subjects of that semester cancelled; not promoted
+//   PEC_PLUS – performance in every subject of this exam cancelled; not promoted
+//              (debarExams: what the committee said – noted only)
+const malpracticeSchema = new mongoose.Schema(
+  {
+    decision: { type: String, enum: ["PSC", "PEC", "PEC_PLUS"], required: true },
+    subjects: { type: [String], default: [] }, // PSC: subject codes cancelled
+    semesters: { type: [Number], default: [] }, // PEC: semesters cancelled
+    reference: { type: String, default: "" }, // MPEC proceedings no. / date
+    debarExams: { type: Number, default: null },
+    note: { type: String, default: "" },
+    by: { type: String, default: "" },
+    at: { type: Date, default: null },
+  },
+  { _id: false }
+);
+
 const examRegistrationSchema = new mongoose.Schema(
   {
     exam: { type: mongoose.Schema.Types.ObjectId, ref: "Exam", required: true, index: true },
@@ -161,6 +180,9 @@ const examRegistrationSchema = new mongoose.Schema(
 
     // Transactions (a student may pay in two or more parts)
     payments: { type: [paymentSchema], default: [] },
+
+    // Malpractice decision (KPT 10.2) – applied when the results are worked out
+    malpractice: { type: malpracticeSchema, default: null },
 
     // Filled when the COE processes the results
     result: {

@@ -57,4 +57,13 @@ export function shiftQuery(req) {
   if (evening === null) return {};
   return evening ? { shift: "EVENING" } : { shift: { $ne: "EVENING" } };
 }
+// COE / office / Admin lists: ?college=DAY (103…) or ?college=EVENING (186…);
+// anything else = both. A HOD / Evening Principal is already limited (studentShift).
+export function collegeFilter(query) {
+  const c = String(query?.college || "").toUpperCase();
+  if (c === "EVENING") return { registerNumber: EVENING_RX };
+  if (c === "DAY") return { registerNumber: { $not: EVENING_RX } };
+  return {};
+}
+
 export const shiftOfSheet = (doc) => (doc?.shift === "EVENING" ? "EVENING" : "DAY");

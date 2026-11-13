@@ -16,6 +16,7 @@ import { sortOptions } from "../../../components/sortOptions";
 import { usePopupMessage } from "../../../components/ui/Feedback";
 import ChangePhotoButton from "../../../components/students/ChangePhoto";
 import ChangeEmailButton from "../../../components/students/ChangeEmail";
+import CollegeSelect, { matchesCollege } from "../../../components/ui/CollegeFilter";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const departments = [
@@ -111,6 +112,9 @@ export default function StudentTable({
   const [batchFilter, setBatchFilter] =
     useState("");
   const [statusFilter, setStatusFilter] =
+    useState("");
+  // day college (103) / evening college (186)
+  const [collegeFilter, setCollegeFilter] =
     useState("");
 
   // View
@@ -353,7 +357,13 @@ const downloadStudentsExcel = () => {
         !statusFilter ||
         student.status === statusFilter;
 
+      const matchesShift = matchesCollege(
+        collegeFilter,
+        student.registerNumber
+      );
+
       return (
+        matchesShift &&
         matchesSearch &&
         matchesDepartment &&
         matchesSemester &&
@@ -368,6 +378,7 @@ const downloadStudentsExcel = () => {
     semesterFilter,
     batchFilter,
     statusFilter,
+    collegeFilter,
   ]);
 
   // =====================================================
@@ -380,6 +391,7 @@ const downloadStudentsExcel = () => {
     setSemesterFilter("");
     setBatchFilter("");
     setStatusFilter("");
+    setCollegeFilter("");
   };
 
   // =====================================================
@@ -904,6 +916,12 @@ const downloadStudentsExcel = () => {
             ))}
           </select>
 
+          <CollegeSelect
+            value={collegeFilter}
+            onChange={setCollegeFilter}
+            className="h-10 rounded-xl border border-indigo-200 bg-indigo-50 px-3 text-sm outline-none focus:border-indigo-500 focus:bg-white"
+          />
+
           <select
             value={statusFilter}
             onChange={(e) =>
@@ -945,7 +963,8 @@ const downloadStudentsExcel = () => {
             departmentFilter ||
             semesterFilter ||
             batchFilter ||
-            statusFilter) && (
+            statusFilter ||
+            collegeFilter) && (
             <button
               onClick={clearFilters}
               className="text-xs font-semibold text-slate-500 hover:text-slate-900"

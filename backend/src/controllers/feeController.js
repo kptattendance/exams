@@ -17,6 +17,7 @@ import ExamRegistration from "../models/ExamRegistration.js";
 import AuditLog from "../models/AuditLog.js";
 import { feeItems, feeSummary, parsePays, ADMISSION_LABEL, subjectFeePaid, examFeeFor } from "../services/exams/rules.js";
 import { recount, feeRulesOf } from "./examController.js";
+import { collegeFilter } from "../services/evening.js";
 
 const isId = (id) => mongoose.Types.ObjectId.isValid(id);
 const fail = (res, status, error, extra = {}) => res.status(status).json({ error, ...extra });
@@ -119,7 +120,8 @@ function feeView(r) {
 const amountPaid = (r) => (r.payments || []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
 function baseFilter(examId, query) {
-  const filter = { exam: new mongoose.Types.ObjectId(examId), feeStatus: { $ne: "NONE" } };
+  // ?college=DAY (103) / EVENING (186)
+  const filter = { exam: new mongoose.Types.ObjectId(examId), feeStatus: { $ne: "NONE" }, ...collegeFilter(query) };
   const { department, semester, q } = query;
   if (department === "backlog") filter.group = { $in: ["backlog", "manual"] };
   else if (department) filter.department = String(department).toLowerCase();

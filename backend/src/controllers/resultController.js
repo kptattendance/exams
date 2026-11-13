@@ -14,9 +14,11 @@ import mongoose from "mongoose";
 import Exam from "../models/Exam.js";
 import ExamRegistration from "../models/ExamRegistration.js";
 import Subject from "../models/Subject.js";
+import Student from "../models/Student.js";
 import CourseResult from "../models/CourseResult.js";
 import AuditLog from "../models/AuditLog.js";
-import { studentResult, MAX_MODERATION } from "../services/exams/results.js";
+import { studentResult, MAX_MODERATION, caughtSubjects, MALPRACTICE_LABEL } from "../services/exams/results.js";
+import { collegeFilter } from "../services/evening.js";
 
 const isId = (id) => mongoose.Types.ObjectId.isValid(id);
 const fail = (res, status, error, extra = {}) => res.status(status).json({ error, ...extra });
@@ -45,8 +47,8 @@ const SUBJECT_FIELDS =
   "code subjectCategory iaMax iaMin theoryExamMax theoryExamMin practicalExamMax practicalExamMin totalMax totalMin credit";
 
 // The result of every registered student, worked out from the marks as they are now
-async function compute(exam, moderation) {
-  const regs = await ExamRegistration.find({ exam: exam._id, "subjects.0": { $exists: true } }).lean();
+async function compute(exam, moderation, only = {}) {
+  const regs = await ExamRegistration.find({ exam: exam._id, "subjects.0": { $exists: true }, ...only }).lean();
   const earlier = await CourseResult.find({ student: { $in: regs.map((r) => r.student) }, exam: { $ne: exam._id } })
     .select("student subject status cie gradePoint credit declaredAt")
     .lean();
@@ -163,7 +165,7 @@ export const listResults = async (req, res) => {
   const exam = await loadExam(req, res);
   if (!exam) return;
   const { department, semester, q } = req.query;
-  const filter = { exam: exam._id, "result.processedAt": { $ne: null } };
+  const filter = { exam: exam._id, "result.processedAt": { $ne: null }, ...collegeFilter(req.query) };
   if (department === "backlog") filter.group = { $in: ["backlog", "manual"] };
   else {
     if (department) filter.department = String(department).toLowerCase();
@@ -223,6 +225,156 @@ export const publishResults = async (req, res) => {
   await CourseResult.deleteMany({ exam: exam._id, source: "RESULT" });
   await CourseResult.insertMany(docs, { ordered: false });
   await Exam.updateOne({ _id: exam._id }, { $set: { status: "COMPLETED", "results.publishedAt": now, "results.publishedBy": who(req) } });
-  await log(req, "RESULTS_PUBLISHED", exam._id, { students: computed.length, subjects: docs.length });
+  // malpractice PEC / PEC+ (KPT 10.2): not promoted – Detained from now on
+  const detained = await detainFor(computed.map(({ reg }) => reg));
+  await log(req, "RESULTS_PUBLISHED", exam._id, { students: computed.length, subjects: docs.length, detained });
   res.json({ message: `Results published for ${computed.length} students. The exam is now completed.` });
+};
+
+// ====================================================================
+// Malpractice decisions (KPT 10.2) – COE
+// ====================================================================
+
+const NOT_PROMOTED = ["PEC", "PEC_PLUS"];
+// Students whose decision means "not promoted": active -> detained
+async function detainFor(regs) {
+  const ids = regs.filter((r) => NOT_PROMOTED.includes(r.malpractice?.decision)).map((r) => r.student);
+  if (!ids.length) return 0;
+  const out = await Student.updateMany({ _id: { $in: ids }, status: "active" }, { $set: { status: "detained" } });
+  return out.modifiedCount || 0;
+}
+
+const caseView = (r) => ({
+  _id: r._id,
+  registerNumber: r.registerNumber,
+  name: r.name,
+  department: r.department,
+  semester: r.semester,
+  group: r.group,
+  caught: caughtSubjects(r).map((s) => ({
+    code: s.code,
+    name: s.name,
+    semester: s.semester,
+    parts: [s.see?.attendance === "MALPRACTICE" && "Theory", s.practical?.attendance === "MALPRACTICE" && "Practical"].filter(Boolean),
+  })),
+  subjects: (r.subjects || []).map((s) => ({ code: s.code, name: s.name, semester: s.semester, kind: s.kind })),
+  malpractice: r.malpractice || null,
+});
+
+// GET /api/exams/:id/malpractice   – everyone caught in this exam, with the decision
+export const listMalpractice = async (req, res) => {
+  const exam = await loadExam(req, res);
+  if (!exam) return;
+  const regs = await ExamRegistration.find({
+    exam: exam._id,
+    $or: [{ "subjects.see.attendance": "MALPRACTICE" }, { "subjects.practical.attendance": "MALPRACTICE" }, { "malpractice.decision": { $ne: null } }],
+  })
+    .select("registerNumber name department semester group subjects malpractice student")
+    .sort({ registerNumber: 1 })
+    .lean();
+  res.json({ data: regs.map(caseView), published: Boolean(exam.results?.publishedAt) });
+};
+
+// POST /api/exams/:id/registrations/:regId/malpractice
+//   { decision: "PSC" | "PEC" | "PEC_PLUS" | "" (remove), subjects: ["25CS11T0"], reference, debarExams, note }
+export const saveMalpractice = async (req, res) => {
+  const exam = await loadExam(req, res);
+  if (!exam) return;
+  if (!isId(req.params.regId)) return fail(res, 400, "Invalid id.");
+  const reg = await ExamRegistration.findOne({ _id: req.params.regId, exam: exam._id });
+  if (!reg) return fail(res, 404, "Registration not found.");
+
+  const decision = String(req.body?.decision || "").toUpperCase();
+  const before = reg.malpractice?.decision || "";
+  if (!decision) {
+    reg.malpractice = null;
+  } else {
+    if (!MALPRACTICE_LABEL[decision]) return fail(res, 400, "Choose PSC, PEC or PEC+.");
+    const reference = String(req.body?.reference || "").trim().slice(0, 200);
+    if (reference.length < 3) return fail(res, 400, "Write the committee's (MPEC) reference – proceedings number or date.");
+    const caught = caughtSubjects(reg);
+    const codes = new Set((reg.subjects || []).map((s) => s.code));
+    let subjects = [];
+    let semesters = [];
+    if (decision === "PSC") {
+      subjects = [...new Set((Array.isArray(req.body?.subjects) ? req.body.subjects : []).map(String))].filter((c) => codes.has(c));
+      if (!subjects.length) subjects = caught.map((s) => s.code);
+      if (!subjects.length) return fail(res, 400, "Tick the subject(s) whose performance is cancelled.");
+    }
+    if (decision === "PEC") {
+      semesters = [...new Set((caught.length ? caught : reg.subjects).map((s) => Number(s.semester)).filter(Boolean))];
+      if (!semesters.length) return fail(res, 400, "No semester found for this student.");
+    }
+    const debar = req.body?.debarExams === "" || req.body?.debarExams == null ? null : Number(req.body.debarExams);
+    if (debar !== null && !(Number.isInteger(debar) && debar >= 1 && debar <= 8)) return fail(res, 400, "Debarred for: 1 to 8 examinations, or leave it empty.");
+    reg.malpractice = {
+      decision,
+      subjects,
+      semesters,
+      reference,
+      debarExams: decision === "PEC_PLUS" ? debar : null,
+      note: String(req.body?.note || "").trim().slice(0, 500),
+      by: who(req),
+      at: new Date(),
+    };
+  }
+  await reg.save();
+
+  // Results already published (the Admin, with a reason): the published
+  // result of this student is corrected now, and PEC / PEC+ detain him now
+  let republished = false;
+  let detained = 0;
+  if (exam.results?.publishedAt) {
+    const [one] = await compute(exam, exam.results.moderationMarks || 0, { _id: reg._id });
+    if (one) {
+      const at = new Date();
+      await ExamRegistration.updateOne({ _id: reg._id }, { $set: { result: { ...one.result, processedAt: at } } });
+      await CourseResult.deleteMany({ exam: exam._id, student: reg.student, source: "RESULT" });
+      await CourseResult.insertMany(
+        one.result.courses.map((c) => ({
+          student: reg.student,
+          subject: c.subject,
+          code: c.code,
+          semester: c.semester,
+          exam: exam._id,
+          status: c.status,
+          cie: c.cie,
+          see: c.theory,
+          practical: c.practical,
+          total: c.total,
+          max: c.max,
+          grade: c.grade,
+          gradePoint: c.points,
+          credit: c.credit,
+          declaredAt: exam.results.publishedAt,
+          source: "RESULT",
+        })),
+        { ordered: false }
+      );
+      republished = true;
+      detained = await detainFor([reg.toObject()]);
+    }
+  }
+
+  await log(req, "MALPRACTICE_DECISION", exam._id, {
+    registration: reg._id,
+    registerNumber: reg.registerNumber,
+    decision: decision || "removed",
+    before: before || null,
+    subjects: reg.malpractice?.subjects,
+    semesters: reg.malpractice?.semesters,
+    reference: reg.malpractice?.reference,
+    debarExams: reg.malpractice?.debarExams ?? null,
+    republished,
+    detained,
+  });
+  const label = decision ? MALPRACTICE_LABEL[decision] : "";
+  res.json({
+    data: caseView(reg.toObject()),
+    message: decision
+      ? `${label} recorded for ${reg.registerNumber}.${republished ? " The published result is corrected." : " It is applied when the results are processed."}${
+          NOT_PROMOTED.includes(decision) ? (republished ? " He is now Detained." : " He becomes Detained when the results are published.") : ""
+        }`
+      : `Decision removed for ${reg.registerNumber}.`,
+  });
 };

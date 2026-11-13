@@ -169,6 +169,24 @@ export function inputFor(reg, s, subject, earlier) {
 //   subjectOf : (subjectId) -> subject document
 //   past      : Map(subjectId -> { cie, status, points, credit, kind }) – his latest result
 //               in each subject from earlier exams
+// Malpractice (KPT 10.2): the subjects caught (theory or practical marked
+// MALPRACTICE) and, once the COE records the committee's decision, which
+// subjects' performance is cancelled.
+export const MALPRACTICE_LABEL = { PSC: "PSC", PEC: "PEC", PEC_PLUS: "PEC+" };
+export const caughtSubjects = (reg) =>
+  (reg.subjects || []).filter((s) => s.see?.attendance === "MALPRACTICE" || s.practical?.attendance === "MALPRACTICE");
+export function cancelledBy(reg) {
+  const m = reg.malpractice;
+  if (!m?.decision) return null;
+  if (m.decision === "PEC_PLUS") return () => true;
+  if (m.decision === "PEC") {
+    const sems = new Set((m.semesters?.length ? m.semesters : caughtSubjects(reg).map((s) => s.semester)).map(Number));
+    return (c) => sems.has(Number(c.semester));
+  }
+  const codes = new Set(m.subjects?.length ? m.subjects : caughtSubjects(reg).map((s) => s.code));
+  return (c) => codes.has(c.code);
+}
+
 export function studentResult(reg, subjectOf, past = new Map(), { moderation = 0 } = {}) {
   const items = (reg.subjects || []).map((s) => {
     const subject = subjectOf(s.subject);
@@ -176,6 +194,7 @@ export function studentResult(reg, subjectOf, past = new Map(), { moderation = 0
   });
   const marks = moderationFor(items.filter((i) => i.subject), Math.min(MAX_MODERATION, Number(moderation) || 0));
 
+  const cancelled = cancelledBy(reg);
   const courses = items.map(({ key, s, subject, input }) => {
     const add = marks.get(key);
     const r = subject
@@ -194,7 +213,12 @@ export function studentResult(reg, subjectOf, past = new Map(), { moderation = 0
       ...r,
       moderation: add ? add.theory + add.practical : 0,
     };
-  });
+  }).map((c) =>
+    // performance cancelled: a fail, no marks for this attempt (a back paper next time)
+    cancelled?.(c)
+      ? { ...c, theory: null, practical: null, total: null, status: "FAIL", grade: "F", points: 0, moderation: 0, note: `Performance cancelled (${MALPRACTICE_LABEL[reg.malpractice.decision]}) – malpractice.` }
+      : c
+  );
 
   const current = courses.filter((c) => c.kind !== "BACKLOG");
   const sgpa = current.length ? gradePointAverage(current) : { value: null, registered: 0, earned: 0 };

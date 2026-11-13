@@ -6,7 +6,9 @@
 //
 // One row = one student, one subject, one exam (25S = Nov/Dec 2025,
 // 26A = Apr/May 2026). Mark cells hold a number, "--" (no such part),
-// AB (absent), NE (not eligible), MP (malpractice) or X (not registered).
+// AB (absent), NE (not eligible), MP (malpractice, decision pending),
+// PC (performance cancelled for malpractice – KPT 10.2; also PSC / PEC) or
+// X (not registered).
 
 import { gradeFor } from "./results.js";
 
@@ -92,6 +94,9 @@ export function oldRowResult(row, subject) {
   } else if (codes.includes("AB")) out = { status: "ABSENT", grade: "F", gradePoint: 0 };
   else if (codes.includes("NE")) out = { status: "NE", grade: "NE", gradePoint: 0 };
   else if (codes.includes("MP")) out = { status: "WITHHELD", grade: "", gradePoint: 0 };
+  // performance cancelled (malpractice, decided): no marks for this attempt –
+  // a fail, so the subject comes back as a back paper; "PC" stays in the marks
+  else if (codes.some((c) => c === "PC" || c === "PSC" || c === "PEC" || c === "PEC+")) out = { status: "FAIL", grade: "F", gradePoint: 0 };
   else {
     const odd = codes.filter((c) => c !== "X");
     if (odd.length) warnings.push(`Unknown mark ${odd.join(", ")} – taken as failed.`);
