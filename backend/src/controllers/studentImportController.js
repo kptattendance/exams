@@ -50,6 +50,7 @@ import {
   hasErrors,
 } from "../services/studentImport/rules.js";
 import { refreshAfterChange, refreshNote } from "../services/exams/autoRefresh.js";
+import { shiftOf } from "../services/evening.js";
 
 const PHOTO_FOLDER = "kpt-examination/students";
 const isId = (id) => mongoose.Types.ObjectId.isValid(id);
@@ -162,7 +163,9 @@ async function analyse(buffer, { existing = false } = {}) {
   const inBin = await binnedEmails(emails);
   const emailTaken = new Map(byEmail.map((s) => [s.email, s.registerNumber]));
   const aadhaarTaken = new Set([...byAadhaar.map((s) => s.aadhaarHash), ...byAadhaar.map((s) => s.aadhaarNumber)]);
-  const rollTaken = new Map(byRoll.map((s) => [`${s.rollNumber}|${s.department}|${s.admissionYear}`, s.registerNumber]));
+  // day (103) and evening (186) colleges keep separate roll-number series:
+  // 25ME001 of the evening college is not 25ME001 of the day college
+  const rollTaken = new Map(byRoll.map((s) => [`${s.rollNumber}|${s.department}|${s.admissionYear}|${shiftOf(s.registerNumber)}`, s.registerNumber]));
 
   for (const row of cleaned) {
     const s = row.student;
@@ -174,7 +177,8 @@ async function analyse(buffer, { existing = false } = {}) {
       row.problems.push({ level: "error", field: "email", message: "A login account already exists with this email." });
     if (s.aadhaar && (aadhaarTaken.has(hashAadhaar(s.aadhaar)) || aadhaarTaken.has(s.aadhaar)))
       row.problems.push({ level: "error", field: "aadhaar", message: "A student with this Aadhaar number already exists." });
-    const rk = `${s.rollNumber}|${s.department}|${s.admissionYear}`;
+    // 1st-year import: day college (103 numbers are made here); 2nd/3rd year: from the given number
+    const rk = `${s.rollNumber}|${s.department}|${s.admissionYear}|${existing ? shiftOf(String(s.registerNumber || "")) : "DAY"}`;
     if (rollTaken.has(rk))
       row.problems.push({ level: "error", field: "rollNumber", message: `Already imported as ${rollTaken.get(rk)}.` });
   }

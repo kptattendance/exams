@@ -183,6 +183,67 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
     }
   };
 
+  // ---- transactions saved in the background: the window closes at once and the
+  // office goes on with the next student; the row shows "Saving…" until done
+  const [saving, setSaving] = useState({}); // registration id -> "saving" | "failed"
+  const chains = useRef({}); // one student's saves run one after the other
+  const savingCount = Object.values(saving).filter((v) => v === "saving").length;
+  // only this row and the counts change (no reload: the rows do not move)
+  const applySaved = (reg) =>
+    setData((d) => {
+      if (!d) return d;
+      const old = d.data.find((x) => x._id === reg._id);
+      const c = { ...(d.counts || {}) };
+      if (old && old.feeStatus !== reg.feeStatus) {
+        c[old.feeStatus] = Math.max(0, (c[old.feeStatus] || 0) - 1);
+        c[reg.feeStatus] = (c[reg.feeStatus] || 0) + 1;
+      }
+      return { ...d, counts: c, data: d.data.map((x) => (x._id === reg._id ? { ...reg, due: reg.due || x.due } : x)) };
+    });
+  const saveInBackground = (reg, { rows, keys }) => {
+    setPaying(null);
+    setSaving((s) => ({ ...s, [reg._id]: "saving" }));
+    const run = async () => {
+      let last = null;
+      let saved = 0;
+      const failed = [];
+      for (const row of rows) {
+        try {
+          const body = { txnNo: row.txnNo, amount: row.amount, paidOn: row.paidOn, note: "", source: row.source, keys: saved === 0 ? keys : [] };
+          const r = await api("post", `/exams/${examId}/registrations/${reg._id}/payments`, body);
+          if (r.data.warning) toast.error(`${reg.registerNumber}: ${r.data.warning}`, 10000);
+          last = r.data.data;
+          saved++;
+        } catch (e) {
+          failed.push(`${row.txnNo || `₹${row.amount}`} – ${errMsg(e, "not saved")}`);
+        }
+      }
+      if (last) applySaved(last);
+      if (failed.length) {
+        setSaving((s) => ({ ...s, [reg._id]: "failed" }));
+        toast.error(`${reg.registerNumber} ${reg.name}: NOT saved (${failed.join("; ")}). Open Details and enter it again.`, 15000);
+      } else {
+        setSaving((s) => {
+          const n = { ...s };
+          delete n[reg._id];
+          return n;
+        });
+        toast.success(`Saved for ${reg.registerNumber}.`, 2000);
+      }
+    };
+    chains.current[reg._id] = (chains.current[reg._id] || Promise.resolve()).then(run, run);
+  };
+  // closing the page while something is still being saved: the browser asks first
+  useEffect(() => {
+    if (!savingCount) return;
+    const warn = (e) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [savingCount]);
+
   const counts = data?.counts || {};
   const total = (counts.PAID || 0) + (counts.PARTIAL || 0) + (counts.UNPAID || 0);
   const items = data?.data || [];
@@ -405,6 +466,7 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
                       onPick={() => togglePick(r._id)}
                       onQuickPaid={() => quickPaid(r)}
                       onPay={() => setPaying(r)}
+                      saving={saving[r._id]}
                     />
                   ))}
                 </tbody>
@@ -437,6 +499,7 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
             replace(reg);
             load();
           }}
+          onBackground={(job) => saveInBackground(paying, job)}
           onSaved={(reg) => {
             replace(reg);
             setPaying(null);
@@ -741,7 +804,7 @@ function CourseList({ courses = [], only = null }) {
 // (a few KB) instead of the full photo – the page scrolls much faster
 const thumb = (url = "") => (/res\.cloudinary\.com\/.+\/image\/upload\//.test(url) ? url.replace("/image/upload/", "/image/upload/c_fill,g_face,w_64,h_64,q_auto,f_auto/") : url);
 
-function FeeRow({ sl, reg, canEdit, delMode = false, picked, onPick, onQuickPaid, onPay }) {
+function FeeRow({ sl, reg, canEdit, delMode = false, picked, onPick, onQuickPaid, onPay, saving = "" }) {
   const st = FEE[reg.feeStatus] || FEE.UNPAID;
   const unpaid = reg.items.filter((i) => !i.paid).length;
   const [busy, setBusy] = useState(false);
@@ -810,6 +873,13 @@ function FeeRow({ sl, reg, canEdit, delMode = false, picked, onPick, onQuickPaid
           </p>
         )}
         <DueNote due={reg.due} />
+        {saving === "saving" && (
+          <p className="mt-1 inline-flex items-center gap-1 rounded-md bg-blue-50 px-1.5 py-0.5 text-[11px] font-semibold text-blue-700">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-600" />
+            Saving…
+          </p>
+        )}
+        {saving === "failed" && <p className="mt-1 rounded-md bg-amber-50 px-1.5 py-0.5 text-[11px] font-semibold text-amber-800">Not saved – enter again</p>}
       </td>
       {canEdit && (
         <td className={`${T.td} text-right`}>
@@ -839,7 +909,7 @@ function FeeRow({ sl, reg, canEdit, delMode = false, picked, onPick, onQuickPaid
   );
 }
 
-function PayModal({ examId, reg: initialReg, onClose, onSaved, onChanged }) {
+function PayModal({ examId, reg: initialReg, onClose, onSaved, onChanged, onBackground }) {
   const api = useApi();
   const toast = useToast();
   const [reg, setReg] = useState(initialReg); // updated as transactions are added
@@ -1004,7 +1074,7 @@ function PayModal({ examId, reg: initialReg, onClose, onSaved, onChanged }) {
           )}
           </div>
           {/* right: the transactions */}
-          <Payments examId={examId} reg={reg} markKeys={openKeys} onChanged={changed} onDone={(r) => onSaved({ ...r, due: r.due || reg.due })} />
+          <Payments examId={examId} reg={reg} markKeys={openKeys} onChanged={changed} onDone={(r) => onSaved({ ...r, due: r.due || reg.due })} onBackground={onBackground} />
         </div>
       )}
     </Modal>
@@ -1013,7 +1083,7 @@ function PayModal({ examId, reg: initialReg, onClose, onSaved, onChanged }) {
 
 // Transactions of one student: add one or several at once (typed or read from
 // a scanned receipt) / remove. Each is saved with the same request as before.
-function Payments({ examId, reg, markKeys, onChanged, onDone }) {
+function Payments({ examId, reg, markKeys, onChanged, onDone, onBackground }) {
   const api = useApi();
   const toast = useToast();
   const confirm = useConfirm();
@@ -1112,6 +1182,8 @@ function Payments({ examId, reg, markKeys, onChanged, onDone }) {
       toast.error("Enter the payment date (as on the challan) before saving.");
       return;
     }
+    // saved in the background: the window closes now, the row shows "Saving…"
+    if (onBackground) return onBackground({ rows: filled.map((r) => ({ ...r })), keys: alsoMark ? markKeys : [] });
     setBusy(true);
     let last = null;
     let saved = 0;
