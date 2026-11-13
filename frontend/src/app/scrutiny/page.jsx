@@ -67,13 +67,25 @@ export default function ScrutinyPage() {
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
 
+  // never waits for ever: after 25 s, or an unexpected answer, the reason is
+  // shown with "Try again" instead of an endless "Loading…"
+  const [loadError, setLoadError] = useState("");
   const load = useCallback(async () => {
+    setLoadError("");
     try {
-      const r = await api("get", "/paper-setting/scrutiny", undefined, { params: { examSession: session || undefined } });
+      const r = await api("get", "/paper-setting/scrutiny", undefined, { params: { examSession: session || undefined }, timeout: 25000 });
+      if (!Array.isArray(r.data?.data)) throw new Error("unexpected");
       setPapers(r.data.data);
     } catch (e) {
-      setPapers([]);
-      toast.error(errMsg(e, "Could not load the papers."));
+      const msg =
+        e?.code === "ECONNABORTED"
+          ? "The server did not answer within 25 seconds. Check the internet connection and press Try again."
+          : e?.message === "unexpected"
+            ? "The server sent an unexpected answer. Press Try again; if it repeats, sign out and sign in again."
+            : errMsg(e, e?.response ? "Could not load the papers." : "Could not reach the server. Check the internet connection and press Try again.");
+      setLoadError(msg);
+      setPapers((list) => list || []);
+      toast.error(msg);
     }
   }, [api, session, toast]);
 
@@ -346,6 +358,20 @@ export default function ScrutinyPage() {
       </div>
 
       {!papers && <div className="mt-4 h-72 animate-pulse rounded-2xl bg-white" />}
+      {loadError && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+          <p className="text-sm font-semibold text-slate-700">The papers did not load.</p>
+          <button
+            onClick={() => {
+              setPapers(null);
+              load();
+            }}
+            className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700"
+          >
+            Try again
+          </button>
+        </div>
+      )}
 
       {papers && (
         <div className="mt-3 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
