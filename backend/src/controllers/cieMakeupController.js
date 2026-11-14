@@ -46,9 +46,9 @@ const entryView = (e) => ({
 // Everyone whose latest result in a course is NE (and who has not already
 // made it up), for courses that allow a make-up (KPT 5.5.2)
 async function candidates() {
-  const neStudents = await CourseResult.distinct("student", { status: "NE" });
+  const neStudents = await CourseResult.distinct("student", { status: "NE", rejected: { $ne: true } });
   if (!neStudents.length) return [];
-  const rows = await CourseResult.find({ student: { $in: neStudents } }).select("student subject status cie declaredAt").lean();
+  const rows = await CourseResult.find({ student: { $in: neStudents }, rejected: { $ne: true } }).select("student subject status cie declaredAt").lean();
   const latest = new Map();
   for (const r of rows) {
     const k = `${r.student}|${r.subject}`;

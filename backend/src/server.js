@@ -25,6 +25,8 @@ import oldResultRoutes from "./routes/oldResultRoutes.js";
 import phoneScanRoutes from "./routes/phoneScanRoutes.js";
 import revaluationRoutes from "./routes/revaluationRoutes.js";
 import cieMakeupRoutes from "./routes/cieMakeupRoutes.js";
+import specialExamRoutes from "./routes/specialExamRoutes.js";
+import rejectionRoutes from "./routes/rejectionRoutes.js";
 import stepUpRoutes from "./routes/stepUpRoutes.js";
 
 
@@ -133,6 +135,8 @@ app.use("/api/old-results", oldResultRoutes);
 app.use("/api/phone-scans", phoneScanRoutes);
 app.use("/api/revaluation", revaluationRoutes);
 app.use("/api/cie-makeup", cieMakeupRoutes);
+app.use("/api/special-exams", specialExamRoutes);
+app.use("/api/result-rejection", rejectionRoutes);
 app.use("/api/otp", stepUpRoutes);
 
 

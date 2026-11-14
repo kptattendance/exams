@@ -49,7 +49,7 @@ const SUBJECT_FIELDS =
 // The result of every registered student, worked out from the marks as they are now
 async function compute(exam, moderation, only = {}) {
   const regs = await ExamRegistration.find({ exam: exam._id, "subjects.0": { $exists: true }, ...only }).lean();
-  const earlier = await CourseResult.find({ student: { $in: regs.map((r) => r.student) }, exam: { $ne: exam._id } })
+  const earlier = await CourseResult.find({ student: { $in: regs.map((r) => r.student) }, exam: { $ne: exam._id }, rejected: { $ne: true } })
     .select("student subject status cie gradePoint credit declaredAt")
     .lean();
 
@@ -369,7 +369,7 @@ export const saveMalpractice = async (req, res) => {
 // Credits passed so far, per student and semester: the latest result of each
 // subject (back papers cleared count); bridge and audit courses not counted
 async function earnedBySemester(studentIds) {
-  const rows = await CourseResult.find({ student: { $in: studentIds } }).select("student subject semester status credit declaredAt").lean();
+  const rows = await CourseResult.find({ student: { $in: studentIds }, rejected: { $ne: true } }).select("student subject semester status credit declaredAt").lean();
   const cats = new Map(
     (await Subject.find({ _id: { $in: [...new Set(rows.map((r) => String(r.subject)))] } }).select("subjectCategory credit semester").lean()).map((s) => [String(s._id), s])
   );
@@ -453,7 +453,7 @@ export const gradeCards = async (req, res) => {
     filter.$or = [{ name: rx }, { registerNumber: rx }];
   }
   const regs = await ExamRegistration.find(filter)
-    .select("student registerNumber name department semester batch admissionType imageUrl group result")
+    .select("student registerNumber name department semester batch admissionType imageUrl group result rejection")
     .sort({ semester: 1, department: 1, rollNumber: 1, registerNumber: 1 })
     .collation({ locale: "en", numericOrdering: true })
     .limit(400)
@@ -477,6 +477,7 @@ export const gradeCards = async (req, res) => {
         batch: r.batch,
         admissionType: r.admissionType,
         backPapersOnly: ["backlog", "manual"].includes(r.group),
+        rejection: r.rejection?.at ? { semester: r.rejection.semester, codes: r.rejection.codes } : null,
         result: {
           // moderation marks are confidential – not on the card
           courses: (r.result?.courses || []).map(({ moderation, ...c }) => c),
@@ -508,6 +509,7 @@ export async function republishStudent(exam, regId, { progression = true } = {})
   const kept = before.progression || null;
   await ExamRegistration.updateOne({ _id: reg._id }, { $set: { result: { ...result, processedAt: at, ...(kept ? { progression: kept } : {}) } } });
   await CourseResult.deleteMany({ exam: exam._id, student: reg.student, source: "RESULT" });
+  const rejectedCodes = new Set(reg.rejection?.codes || []);
   await CourseResult.insertMany(
     result.courses.map((c) => ({
       student: reg.student,
@@ -526,6 +528,7 @@ export async function republishStudent(exam, regId, { progression = true } = {})
       credit: c.credit,
       declaredAt: exam.results?.publishedAt || at,
       source: "RESULT",
+      rejected: rejectedCodes.has(c.code),
     })),
     { ordered: false }
   );

@@ -36,6 +36,9 @@ const courseResultSchema = new mongoose.Schema(
     // the marks exactly as printed there, e.g. "32/AB/--"
     examCode: { type: String, default: "" },
     marksText: { type: String, default: "" },
+    // KPT 9.9: the student rejected this semester's result – kept for the
+    // record, not counted (no CGPA, no credits, no back paper)
+    rejected: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

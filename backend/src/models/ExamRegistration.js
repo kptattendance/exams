@@ -184,6 +184,17 @@ const examRegistrationSchema = new mongoose.Schema(
     // Malpractice decision (KPT 10.2) – applied when the results are worked out
     malpractice: { type: malpracticeSchema, default: null },
 
+    // KPT 9.9: the student rejected this semester's result (once in the program
+    // for an odd and once for an even semester; project work cannot be rejected)
+    rejection: {
+      semester: { type: Number, default: null },
+      codes: { type: [String], default: [] }, // courses whose result is rejected
+      reference: { type: String, default: "" }, // HOD's forwarding / Dean (Academic)'s approval
+      by: { type: String, default: "" },
+      at: { type: Date, default: null },
+      before: { semester: { type: Number, default: null }, status: { type: String, default: "" } }, // to undo
+    },
+
     // Filled when the COE processes the results
     result: {
       courses: { type: [resultCourseSchema], default: [] },

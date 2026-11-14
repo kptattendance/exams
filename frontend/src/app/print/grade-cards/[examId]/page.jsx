@@ -211,8 +211,13 @@ function Card({ g, exam }) {
             </tr>
           </tbody>
         </table>
-        {p?.decision === "PROMOTE" && <p className="mt-1.5 text-[11px] font-semibold">Promoted to semester {p.toSemester} (KPT 9.3).</p>}
-        {p?.decision === "DETAIN" && <p className="mt-1.5 text-[11px] font-semibold">Not promoted to the next semester (KPT 9.3): {String(p.note || "").replace(/^Not promoted: /, "")}</p>}
+        {g.rejection && (
+          <p className="mt-1.5 rounded border border-red-300 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-800">
+            Result of semester {g.rejection.semester} rejected by the student (KPT 9.9): {g.rejection.codes.join(", ")} not counted; he repeats the semester.
+          </p>
+        )}
+        {!g.rejection && p?.decision === "PROMOTE" && <p className="mt-1.5 text-[11px] font-semibold">Promoted to semester {p.toSemester} (KPT 9.3).</p>}
+        {!g.rejection && p?.decision === "DETAIN" && <p className="mt-1.5 text-[11px] font-semibold">Not promoted to the next semester (KPT 9.3): {String(p.note || "").replace(/^Not promoted: /, "")}</p>}
 
         {/* grade table + notes */}
         <div className="mt-3 flex gap-3">

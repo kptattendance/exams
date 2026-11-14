@@ -82,6 +82,7 @@ async function papersOf(exam, reg) {
     if (s.see?.attendance !== "PRESENT") blocked = s.see?.attendance === "MALPRACTICE" ? "Malpractice case" : "Absent";
     else if (s.see?.raw === null || s.see?.raw === undefined) blocked = "No valued marks";
     else if (cancelled?.({ code: s.code, semester: s.semester })) blocked = "Performance cancelled (malpractice)";
+    else if ((reg.rejection?.codes || []).includes(s.code)) blocked = "Result rejected by the student (KPT 9.9)";
     return {
       code: s.code,
       name: s.name,

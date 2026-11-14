@@ -547,7 +547,7 @@ const STUDENT_FIELDS =
 // Back papers for a set of students -> Map(studentId -> [{ subject doc, lastStatus }])
 async function backlogsByStudent(exam, studentIds) {
   if (exam.backPapers === "NONE" || !studentIds.length) return new Map();
-  const results = await CourseResult.find({ student: { $in: studentIds } })
+  const results = await CourseResult.find({ student: { $in: studentIds }, rejected: { $ne: true } })
     .select("student subject status declaredAt semester")
     .lean();
   if (!results.length) return new Map();
@@ -721,7 +721,7 @@ async function generateClassGroup(exam, department, semester) {
 
 // Students not in the exam's semesters who still have back papers
 async function generateBacklogGroup(exam) {
-  const candidates = await CourseResult.distinct("student", { status: { $ne: "PASS" } });
+  const candidates = await CourseResult.distinct("student", { status: { $ne: "PASS" }, rejected: { $ne: true } });
   if (!candidates.length) return 0;
   const students = await Student.find({
     _id: { $in: candidates },
