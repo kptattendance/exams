@@ -11,6 +11,7 @@ import axios from "axios";
 import { calendarDay, satsOf } from "../services/studentImport/rules.js";
 import { refreshAfterChange, refreshNote } from "../services/exams/autoRefresh.js";
 import { collegeFilter, isEvening, studentShift } from "../services/evening.js";
+import { bySyllabus } from "../services/exams/rules.js";
 import { audit } from "../models/AuditLog.js";
 import { binStudents } from "../services/recycleBin.js";
 import { changeStudentEmail, EmailChangeError } from "../services/studentEmail.js";
@@ -2219,10 +2220,10 @@ export const getMyStudentProfile = async (req, res) => {
         exam = {
           name: e.name,
           academicYear: e.academicYear,
-          subjects: (reg.subjects || [])
+          // the syllabus order, as on the hall ticket
+          subjects: bySyllabus(reg.subjects || [])
             .filter((x) => x.kind !== "AUDIT")
-            .map((x) => ({ code: x.code, name: x.name, semester: x.semester, kind: x.kind }))
-            .sort((a, b) => (a.semester || 0) - (b.semester || 0) || String(a.code).localeCompare(String(b.code))),
+            .map((x) => ({ code: x.code, name: x.name, semester: x.semester, kind: x.kind })),
         };
     }
 

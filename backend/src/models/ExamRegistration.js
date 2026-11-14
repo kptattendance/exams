@@ -44,6 +44,7 @@ const regSubjectSchema = new mongoose.Schema(
     semester: { type: Number, default: null },
     kind: { type: String, enum: SUBJECT_KINDS, default: "REGULAR" },
     credit: { type: Number, default: 0 },
+    sequence: { type: String, default: "" }, // the subject's place in the syllabus, e.g. "3CS04" (order everywhere)
     hasTheory: { type: Boolean, default: true },
     hasPractical: { type: Boolean, default: false },
 

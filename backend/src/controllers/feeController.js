@@ -15,7 +15,7 @@ import XLSX from "xlsx";
 import Exam from "../models/Exam.js";
 import ExamRegistration from "../models/ExamRegistration.js";
 import AuditLog from "../models/AuditLog.js";
-import { feeItems, feeSummary, parsePays, ADMISSION_LABEL, subjectFeePaid, examFeeFor } from "../services/exams/rules.js";
+import { feeItems, feeSummary, parsePays, ADMISSION_LABEL, subjectFeePaid, examFeeFor, bySyllabus } from "../services/exams/rules.js";
 import { recount, feeRulesOf } from "./examController.js";
 import { collegeFilter } from "../services/evening.js";
 
@@ -93,7 +93,7 @@ function feeView(r) {
     items,
     // every course of the exam (audit courses have no exam fee): what each fee
     // covers, so the office can cross-check with the student / receipt
-    courses: (r.subjects || [])
+    courses: bySyllabus(r.subjects || [])
       .filter((s) => s.kind !== "AUDIT")
       .map((s) => ({
         code: s.code,

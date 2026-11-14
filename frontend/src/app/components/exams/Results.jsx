@@ -10,6 +10,7 @@ import { useConfirm, useToast } from "../ui/Feedback";
 import { DEPARTMENTS, KIND, errMsg, useApi } from "./shared";
 import MalpracticeCases from "./MalpracticeCases";
 import CollegeSelect from "../ui/CollegeFilter";
+import MissingMarks from "./MissingMarks";
 
 const OUTCOME = {
   PASS: { label: "Pass", chip: "bg-emerald-50 text-emerald-700" },
@@ -158,45 +159,7 @@ export default function Results() {
           ) : state.issues.length > 0 ? (
             <>
               <p className="text-sm font-semibold text-slate-950">Marks are still missing – results cannot be processed yet</p>
-              <div className="mt-2 overflow-x-auto rounded-xl border border-slate-200">
-                <table className="w-full min-w-[720px] text-sm">
-                  <thead className="bg-slate-50 text-left text-xs font-semibold text-slate-500">
-                    <tr>
-                      <th className="px-3 py-2">Code</th>
-                      <th className="px-3 py-2">Course</th>
-                      <th className="px-3 py-2">What is missing</th>
-                      <th className="px-3 py-2 text-right">Students</th>
-                      <th className="px-3 py-2">By class</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {state.issues.map((i) => (
-                      <tr key={`${i.code}|${i.name}|${i.note}`} className="align-top">
-                        <td className="whitespace-nowrap px-3 py-2 font-semibold text-slate-950">{i.code}</td>
-                        <td className="px-3 py-2 text-slate-700">{i.name}</td>
-                        <td className="px-3 py-2 text-slate-600">{i.note}</td>
-                        <td className="px-3 py-2 text-right font-semibold tabular-nums text-slate-900">{i.students}</td>
-                        <td className="px-3 py-2">
-                          <div className="flex flex-wrap gap-1">
-                            {(i.classes || []).map((c) => (
-                              <span key={c.label} className="whitespace-nowrap rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-700">
-                                {c.label} <b className="tabular-nums text-slate-950">{c.students}</b>
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot className="border-t border-slate-200 bg-slate-50 text-xs text-slate-600">
-                    <tr>
-                      <td colSpan={5} className="px-3 py-2">
-                        {state.issues.length} course{state.issues.length > 1 ? "s" : ""} with something missing. A student is counted once per course.
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
+              <MissingMarks issues={state.issues} semesters={state.exam.semesters} />
             </>
           ) : state.students === 0 ? (
             <p className="text-sm text-slate-500">No student is registered for this exam.</p>

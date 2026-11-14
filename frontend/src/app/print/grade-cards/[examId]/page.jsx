@@ -101,7 +101,7 @@ function PrintGradeCards() {
 
 function Card({ g, exam }) {
   const r = g.result;
-  const courses = [...(r.courses || [])].sort((a, b) => (a.kind === "BACKLOG") - (b.kind === "BACKLOG") || (a.semester || 0) - (b.semester || 0) || String(a.code).localeCompare(String(b.code)));
+  const courses = r.courses || []; // already in syllabus order (current semester, then back papers)
   const hasAudit = courses.some((c) => c.kind === "AUDIT");
   const p = r.progression;
   const percent = r.cgpa !== null && r.cgpa !== undefined ? Math.max(0, (Number(r.cgpa) - 0.75) * 10) : null;

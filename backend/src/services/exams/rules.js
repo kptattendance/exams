@@ -122,6 +122,26 @@ export const hasPracticalExam = (s) => Number(s.practicalExamMax) > 0;
 //   semesterSubjects : subjects of his department + semester (already scheme-filtered)
 //   electiveChoices  : { [electiveGroup]: subjectId }
 // Returns { subjects: [{ subject, kind }], warnings: [...] }
+// The order of a student's courses everywhere (registration, hall ticket,
+// fee desk, results, grade card): this semester's courses in syllabus order
+// (the subject's sequence; electives in their own place), then back papers by
+// semester and syllabus order. Without a sequence: by code.
+export function courseOrder(a, b) {
+  const back = (x) => (x.kind === "BACKLOG" ? 1 : 0);
+  // the sequence is text like "3CS01" (compared with numbers in order); none -> after
+  const seq = (x) => (x.sequence === null || x.sequence === undefined ? "" : String(x.sequence).trim());
+  const sa = seq(a);
+  const sb = seq(b);
+  const bySeq = sa && sb ? sa.localeCompare(sb, undefined, { numeric: true, sensitivity: "base" }) : sa ? -1 : sb ? 1 : 0;
+  return (
+    back(a) - back(b) ||
+    (Number(a.semester) || 0) - (Number(b.semester) || 0) ||
+    bySeq ||
+    String(a.code || "").localeCompare(String(b.code || ""), undefined, { numeric: true })
+  );
+}
+export const bySyllabus = (list = []) => [...list].sort(courseOrder);
+
 export function currentSubjectsFor(student, semesterSubjects, electiveChoices = {}) {
   const out = [];
   const warnings = [];
@@ -146,20 +166,30 @@ export function currentSubjectsFor(student, semesterSubjects, electiveChoices = 
         out.push({ subject: s, kind: "BRIDGE" });
       }
     } else if (cat === "ELECTIVE") {
+      // the elective keeps its place in the syllabus (where its group starts)
       const g = (s.electiveGroup || "").toUpperCase();
-      if (!groups.has(g)) groups.set(g, []);
+      if (!groups.has(g)) {
+        groups.set(g, []);
+        out.push({ electiveGroup: g });
+      }
       groups.get(g).push(s);
     }
   }
 
-  for (const [g, options] of groups) {
+  const subjects = [];
+  for (const x of out) {
+    if (x.electiveGroup === undefined) {
+      subjects.push(x);
+      continue;
+    }
+    const g = x.electiveGroup;
     const chosenId = electiveChoices[g];
-    const chosen = chosenId && options.find((s) => String(s._id) === String(chosenId));
-    if (chosen) out.push({ subject: chosen, kind: "ELECTIVE" });
+    const chosen = chosenId && groups.get(g).find((s) => String(s._id) === String(chosenId));
+    if (chosen) subjects.push({ subject: chosen, kind: "ELECTIVE" });
     else warnings.push(`Elective not chosen for group ${g || "-"} (HOD to set).`);
   }
 
-  return { subjects: out, warnings };
+  return { subjects, warnings };
 }
 
 // Latest result per subject that is not a pass -> back papers.

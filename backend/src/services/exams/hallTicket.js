@@ -11,7 +11,7 @@
 // still "waiting" (IA / attendance / elective), and at least one subject is permitted.
 
 import { paperTimes } from "../examDay.js";
-import { effectiveOf, subjectFeePaid, isIncomplete } from "./rules.js";
+import { effectiveOf, subjectFeePaid, isIncomplete, bySyllabus } from "./rules.js";
 
 const NOT_PERMITTED = {
   ANS: "Not permitted – attendance shortage",
@@ -32,9 +32,9 @@ export function ticketFor(reg, { entries = [], sessions = {}, published = false 
   const slot = new Map(entries.map((e) => [e.code, e]));
   const reasons = [];
 
-  // audit courses: internal test only – no exam. Shown on the hall ticket,
-  // struck out with a note, so the student knows; they never count as
-  // "not permitted" and never stop the hall ticket from being ready.
+  // audit courses: internal test only – no exam. Shown on the hall ticket in
+  // their place, struck out with a note, so the student knows; they never
+  // count as "not permitted" and never stop the hall ticket from being ready.
   const audits = (reg.subjects || [])
     .filter((s) => s.kind === "AUDIT")
     .map((s) => ({
@@ -42,6 +42,7 @@ export function ticketFor(reg, { entries = [], sessions = {}, published = false 
       name: s.name,
       semester: s.semester,
       kind: s.kind,
+      sequence: s.sequence ?? null,
       audit: true,
       practicalOnly: false,
       date: "",
@@ -63,6 +64,7 @@ export function ticketFor(reg, { entries = [], sessions = {}, published = false 
       name: s.name,
       semester: s.semester,
       kind: s.kind,
+      sequence: s.sequence ?? null,
       practicalOnly: !s.hasTheory,
       date: e?.date || "",
       session: e?.session || "",
@@ -72,14 +74,6 @@ export function ticketFor(reg, { entries = [], sessions = {}, published = false 
     };
   });
 
-  // written papers by date, practical-only at the end
-  subjects.sort(
-    (a, b) =>
-      Number(a.practicalOnly) - Number(b.practicalOnly) ||
-      (a.date || "9").localeCompare(b.date || "9") ||
-      a.session.localeCompare(b.session) ||
-      a.code.localeCompare(b.code)
-  );
 
   if (!published) reasons.push("Timetable is not published yet.");
   if (reg.overall === "PENDING" || isIncomplete(reg.warnings)) {
@@ -88,7 +82,6 @@ export function ticketFor(reg, { entries = [], sessions = {}, published = false 
     );
   }
   const permitted = subjects.filter((s) => s.permitted);
-  audits.sort((a, b) => a.code.localeCompare(b.code));
   if (!permitted.length && reg.overall !== "PENDING") {
     const feeOnly = subjects.some((s) => s.note === NOT_PERMITTED.FEE);
     reasons.push(feeOnly ? "Fee not paid." : "No subject permitted.");
@@ -99,8 +92,8 @@ export function ticketFor(reg, { entries = [], sessions = {}, published = false 
   return {
     ready: reasons.length === 0,
     reasons,
-    // audit courses last
-    subjects: [...subjects, ...audits],
+    // the syllabus order, as everywhere else
+    subjects: bySyllabus([...subjects, ...audits]),
     permittedCount: permitted.length,
   };
 }

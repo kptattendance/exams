@@ -14,8 +14,11 @@ const tt = {
 };
 const s = (code, extra = {}) => ({ code, name: code, kind: "REGULAR", hasTheory: true, status: "ELIGIBLE", ...extra });
 
-test("permitted subjects with date and time, sorted; practical at the end", () => {
-  const t = ticketFor({ overall: "ALL_CLEAR", regularFee: { paid: true }, subjects: [s("R1"), s("LAB", { hasTheory: false }), s("R2")] }, tt);
+test("permitted subjects with date and time, in the syllabus order", () => {
+  const t = ticketFor(
+    { overall: "ALL_CLEAR", regularFee: { paid: true }, subjects: [s("R1", { sequence: "3CS02" }), s("LAB", { hasTheory: false, sequence: "3CS03" }), s("R2", { sequence: "3CS01" })] },
+    tt
+  );
   assert.equal(t.ready, true);
   assert.deepEqual(t.subjects.map((x) => x.code), ["R2", "R1", "LAB"]);
   assert.equal(t.subjects[0].time, "2:00 PM – 5:00 PM");

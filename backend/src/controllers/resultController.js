@@ -84,29 +84,37 @@ async function compute(exam, moderation, only = {}) {
 
 // What is still missing, grouped by subject
 // What is still missing, grouped by COURSE – code and name (not the code alone: two different
-// courses may share a code, e.g. 25SD3100 in AT and in the other branches),
-// with the split by class (department · semester, or back papers)
+// courses may share a code, e.g. 25SD3100 in AT and in the other branches).
+// Split: students writing it as a course of their own class -> by semester
+// and department; students writing it as a BACK PAPER (failed / NE / absent
+// earlier) -> listed by name, with their department and present semester.
 function issuesOf(computed) {
   const map = new Map();
   for (const { reg, result } of computed) {
-    const cls = ["backlog", "manual"].includes(reg.group) ? "Back papers" : `${String(reg.department || "").toUpperCase()} · Sem ${reg.semester ?? "–"}`;
+    const dept = String(reg.department || "").toUpperCase();
     for (const c of result.courses) {
       if (c.status !== "INCOMPLETE") continue;
       const k = `${c.code}|${String(c.name || "").trim().toLowerCase()}|${c.note}`;
-      if (!map.has(k)) map.set(k, { code: c.code, name: c.name, note: c.note, students: 0, classes: {} });
+      if (!map.has(k)) map.set(k, { code: c.code, name: c.name, semester: c.semester, note: c.note, students: 0, bySemester: {}, backPapers: [], departments: new Set() });
       const x = map.get(k);
       x.students++;
-      x.classes[cls] = (x.classes[cls] || 0) + 1;
+      x.departments.add(dept);
+      if (c.kind === "BACKLOG") {
+        x.backPapers.push({ registerNumber: reg.registerNumber, name: reg.name, department: dept, semester: reg.semester, backPapersOnly: ["backlog", "manual"].includes(reg.group) });
+      } else {
+        const sem = String(reg.semester ?? c.semester ?? "–");
+        x.bySemester[sem] ||= {};
+        x.bySemester[sem][dept] = (x.bySemester[sem][dept] || 0) + 1;
+      }
     }
   }
   return [...map.values()]
-    .map((x) => ({
+    .map(({ departments, ...x }) => ({
       ...x,
-      classes: Object.entries(x.classes)
-        .map(([label, students]) => ({ label, students }))
-        .sort((a, b) => (a.label === "Back papers") - (b.label === "Back papers") || a.label.localeCompare(b.label)),
+      departments: [...departments].sort(),
+      backPapers: x.backPapers.sort((a, b) => a.registerNumber.localeCompare(b.registerNumber)),
     }))
-    .sort((a, b) => a.code.localeCompare(b.code) || a.name.localeCompare(b.name));
+    .sort((a, b) => (a.semester || 0) - (b.semester || 0) || a.code.localeCompare(b.code) || a.name.localeCompare(b.name));
 }
 
 // Changes when any mark, grade or status changes

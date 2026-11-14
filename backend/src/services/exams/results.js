@@ -5,7 +5,7 @@
 //   9.1  letter grades and grade points     9.2  passing standards (40 %)
 //   9.4  SGPA and CGPA                      9.10 moderation (at most 5 marks)
 
-import { effectiveOf, subjectFeePaid } from "./rules.js";
+import { effectiveOf, subjectFeePaid, bySyllabus } from "./rules.js";
 
 const EPS = 1e-9;
 const up = (n) => Math.ceil(n - EPS);
@@ -220,7 +220,7 @@ export function progressionFor(semester, earnedBySemester = {}, cgpa = null) {
 }
 
 export function studentResult(reg, subjectOf, past = new Map(), { moderation = 0 } = {}) {
-  const items = (reg.subjects || []).map((s) => {
+  const items = bySyllabus(reg.subjects || []).map((s) => {
     const subject = subjectOf(s.subject);
     return { key: String(s.subject), s, subject, input: subject ? inputFor(reg, s, subject, past.get(String(s.subject))) : null };
   });

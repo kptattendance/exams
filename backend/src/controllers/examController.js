@@ -33,6 +33,7 @@ import {
   classBatch,
   pickScheme,
   currentSubjectsFor,
+  bySyllabus,
   backlogsFrom,
   backPaperAllowed,
   eligibilityFor,
@@ -530,6 +531,7 @@ function regSubject(subject, kind, extra = {}) {
     semester: subject.semester,
     kind,
     credit: subject.credit || 0,
+    sequence: subject.sequence ?? "",
     // an audit course has no semester-end exam (internal test only)
     hasTheory: kind !== "AUDIT" && hasTheoryPaper(subject),
     hasPractical: kind !== "AUDIT" && hasPracticalExam(subject),
@@ -619,7 +621,7 @@ function studentFields(st, group) {
 async function saveRegistrations(exam, docs, existingByStudent) {
   const ops = docs.map(({ student, fields, subjects, warnings }) => {
     const prev = existingByStudent.get(String(student));
-    const merged = mergeSubjects(subjects, prev?.subjects || []).map((s) => ({ ...s, effective: effectiveOf(s) }));
+    const merged = bySyllabus(mergeSubjects(subjects, prev?.subjects || [])).map((s) => ({ ...s, effective: effectiveOf(s) }));
     const { counts, overall } = summarize(merged, { incomplete: isIncomplete(warnings) });
     const feeStatus = feeSummary({ subjects: merged, regularFee: prev?.regularFee }).status;
     return {
@@ -752,6 +754,7 @@ async function generateBacklogGroup(exam) {
 // ====================================================================
 
 function regListView(r) {
+  r = { ...r, subjects: bySyllabus(r.subjects || []) };
   return {
     _id: r._id,
     registerNumber: r.registerNumber,
