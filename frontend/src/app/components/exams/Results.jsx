@@ -158,19 +158,45 @@ export default function Results() {
           ) : state.issues.length > 0 ? (
             <>
               <p className="text-sm font-semibold text-slate-950">Marks are still missing – results cannot be processed yet</p>
-              <ul className="mt-2 divide-y divide-slate-100 text-sm">
-                {state.issues.map((i) => (
-                  <li key={`${i.code}|${i.note}`} className="flex flex-wrap items-baseline gap-x-3 py-2">
-                    <span className="font-semibold text-slate-950">{i.code}</span>
-                    <span className="min-w-0 flex-1 text-slate-600">
-                      {i.name} · {i.note}
-                    </span>
-                    <span className="text-xs text-slate-500">
-                      {i.students} student{i.students > 1 ? "s" : ""}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <div className="mt-2 overflow-x-auto rounded-xl border border-slate-200">
+                <table className="w-full min-w-[720px] text-sm">
+                  <thead className="bg-slate-50 text-left text-xs font-semibold text-slate-500">
+                    <tr>
+                      <th className="px-3 py-2">Code</th>
+                      <th className="px-3 py-2">Course</th>
+                      <th className="px-3 py-2">What is missing</th>
+                      <th className="px-3 py-2 text-right">Students</th>
+                      <th className="px-3 py-2">By class</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {state.issues.map((i) => (
+                      <tr key={`${i.code}|${i.name}|${i.note}`} className="align-top">
+                        <td className="whitespace-nowrap px-3 py-2 font-semibold text-slate-950">{i.code}</td>
+                        <td className="px-3 py-2 text-slate-700">{i.name}</td>
+                        <td className="px-3 py-2 text-slate-600">{i.note}</td>
+                        <td className="px-3 py-2 text-right font-semibold tabular-nums text-slate-900">{i.students}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex flex-wrap gap-1">
+                            {(i.classes || []).map((c) => (
+                              <span key={c.label} className="whitespace-nowrap rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-700">
+                                {c.label} <b className="tabular-nums text-slate-950">{c.students}</b>
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="border-t border-slate-200 bg-slate-50 text-xs text-slate-600">
+                    <tr>
+                      <td colSpan={5} className="px-3 py-2">
+                        {state.issues.length} course{state.issues.length > 1 ? "s" : ""} with something missing. A student is counted once per course.
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
             </>
           ) : state.students === 0 ? (
             <p className="text-sm text-slate-500">No student is registered for this exam.</p>
