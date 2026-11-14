@@ -187,6 +187,38 @@ export function cancelledBy(reg) {
   return (c) => codes.has(c.code);
 }
 
+// ---------------------------------------------------------------- KPT 9.3
+// Vertical progression, decided when the results are published.
+//   a) semester 1 -> 2: automatic
+//   b) from semester 2 on: at least 50 % of the credits prescribed for the
+//      academic year up to the current semester earned, AND CGPA >= 4.0
+//   c) bridge courses are not counted (audit courses carry no credit)
+// Credits prescribed per semester: KPT 4.11.1 (141 in all; 92 from sem 3).
+export const SEMESTER_CREDITS = { 1: 24, 2: 25, 3: 26, 4: 26, 5: 22, 6: 18 };
+export const MIN_CGPA_TO_PROGRESS = 4;
+
+//   semester         : the semester he has just written
+//   earnedBySemester : { 3: 20, 4: 0, … } credits passed so far, per semester
+//   cgpa             : after this exam (null when not known)
+// -> { decision: PROMOTE | DETAIN | UNDECIDED | NONE, earned, required, cgpa, note }
+export function progressionFor(semester, earnedBySemester = {}, cgpa = null) {
+  const s = Number(semester);
+  if (!(s >= 1 && s <= 5)) return { decision: "NONE", note: "Final semester – no promotion." };
+  if (s === 1) return { decision: "PROMOTE", earned: null, required: 0, cgpa, note: "Semester 1 to 2 is automatic." };
+  const first = s % 2 === 0 ? s - 1 : s; // first semester of this academic year
+  const sems = [];
+  for (let x = first; x <= s; x++) sems.push(x);
+  const required = sems.reduce((a, x) => a + SEMESTER_CREDITS[x], 0) / 2;
+  const earned = sems.reduce((a, x) => a + (Number(earnedBySemester[x]) || 0), 0);
+  if (cgpa === null || cgpa === undefined) return { decision: "UNDECIDED", earned, required, cgpa: null, note: "CGPA not known (result withheld)." };
+  const short = [];
+  if (earned < required) short.push(`earned ${earned} of the ${required} credits needed`);
+  if (Number(cgpa) < MIN_CGPA_TO_PROGRESS) short.push(`CGPA ${Number(cgpa).toFixed(2)} below ${MIN_CGPA_TO_PROGRESS}`);
+  return short.length
+    ? { decision: "DETAIN", earned, required, cgpa, note: `Not promoted: ${short.join(" and ")}.` }
+    : { decision: "PROMOTE", earned, required, cgpa, note: `Promoted: ${earned} credits (needed ${required}), CGPA ${Number(cgpa).toFixed(2)}.` };
+}
+
 export function studentResult(reg, subjectOf, past = new Map(), { moderation = 0 } = {}) {
   const items = (reg.subjects || []).map((s) => {
     const subject = subjectOf(s.subject);

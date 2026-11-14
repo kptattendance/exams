@@ -110,7 +110,7 @@ export default function Results() {
     const ok = await confirm({
       title: "Publish the results?",
       message:
-        "The results become final and the exam is marked completed. Students who did not pass get the subject as a back paper in the next exam.\n\nThis cannot be undone here.",
+        "The results become final and the exam is marked completed. Students who did not pass get the subject as a back paper in the next exam.\n\nStudents are also promoted to the next semester or detained (KPT 9.3: semester 1 to 2 automatic; from semester 2 on, half the year's credits and CGPA 4.0).\n\nThis cannot be undone here.",
       confirmText: "Publish results",
       requireText: "PUBLISH",
     });
@@ -118,7 +118,7 @@ export default function Results() {
     setBusy(true);
     try {
       const r = await api("post", `/exams/${examId}/results/publish`);
-      toast.success(r.data.message);
+      toast.success(r.data.message, 12000);
       await load();
     } catch (e) {
       toast.error(errMsg(e, "Could not publish the results."));
@@ -284,6 +284,7 @@ export default function Results() {
                             <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${OUTCOME[r.result.outcome]?.chip || ""}`}>
                               {OUTCOME[r.result.outcome]?.label || r.result.outcome}
                             </span>
+                            <Progression p={r.result.progression} />
                           </td>
                         </tr>
                         {open === r._id && (
@@ -303,6 +304,18 @@ export default function Results() {
         </>
       )}
     </div>
+  );
+}
+
+// KPT 9.3 – what publishing decided
+function Progression({ p }) {
+  if (!p?.decision || p.decision === "NONE") return null;
+  const tone = p.decision === "PROMOTE" ? "text-emerald-700" : p.decision === "DETAIN" ? "text-red-700" : "text-orange-700";
+  const text = p.decision === "PROMOTE" ? `→ Sem ${p.toSemester}` : p.decision === "DETAIN" ? "Detained" : "Not decided";
+  return (
+    <span className={`ml-2 text-xs font-semibold ${tone}`} title={p.note}>
+      {text}
+    </span>
   );
 }
 

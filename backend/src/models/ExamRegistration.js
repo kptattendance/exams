@@ -195,6 +195,14 @@ const examRegistrationSchema = new mongoose.Schema(
       },
       outcome: { type: String, enum: ["PASS", "FAIL", "WITHHELD", null], default: null },
       processedAt: { type: Date, default: null },
+      // KPT 9.3, decided when the results are published
+      progression: {
+        decision: { type: String, default: null }, // PROMOTE | DETAIN | UNDECIDED | NONE
+        earned: { type: Number, default: null },
+        required: { type: Number, default: null },
+        toSemester: { type: Number, default: null },
+        note: { type: String, default: "" },
+      },
     },
   },
   { timestamps: true }

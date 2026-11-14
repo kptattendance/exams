@@ -17,7 +17,7 @@ import Subject from "../models/Subject.js";
 import Student from "../models/Student.js";
 import CourseResult from "../models/CourseResult.js";
 import AuditLog from "../models/AuditLog.js";
-import { studentResult, MAX_MODERATION, caughtSubjects, MALPRACTICE_LABEL } from "../services/exams/results.js";
+import { studentResult, MAX_MODERATION, caughtSubjects, MALPRACTICE_LABEL, progressionFor } from "../services/exams/results.js";
 import { collegeFilter } from "../services/evening.js";
 
 const isId = (id) => mongoose.Types.ObjectId.isValid(id);
@@ -227,8 +227,15 @@ export const publishResults = async (req, res) => {
   await Exam.updateOne({ _id: exam._id }, { $set: { status: "COMPLETED", "results.publishedAt": now, "results.publishedBy": who(req) } });
   // malpractice PEC / PEC+ (KPT 10.2): not promoted – Detained from now on
   const detained = await detainFor(computed.map(({ reg }) => reg));
-  await log(req, "RESULTS_PUBLISHED", exam._id, { students: computed.length, subjects: docs.length, detained });
-  res.json({ message: `Results published for ${computed.length} students. The exam is now completed.` });
+  // vertical progression (KPT 9.3): promoted to the next semester, or detained
+  const prog = await progressAfterResults(exam, computed);
+  await log(req, "RESULTS_PUBLISHED", exam._id, { students: computed.length, subjects: docs.length, detained, progression: prog });
+  res.json({
+    message: `Results published for ${computed.length} students. The exam is now completed. ${prog.promoted} promoted to the next semester, ${prog.detained.length} detained (KPT 9.3)${
+      prog.undecided.length ? `, ${prog.undecided.length} not decided (result withheld)` : ""
+    }.`,
+    progression: prog,
+  });
 };
 
 // ====================================================================
@@ -378,3 +385,72 @@ export const saveMalpractice = async (req, res) => {
       : `Decision removed for ${reg.registerNumber}.`,
   });
 };
+
+// ====================================================================
+// Vertical progression (KPT 9.3) – when the results are published
+// ====================================================================
+
+// Credits passed so far, per student and semester: the latest result of each
+// subject (back papers cleared count); bridge and audit courses not counted
+async function earnedBySemester(studentIds) {
+  const rows = await CourseResult.find({ student: { $in: studentIds } }).select("student subject semester status credit declaredAt").lean();
+  const cats = new Map(
+    (await Subject.find({ _id: { $in: [...new Set(rows.map((r) => String(r.subject)))] } }).select("subjectCategory credit semester").lean()).map((s) => [String(s._id), s])
+  );
+  const latest = new Map();
+  for (const r of rows) {
+    const k = `${r.student}|${r.subject}`;
+    const prev = latest.get(k);
+    if (!prev || new Date(r.declaredAt) > new Date(prev.declaredAt)) latest.set(k, r);
+  }
+  const out = new Map();
+  for (const r of latest.values()) {
+    if (r.status !== "PASS") continue;
+    const subject = cats.get(String(r.subject));
+    if (["BRIDGE", "AUDIT"].includes(String(subject?.subjectCategory || "").toUpperCase())) continue;
+    const sem = Number(r.semester ?? subject?.semester);
+    const credit = Number(r.credit ?? subject?.credit) || 0;
+    if (!sem || !credit) continue;
+    const sid = String(r.student);
+    if (!out.has(sid)) out.set(sid, {});
+    out.get(sid)[sem] = (out.get(sid)[sem] || 0) + credit;
+  }
+  return out;
+}
+
+// Students of the exam's classes (not the back-paper group) who are still
+// active in the semester they wrote: next semester, or Detained.
+async function progressAfterResults(exam, computed) {
+  const summary = { promoted: 0, detained: [], undecided: [] };
+  const mine = computed.filter(({ reg }) => !["backlog", "manual"].includes(reg.group) && exam.semesters.includes(Number(reg.semester)));
+  if (!mine.length) return summary;
+  const students = new Map(
+    (await Student.find({ _id: { $in: mine.map(({ reg }) => reg.student) }, status: "active" }).select("semester").lean()).map((s) => [String(s._id), s])
+  );
+  const earned = await earnedBySemester([...students.keys()]);
+  const studentOps = [];
+  const regOps = [];
+  for (const { reg, result } of mine) {
+    const st = students.get(String(reg.student));
+    // already detained (e.g. malpractice), or his semester changed meanwhile
+    if (!st || Number(st.semester) !== Number(reg.semester)) continue;
+    const p = progressionFor(reg.semester, earned.get(String(reg.student)) || {}, result.cgpa);
+    const toSemester = p.decision === "PROMOTE" ? Number(reg.semester) + 1 : null;
+    if (p.decision === "PROMOTE") {
+      studentOps.push({ updateOne: { filter: { _id: reg.student, status: "active", semester: Number(reg.semester) }, update: { $set: { semester: toSemester } } } });
+      summary.promoted++;
+    } else if (p.decision === "DETAIN") {
+      studentOps.push({ updateOne: { filter: { _id: reg.student, status: "active", semester: Number(reg.semester) }, update: { $set: { status: "detained" } } } });
+      summary.detained.push(reg.registerNumber);
+    } else if (p.decision === "UNDECIDED") summary.undecided.push(reg.registerNumber);
+    regOps.push({
+      updateOne: {
+        filter: { _id: reg._id },
+        update: { $set: { "result.progression": { decision: p.decision, earned: p.earned ?? null, required: p.required ?? null, toSemester, note: p.note || "" } } },
+      },
+    });
+  }
+  if (studentOps.length) await Student.bulkWrite(studentOps, { ordered: false });
+  if (regOps.length) await ExamRegistration.bulkWrite(regOps, { ordered: false });
+  return summary;
+}
