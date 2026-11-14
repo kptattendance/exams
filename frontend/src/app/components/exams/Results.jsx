@@ -249,6 +249,16 @@ export default function Results() {
                 ))}
               </select>
             )}
+            {publishedAt && (
+              <a
+                href={`/print/grade-cards/${examId}?${new URLSearchParams({ department, ...(department !== "backlog" && semester ? { semester } : {}), ...(college ? { college } : {}) })}`}
+                target="_blank"
+                rel="noreferrer"
+                className="ml-auto inline-flex h-10 items-center rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800"
+              >
+                Print grade cards
+              </a>
+            )}
           </div>
 
           {!rows && <div className="mt-3 h-64 animate-pulse rounded-2xl bg-white" />}
@@ -291,6 +301,16 @@ export default function Results() {
                           <tr className="bg-slate-50">
                             <td colSpan={7} className="px-4 py-3">
                               <Courses courses={r.result.courses} />
+                              {publishedAt && (
+                                <a
+                                  href={`/print/grade-cards/${examId}?q=${encodeURIComponent(r.registerNumber)}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="mt-2 inline-block text-xs font-semibold text-blue-700 hover:underline"
+                                >
+                                  Print his grade card
+                                </a>
+                              )}
                             </td>
                           </tr>
                         )}

@@ -50,7 +50,7 @@ import {
   paperMarks,
   updateValuationSettings,
 } from "../controllers/valuationController.js";
-import { readiness, listResults, processResults, publishResults, listMalpractice, saveMalpractice } from "../controllers/resultController.js";
+import { readiness, listResults, processResults, publishResults, listMalpractice, saveMalpractice, gradeCards } from "../controllers/resultController.js";
 import { requireStepUp } from "../services/stepUp.js";
 import { lockedExamGuard } from "../services/examLock.js";
 import { asHodScope } from "../services/evening.js";
@@ -147,6 +147,8 @@ router.post("/:id/results/process", SECRET, requireStepUp("results"), processRes
 router.post("/:id/results/publish", SECRET, requireStepUp("results"), publishResults);
 // Malpractice decisions (KPT 10.2): the COE records the committee's decision
 router.get("/:id/malpractice", requireRole("coe"), listMalpractice);
+// Grade cards (KPT 9.7): printed by the exam section after publishing
+router.get("/:id/grade-cards", requireRole("coe", "acoe", "office"), gradeCards);
 router.post("/:id/registrations/:regId/malpractice", requireRole("coe"), requireStepUp("results"), saveMalpractice);
 
 export default router;

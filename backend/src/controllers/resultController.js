@@ -454,3 +454,63 @@ async function progressAfterResults(exam, computed) {
   if (regOps.length) await ExamRegistration.bulkWrite(regOps, { ordered: false });
   return summary;
 }
+
+// ====================================================================
+// Grade cards (KPT 9.7) – after the results are published
+// ====================================================================
+
+// GET /api/exams/:id/grade-cards?department=&semester=&college=&q=
+export const gradeCards = async (req, res) => {
+  const exam = await loadExam(req, res);
+  if (!exam) return;
+  if (!exam.results?.publishedAt) return fail(res, 409, "Grade cards are printed after the results are published.");
+  const { department, semester, q } = req.query;
+  const filter = { exam: exam._id, "result.processedAt": { $ne: null }, ...collegeFilter(req.query) };
+  if (department === "backlog") filter.group = { $in: ["backlog", "manual"] };
+  else {
+    if (department) filter.department = String(department).toLowerCase();
+    if (semester) filter.semester = Number(semester);
+    if (department || semester) filter.group = { $nin: ["backlog", "manual"] };
+  }
+  if (q) {
+    const rx = new RegExp(String(q).trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+    filter.$or = [{ name: rx }, { registerNumber: rx }];
+  }
+  const regs = await ExamRegistration.find(filter)
+    .select("student registerNumber name department semester batch admissionType imageUrl group result")
+    .sort({ semester: 1, department: 1, rollNumber: 1, registerNumber: 1 })
+    .collation({ locale: "en", numericOrdering: true })
+    .limit(400)
+    .lean();
+  const info = new Map(
+    (await Student.find({ _id: { $in: regs.map((r) => r.student) } }).select("fatherName imageUrl").lean()).map((s) => [String(s._id), s])
+  );
+  await log(req, "GRADE_CARDS_PRINTED", exam._id, { count: regs.length, department: department || "", semester: semester || "", q: q || "" });
+  res.json({
+    exam: { _id: exam._id, name: exam.name, academicYear: exam.academicYear, publishedAt: exam.results.publishedAt },
+    data: regs.map((r) => {
+      const st = info.get(String(r.student)) || {};
+      return {
+        _id: r._id,
+        registerNumber: r.registerNumber,
+        name: r.name,
+        fatherName: st.fatherName || "",
+        imageUrl: st.imageUrl || r.imageUrl || "",
+        department: r.department,
+        semester: r.semester,
+        batch: r.batch,
+        admissionType: r.admissionType,
+        backPapersOnly: ["backlog", "manual"].includes(r.group),
+        result: {
+          // moderation marks are confidential – not on the card
+          courses: (r.result?.courses || []).map(({ moderation, ...c }) => c),
+          sgpa: r.result?.sgpa ?? null,
+          cgpa: r.result?.cgpa ?? null,
+          credits: r.result?.credits || { registered: 0, earned: 0 },
+          outcome: r.result?.outcome || null,
+          progression: r.result?.progression || null,
+        },
+      };
+    }),
+  });
+};
