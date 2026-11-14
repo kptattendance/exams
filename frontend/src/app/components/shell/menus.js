@@ -136,6 +136,7 @@ export const MENUS = {
           { label: "CIE make-up (supplementary)", href: "/coe/cie-makeup", icon: "marks" },
           { label: "Special exams (NCC / NSS / sports)", href: "/coe/special-exams", icon: "calendar" },
           { label: "Result rejection", href: "/coe/result-rejection", icon: "results" },
+          { label: "Diploma award & ranks", href: "/coe/diploma", icon: "results" },
         ],
       },
       {
