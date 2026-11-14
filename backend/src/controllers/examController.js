@@ -48,6 +48,7 @@ import {
   feeSummary,
 } from "../services/exams/rules.js";
 import { refreshAfterChange, refreshNote } from "../services/exams/autoRefresh.js";
+import { passedMakeups } from "../services/exams/cieMakeup.js";
 import { collegeFilter, shiftOf, shiftOfSheet, studentShift } from "../services/evening.js";
 
 const DEPARTMENTS = ["at", "ch", "ce", "cs", "ec", "ee", "me", "ps"];
@@ -569,10 +570,16 @@ async function backlogsByStudent(exam, studentIds) {
   const subjects = new Map(
     (await Subject.find({ _id: { $in: [...subjectIds] } }).select(SUBJECT_FIELDS).lean()).map((s) => [String(s._id), s])
   );
+  // NE made up in the supplementary semester (KPT 5.5): eligible, with the new CIE
+  const makeups = await passedMakeups([...pending.keys()]);
   const out = new Map();
   for (const [sid, backs] of pending) {
     const list = backs
-      .map((b) => ({ subject: subjects.get(String(b.subject)), lastStatus: b.status }))
+      .map((b) => ({
+        subject: subjects.get(String(b.subject)),
+        lastStatus: b.status,
+        makeup: b.status === "NE" ? makeups.get(`${sid}|${b.subject}`) || null : null,
+      }))
       .filter((b) => b.subject && backPaperAllowed(exam.backPapers, exam.semesters, b.subject.semester));
     if (list.length) out.set(sid, list);
   }
@@ -583,6 +590,13 @@ function backlogSubjects(backs, alreadyCodes) {
   return backs
     .filter((b) => !alreadyCodes.has(b.subject.code))
     .map((b) => {
+      if (b.makeup)
+        return regSubject(b.subject, "BACKLOG", {
+          status: "ELIGIBLE",
+          reasons: ["CIE made up in the supplementary semester (KPT 5.5)."],
+          iaMarks: b.makeup.marks,
+          iaMax: b.makeup.cieMax,
+        });
       const el = backlogEligibility(b.lastStatus);
       return regSubject(b.subject, "BACKLOG", { status: el.status, reasons: el.reasons });
     });
