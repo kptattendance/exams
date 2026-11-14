@@ -332,32 +332,8 @@ export const saveMalpractice = async (req, res) => {
   let republished = false;
   let detained = 0;
   if (exam.results?.publishedAt) {
-    const [one] = await compute(exam, exam.results.moderationMarks || 0, { _id: reg._id });
-    if (one) {
-      const at = new Date();
-      await ExamRegistration.updateOne({ _id: reg._id }, { $set: { result: { ...one.result, processedAt: at } } });
-      await CourseResult.deleteMany({ exam: exam._id, student: reg.student, source: "RESULT" });
-      await CourseResult.insertMany(
-        one.result.courses.map((c) => ({
-          student: reg.student,
-          subject: c.subject,
-          code: c.code,
-          semester: c.semester,
-          exam: exam._id,
-          status: c.status,
-          cie: c.cie,
-          see: c.theory,
-          practical: c.practical,
-          total: c.total,
-          max: c.max,
-          grade: c.grade,
-          gradePoint: c.points,
-          credit: c.credit,
-          declaredAt: exam.results.publishedAt,
-          source: "RESULT",
-        })),
-        { ordered: false }
-      );
+    const out = await republishStudent(exam, reg._id, { progression: false });
+    if (out) {
       republished = true;
       detained = await detainFor([reg.toObject()]);
     }
@@ -514,3 +490,63 @@ export const gradeCards = async (req, res) => {
     }),
   });
 };
+
+// ====================================================================
+// One student's published result worked out again (malpractice decision
+// after publishing, revaluation): his registration result, his
+// CourseResults (back papers, CGPA) and – with progression – a student who
+// was detained under KPT 9.3 but now qualifies is promoted. Nobody is
+// demoted here; that is reported for the COE to look at.
+//   -> { before, after, promoted, wouldDetain } or null
+// ====================================================================
+export async function republishStudent(exam, regId, { progression = true } = {}) {
+  const [one] = await compute(exam, exam.results?.moderationMarks || 0, { _id: regId });
+  if (!one) return null;
+  const { reg, result } = one;
+  const before = reg.result || {};
+  const at = new Date();
+  const kept = before.progression || null;
+  await ExamRegistration.updateOne({ _id: reg._id }, { $set: { result: { ...result, processedAt: at, ...(kept ? { progression: kept } : {}) } } });
+  await CourseResult.deleteMany({ exam: exam._id, student: reg.student, source: "RESULT" });
+  await CourseResult.insertMany(
+    result.courses.map((c) => ({
+      student: reg.student,
+      subject: c.subject,
+      code: c.code,
+      semester: c.semester,
+      exam: exam._id,
+      status: c.status,
+      cie: c.cie,
+      see: c.theory,
+      practical: c.practical,
+      total: c.total,
+      max: c.max,
+      grade: c.grade,
+      gradePoint: c.points,
+      credit: c.credit,
+      declaredAt: exam.results?.publishedAt || at,
+      source: "RESULT",
+    })),
+    { ordered: false }
+  );
+
+  let promoted = false;
+  let wouldDetain = false;
+  if (progression && kept?.decision && kept.decision !== "NONE") {
+    const earned = (await earnedBySemester([reg.student])).get(String(reg.student)) || {};
+    const p = progressionFor(reg.semester, earned, result.cgpa);
+    if (kept.decision === "DETAIN" && p.decision === "PROMOTE") {
+      const out = await Student.updateOne(
+        { _id: reg.student, status: "detained", semester: Number(reg.semester) },
+        { $set: { status: "active", semester: Number(reg.semester) + 1 } }
+      );
+      promoted = Boolean(out.modifiedCount);
+      if (promoted)
+        await ExamRegistration.updateOne(
+          { _id: reg._id },
+          { $set: { "result.progression": { decision: "PROMOTE", earned: p.earned, required: p.required, toSemester: Number(reg.semester) + 1, note: `${p.note} (after revaluation)` } } }
+        );
+    } else if (kept.decision === "PROMOTE" && p.decision === "DETAIN") wouldDetain = true;
+  }
+  return { before: before.outcome || null, after: result.outcome, sgpa: result.sgpa, cgpa: result.cgpa, promoted, wouldDetain };
+}

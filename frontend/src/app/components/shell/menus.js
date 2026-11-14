@@ -132,6 +132,7 @@ export const MENUS = {
         items: [
           { label: "IA marks", href: "/coe/ia-marks", icon: "marks", soon: true },
           { label: "Results", href: "/coe/results", icon: "results" },
+          { label: "Revaluation", href: "/coe/revaluation", icon: "valuation" },
         ],
       },
       {
@@ -220,7 +221,10 @@ export const MENUS = {
       },
       {
         title: "After the exam",
-        items: [{ label: "Absentees & packets", href: "/office/valuation", icon: "valuation" }],
+        items: [
+          { label: "Absentees & packets", href: "/office/valuation", icon: "valuation" },
+          { label: "Revaluation applications", href: "/office/revaluation", icon: "results" },
+        ],
       },
       {
         title: "Reports",

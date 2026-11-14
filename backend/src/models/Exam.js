@@ -116,6 +116,8 @@ const examSchema = new mongoose.Schema(
       processedBy: { type: String, default: "" },
       publishedAt: { type: Date, default: null },
       publishedBy: { type: String, default: "" },
+      // KPT 9.8: last date to apply for revaluation / script copy / viewing
+      revaluationLastDate: { type: Date, default: null },
     },
 
     createdBy: { type: String, required: true },
