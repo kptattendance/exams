@@ -26,11 +26,30 @@ const to12 = (t = "") => {
   return `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
 };
 
+export const AUDIT_NOTE = "No semester-end exam – audit course";
+
 export function ticketFor(reg, { entries = [], sessions = {}, published = false } = {}) {
   const slot = new Map(entries.map((e) => [e.code, e]));
   const reasons = [];
 
-  // audit courses: internal test only – no exam, so not on the hall ticket
+  // audit courses: internal test only – no exam. Shown on the hall ticket,
+  // struck out with a note, so the student knows; they never count as
+  // "not permitted" and never stop the hall ticket from being ready.
+  const audits = (reg.subjects || [])
+    .filter((s) => s.kind === "AUDIT")
+    .map((s) => ({
+      code: s.code,
+      name: s.name,
+      semester: s.semester,
+      kind: s.kind,
+      audit: true,
+      practicalOnly: false,
+      date: "",
+      session: "",
+      time: "",
+      permitted: false,
+      note: AUDIT_NOTE,
+    }));
   const subjects = (reg.subjects || []).filter((s) => s.kind !== "AUDIT").map((s) => {
     const eff = effectiveOf(s);
     const feePaid = subjectFeePaid(reg, s);
@@ -69,6 +88,7 @@ export function ticketFor(reg, { entries = [], sessions = {}, published = false 
     );
   }
   const permitted = subjects.filter((s) => s.permitted);
+  audits.sort((a, b) => a.code.localeCompare(b.code));
   if (!permitted.length && reg.overall !== "PENDING") {
     const feeOnly = subjects.some((s) => s.note === NOT_PERMITTED.FEE);
     reasons.push(feeOnly ? "Fee not paid." : "No subject permitted.");
@@ -79,7 +99,8 @@ export function ticketFor(reg, { entries = [], sessions = {}, published = false 
   return {
     ready: reasons.length === 0,
     reasons,
-    subjects,
+    // audit courses last
+    subjects: [...subjects, ...audits],
     permittedCount: permitted.length,
   };
 }

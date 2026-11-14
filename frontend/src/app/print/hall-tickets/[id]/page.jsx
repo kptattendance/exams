@@ -153,7 +153,12 @@ function Ticket({ t, exam }) {
                 <td className="border border-slate-400 px-1.5 py-[2px] text-center">{s.semester ?? "–"}</td>
                 <td className="border border-slate-400 px-1.5 py-[2px]">
                   <span className={s.permitted ? "" : "line-through"}>{s.name}</span>
-                  {!s.permitted && <span className="ml-1 text-[9.5px] font-bold uppercase text-red-700">{s.note}</span>}
+                  {!s.permitted &&
+                    (s.audit ? (
+                      <span className="ml-1 text-[9.5px] font-semibold italic text-slate-600">({s.note})</span>
+                    ) : (
+                      <span className="ml-1 text-[9.5px] font-bold uppercase text-red-700">{s.note}</span>
+                    ))}
                 </td>
                 {s.permitted ? (
                   s.practicalOnly ? (
@@ -179,7 +184,7 @@ function Ticket({ t, exam }) {
 
         <p className="mt-1 text-[8.5px] leading-snug text-slate-600">
           Bring this hall ticket and your college ID card to every exam. Be seated 15 minutes before the start. Mobile phones and
-          other electronic devices are not allowed. Courses marked “Not permitted” may not be written.
+          other electronic devices are not allowed. Courses marked “Not permitted” may not be written. Audit courses (struck out) have no semester-end exam.
         </p>
 
         {/* signatures – pushed to the bottom of the half page */}

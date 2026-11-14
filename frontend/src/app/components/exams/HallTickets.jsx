@@ -205,7 +205,7 @@ export default function HallTickets({ timetableHref }) {
                         {t.backPapersOnly ? "Back papers only" : `${t.department.toUpperCase()} · Sem ${t.semester}`}
                       </td>
                       <td className={`${T.td} text-xs tabular-nums text-slate-600`}>
-                        {t.permittedCount} / {t.subjects.length} permitted
+                        {t.permittedCount} / {t.subjects.filter((s) => !s.audit).length} permitted
                       </td>
                       <td className={`${T.td} max-w-[18rem]`}>
                         {t.ready ? (

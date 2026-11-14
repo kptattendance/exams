@@ -19,17 +19,24 @@ test("an audit course carries no exam fee", () => {
   assert.equal(f.total, 350);
 });
 
-test("an audit course is not on the hall ticket", () => {
+test("an audit course is on the hall ticket, struck out – no semester-end exam", () => {
   const reg = {
     overall: "ALL_CLEAR",
     regularFee: { paid: true },
     subjects: [
       { code: "25CS31T", kind: "REGULAR", hasTheory: true, status: "ELIGIBLE" },
-      { code: "25CS36A", kind: "AUDIT", hasTheory: false, status: "ELIGIBLE" },
+      { code: "25CS36A", kind: "AUDIT", hasTheory: false, status: "PENDING" },
     ],
   };
   const t = ticketFor(reg, { entries: [{ code: "25CS31T", date: "2026-11-20", session: "FN" }], published: true });
-  assert.deepEqual(t.subjects.map((s) => s.code), ["25CS31T"]);
+  assert.deepEqual(t.subjects.map((s) => s.code), ["25CS31T", "25CS36A"]); // audit last
+  const audit = t.subjects[1];
+  assert.equal(audit.audit, true);
+  assert.equal(audit.permitted, false);
+  assert.match(audit.note, /no semester-end exam/i);
+  // it never stops the hall ticket and is not counted as permitted
+  assert.equal(t.ready, true);
+  assert.equal(t.permittedCount, 1);
 });
 
 test("an audit course is decided by the internal test alone", () => {
