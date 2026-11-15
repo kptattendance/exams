@@ -1,7 +1,7 @@
 "use client";
 
-import CieMakeup from "../../components/exams/CieMakeup";
+import CieMakeupSheet from "../../components/exams/CieMakeupSheet";
 
 export default function CoeCieMakeupPage() {
-  return <CieMakeup />;
+  return <CieMakeupSheet />;
 }

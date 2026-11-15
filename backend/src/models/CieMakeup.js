@@ -18,7 +18,8 @@ const roundSchema = new mongoose.Schema(
 
 const entrySchema = new mongoose.Schema(
   {
-    round: { type: mongoose.Schema.Types.ObjectId, ref: "CieMakeupRound", required: true, index: true },
+    // optional: the HOD's make-up sheet has no rounds (null)
+    round: { type: mongoose.Schema.Types.ObjectId, ref: "CieMakeupRound", default: null, index: true },
     student: { type: mongoose.Schema.Types.ObjectId, ref: "Student", required: true, index: true },
     subject: { type: mongoose.Schema.Types.ObjectId, ref: "Subject", required: true },
     registerNumber: { type: String, default: "" },

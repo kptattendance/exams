@@ -34,6 +34,7 @@ export const MENUS = {
         items: [
           { label: "Final IA", href: "/evening/final-ia", icon: "marks", pinned: true },
           { label: "Final attendance", href: "/evening/attendance", icon: "attendance", pinned: true },
+          { label: "CIE make-up", href: "/evening/cie-makeup", icon: "marks" },
           { label: "Electives", href: "/evening/electives", icon: "layers" },
           { label: "Exam fee list", href: "/evening/exam-fees", icon: "money" },
         ],
@@ -133,7 +134,7 @@ export const MENUS = {
           { label: "IA marks", href: "/coe/ia-marks", icon: "marks", soon: true },
           { label: "Results", href: "/coe/results", icon: "results" },
           { label: "Revaluation", href: "/coe/revaluation", icon: "valuation" },
-          { label: "CIE make-up (supplementary)", href: "/coe/cie-makeup", icon: "marks" },
+          { label: "CIE make-up (check)", href: "/coe/cie-makeup", icon: "marks" },
           { label: "Special exams (NCC / NSS / sports)", href: "/coe/special-exams", icon: "calendar" },
           { label: "Result rejection", href: "/coe/result-rejection", icon: "results" },
           { label: "Diploma award & ranks", href: "/coe/diploma", icon: "results" },
@@ -171,6 +172,7 @@ export const MENUS = {
         items: [
           { label: "Final IA", href: "/hod/final-ia", icon: "marks", pinned: true },
           { label: "Final attendance", href: "/hod/attendance", icon: "attendance", pinned: true },
+          { label: "CIE make-up", href: "/hod/cie-makeup", icon: "marks" },
           { label: "Electives", href: "/hod/electives", icon: "layers" },
           { label: "Exam fee list", href: "/hod/exam-fees", icon: "money" },
         ],
@@ -228,7 +230,7 @@ export const MENUS = {
         items: [
           { label: "Absentees & packets", href: "/office/valuation", icon: "valuation" },
           { label: "Revaluation applications", href: "/office/revaluation", icon: "results" },
-          { label: "CIE make-up (supplementary)", href: "/office/cie-makeup", icon: "marks" },
+          { label: "CIE make-up (check)", href: "/office/cie-makeup", icon: "marks" },
         ],
       },
       {

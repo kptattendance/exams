@@ -17,6 +17,7 @@ import { CieMakeup, CieMakeupRound } from "../models/CieMakeup.js";
 import { audit } from "../models/AuditLog.js";
 import { cieMinimum, makeupAllowed, makeupPassed } from "../services/exams/cieMakeup.js";
 import { refreshAfterChange, refreshNote } from "../services/exams/autoRefresh.js";
+import { studentShift } from "../services/evening.js";
 
 const isId = (id) => mongoose.Types.ObjectId.isValid(String(id || ""));
 const fail = (res, status, error) => res.status(status).json({ error });
@@ -45,7 +46,8 @@ const entryView = (e) => ({
 
 // Everyone whose latest result in a course is NE (and who has not already
 // made it up), for courses that allow a make-up (KPT 5.5.2)
-async function candidates() {
+// includeDone: also courses already made up (the HOD's sheet shows them with their marks)
+async function candidates({ includeDone = false } = {}) {
   const neStudents = await CourseResult.distinct("student", { status: "NE", rejected: { $ne: true } });
   if (!neStudents.length) return [];
   const rows = await CourseResult.find({ student: { $in: neStudents }, rejected: { $ne: true } }).select("student subject status cie declaredAt").lean();
@@ -67,7 +69,7 @@ async function candidates() {
   const done = new Set(madeUp.map((m) => `${m.student}|${m.subject}`));
   return ne
     .map((r) => ({ r, subject: subjectOf.get(String(r.subject)), student: studentOf.get(String(r.student)) }))
-    .filter(({ r, subject, student }) => subject && student && !GONE.includes(student.status) && makeupAllowed(subject) && !done.has(`${r.student}|${r.subject}`))
+    .filter(({ r, subject, student }) => subject && student && !GONE.includes(student.status) && makeupAllowed(subject) && (includeDone || !done.has(`${r.student}|${r.subject}`)))
     .map(({ r, subject, student }) => ({
       student: student._id,
       subject: subject._id,
@@ -139,8 +141,8 @@ export const registerStudent = async (req, res) => {
     return fail(res, 409, `Registration closed on ${new Date(round.lastDate).toLocaleDateString("en-IN")} (KPT 5.5.1 b).`);
   const c = (await candidates()).find((x) => String(x.student) === String(req.body.student) && String(x.subject) === String(req.body.subject));
   if (!c) return fail(res, 409, "This student does not have an NE in this course that can be made up (or has already made it up).");
+  // a fee only if the college charges one for the make-up
   const receiptNo = String(req.body?.receiptNo || "").trim().slice(0, 60);
-  if (!receiptNo) return fail(res, 400, "Write the exam fee receipt / challan number (KPT 5.5.1 a).");
   const amount = req.body?.amount === "" || req.body?.amount == null ? null : Number(req.body.amount);
   if (amount !== null && (!Number.isFinite(amount) || amount < 0 || amount > 100000)) return fail(res, 400, "Fee amount is not valid.");
   const paidOn = req.body?.paidOn ? new Date(req.body.paidOn) : new Date();
@@ -213,3 +215,89 @@ export const removeEntry = async (req, res) => {
   await audit(req, "CIE_MAKEUP_REMOVED", e.round, { registerNumber: e.registerNumber, code: e.code });
   res.json({ message: "Registration removed." });
 };
+
+// ====================================================================
+// The department's make-up sheet – no rounds, no registration.
+// The HOD (Evening Principal: evening students) sees his students whose
+// latest result in a course is NE, and types the make-up CIE of those who
+// wrote it; blank = did not write. At or above the minimum -> an eligible
+// back paper with the new CIE in the next exam (fee and hall ticket as usual).
+// The COE / office see every department (?department=) to check or correct.
+// ====================================================================
+
+const isHod = (req) => req.user?.role === "hod";
+const inScope = (req, c) => {
+  const dept = String(c.department || "").toLowerCase();
+  if (!isHod(req)) return !req.query?.department || dept === String(req.query.department).toLowerCase();
+  if (dept !== String(req.user.department || "").toLowerCase()) return false;
+  const shift = studentShift(req).registerNumber; // evening RX, or { $not: evening RX }
+  if (!shift) return true;
+  return shift instanceof RegExp ? shift.test(c.registerNumber) : !shift.$not.test(c.registerNumber);
+};
+
+// GET /api/cie-makeup/sheet?department=&semester=
+export const makeupSheet = async (req, res) => {
+  const list = (await candidates({ includeDone: true })).filter((c) => inScope(req, c) && (!req.query.semester || Number(c.subjectSemester) === Number(req.query.semester)));
+  const entries = await CieMakeup.find({ student: { $in: list.map((c) => c.student) } }).sort({ updatedAt: 1 }).lean();
+  const entryOf = new Map(entries.map((e) => [`${e.student}|${e.subject}`, e])); // the latest wins
+  res.json({
+    department: isHod(req) ? req.user.department : req.query.department || "",
+    data: list.map((c) => {
+      const e = entryOf.get(`${c.student}|${c.subject}`);
+      return { ...c, marks: e?.marks ?? null, passed: Boolean(e?.passed), enteredBy: e?.enteredBy || "", enteredAt: e?.enteredAt || null };
+    }),
+  });
+};
+
+// POST /api/cie-makeup/sheet   { student, subject, marks }   (marks "" = did not write)
+export const saveMakeupMark = async (req, res) => {
+  if (!isId(req.body?.student) || !isId(req.body?.subject)) return fail(res, 400, "Invalid id.");
+  const c = (await candidates({ includeDone: true })).find((x) => String(x.student) === String(req.body.student) && String(x.subject) === String(req.body.subject));
+  if (!c) return fail(res, 404, "This student has no NE in this course that can be made up.");
+  if (!inScope(req, c)) return fail(res, 403, "This student is not in your department.");
+  const raw = req.body?.marks;
+  const marks = raw === "" || raw == null ? null : Number(raw);
+  if (marks !== null && (!Number.isFinite(marks) || marks < 0 || marks > c.cieMax)) return fail(res, 400, `Marks must be from 0 to ${c.cieMax}.`);
+
+  let e = await CieMakeup.findOne({ student: c.student, subject: c.subject }).sort({ updatedAt: -1 });
+  if (!e && marks === null) return res.json({ data: { ...c, marks: null, passed: false }, message: "Left blank – did not write." });
+  if (!e)
+    e = new CieMakeup({
+      round: null,
+      student: c.student,
+      subject: c.subject,
+      registerNumber: c.registerNumber,
+      name: c.name,
+      department: c.department,
+      code: c.code,
+      subjectName: c.subjectName,
+      subjectSemester: c.subjectSemester,
+      originalCie: c.originalCie,
+      cieMax: c.cieMax,
+      cieMin: c.cieMin,
+      createdBy: who(req),
+    });
+  const was = e.passed;
+  e.marks = marks;
+  e.passed = makeupPassed(marks, { iaMax: c.cieMax, iaMin: c.cieMin });
+  e.enteredBy = who(req);
+  e.enteredAt = new Date();
+  await e.save();
+
+  let note = "";
+  if (was !== e.passed) {
+    const st = await Student.findById(c.student).select("department semester").lean();
+    note = refreshNote(await refreshAfterChange([{ backlog: true }, st && { department: st.department, semester: st.semester }], "CIE make-up"));
+  }
+  await audit(req, "CIE_MAKEUP_MARKS", null, { registerNumber: c.registerNumber, code: c.code, marks, passed: e.passed });
+  res.json({
+    data: { ...c, marks, passed: e.passed, enteredBy: e.enteredBy, enteredAt: e.enteredAt },
+    message:
+      marks === null
+        ? `${c.registerNumber} · ${c.code}: cleared – remains NE.${note}`
+        : e.passed
+          ? `${c.registerNumber} · ${c.code}: ${marks}/${c.cieMax} – CIE made up; an eligible back paper in the next exam.${note}`
+          : `${c.registerNumber} · ${c.code}: ${marks}/${c.cieMax} – below the minimum ${c.cieMin}; remains NE.${note}`,
+  });
+};
+
