@@ -11,6 +11,7 @@ import { DEPARTMENTS, KIND, errMsg, useApi } from "./shared";
 import MalpracticeCases from "./MalpracticeCases";
 import CollegeSelect from "../ui/CollegeFilter";
 import MissingMarks from "./MissingMarks";
+import EarlierMarkCards from "./EarlierMarkCards";
 
 const OUTCOME = {
   PASS: { label: "Pass", chip: "bg-emerald-50 text-emerald-700" },
@@ -216,6 +217,8 @@ export default function Results() {
       )}
 
       {state && <MalpracticeCases examId={examId} published={Boolean(publishedAt)} onChanged={load} />}
+
+      <EarlierMarkCards />
 
       {state && processedAt && (
         <>

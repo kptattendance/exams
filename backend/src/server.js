@@ -28,6 +28,7 @@ import cieMakeupRoutes from "./routes/cieMakeupRoutes.js";
 import specialExamRoutes from "./routes/specialExamRoutes.js";
 import rejectionRoutes from "./routes/rejectionRoutes.js";
 import diplomaRoutes from "./routes/diplomaRoutes.js";
+import markCardRoutes from "./routes/markCardRoutes.js";
 import stepUpRoutes from "./routes/stepUpRoutes.js";
 
 
@@ -139,6 +140,7 @@ app.use("/api/cie-makeup", cieMakeupRoutes);
 app.use("/api/special-exams", specialExamRoutes);
 app.use("/api/result-rejection", rejectionRoutes);
 app.use("/api/diploma", diplomaRoutes);
+app.use("/api/mark-cards", markCardRoutes);
 app.use("/api/otp", stepUpRoutes);
 
 

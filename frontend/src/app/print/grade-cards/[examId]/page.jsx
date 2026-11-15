@@ -63,7 +63,10 @@ function PrintGradeCards() {
   useEffect(() => {
     if (!isLoaded) return;
     if (!isSignedIn) return setError("Please sign in to print grade cards.");
-    api("get", `/exams/${examId}/grade-cards`, undefined, { params: Object.fromEntries(search.entries()) })
+    // "old-25S": an earlier exam, from the results imported from the old software
+    const old = String(examId).match(/^old-(\d{2}[AS])$/i);
+    const params = Object.fromEntries(search.entries());
+    (old ? api("get", "/mark-cards", undefined, { params: { ...params, examCode: old[1].toUpperCase() } }) : api("get", `/exams/${examId}/grade-cards`, undefined, { params }))
       .then((r) => setData(r.data))
       .catch((e) => setError(errMsg(e, "Could not load the grade cards.")));
   }, [api, examId, isLoaded, isSignedIn, search]);
@@ -265,7 +268,10 @@ function Card({ g, exam }) {
             </span>
           ))}
         </div>
-        <p className="mt-2 text-center text-[8.5px] text-slate-500">This grade card is issued by Karnataka (Govt.) Polytechnic, Mangaluru (Autonomous). Any alteration makes it invalid.</p>
+        <p className="mt-2 text-center text-[8.5px] text-slate-500">
+          This grade card is issued by Karnataka (Govt.) Polytechnic, Mangaluru (Autonomous). Any alteration makes it invalid.
+          {exam.earlier && " Prepared from the results of the earlier results software."}
+        </p>
       </div>
     </section>
   );
