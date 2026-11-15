@@ -270,3 +270,16 @@ textarea,
 [contenteditable="true"] {
   caret-color: #1d1842;
 }
+
+/* Number boxes (marks, fees, attendance…): no up / down arrows anywhere –
+   values are typed. The mouse wheel and the ↑ / ↓ keys are stopped too
+   (components/NumberInputGuard.jsx). */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
