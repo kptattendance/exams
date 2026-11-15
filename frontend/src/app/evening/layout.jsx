@@ -6,11 +6,12 @@
 // sent with every request (X-Department); the server shows only evening
 // students and the evening IA / attendance sheets (backend services/evening.js).
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
 
 import AppShell from "../components/shell/AppShell";
 import { MENUS } from "../components/shell/menus";
+import { EVENING_BRANCH_EVENT, setEveningBranch } from "../components/evening/EveningSheetFilters";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "";
 const STORE = "kpt-evening-department";
@@ -48,13 +49,15 @@ export default function EveningLayout({ children }) {
   const [dept, setDept] = useState(() => (typeof window === "undefined" ? DEPARTMENTS[0][0] : current()));
 
   const choose = (d) => {
-    try {
-      localStorage.setItem(STORE, d);
-    } catch {
-      // the header falls back to the first department
-    }
+    setEveningBranch(d); // saved, and the open page's Branch follows
     setDept(d);
   };
+  // a page changed the branch (its Branch filter)
+  useEffect(() => {
+    const on = (e) => e.detail && setDept(e.detail);
+    window.addEventListener(EVENING_BRANCH_EVENT, on);
+    return () => window.removeEventListener(EVENING_BRANCH_EVENT, on);
+  }, []);
 
   return (
     <AppShell menu={MENUS.evening}>

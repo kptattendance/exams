@@ -8,6 +8,8 @@ import { excelInstructionsSheet } from "../../components/ExcelFormatHelp";
 import HodSheetPanel, { openSignatureSheet } from "../../components/HodSheetPanel";
 import { batchFor, useAcademicYear } from "../../components/academicYear";
 import { useToast, usePopupMessage } from "../../components/ui/Feedback";
+import { matchesCollege } from "../../components/ui/CollegeFilter";
+import { BranchShiftFields, useEveningBranch, useEveningMode } from "../../components/evening/EveningSheetFilters";
 import { ChooseElectiveCell, ElectiveHeader, LateralTag, electiveOf, sheetColumns, takesSubject } from "../../components/bridge";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -44,6 +46,10 @@ export default function AttendancePage() {
 
   const fileInputRef = useRef(null);
   const toast = useToast();
+  // Evening Principal: Branch (which sheet) and Shift (which rows are shown)
+  const evening = useEveningMode();
+  const [eveningBranch, chooseEveningBranch] = useEveningBranch();
+  const [shift, setShift] = useState("");
   // the HOD's department, as sent with the sheet (for the printed copies)
   const [department, setDepartment] = useState("");
 
@@ -1527,6 +1533,18 @@ export default function AttendancePage() {
             </div>
           </div>
 
+          {evening && (
+            <BranchShiftFields
+              branch={eveningBranch}
+              onBranch={(d) => {
+                chooseEveningBranch(d);
+                clearTable();
+              }}
+              shift={shift}
+              onShift={setShift}
+            />
+          )}
+
           {/* Semester */}
 
           <div>
@@ -1842,7 +1860,7 @@ export default function AttendancePage() {
 
                 <tbody>
 
-                  {students.map(
+                  {(evening && shift ? students.filter((st) => matchesCollege(shift, st.registerNumber)) : students).map(
                     (
                       student,
                       index

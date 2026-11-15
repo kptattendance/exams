@@ -8,6 +8,8 @@ import { excelInstructionsSheet } from "../../components/ExcelFormatHelp";
 import HodSheetPanel, { openSignatureSheet } from "../../components/HodSheetPanel";
 import { batchFor, useAcademicYear } from "../../components/academicYear";
 import { useToast, usePopupMessage } from "../../components/ui/Feedback";
+import { matchesCollege } from "../../components/ui/CollegeFilter";
+import { BranchShiftFields, useEveningBranch, useEveningMode } from "../../components/evening/EveningSheetFilters";
 import { BridgeBadge, BridgeLegend, ChooseElectiveCell, ElectiveHeader, LateralTag, NotRequiredCell, electiveOf, sheetColumns, takesSubject } from "../../components/bridge";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -21,6 +23,10 @@ export default function FinalIAPage() {
 
   const fileInputRef = useRef(null);
   const toast = useToast();
+  // Evening Principal: Branch (which sheet) and Shift (which rows are shown)
+  const evening = useEveningMode();
+  const [eveningBranch, chooseEveningBranch] = useEveningBranch();
+  const [shift, setShift] = useState("");
 
   // Running academic year – set by the Admin, not chosen here
   const academicYear = useAcademicYear();
@@ -1352,6 +1358,18 @@ export default function FinalIAPage() {
             </div>
           </div>
 
+          {evening && (
+            <BranchShiftFields
+              branch={eveningBranch}
+              onBranch={(d) => {
+                chooseEveningBranch(d);
+                clearTable();
+              }}
+              shift={shift}
+              onShift={setShift}
+            />
+          )}
+
           {/* Semester */}
 
           <div>
@@ -1695,7 +1713,7 @@ export default function FinalIAPage() {
 
                 <tbody>
 
-                  {sortedStudents.map(
+                  {(evening && shift ? sortedStudents.filter((st) => matchesCollege(shift, st.registerNumber)) : sortedStudents).map(
                     (
                       student,
                       index
