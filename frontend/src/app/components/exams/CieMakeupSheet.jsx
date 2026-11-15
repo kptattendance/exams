@@ -127,9 +127,25 @@ export default function CieMakeupSheet() {
       {!rows && <div className="mt-4 h-48 animate-pulse rounded-2xl bg-white" />}
       {rows && (
         <>
-          <p className="mt-4 text-sm text-slate-600">
-            {counts.total} NE course{counts.total === 1 ? "" : "s"} · {counts.entered} entered · <b className="text-emerald-700">{counts.made} made up</b>
-          </p>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm text-slate-600">
+              {counts.total} NE course{counts.total === 1 ? "" : "s"} · {counts.entered} entered · <b className="text-emerald-700">{counts.made} made up</b>
+            </p>
+            <a
+              href={`/print/cie-makeup?${new URLSearchParams({
+                ...(allDepartments && department ? { department } : {}),
+                ...(semester ? { semester } : {}),
+                ...(show ? { show } : {}),
+                ...(q.trim() ? { q: q.trim() } : {}),
+                ...(evening ? { branch: eveningBranch, ...(shift ? { college: shift } : {}) } : {}),
+              })}`}
+              target="_blank"
+              rel="noreferrer"
+              className={btn.secondary}
+            >
+              Download PDF
+            </a>
+          </div>
           <div className="mt-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white">
             {shown.length === 0 ? (
               <p className="px-4 py-10 text-center text-sm text-slate-500">{rows.length ? "No one for this selection." : "No student with NE – nothing to make up."}</p>
