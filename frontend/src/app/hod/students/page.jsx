@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import axios from "axios";
-import * as XLSX from "xlsx";
+import { XLSX } from "../../components/xlsx";
 import { useAuth } from "@clerk/nextjs";
 import {
   Search,
@@ -539,11 +539,6 @@ export default function HODStudentsPage() {
         </div>
 
         {/* ERROR */}
-        {error && (
-          <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            {error}
-          </div>
-        )}
 
         {/* TABLE */}
         <div className="overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-sm">

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
-import * as XLSX from "xlsx";
+import { XLSX } from "../../components/xlsx";
 import { useAuth } from "@clerk/nextjs";
 import { usePopupMessage } from "../../components/ui/Feedback";
 import {
@@ -416,11 +416,6 @@ export default function HODFacultyPage() {
         {/* ERROR */}
         {/* ================================================= */}
 
-        {error && (
-          <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            {error}
-          </div>
-        )}
 
         {/* ================================================= */}
         {/* TABLE */}

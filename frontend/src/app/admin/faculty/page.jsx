@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
 import { useEffect, useMemo, useState } from "react";
-import * as XLSX from "xlsx";
+import { XLSX } from "../../components/xlsx";
 import { DESIGNATIONS } from "../../components/designations";
 import { sortOptions } from "../../components/sortOptions";
+import { confirmBox } from "../../components/ui/Feedback";
 
 const departments = [
   { value: "", label: "Select department" },
@@ -400,7 +401,7 @@ const loadFaculty = async () => {
   // --------------------------------------------------
 
   const handleDelete = async (user) => {
-    const confirmed = window.confirm(
+    const confirmed = await confirmBox(
       `Are you sure you want to delete ${user.name}?`
     );
 
@@ -441,7 +442,7 @@ const loadFaculty = async () => {
       selectedFaculty.includes(user._id)
     );
 
-    const confirmed = window.confirm(
+    const confirmed = await confirmBox(
       `Are you sure you want to delete ${selectedUsers.length} selected faculty member${
         selectedUsers.length !== 1 ? "s" : ""
       }?`

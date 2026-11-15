@@ -7,7 +7,7 @@
 // Every view downloads as Excel, or as PDF (print page → Save as PDF).
 
 import { useEffect, useMemo, useState } from "react";
-import * as XLSX from "xlsx";
+import { XLSX } from "../xlsx";
 
 import Icon from "../shell/Icon";
 import { btn } from "../ui/Modal";

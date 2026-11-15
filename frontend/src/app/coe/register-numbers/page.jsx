@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import * as XLSX from "xlsx";
+import { XLSX } from "../../components/xlsx";
 import { sortOptions } from "../../components/sortOptions";
 
 import { usePopupMessage } from "../../components/ui/Feedback";
@@ -670,11 +670,6 @@ export default function RegisterNumbersPage() {
 
     {/* Error */}
 
-    {error && (
-      <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-        {error}
-      </div>
-    )}
 
     {/* Success */}
 

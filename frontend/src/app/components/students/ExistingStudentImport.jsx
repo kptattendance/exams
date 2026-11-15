@@ -8,7 +8,7 @@
 // The server keeps the register numbers from the Excel (nothing is generated).
 
 import { useMemo, useRef, useState } from "react";
-import * as XLSX from "xlsx";
+import { XLSX } from "../xlsx";
 
 import Icon from "../shell/Icon";
 import { btn } from "../ui/Modal";
@@ -230,11 +230,6 @@ export default function ExistingStudentImport() {
       </section>
 
       {busy === "check" && <p className="mt-4 rounded-xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600">Checking every row… please wait</p>}
-      {error && (
-        <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
-          {error}
-        </p>
-      )}
 
       {/* 2. what will happen / what is happening */}
       {rows.length > 0 && (

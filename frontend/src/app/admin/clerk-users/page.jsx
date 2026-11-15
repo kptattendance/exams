@@ -5,6 +5,7 @@ import axios from "axios";
 import { useEffect, useState } from "react";
 import AccountFilters, { useAccountFilters } from "../../components/AccountFilters";
 import { sortOptions } from "../../components/sortOptions";
+import { confirmBox } from "../../components/ui/Feedback";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -122,7 +123,7 @@ const filteredUsers = accountFilters.filtered;
   // ==========================================================
 
   const handleDelete = async (clerkId) => {
-    const confirmed = window.confirm(
+    const confirmed = await confirmBox(
       "Are you sure you want to delete this Clerk account?"
     );
 
@@ -171,7 +172,7 @@ const filteredUsers = accountFilters.filtered;
       return;
     }
 
-    const confirmed = window.confirm(
+    const confirmed = await confirmBox(
       `Are you sure you want to delete ${selectedUsers.length} selected Clerk account(s)?`
     );
 

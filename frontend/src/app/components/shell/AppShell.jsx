@@ -15,6 +15,7 @@ import { UserButton, useClerk, useUser } from "@clerk/nextjs";
 import Icon from "./Icon";
 import { FeedbackProvider } from "../ui/Feedback";
 import { useRole } from "../useRole";
+import { preloadXlsx } from "../xlsx";
 
 function findActive(sections, pathname) {
   let best = null;
@@ -34,6 +35,12 @@ function findActive(sections, pathname) {
 export default function AppShell({ menu, children }) {
   const pathname = usePathname() || "/";
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // the Excel library: fetched in the background after the page is shown
+  useEffect(() => {
+    const t = setTimeout(() => preloadXlsx().catch(() => {}), 800);
+    return () => clearTimeout(t);
+  }, []);
 
   const active = useMemo(() => findActive(menu.sections, pathname), [menu, pathname]);
   const pinned = useMemo(

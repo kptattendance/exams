@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
-import * as XLSX from "xlsx";
+import { XLSX } from "../../components/xlsx";
 import { sortOptions } from "../../components/sortOptions";
 import { useIsAdmin } from "../../components/useRole";
+import { confirmBox } from "../../components/ui/Feedback";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -616,7 +617,7 @@ const openEditModal = (subject) => {
   // =====================================================
 
   const handleDelete = async (subject) => {
-    const confirmed = window.confirm(
+    const confirmed = await confirmBox(
       `Delete "${subject.code} - ${subject.name}"?\n\nIt goes to the Recycle bin; the Admin can restore it there within 30 days.`
     );
 
@@ -657,7 +658,7 @@ const openEditModal = (subject) => {
       selectedSubjects.includes(subject._id)
     );
 
-    const confirmed = window.confirm(
+    const confirmed = await confirmBox(
       `Are you sure you want to delete ${selected.length} selected subject${
         selected.length !== 1 ? "s" : ""
       }?`

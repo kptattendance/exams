@@ -6,7 +6,7 @@
 //   <ExcelFormatHelp kind="ia" subjects={subjects} />
 //   const sheet = excelInstructionsSheet("attendance", subjects);  // for the template
 
-import * as XLSX from "xlsx";
+import { XLSX } from "./xlsx";
 
 export const KINDS = {
   ia: {

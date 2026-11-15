@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
-import * as XLSX from "xlsx";
+import { XLSX } from "../../../components/xlsx";
 
 import { usePopupMessage } from "../../../components/ui/Feedback";
 export default function StudentBulkUploadPage() {
@@ -314,11 +314,6 @@ export default function StudentBulkUploadPage() {
             </div>
           )}
 
-          {error && (
-            <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-              {error}
-            </div>
-          )}
 
           <button
             type="button"

@@ -126,6 +126,13 @@ export function FeedbackProvider({ children }) {
   );
 
   const value = useMemo(() => ({ toast, confirm }), [toast, confirm]);
+  // confirmBox() (below) uses this provider's styled confirmation
+  useEffect(() => {
+    globalConfirm = confirm;
+    return () => {
+      if (globalConfirm === confirm) globalConfirm = null;
+    };
+  }, [confirm]);
 
   const close = (result) => {
     dialog?.resolve(result);
@@ -161,6 +168,22 @@ export function useToast() {
       info: (m) => console.log(m),
     }
   );
+}
+
+// The styled confirmation from anywhere, in place of the browser's grey box:
+//   if (!(await confirmBox("Delete this student?\n\nIt goes to the Recycle bin…"))) return;
+// First line = title, the rest = message. Asks to "Delete"/"Remove" in red.
+let globalConfirm = null;
+export function confirmBox(text) {
+  const [title, ...rest] = String(text || "").split("\n");
+  const danger = /\b(delete|remove|reset|clear|deactivate)\b/i.test(title);
+  if (!globalConfirm) return Promise.resolve(window.confirm(text));
+  return globalConfirm({
+    title: title.trim() || "Are you sure?",
+    message: rest.join("\n").trim(),
+    confirmText: danger ? "Yes, go ahead" : "Yes",
+    tone: danger ? "danger" : "primary",
+  });
 }
 
 export function useConfirm() {

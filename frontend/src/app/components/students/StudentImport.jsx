@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
-import * as XLSX from "xlsx";
+import { XLSX } from "../xlsx";
 
 import Icon from "../shell/Icon";
 import { useConfirm, useToast, usePopupMessage } from "../ui/Feedback";
@@ -382,12 +382,6 @@ function ImportTab({ openImportId, onOpened, onOpen, onShowHistory, undo, onChan
   return (
     <div className="space-y-5">
       <Steps current={step} />
-      {error && (
-        <div className="flex gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          <Icon name="close" className="mt-0.5 h-4 w-4 shrink-0" />
-          {error}
-        </div>
-      )}
 
       {(stage === "pick" || stage === "checking") && (
         <>

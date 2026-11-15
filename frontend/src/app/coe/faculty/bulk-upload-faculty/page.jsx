@@ -3,10 +3,11 @@
 import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
 import { useEffect, useMemo, useState } from "react";
-import * as XLSX from "xlsx";
+import { XLSX } from "../../../components/xlsx";
 import { DESIGNATIONS } from "../../../components/designations";
 import { sortOptions } from "../../../components/sortOptions";
 import { useIsAdmin } from "../../../components/useRole";
+import { confirmBox } from "../../../components/ui/Feedback";
 const departments = [
   { value: "", label: "Select department" },
   { value: "at", label: "Automobile Engineering" },
@@ -338,7 +339,7 @@ export default function FacultyPage() {
   // --------------------------------------------------
 
   const handleDelete = async (user) => {
-    const confirmed = window.confirm(
+    const confirmed = await confirmBox(
       `Are you sure you want to delete ${user.name}?`
     );
 
@@ -379,7 +380,7 @@ export default function FacultyPage() {
       selectedFaculty.includes(user._id)
     );
 
-    const confirmed = window.confirm(
+    const confirmed = await confirmBox(
       `Are you sure you want to delete ${selectedUsers.length} selected faculty member${
         selectedUsers.length !== 1 ? "s" : ""
       }?`

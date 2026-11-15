@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import axios from "axios";
-import * as XLSX from "xlsx";
+import { XLSX } from "../../components/xlsx";
 import { useAuth } from "@clerk/nextjs";
 import { excelInstructionsSheet } from "../../components/ExcelFormatHelp";
 import HodSheetPanel, { openSignatureSheet } from "../../components/HodSheetPanel";
 import { batchFor, useAcademicYear } from "../../components/academicYear";
-import { useToast, usePopupMessage } from "../../components/ui/Feedback";
+import { useToast, usePopupMessage, confirmBox } from "../../components/ui/Feedback";
 import { matchesCollege } from "../../components/ui/CollegeFilter";
 import { BranchShiftFields, useEveningBranch, useEveningMode } from "../../components/evening/EveningSheetFilters";
 import { BridgeBadge, BridgeLegend, ChooseElectiveCell, ElectiveHeader, LateralTag, NotRequiredCell, electiveOf, sheetColumns, takesSubject } from "../../components/bridge";
@@ -554,7 +554,7 @@ export default function FinalIAPage() {
     }
 
     const confirmed =
-      window.confirm(
+      await confirmBox(
         "Once Final IA is submitted, it cannot be edited by the HOD.\n\nDo you want to submit Final IA?"
       );
 
@@ -1479,11 +1479,6 @@ export default function FinalIAPage() {
           MESSAGES
       ====================================================== */}
 
-      {error && (
-        <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-          {error}
-        </div>
-      )}
 
       {message && (
         <div className="mb-3 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700">
@@ -1919,11 +1914,6 @@ export default function FinalIAPage() {
           <div className="mt-3 flex flex-wrap items-center justify-end gap-2 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
 
             {/* Show the reason here too – the top message is out of view at the bottom of a long sheet */}
-            {error && (
-              <p className="mr-auto rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
-                {error}
-              </p>
-            )}
 
             <button
               type="button"

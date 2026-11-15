@@ -4,10 +4,11 @@ import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import * as XLSX from "xlsx";
+import { XLSX } from "../../components/xlsx";
 import { ROLE_OPTIONS, roleLabel } from "../../components/roles";
 import AccountFilters, { useAccountFilters } from "../../components/AccountFilters";
 import { sortOptions } from "../../components/sortOptions";
+import { confirmBox } from "../../components/ui/Feedback";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -226,7 +227,7 @@ export default function UsersPage() {
     clerkId
   ) => {
     const confirmed =
-      window.confirm(
+      await confirmBox(
         "Are you sure you want to delete this user account?"
       );
 
@@ -292,7 +293,7 @@ export default function UsersPage() {
       }
 
       const confirmed =
-        window.confirm(
+        await confirmBox(
           `Are you sure you want to delete ${selectedUsers.length} selected user(s)?`
         );
 

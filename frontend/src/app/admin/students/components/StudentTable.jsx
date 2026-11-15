@@ -9,11 +9,11 @@ import {
 
 import { useAuth } from "@clerk/nextjs";
 import axios from "axios";
-import * as XLSX from "xlsx";
+import { XLSX } from "../../../components/xlsx";
 import PurgeStudents, { PurgeLog } from "../../../components/students/PurgeStudents";
 import { sortOptions } from "../../../components/sortOptions";
 
-import { usePopupMessage } from "../../../components/ui/Feedback";
+import { usePopupMessage, confirmBox } from "../../../components/ui/Feedback";
 import ChangePhotoButton from "../../../components/students/ChangePhoto";
 import ChangeEmailButton from "../../../components/students/ChangeEmail";
 import CollegeSelect, { matchesCollege } from "../../../components/ui/CollegeFilter";
@@ -662,7 +662,7 @@ const downloadStudentsExcel = () => {
   // =====================================================
 
   const handleDelete = async (student) => {
-    const confirmed = window.confirm(
+    const confirmed = await confirmBox(
       `Delete ${student.name}?\n\nIt goes to the Recycle bin with all the student's records; the Admin can restore it there within 30 days.`
     );
 
@@ -717,7 +717,7 @@ const downloadStudentsExcel = () => {
   const handleBulkDelete = async () => {
     if (!selectedStudents.length) return;
 
-    const confirmed = window.confirm(
+    const confirmed = await confirmBox(
       `Delete ${selectedStudents.length} selected student(s)?\n\nThey go to the Recycle bin with all their records; the Admin can restore them there within 30 days.`
     );
 
