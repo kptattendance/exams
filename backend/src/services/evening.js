@@ -57,11 +57,19 @@ export function shiftQuery(req) {
   if (evening === null) return {};
   return evening ? { shift: "EVENING" } : { shift: { $ne: "EVENING" } };
 }
-// COE / office / Admin lists: ?college=DAY (103…) or ?college=EVENING (186…);
-// anything else = both. A HOD / Evening Principal is already limited (studentShift).
+// Working professionals (KPT 3.3) are evening (186) students in the "51 and
+// up" lateral series: 351–399 (ITI), 451–499 (ITI, other trade), 751–999
+// (PUC). 301–350, 401–450, 701–750 are evening-shift laterals; 001–299 regular.
+export const WORKING_RX = new RegExp(`^${EVENING_CODE}[A-Z]{2}\\d{2}(35[1-9]|3[6-9]\\d|45[1-9]|4[6-9]\\d|75[1-9]|7[6-9]\\d|[89]\\d\\d)$`, "i");
+export const isWorkingProfessional = (registerNumber) => WORKING_RX.test(String(registerNumber || "").trim());
+
+// COE / office / Admin lists: ?college=DAY (103…), EVENING (186, evening shift),
+// WORKING (186, working professionals); anything else = all.
+// A HOD / Evening Principal is already limited (studentShift).
 export function collegeFilter(query) {
   const c = String(query?.college || "").toUpperCase();
-  if (c === "EVENING") return { registerNumber: EVENING_RX };
+  if (c === "EVENING") return { registerNumber: { $regex: EVENING_RX, $not: WORKING_RX } };
+  if (c === "WORKING") return { registerNumber: WORKING_RX };
   if (c === "DAY") return { registerNumber: { $not: EVENING_RX } };
   return {};
 }

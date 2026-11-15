@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { asHodScope, isEvening, shiftOf, shiftQuery, studentShift, sheetShift } from "../src/services/evening.js";
+import { asHodScope, collegeFilter, isEvening, isWorkingProfessional, shiftOf, shiftQuery, studentShift, sheetShift } from "../src/services/evening.js";
 import { batchLabel } from "../src/services/exams/practical.js";
 
 const run = (user, extra = {}) => {
@@ -15,6 +15,16 @@ test("186 register numbers are the evening college", () => {
   assert.equal(isEvening("103EE25001"), false);
   assert.equal(shiftOf("186ME26003"), "EVENING");
   assert.equal(shiftOf("103CS26001"), "DAY");
+});
+
+test("working professionals: 186 numbers in the 351–399, 451–499, 751–999 series", () => {
+  for (const n of ["186EE26351", "186EE26399", "186ME26451", "186EE26751", "186EE26999"]) assert.equal(isWorkingProfessional(n), true, n);
+  for (const n of ["186EE26001", "186EE26301", "186EE26350", "186EE26401", "186EE26450", "186EE26701", "186EE26750", "103EE26351"])
+    assert.equal(isWorkingProfessional(n), false, n);
+  const evening = collegeFilter({ college: "EVENING" }).registerNumber;
+  assert.equal(evening.$regex.test("186EE26301") && !evening.$not.test("186EE26301"), true);
+  assert.equal(evening.$regex.test("186EE26351") && !evening.$not.test("186EE26351"), false);
+  assert.equal(collegeFilter({ college: "WORKING" }).registerNumber.test("186ME26451"), true);
 });
 
 test("the Evening Principal acts as HOD of evening students of the chosen department", () => {
