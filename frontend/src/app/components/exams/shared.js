@@ -16,7 +16,9 @@ export function useApi() {
   tokenRef.current = getToken;
   return useCallback(async (method, path, data, extra = {}) => {
     const token = await tokenRef.current();
-    return axios({ method, url: `${BASE}${path}`, data, headers: { Authorization: `Bearer ${token}` }, ...extra });
+    // extra headers (e.g. the evening branch) are ADDED – the sign-in always stays
+    const { headers, ...rest } = extra || {};
+    return axios({ method, url: `${BASE}${path}`, data, ...rest, headers: { ...(headers || {}), Authorization: `Bearer ${token}` } });
   }, []);
 }
 
