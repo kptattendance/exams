@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 import axios from "axios";
 import * as XLSX from "xlsx";
 import { useAuth } from "@clerk/nextjs";
@@ -22,8 +23,20 @@ import { STUDENT_FIELDS, problemsOf } from "../../components/students/studentChe
 
 import { usePopupMessage } from "../../components/ui/Feedback";
 import ChangePhotoButton from "../../components/students/ChangePhoto";
+import { matchesCollege } from "../../components/ui/CollegeFilter";
+
+// Evening Principal (/evening/students): both evening branches on one page,
+// with Branch and Shift (evening shift / working professionals) filters
+// instead of batch, admission year and status
+const EVENING_BRANCHES = [
+  ["ee", "Electrical and Electronics Engineering"],
+  ["me", "Mechanical Engineering"],
+];
 export default function HODStudentsPage() {
   const { getToken } = useAuth();
+  const evening = String(usePathname() || "").startsWith("/evening");
+  const [branch, setBranch] = useState(""); // evening: ee / me
+  const [shift, setShift] = useState(""); // evening: EVENING (evening shift) / WORKING (working professionals)
 
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -48,22 +61,29 @@ export default function HODStudentsPage() {
 
       const token = await getToken();
 
-      const response = await axios.get(
-        `${API_URL}/api/students`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      // the Evening Principal: every evening branch (the server gives one branch per request)
+      const branches = evening ? EVENING_BRANCHES.map(([d]) => d) : [null];
+      const lists = await Promise.all(
+        branches.map((d) =>
+          axios.get(`${API_URL}/api/students`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              ...(d ? { "X-Department": d } : {}),
+            },
+          })
+        )
       );
 
-      const data =
-        response.data?.data ||
-        response.data?.students ||
-        response.data ||
-        [];
+      const data = lists.flatMap((response) => {
+        const list =
+          response.data?.data ||
+          response.data?.students ||
+          response.data ||
+          [];
+        return Array.isArray(list) ? list : [];
+      });
 
-      setStudents(Array.isArray(data) ? data : []);
+      setStudents(data);
     } catch (err) {
       console.error("Student fetch error:", err);
 
@@ -183,6 +203,14 @@ export default function HODStudentsPage() {
       );
     }
 
+    if (evening && branch) {
+      result = result.filter((student) => String(student.department || "").toLowerCase() === branch);
+    }
+
+    if (evening && shift) {
+      result = result.filter((student) => matchesCollege(shift, student.registerNumber));
+    }
+
     if (onlyProblems) {
       result = result.filter((student) => Object.keys(problemsOf(student)).length > 0);
     }
@@ -214,6 +242,9 @@ export default function HODStudentsPage() {
     status,
     sortBy,
     onlyProblems,
+    evening,
+    branch,
+    shift,
   ]);
 
   // students with at least one missing / wrong-looking detail
@@ -227,6 +258,8 @@ export default function HODStudentsPage() {
     setStatus("");
     setSortBy("name");
     setOnlyProblems(false);
+    setBranch("");
+    setShift("");
   };
 
   const downloadExcel = () => {
@@ -371,6 +404,32 @@ export default function HODStudentsPage() {
               ))}
             </select>
 
+            {evening ? (
+              <>
+                <select
+                  value={branch}
+                  onChange={(e) => setBranch(e.target.value)}
+                  className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm outline-none focus:border-amber-500 focus:bg-white"
+                >
+                  <option value="">All Branches</option>
+                  {EVENING_BRANCHES.map(([v, l]) => (
+                    <option key={v} value={v}>
+                      {l}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={shift}
+                  onChange={(e) => setShift(e.target.value)}
+                  className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm outline-none focus:border-amber-500 focus:bg-white"
+                >
+                  <option value="">Evening shift + Working professionals</option>
+                  <option value="EVENING">Evening shift (second shift)</option>
+                  <option value="WORKING">Working professionals</option>
+                </select>
+              </>
+            ) : (
+            <>
             <select
               value={batch}
               onChange={(e) =>
@@ -412,6 +471,8 @@ export default function HODStudentsPage() {
                 </option>
               ))}
             </select>
+            </>
+            )}
 
             <select
               value={sortBy}
@@ -435,6 +496,7 @@ export default function HODStudentsPage() {
           </div>
 
           <div className="mt-3 flex flex-wrap gap-2">
+            {!evening && (
             <select
               value={status}
               onChange={(e) =>
@@ -455,6 +517,7 @@ export default function HODStudentsPage() {
                 </option>
               ))}
             </select>
+            )}
 
             <button
               onClick={() => setOnlyProblems((v) => !v)}

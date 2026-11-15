@@ -36,7 +36,8 @@ function installDepartmentHeader() {
   axios.interceptors.request.use((config) => {
     if (API && String(config.url || "").startsWith(API)) {
       config.headers = config.headers || {};
-      config.headers["X-Department"] = current();
+      const asked = typeof config.headers.get === "function" ? config.headers.get("X-Department") : config.headers["X-Department"];
+      if (!asked) config.headers["X-Department"] = current();
     }
     return config;
   });
