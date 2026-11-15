@@ -61,7 +61,7 @@ async function candidates({ includeDone = false } = {}) {
   if (!ne.length) return [];
   const [subjects, students, madeUp] = await Promise.all([
     Subject.find({ _id: { $in: [...new Set(ne.map((r) => String(r.subject)))] } }).select("code name semester iaMax iaMin theoryExamMax practicalExamMax").lean(),
-    Student.find({ _id: { $in: [...new Set(ne.map((r) => String(r.student)))] } }).select("registerNumber name department semester status").lean(),
+    Student.find({ _id: { $in: [...new Set(ne.map((r) => String(r.student)))] } }).select("registerNumber name department semester status imageUrl").lean(),
     CieMakeup.find({ passed: true, student: { $in: neStudents } }).select("student subject").lean(),
   ]);
   const subjectOf = new Map(subjects.map((s) => [String(s._id), s]));
@@ -75,6 +75,7 @@ async function candidates({ includeDone = false } = {}) {
       subject: subject._id,
       registerNumber: student.registerNumber,
       name: student.name,
+      imageUrl: student.imageUrl || "",
       department: student.department,
       studentSemester: student.semester,
       code: subject.code,

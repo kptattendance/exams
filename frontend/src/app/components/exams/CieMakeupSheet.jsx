@@ -13,6 +13,7 @@ import { btn } from "../ui/Modal";
 import { useToast } from "../ui/Feedback";
 import { useRole } from "../useRole";
 import { EveningTag, matchesCollege } from "../ui/CollegeFilter";
+import StudentPhoto from "../ui/StudentPhoto";
 import { BranchShiftFields, useEveningBranch, useEveningMode } from "../evening/EveningSheetFilters";
 import { DEPARTMENTS, errMsg, useApi } from "./shared";
 
@@ -186,9 +187,14 @@ function Row({ n, r, onSaved }) {
     <tr className="align-middle">
       <td className="px-3 py-2.5 text-right text-xs tabular-nums text-slate-400">{n}</td>
       <td className="px-3 py-2.5">
-        <b className="tabular-nums">{r.registerNumber}</b>
-        <EveningTag registerNumber={r.registerNumber} />
-        <span className="block text-xs text-slate-500">{r.name}</span>
+        <div className="flex items-center gap-2.5">
+          <StudentPhoto url={r.imageUrl} name={r.name} />
+          <div className="min-w-0">
+            <b className="tabular-nums">{r.registerNumber}</b>
+            <EveningTag registerNumber={r.registerNumber} />
+            <span className="block text-xs text-slate-500">{r.name}</span>
+          </div>
+        </div>
       </td>
       <td className="px-3 py-2.5">
         <b>{r.code}</b>
