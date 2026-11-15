@@ -4,7 +4,7 @@
 // One row per course (code + name); one column per semester of the exam with
 // the departments' counts; a "Back papers" column listing the students who
 // write the course as a back paper (failed / NE / absent in an earlier exam).
-// Filters: department, course code or name.
+// Filters: department, semester, class / back-paper students, course code or name.
 
 import { useMemo, useState } from "react";
 
@@ -12,14 +12,19 @@ import { DEPARTMENTS } from "./shared";
 
 export default function MissingMarks({ issues = [], semesters = [] }) {
   const [dept, setDept] = useState("");
+  const [sem, setSem] = useState(""); // a semester: its column only (back papers: courses of that semester)
+  const [who, setWho] = useState(""); // "" all | "CLASS" class students only | "BACK" back-paper students only
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(""); // row whose back-paper students are shown
 
-  const sems = useMemo(() => {
+  const allSems = useMemo(() => {
     const set = new Set(semesters.map(String));
     for (const i of issues) Object.keys(i.bySemester || {}).forEach((s) => set.add(s));
     return [...set].sort((a, b) => Number(a) - Number(b));
   }, [issues, semesters]);
+  // the columns shown
+  const sems = who === "BACK" ? [] : sem ? [sem] : allSems;
+  const showBack = who !== "CLASS";
 
   // with a department chosen, only its students are counted
   const rows = useMemo(() => {
@@ -29,16 +34,19 @@ export default function MissingMarks({ issues = [], semesters = [] }) {
       .filter((i) => !text || `${i.code} ${i.name}`.toLowerCase().includes(text))
       .map((i) => {
         const bySemester = {};
-        for (const [s, counts] of Object.entries(i.bySemester || {})) {
-          const c = D ? (counts[D] ? { [D]: counts[D] } : {}) : counts;
-          if (Object.keys(c).length) bySemester[s] = c;
-        }
-        const backPapers = D ? i.backPapers.filter((b) => b.department === D) : i.backPapers;
+        if (who !== "BACK")
+          for (const [s, counts] of Object.entries(i.bySemester || {})) {
+            if (sem && s !== sem) continue;
+            const c = D ? (counts[D] ? { [D]: counts[D] } : {}) : counts;
+            if (Object.keys(c).length) bySemester[s] = c;
+          }
+        const backPapers =
+          who === "CLASS" ? [] : i.backPapers.filter((b) => (!D || b.department === D) && (!sem || String(i.semester) === sem));
         const students = Object.values(bySemester).reduce((a, c) => a + Object.values(c).reduce((x, n) => x + n, 0), 0) + backPapers.length;
         return { ...i, bySemester, backPapers, students };
       })
       .filter((i) => i.students > 0);
-  }, [issues, dept, q]);
+  }, [issues, dept, sem, who, q]);
 
   const total = rows.reduce((a, r) => a + r.students, 0);
   const key = (i) => `${i.code}|${i.name}|${i.note}`;
@@ -55,6 +63,32 @@ export default function MissingMarks({ issues = [], semesters = [] }) {
             </option>
           ))}
         </select>
+        <select value={sem} onChange={(e) => setSem(e.target.value)} className="h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-sm">
+          <option value="">All semesters</option>
+          {allSems.map((s) => (
+            <option key={s} value={s}>
+              Semester {s}
+            </option>
+          ))}
+        </select>
+        <select value={who} onChange={(e) => setWho(e.target.value)} className="h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-sm">
+          <option value="">All students</option>
+          <option value="CLASS">Class students only</option>
+          <option value="BACK">Back-paper students only</option>
+        </select>
+        {(q || dept || sem || who) && (
+          <button
+            onClick={() => {
+              setQ("");
+              setDept("");
+              setSem("");
+              setWho("");
+            }}
+            className="h-9 rounded-lg px-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+          >
+            Clear
+          </button>
+        )}
         <span className="ml-auto text-xs text-slate-500">
           {rows.length} course{rows.length === 1 ? "" : "s"} · {total} entries
         </span>
@@ -74,13 +108,13 @@ export default function MissingMarks({ issues = [], semesters = [] }) {
                   Sem {s}
                 </th>
               ))}
-              <th className="px-3 py-2">Back papers</th>
+              {showBack && <th className="px-3 py-2">Back papers</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {rows.length === 0 && (
               <tr>
-                <td colSpan={6 + sems.length} className="px-3 py-8 text-center text-slate-500">
+                <td colSpan={5 + sems.length + (showBack ? 1 : 0)} className="px-3 py-8 text-center text-slate-500">
                   Nothing missing for this selection.
                 </td>
               </tr>
@@ -109,6 +143,7 @@ export default function MissingMarks({ issues = [], semesters = [] }) {
                     </div>
                   </td>
                 ))}
+                {showBack && (
                 <td className="px-3 py-2">
                   {i.backPapers.length ? (
                     <>
@@ -133,6 +168,7 @@ export default function MissingMarks({ issues = [], semesters = [] }) {
                     <span className="text-xs text-slate-300">—</span>
                   )}
                 </td>
+                )}
               </tr>
             ))}
           </tbody>
