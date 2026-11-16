@@ -15,6 +15,7 @@ import XLSX from "xlsx";
 import Exam from "../models/Exam.js";
 import ExamRegistration from "../models/ExamRegistration.js";
 import AuditLog from "../models/AuditLog.js";
+import Subject from "../models/Subject.js";
 import { feeItems, feeSummary, parsePays, ADMISSION_LABEL, subjectFeePaid, examFeeFor, bySyllabus } from "../services/exams/rules.js";
 import { recount, feeRulesOf } from "./examController.js";
 import { collegeFilter } from "../services/evening.js";
@@ -63,6 +64,29 @@ function parseDate(v) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+// Courses are shown in syllabus order (3AT01, 3AT02 … then 3AT11, 3AT12).
+// Registrations saved before the sequence was stored have none: take it from
+// the syllabus (a common course has one per department – the student's own).
+async function withSequences(regs) {
+  const list = (Array.isArray(regs) ? regs : [regs]).filter(Boolean);
+  const codes = [...new Set(list.flatMap((r) => (r.subjects || []).filter((s) => !s.sequence).map((s) => s.code)))];
+  if (!codes.length) return regs;
+  const docs = await Subject.find({ code: { $in: codes } }).select("code department semester sequence").lean();
+  for (const r of list) {
+    const own = String(r.department || "").toUpperCase();
+    for (const s of r.subjects || []) {
+      if (s.sequence) continue;
+      const same = docs.filter((d) => d.code === s.code && d.sequence);
+      const pick =
+        same.find((d) => String(d.department).toUpperCase() === own && Number(d.semester) === Number(s.semester)) ||
+        same.find((d) => String(d.department).toUpperCase() === own) ||
+        same[0];
+      if (pick) s.sequence = pick.sequence;
+    }
+  }
+  return regs;
+}
+
 function feeView(r) {
   const items = feeItems(r).map((i) => {
     const subj = i.type === "SUBJECT" ? r.subjects.find((s) => String(s.subject) === i.key) : null;
@@ -102,8 +126,7 @@ function feeView(r) {
         kind: s.kind,
         fee: s.kind === "BACKLOG" ? String(s.subject) : "REGULAR",
         paid: subjectFeePaid(r, s),
-      }))
-      .sort((a, b) => (a.semester || 0) - (b.semester || 0) || String(a.code).localeCompare(String(b.code))),
+      })),
     payments: (r.payments || []).map((p) => ({
       _id: p._id,
       txnNo: p.txnNo,
@@ -167,7 +190,7 @@ export const listFees = async (req, res) => {
   ]);
   res.json({
     exam: { _id: exam._id, name: exam.name, academicYear: exam.academicYear, semesters: exam.semesters },
-    data: items.map((r) => ({ ...feeView(r), due: examFeeFor(r.subjects || [], rules, on) })),
+    data: (await withSequences(items)).map((r) => ({ ...feeView(r), due: examFeeFor(r.subjects || [], rules, on) })),
     total,
     page,
     pages: Math.max(1, Math.ceil(total / limit)),
@@ -240,7 +263,7 @@ export const recordFee = async (req, res) => {
     reason: paid ? "" : String(req.body.reason).trim(),
   });
   res.json({
-    data: feeView(reg.toObject()),
+    data: feeView(await withSequences(reg.toObject())),
     message: paid ? `Recorded ${changed.join(", ")} for ${reg.registerNumber}.` : `Removed ${changed.join(", ")} for ${reg.registerNumber}.`,
   });
 };
@@ -328,7 +351,7 @@ export const addPayment = async (req, res) => {
     items: changed,
   });
   res.json({
-    data: feeView(reg.toObject()),
+    data: feeView(await withSequences(reg.toObject())),
     message: `Payment added for ${reg.registerNumber}${changed.length ? ` · ${changed.join(", ")} marked paid` : ""}.`,
     warning: duplicate ? `Transaction ${txnNo} is also entered for ${duplicate.registerNumber}. Please check.` : "",
   });
@@ -347,7 +370,7 @@ export const deletePayment = async (req, res) => {
   p.deleteOne();
   await reg.save();
   await logAction(req, "EXAM_FEE_PAYMENT_REMOVED", reg.exam, { registration: reg._id, registerNumber: reg.registerNumber, ...removed });
-  res.json({ data: feeView(reg.toObject()), message: "Payment removed." });
+  res.json({ data: feeView(await withSequences(reg.toObject())), message: "Payment removed." });
 };
 
 // ------------------------------------------------------------------ Excel
