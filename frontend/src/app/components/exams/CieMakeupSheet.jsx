@@ -171,7 +171,7 @@ export default function CieMakeupSheet() {
           </div>
           <p className="mt-2 text-[11px] leading-4 text-slate-500">
             At or above the minimum: the course is an eligible back paper in the next exam with this CIE – fee and hall ticket as usual. Blank or below: stays NE. Not for
-            seminar, project, internship or practical courses (KPT 5.5.2).
+            seminar, project work or internship.
           </p>
         </>
       )}

@@ -10,10 +10,19 @@ import { useMemo, useState } from "react";
 
 import { DEPARTMENTS } from "./shared";
 
+// Paper type from the course code: …T0 theory, …P / …PA practical, else audit / others
+export const paperType = (code = "") => {
+  const c = String(code).trim().toUpperCase();
+  if (/T\d+$/.test(c)) return "THEORY";
+  if (/P[A-Z]?$/.test(c)) return "PRACTICAL";
+  return "OTHER";
+};
+
 export default function MissingMarks({ issues = [], semesters = [] }) {
   const [dept, setDept] = useState("");
   const [sem, setSem] = useState(""); // a semester: its column only (back papers: courses of that semester)
   const [who, setWho] = useState(""); // "" all | "CLASS" class students only | "BACK" back-paper students only
+  const [type, setType] = useState(""); // "" all | THEORY | PRACTICAL | OTHER (audit…)
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(""); // row whose back-paper students are shown
 
@@ -32,6 +41,7 @@ export default function MissingMarks({ issues = [], semesters = [] }) {
     const text = q.trim().toLowerCase();
     return issues
       .filter((i) => !text || `${i.code} ${i.name}`.toLowerCase().includes(text))
+      .filter((i) => !type || paperType(i.code) === type)
       .map((i) => {
         const bySemester = {};
         if (who !== "BACK")
@@ -46,7 +56,7 @@ export default function MissingMarks({ issues = [], semesters = [] }) {
         return { ...i, bySemester, backPapers, students };
       })
       .filter((i) => i.students > 0);
-  }, [issues, dept, sem, who, q]);
+  }, [issues, dept, sem, who, type, q]);
 
   const total = rows.reduce((a, r) => a + r.students, 0);
   const key = (i) => `${i.code}|${i.name}|${i.note}`;
@@ -76,13 +86,20 @@ export default function MissingMarks({ issues = [], semesters = [] }) {
           <option value="CLASS">Class students only</option>
           <option value="BACK">Back-paper students only</option>
         </select>
-        {(q || dept || sem || who) && (
+        <select value={type} onChange={(e) => setType(e.target.value)} className="h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-sm">
+          <option value="">All papers</option>
+          <option value="THEORY">Theory (…T0)</option>
+          <option value="PRACTICAL">Practical (…P)</option>
+          <option value="OTHER">Audit / others</option>
+        </select>
+        {(q || dept || sem || who || type) && (
           <button
             onClick={() => {
               setQ("");
               setDept("");
               setSem("");
               setWho("");
+              setType("");
             }}
             className="h-9 rounded-lg px-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
           >

@@ -3,10 +3,10 @@ import assert from "node:assert/strict";
 
 import { cieMinimum, makeupAllowed, makeupPassed } from "../src/services/exams/cieMakeup.js";
 
-test("KPT 5.5.2: no seminar, project, internship or practical course", () => {
+test("make-up for theory, integrated and practical courses; not seminar, project or internship", () => {
   assert.equal(makeupAllowed({ name: "Engineering Mathematics", iaMax: 50, theoryExamMax: 50 }), true);
   assert.equal(makeupAllowed({ name: "Integrated course", iaMax: 50, theoryExamMax: 50, practicalExamMax: 50 }), true);
-  assert.equal(makeupAllowed({ name: "Workshop Practice", iaMax: 50, theoryExamMax: 0, practicalExamMax: 50 }), false);
+  assert.equal(makeupAllowed({ name: "IT Skills", iaMax: 50, theoryExamMax: 0, practicalExamMax: 50 }), true);
   assert.equal(makeupAllowed({ name: "Major Project", iaMax: 50, theoryExamMax: 50 }), false);
   assert.equal(makeupAllowed({ name: "Industrial Internship", iaMax: 100 }), false);
   assert.equal(makeupAllowed({ name: "Technical Seminar", iaMax: 50 }), false);

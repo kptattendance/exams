@@ -5,14 +5,13 @@
 import { minimumOf } from "./results.js";
 import { CieMakeup } from "../../models/CieMakeup.js";
 
-// KPT 5.5.2: no seminar, project work, internship or practical course
+// Courses whose CIE can be made up: theory, integrated AND practical courses
+// (the college conducts practical make-ups too – KPT 19, the Academic
+// Council's decision); not seminar, project work or internship (KPT 5.5.2).
 export function makeupAllowed(subject) {
   if (!subject) return false;
   const name = String(subject.name || "");
   if (/\b(project|internship|seminar)\b/i.test(name)) return false;
-  const theory = Number(subject.theoryExamMax) || 0;
-  const practical = Number(subject.practicalExamMax) || 0;
-  if (!theory && practical > 0) return false; // a practical course
   return Number(subject.iaMax) > 0; // there is a CIE to make up
 }
 
