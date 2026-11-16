@@ -4,5 +4,5 @@
 export const COE = {
   title: "COE",
   name: "Parashuram D Talawar",
-  signature: "/signatures/coe.png",
+  signature: "/signatures/coe.jpeg",
 };
