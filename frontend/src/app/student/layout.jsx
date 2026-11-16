@@ -4,6 +4,7 @@
 // (the server refuses everything else for a student account).
 
 import { useClerk } from "@clerk/nextjs";
+import { signOutFully } from "../components/signOutFully";
 
 export default function StudentLayout({ children }) {
   const { signOut } = useClerk();
@@ -18,7 +19,7 @@ export default function StudentLayout({ children }) {
             <p className="text-xs text-slate-500">Student</p>
           </div>
           <button
-            onClick={() => signOut({ redirectUrl: "/" })}
+            onClick={() => signOutFully(signOut)}
             className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
           >
             Sign out

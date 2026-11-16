@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useClerk, useUser } from "@clerk/nextjs";
+import { signOutFully } from "../../components/signOutFully";
 
 const menuItems = [
   {
@@ -246,7 +247,7 @@ export default function AdminSidebar() {
         </div>
 
         <button
-          onClick={() => signOut({ redirectUrl: "/" })}
+          onClick={() => signOutFully(signOut)}
           className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-3 text-sm font-medium text-slate-600 transition hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-1"
         >
 

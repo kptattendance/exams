@@ -98,7 +98,7 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <ClerkProvider>
+    <ClerkProvider afterSignOutUrl="/">
       <html lang="en-IN" className={uiFont.variable}>
         <head>
           <meta

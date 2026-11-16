@@ -11,6 +11,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserButton, useClerk, useUser } from "@clerk/nextjs";
+import { signOutFully } from "../signOutFully";
 
 import Icon from "./Icon";
 import { FeedbackProvider } from "../ui/Feedback";
@@ -355,7 +356,7 @@ function SidebarContent({ menu, activeHref, onClose }) {
           </span>
           <button
             type="button"
-            onClick={() => signOut({ redirectUrl: "/" })}
+            onClick={() => signOutFully(signOut)}
             className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600"
             title="Sign out"
             aria-label="Sign out"

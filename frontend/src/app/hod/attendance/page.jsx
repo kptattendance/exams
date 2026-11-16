@@ -502,6 +502,13 @@ export default function AttendancePage() {
         for (
           const subject of subjects
         ) {
+          // an elective: only the one chosen for this student (as in Final IA)
+          const group = String(subject.electiveGroup || "").toUpperCase();
+          if (group && !student.electives?.[group]) {
+            return `Choose the elective (group ${group}) for ${student.studentName} first.`;
+          }
+          if (!takesSubject(student, subject)) continue;
+
           const attended =
             getAttendanceValue(
               student,
