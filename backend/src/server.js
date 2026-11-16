@@ -29,6 +29,7 @@ import specialExamRoutes from "./routes/specialExamRoutes.js";
 import rejectionRoutes from "./routes/rejectionRoutes.js";
 import diplomaRoutes from "./routes/diplomaRoutes.js";
 import markCardRoutes from "./routes/markCardRoutes.js";
+import signatureRoutes from "./routes/signatureRoutes.js";
 import stepUpRoutes from "./routes/stepUpRoutes.js";
 
 
@@ -141,6 +142,7 @@ app.use("/api/special-exams", specialExamRoutes);
 app.use("/api/result-rejection", rejectionRoutes);
 app.use("/api/diploma", diplomaRoutes);
 app.use("/api/mark-cards", markCardRoutes);
+app.use("/api/signatures", signatureRoutes);
 app.use("/api/otp", stepUpRoutes);
 
 

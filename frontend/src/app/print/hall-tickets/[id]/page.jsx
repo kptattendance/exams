@@ -10,7 +10,7 @@ import { useAuth } from "@clerk/nextjs";
 
 import { errMsg, programmeName, useApi } from "../../../components/exams/shared";
 import Letterhead from "../../../components/print/Letterhead";
-import { COE } from "../../../components/print/officials";
+import { useSignatures } from "../../../components/print/useSignatures";
 
 const fmtDate = (iso) =>
   iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }) : "";
@@ -23,6 +23,7 @@ function PrintHallTickets() {
   const api = useApi();
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
+  const sig = useSignatures(); // COE and Principal, private (Admin → Settings)
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -70,14 +71,30 @@ function PrintHallTickets() {
 
       <div>
         {tickets.map((t) => (
-          <Ticket key={t._id} t={t} exam={data.exam} />
+          <Ticket key={t._id} t={t} exam={data.exam} sig={sig} />
         ))}
       </div>
     </div>
   );
 }
 
-function Ticket({ t, exam }) {
+// a signature (if uploaded) above the line, with the name below the title
+function Signed({ title, s }) {
+  return (
+    <span className="flex flex-col items-center">
+      {s?.src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={s.src} alt="" className="mb-0.5 h-[8mm] w-auto max-w-full object-contain" />
+      ) : null}
+      <span className="w-full border-t border-slate-500 pt-0.5">
+        {title}
+        {s?.name && <span className="block text-[8.5px] font-medium text-slate-700">{s.name}</span>}
+      </span>
+    </span>
+  );
+}
+
+function Ticket({ t, exam, sig }) {
   const dense = t.subjects.length > 8;
   return (
     <section
@@ -190,20 +207,14 @@ function Ticket({ t, exam }) {
 
         {/* signatures – pushed to the bottom of the half page */}
         <div className="mt-auto grid grid-cols-4 items-end gap-2 pt-1 text-center text-[10px] font-semibold">
-          {["Student", "HOD", "Principal / Dean"].map((who) => (
+          {["Student", "HOD"].map((who) => (
             <span key={who} className="border-t border-slate-500 pt-0.5">
               {who}
             </span>
           ))}
-          {/* the COE's signature, printed above his line, with his name */}
-          <span className="flex flex-col items-center">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={COE.signature} alt="" className="mb-0.5 h-[8mm] w-auto max-w-full object-contain" />
-            <span className="w-full border-t border-slate-500 pt-0.5">
-              {COE.title}
-              <span className="block text-[8.5px] font-medium text-slate-700">{COE.name}</span>
-            </span>
-          </span>
+          {/* the Principal's and the COE's signatures (private, Admin → Settings) */}
+          <Signed title="Principal / Dean" s={sig?.principal} />
+          <Signed title="COE" s={sig?.coe} />
         </div>
       </div>
     </section>

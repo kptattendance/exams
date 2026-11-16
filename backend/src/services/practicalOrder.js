@@ -4,13 +4,14 @@
 // examiner, with a copy to the Principal of his college so that he is relieved
 // for the practical examinations. Emailed to the examiner and printed by the
 // COE office. Kannada text is shaped by fontkit (Noto Sans Kannada); English
-// parts use Noto Sans / Noto Serif. Fonts, logos and the COE's signature are in
-// src/assets.
+// parts use Noto Sans / Noto Serif. Fonts and logos are in src/assets; the COE's
+// signature with the seal is private (Admin → Settings → Signatures).
 
 import "regenerator-runtime/runtime.js"; // needed by fontkit's Indic (Kannada) shaper
 import { readFileSync } from "node:fs";
 import { PDFDocument, rgb } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
+import { signatureImage } from "./signatures.js";
 
 const asset = (name) => readFileSync(new URL(`../assets/${name}`, import.meta.url));
 
@@ -225,7 +226,10 @@ async function setup(doc) {
     crest: await img("logo-crest.jpg", "jpg"),
     jubilee: await img("logo-jubilee.png", "png"),
     emblem: await img("logo-emblem.png", "png"),
-    signature: await img("coe-signature.png", "png"),
+    // the COE's signature with the seal: from the private store (services/signatures.js)
+    signature: await signatureImage("coeSeal")
+      .then((s) => (s ? doc.embedPng(s.buffer) : null))
+      .catch(() => null),
   };
 }
 
