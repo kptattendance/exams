@@ -10,6 +10,7 @@ import { useAuth } from "@clerk/nextjs";
 
 import { errMsg, programmeName, useApi } from "../../../components/exams/shared";
 import Letterhead from "../../../components/print/Letterhead";
+import { COE } from "../../../components/print/officials";
 
 const fmtDate = (iso) =>
   iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }) : "";
@@ -188,12 +189,21 @@ function Ticket({ t, exam }) {
         </p>
 
         {/* signatures – pushed to the bottom of the half page */}
-        <div className="mt-auto grid grid-cols-4 gap-2 pt-6 text-center text-[10px] font-semibold">
-          {["Student", "HOD", "Principal / Dean", "COE"].map((who) => (
+        <div className="mt-auto grid grid-cols-4 items-end gap-2 pt-1 text-center text-[10px] font-semibold">
+          {["Student", "HOD", "Principal / Dean"].map((who) => (
             <span key={who} className="border-t border-slate-500 pt-0.5">
               {who}
             </span>
           ))}
+          {/* the COE's signature, printed above his line, with his name */}
+          <span className="flex flex-col items-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={COE.signature} alt="" className="mb-0.5 h-[8mm] w-auto max-w-full object-contain" />
+            <span className="w-full border-t border-slate-500 pt-0.5">
+              {COE.title}
+              <span className="block text-[8.5px] font-medium text-slate-700">{COE.name}</span>
+            </span>
+          </span>
         </div>
       </div>
     </section>
