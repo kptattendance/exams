@@ -188,7 +188,7 @@ export default function PracticalTimetable() {
               Leave out Sundays
             </label>
             <p className="pb-2.5 text-xs text-slate-500 sm:ml-auto">
-              {SLOTS[2].label} and {SLOTS[3].label} overlap by half an hour.
+              {SLOTS[3].label} starts when {SLOTS[2].label} ends: one examiner may take both.
             </p>
           </div>
 
