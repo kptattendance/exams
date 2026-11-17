@@ -16,12 +16,14 @@ export function buildPapers(regs) {
     for (const s of r.subjects || []) {
       if (!s.hasTheory) continue;
       if (!papers.has(s.code)) {
-        papers.set(s.code, { code: s.code, name: s.name, semesters: new Set(), departments: new Set(), candidates: 0, backlog: 0 });
+        papers.set(s.code, { code: s.code, name: s.name, semesters: new Set(), departments: new Set(), branches: new Set(), candidates: 0, backlog: 0 });
       }
       const p = papers.get(s.code);
       if (mine.has(s.code)) continue;
       mine.add(s.code);
       p.candidates++;
+      // every branch writing it, back papers too (shown on the printed time table)
+      if (r.department) p.branches.add(String(r.department).toLowerCase());
       if (s.kind === "BACKLOG") p.backlog++;
       else {
         p.departments.add(String(r.department || "").toLowerCase());
@@ -32,7 +34,7 @@ export function buildPapers(regs) {
     if (mine.size) studentCodes.push([...mine]);
   }
   const list = [...papers.values()]
-    .map((p) => ({ ...p, semesters: [...p.semesters].sort(), departments: [...p.departments].sort() }))
+    .map((p) => ({ ...p, semesters: [...p.semesters].sort(), departments: [...p.departments].sort(), branches: [...p.branches].sort() }))
     .sort((a, b) => (a.semesters[0] || 9) - (b.semesters[0] || 9) || b.departments.length - a.departments.length || a.code.localeCompare(b.code));
   const index = new Map(list.map((p, i) => [p.code, i]));
   return { papers: list, studentCodes: studentCodes.map((codes) => codes.map((c) => index.get(c))) };
