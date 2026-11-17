@@ -25,7 +25,7 @@ import { ADMISSION_SHORT, DEPARTMENTS, downloadBlob, errMsg, useApi } from "./sh
 import { T } from "../ui/table";
 import { scanNumber, scanReceipt } from "./receiptScan";
 import CameraCapture from "./CameraCapture";
-import CollegeSelect, { EveningTag } from "../ui/CollegeFilter";
+import CollegeSelect, { EveningTag, classesFor, keepClass } from "../ui/CollegeFilter";
 import { useIsAdmin } from "../useRole";
 
 const FEE = {
@@ -123,11 +123,8 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
   const exam = exams?.find((e) => e._id === examId);
   const classOptions = useMemo(() => {
     if (!exam) return [];
-    const out = [];
-    for (const s of exam.semesters) for (const d of ["at", "ch", "ce", "cs", "ec", "ee", "me", "ps"]) out.push([`${d}-${s}`, `${d.toUpperCase()} · Sem ${s}`]);
-    out.push(["backlog", "Back papers only"]);
-    return out;
-  }, [exam]);
+    return classesFor(exam.semesters, college); // evening / working prof.: EE and ME only
+  }, [exam, college]);
 
   const replace = (reg) => {
     setData((d) => ({ ...d, data: d.data.map((x) => (x._id === reg._id ? { ...reg, due: reg.due || x.due } : x)) }));
@@ -353,7 +350,14 @@ export default function FeeDesk({ examId: fixedExamId, canEdit = false, backHref
               />
             </div>
             <div className="flex flex-wrap gap-2">
-              <CollegeSelect value={college} onChange={setCollege} className={T.field} />
+              <CollegeSelect
+                value={college}
+                onChange={(v) => {
+                  setCollege(v);
+                  setCls((c) => keepClass(c, v));
+                }}
+                className={T.field}
+              />
               <select value={cls} onChange={(e) => setCls(e.target.value)} className={T.field}>
                 <option value="">All classes</option>
                 {classOptions.map(([v, l]) => (

@@ -16,7 +16,7 @@ export const SLOTS = [
   { code: "S1", label: "8:30 AM – 11:30 AM" },
   { code: "S2", label: "11:30 AM – 2:30 PM" },
   { code: "S3", label: "2:30 PM – 5:30 PM" },
-  { code: "S4", label: "5:00 PM – 8:00 PM" },
+  { code: "S4", label: "5:30 PM – 8:30 PM" },
 ];
 
 export const sessionLabel = (s) => (s === "FN" ? "Morning" : s === "AN" ? "Afternoon" : SLOTS.find((x) => x.code === s)?.label || "");

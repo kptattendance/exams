@@ -20,6 +20,20 @@ export const matchesCollege = (college, registerNumber) => {
   return isEveningNo(registerNumber) && !isWorkingNo(registerNumber);
 };
 
+// branches in the class list: the evening college has only EE and ME
+const ALL_BRANCHES = ["at", "ch", "ce", "cs", "ec", "ee", "me", "ps"];
+export const EVENING_DEPTS = ["ee", "me"];
+export const branchesFor = (college) => (college === "EVENING" || college === "WORKING" ? EVENING_DEPTS : ALL_BRANCHES);
+// changing the college: a class that is not in the new list goes back to "All classes"
+export const keepClass = (cls, college) =>
+  !cls || cls === "backlog" || branchesFor(college).includes(String(cls).split("-")[0]) ? cls : "";
+const COLLEGE_WORD = { DAY: "", EVENING: " (evening)", WORKING: " (working prof.)" };
+// class list for a college: [["ee-1", "EE · Sem 1 (evening)"], …, ["backlog", "Back papers only"]]
+export const classesFor = (semesters = [], college = "") => [
+  ...semesters.flatMap((s) => branchesFor(college).map((d) => [`${d}-${s}`, `${d.toUpperCase()} · Sem ${s}${COLLEGE_WORD[college] || ""}`])),
+  ["backlog", "Back papers only"],
+];
+
 export const COLLEGES = [
   ["", "Day + Evening + Working prof."],
   ["DAY", "Day college (103)"],

@@ -188,7 +188,7 @@ export const PRACTICAL_SESSIONS = {
   S1: { label: "8:30 AM – 11:30 AM", start: "08:30", end: "11:30" },
   S2: { label: "11:30 AM – 2:30 PM", start: "11:30", end: "14:30" },
   S3: { label: "2:30 PM – 5:30 PM", start: "14:30", end: "17:30" },
-  S4: { label: "5:00 PM – 8:00 PM", start: "17:00", end: "20:00" },
+  S4: { label: "5:30 PM – 8:30 PM", start: "17:30", end: "20:30" },
   FN: { label: "morning", start: "10:00", end: "13:00" },
   AN: { label: "afternoon", start: "14:00", end: "17:00" },
 };
@@ -199,7 +199,7 @@ const minutes = (hm) => {
 };
 // Sort key: sessions in the order of their start time, "not set" last
 export const sessionRank = (s) => (PRACTICAL_SESSIONS[s] ? minutes(PRACTICAL_SESSIONS[s].start) : 9999);
-// Two sessions of the same day overlap (S3 and S4 share 5:00–5:30)
+// Two sessions of the same day overlap (e.g. FN 10:00–1:00 and S1 8:30–11:30)
 const overlap = (s1, s2, times = PRACTICAL_SESSIONS) => {
   const a = times[s1];
   const b = times[s2];

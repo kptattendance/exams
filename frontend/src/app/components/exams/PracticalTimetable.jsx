@@ -96,7 +96,7 @@ export default function PracticalTimetable() {
       )}
       {evening && (
         <p className="mt-2 rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2 text-sm text-indigo-900">
-          Evening students work during the day: use the 5:00 PM – 8:00 PM column, or Sundays (untick “Leave out Sundays”). The examiners are the evening sets allotted by the COE.
+          Evening students work during the day: use the 5:30 PM – 8:30 PM column, or Sundays (untick “Leave out Sundays”). The examiners are the evening sets allotted by the COE.
         </p>
       )}
 

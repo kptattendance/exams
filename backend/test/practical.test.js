@@ -153,8 +153,9 @@ test("practical time table slots S1–S4: overlapping slots clash, written paper
   const b = (label, o = {}) => ({ label, date: "2026-11-20", session: "S1", lab: "", set: "", internal: "", external: "", students: [], ...o });
   // S1 and S2 follow each other → the same examiner is fine
   assert.deepEqual(findClashes([b("ENG-B1", { set: "p1" }), b("IT-B1", { set: "p1", session: "S2" })], changed), []);
-  // S3 (till 5:30) and S4 (from 5:00) overlap
-  assert.match(findClashes([b("ENG-B1", { set: "p1", session: "S3" }), b("IT-B1", { set: "p1", session: "S4" })], changed)[0], /same examiner/);
+  // S3 (till 5:30) and S4 (from 5:30) follow each other → fine; the same slot clashes
+  assert.deepEqual(findClashes([b("ENG-B1", { set: "p1", session: "S3" }), b("IT-B1", { set: "p1", session: "S4" })], changed), []);
+  assert.match(findClashes([b("ENG-B1", { set: "p1", session: "S4" }), b("IT-B1", { set: "p1", session: "S4" })], changed)[0], /same examiner/);
   // a written paper in the morning (10:00–13:00) meets S1 and S2, not S3
   const written = new Map([["a", new Map([["2026-11-20|FN", "25SC11T"]])]]);
   const st = [{ id: "a", registerNumber: "A" }];

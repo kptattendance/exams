@@ -10,10 +10,9 @@ import Icon from "../shell/Icon";
 import { btn } from "../ui/Modal";
 import { useToast } from "../ui/Feedback";
 import { ADMISSION_SHORT, errMsg, useApi } from "./shared";
-import CollegeSelect from "../ui/CollegeFilter";
+import CollegeSelect, { classesFor, keepClass } from "../ui/CollegeFilter";
 import { T } from "../ui/table";
 
-const DEPTS = ["at", "ch", "ce", "cs", "ec", "ee", "me", "ps"];
 
 export default function HallTickets({ timetableHref }) {
   const api = useApi();
@@ -78,8 +77,9 @@ export default function HallTickets({ timetableHref }) {
 
   const exam = exams?.find((e) => e._id === examId);
   const printUrl = (extra = {}) => `/print/hall-tickets/${examId}?${new URLSearchParams({ ...filter, ...extra })}`;
-  const canPrintMany = Boolean(cls || query);
-  const classes = exam ? [...exam.semesters.flatMap((s) => DEPTS.map((d) => [`${d}-${s}`, `${d.toUpperCase()} · Sem ${s}`])), ["backlog", "Back papers only"]] : [];
+  // evening / working professionals are small groups: they may be printed without a class
+  const canPrintMany = Boolean(cls || query || college === "EVENING" || college === "WORKING");
+  const classes = exam ? classesFor(exam.semesters, college) : [];
   const sel = "h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-slate-400";
 
   return (
@@ -114,7 +114,7 @@ export default function HallTickets({ timetableHref }) {
             className={`${btn.primary} ${canPrintMany ? "" : "opacity-40"}`}
           >
             <Icon name="ticket" className="h-4 w-4" />
-            Print {cls ? "this class" : query ? "these students" : "hall tickets"}
+            Print {cls ? "this class" : query ? "these students" : college === "EVENING" ? "evening shift" : college === "WORKING" ? "working prof." : "hall tickets"}
           </a>
         )}
       </div>
@@ -165,7 +165,14 @@ export default function HallTickets({ timetableHref }) {
               <Icon name="search" className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
               <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Register number or name" className={`${T.field} w-60 pl-8`} />
             </div>
-            <CollegeSelect value={college} onChange={setCollege} className={T.field} />
+            <CollegeSelect
+              value={college}
+              onChange={(v) => {
+                setCollege(v);
+                setCls((c) => keepClass(c, v));
+              }}
+              className={T.field}
+            />
             <select value={cls} onChange={(e) => setCls(e.target.value)} className={T.field}>
               <option value="">All classes</option>
               {classes.map(([v, l]) => (
