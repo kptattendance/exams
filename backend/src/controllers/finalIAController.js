@@ -126,6 +126,7 @@ const students = await Student.find({
     "_id rollNumber registerNumber name fatherName motherName phone imageUrl batch batchNumber semester department status admissionType"
   )
   .sort({
+    rollNumber: 1,
     registerNumber: 1,
     name: 1,
   })

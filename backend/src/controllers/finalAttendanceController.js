@@ -140,6 +140,7 @@ export const prepareAttendance = async (req, res) => {
           "_id rollNumber registerNumber name fatherName phone imageUrl department semester batch"
         )
         .sort({
+          rollNumber: 1,
           registerNumber: 1,
           name: 1,
         })

@@ -1671,10 +1671,11 @@ export const getStudents = async (req, res) => {
     const students =
       await Student.find(filter)
         .select(requesterRole === "hod" ? "+aadhaarEncrypted" : "")
-        // class by class, in register-number order (seniors first, day 103 before evening 186)
+        // class by class, in roll-number order (numbers inside compared as numbers)
         .sort({
           semester: 1,
           department: 1,
+          rollNumber: 1,
           registerNumber: 1,
         })
         .collation({ locale: "en", numericOrdering: true })

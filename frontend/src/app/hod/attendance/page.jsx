@@ -187,10 +187,9 @@ export default function AttendancePage() {
 
       const sortedStudents = [...(data.students || [])].sort(
         (a, b) => {
-          // register-number order, as on every other page
           const rollCompare =
-            String(a.registerNumber ?? "").localeCompare(
-              String(b.registerNumber ?? ""),
+            String(a.rollNumber ?? "").localeCompare(
+              String(b.rollNumber ?? ""),
               undefined,
               {
                 numeric: true,
