@@ -18,17 +18,6 @@ const t12 = (t) => {
   const [h, m] = t.split(":").map(Number);
   return `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
 };
-// a colour per branch (light background, dark text – readable when printed)
-const BRANCH_COLOUR = {
-  at: "bg-orange-100 text-orange-800",
-  ch: "bg-lime-100 text-lime-800",
-  ce: "bg-amber-100 text-amber-800",
-  cs: "bg-sky-100 text-sky-800",
-  ec: "bg-violet-100 text-violet-800",
-  ee: "bg-yellow-100 text-yellow-800",
-  me: "bg-rose-100 text-rose-800",
-  ps: "bg-emerald-100 text-emerald-800",
-};
 const SESSION_COLOUR = { FN: "bg-amber-400 text-amber-950", AN: "bg-indigo-600 text-white" };
 // rows of one date share a tint; the next date gets the other one
 const DATE_TINT = ["bg-sky-50", "bg-white"];
@@ -173,14 +162,8 @@ export default function PrintTimetable() {
                   {p.name}
                   {p.drawing && <span className="ml-1 rounded bg-teal-100 px-1 text-[9.5px] font-bold text-teal-800">Drawing</span>}
                 </td>
-                <td className={cell}>
-                  <span className="flex flex-wrap justify-center gap-0.5">
-                    {p.branches.map((d) => (
-                      <span key={d} className={`rounded px-1 text-[9.5px] font-bold ${BRANCH_COLOUR[d] || "bg-slate-100 text-slate-700"}`}>
-                        {d.toUpperCase()}
-                      </span>
-                    ))}
-                  </span>
+                <td className={`${cell} w-[26mm] text-center text-[10.5px] font-semibold text-slate-700`}>
+                  {p.branches.map((d) => d.toUpperCase()).join(", ")}
                 </td>
                 <td className={`${cell} whitespace-nowrap text-center`}>
                   <b>{date.toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-")}</b>
