@@ -277,6 +277,9 @@ function printCopy(type, sheet, copy) {
   });
 }
 
+// 79.60000000000001 -> 79.6 (shown only; the saved value is not changed)
+const tidy = (v) => (typeof v === "number" && Number.isFinite(v) ? Math.round(v * 100) / 100 : v);
+
 function ReviewModal({ type, id, onClose, onFreeze, onChanged, canDelete = false, year = "" }) {
   const api = useApi();
   const toast = useToast();
@@ -321,12 +324,12 @@ function ReviewModal({ type, id, onClose, onFreeze, onChanged, canDelete = false
     }
   };
 
-  const rows = sheet ? (onlyProblems ? sheet.students.filter((st) => st.cells.some((c) => c.flag)) : sheet.students) : [];
+  const rows = sheet ? (onlyProblems ? sheet.students.filter((st) => st.cells.some((c) => c.flag && c.flag !== "na")) : sheet.students) : [];
 
   return (
     <Modal
       open
-      wide
+      full
       onClose={onClose}
       busy={busy}
       title={sheet ? `${sheet.department.toUpperCase()}${sheet.shift === "EVENING" ? " (Evening)" : ""} · Semester ${sheet.semester} · ${TITLE[type]}` : "Loading…"}
@@ -440,7 +443,7 @@ function ReviewModal({ type, id, onClose, onFreeze, onChanged, canDelete = false
             </label>
           </div>
 
-          <div className="mt-3 max-h-[55vh] overflow-auto rounded-xl border border-slate-200">
+          <div className="mt-3 max-h-[62vh] overflow-auto rounded-xl border border-slate-200">
             <table className="w-full min-w-max text-sm">
               <thead className="sticky top-0 z-10 bg-slate-50 text-xs">
                 <tr>
@@ -467,8 +470,8 @@ function ReviewModal({ type, id, onClose, onFreeze, onChanged, canDelete = false
                     </td>
                     {st.cells.map((c, i) => (
                       <td key={i} className={`px-3 py-1.5 text-center tabular-nums ${CELL[c.flag]}`}>
-                        {c.flag === "na" ? "NA" : c.value ?? "—"}
-                        {type === "attendance" && c.pct !== null && <span className="block text-[11px] font-normal opacity-80">{c.pct}%</span>}
+                        {c.flag === "na" ? "NA" : c.value === null || c.value === undefined ? "—" : tidy(c.value)}
+                        {type === "attendance" && c.pct !== null && <span className="block text-[11px] font-normal opacity-80">{tidy(c.pct)}%</span>}
                       </td>
                     ))}
                   </tr>
