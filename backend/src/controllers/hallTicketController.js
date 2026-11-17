@@ -38,7 +38,8 @@ export const listHallTickets = async (req, res) => {
 
   const regs = await ExamRegistration.find(filter)
     .select("registerNumber rollNumber name department semester batch admissionType imageUrl group subjects overall warnings regularFee student")
-    .sort({ semester: 1, department: 1, rollNumber: 1, registerNumber: 1 })
+    // by register number: senior students (103CE24…) before 103CE25…, day (103) before evening (186)
+    .sort({ semester: 1, department: 1, registerNumber: 1 })
     .collation({ locale: "en", numericOrdering: true })
     .lean();
 

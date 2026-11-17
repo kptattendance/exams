@@ -214,7 +214,8 @@ function Ticket({ t, exam, sig }) {
           ))}
           {/* the Principal's and the COE's signatures (private, Admin → Settings) */}
           <Signed title="Principal / Dean" s={sig?.principal} />
-          <Signed title="COE" s={sig?.coe} />
+          {/* the COE asked for no name on the hall ticket: signature only */}
+          <Signed title="COE" s={sig?.coe ? { ...sig.coe, name: "" } : null} />
         </div>
       </div>
     </section>
