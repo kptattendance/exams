@@ -52,7 +52,7 @@ export const getElectives = async (req, res) => {
       .lean(),
     Student.find({ ...studentShift(req), department: ci(department), semester, status: "active" })
       .select("registerNumber rollNumber name batch admissionType imageUrl")
-      .sort({ rollNumber: 1, registerNumber: 1 })
+      .sort({ registerNumber: 1 })
       .collation({ locale: "en", numericOrdering: true }) // roll-number order
       .lean(),
   ]);
