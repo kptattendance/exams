@@ -10,6 +10,10 @@ import { useAuth } from "@clerk/nextjs";
 import { errMsg, useApi } from "../../../components/exams/shared";
 
 const DEPTS = ["at", "ch", "ce", "cs", "ec", "ee", "me", "ps"];
+// "09:00" -> "09.00" (as on the board's time table: 09.00-12.00 Hrs)
+const dot = (t) => String(t || "").replace(":", ".");
+// the board is in the course code: 25SC21I -> SC, 25EE330P -> EE
+const boardOf = (code) => String(code || "").slice(2, 4).toUpperCase();
 const t12 = (t) => {
   const [h, m] = t.split(":").map(Number);
   return `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
@@ -32,19 +36,20 @@ export default function PrintTimetable() {
       .catch((e) => setError(errMsg(e, "Could not load the timetable.")));
   }, [api, id, isLoaded, isSignedIn]);
 
-  const days = useMemo(() => {
+  // one row per course, in date order (morning before afternoon), then by code
+  const rows = useMemo(() => {
     if (!data) return [];
     const paper = new Map(data.papers.map((p) => [p.code, p]));
-    const map = new Map();
+    const out = [];
     for (const e of data.entries) {
       const p = paper.get(e.code);
       if (!p) continue;
       if (dept && !p.departments.includes(dept)) continue;
       if (sem && !p.semesters.includes(Number(sem))) continue;
-      if (!map.has(e.date)) map.set(e.date, { FN: [], AN: [] });
-      map.get(e.date)[e.session].push(p);
+      out.push({ ...p, date: e.date, session: e.session, drawing: Boolean(e.drawing) });
     }
-    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
+    const rank = { FN: 0, AN: 1 };
+    return out.sort((a, b) => a.date.localeCompare(b.date) || rank[a.session] - rank[b.session] || a.code.localeCompare(b.code, undefined, { numeric: true }));
   }, [data, dept, sem]);
 
   if (error) return <p className="p-8 text-sm text-red-700">{error}</p>;
@@ -52,7 +57,6 @@ export default function PrintTimetable() {
 
   const s = data.sessions;
   // drawing papers get one hour more (morning ends later, afternoon starts earlier)
-  const drawing = new Set(data.entries.filter((e) => e.drawing).map((e) => e.code));
   const addH = (hhmm, h) => {
     const [a, b] = hhmm.split(":").map(Number);
     return `${String(a + h).padStart(2, "0")}:${String(b).padStart(2, "0")}`;
@@ -100,47 +104,49 @@ export default function PrintTimetable() {
         )}
       </header>
 
-      <table className="mt-5 w-full border-collapse text-[12px] leading-snug">
+      {/* the board's format: Sl No | Course Code | Sem | Course Name | Board | Allied Program | Date | Time | Session */}
+      <table className="mt-5 w-full border-collapse text-[11px] leading-snug">
         <thead>
-          <tr>
-            <th className="w-28 border border-slate-800 px-2 py-1.5 text-left">Date</th>
-            <th className="border border-slate-800 px-2 py-1.5 text-left">Morning</th>
-            <th className="border border-slate-800 px-2 py-1.5 text-left">Afternoon</th>
+          <tr className="bg-[#c6d9f1] align-middle">
+            {["Sl No", "Course Code", "Sem", "Course Name", "Board", "Allied Program", "Exam Date", "Exam Time", "Session"].map((h) => (
+              <th key={h} className="border border-slate-800 px-1.5 py-1 text-center font-bold">
+                {h}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
-          {days.map(([date, slot]) => (
-            <tr key={date} className="break-inside-avoid align-top">
-              <td className="border border-slate-800 px-2 py-1.5 font-semibold">
-                {new Date(`${date}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" })}
-                <span className="block font-normal">{new Date(`${date}T00:00:00`).toLocaleDateString("en-IN", { weekday: "long" })}</span>
-              </td>
-              {["FN", "AN"].map((k) => (
-                <td key={k} className="border border-slate-800 px-2 py-1.5">
-                  {slot[k].map((p) => (
-                    <p key={p.code} className="py-0.5">
-                      <b>{p.code}</b> – {p.name}
-                      {drawing.has(p.code) && (
-                        <span className="font-semibold">
-                          {" "}
-                          [Drawing: {k === "AN" ? `${t12(addH(s.AN.start, -1))} – ${t12(s.AN.end)}` : `${t12(s.FN.start)} – ${t12(addH(s.FN.end, 1))}`}]
-                        </span>
-                      )}
-                      <span className="text-slate-600">
-                        {" "}
-                        ({p.departments.length ? p.departments.map((d) => d.toUpperCase()).join(", ") : "back paper"}
-                        {p.semesters.length ? ` · Sem ${p.semesters.join("/")}` : ""})
-                      </span>
-                    </p>
-                  ))}
-                  {slot[k].length === 0 && <span className="text-slate-400">—</span>}
+          {rows.map((p, i) => {
+            const [from, to] =
+              p.session === "AN"
+                ? [p.drawing ? addH(s.AN.start, -1) : s.AN.start, s.AN.end]
+                : [s.FN.start, p.drawing ? addH(s.FN.end, 1) : s.FN.end];
+            return (
+              <tr key={p.code} className="break-inside-avoid align-middle">
+                <td className="border border-slate-800 px-1.5 py-1 text-center">{i + 1}</td>
+                <td className="whitespace-nowrap border border-slate-800 px-1.5 py-1">{p.code}</td>
+                <td className="border border-slate-800 px-1.5 py-1 text-center">{p.semesters.join(", ") || "–"}</td>
+                <td className="border border-slate-800 px-1.5 py-1">
+                  {p.name}
+                  {p.drawing && <span className="font-semibold"> (Drawing)</span>}
                 </td>
-              ))}
-            </tr>
-          ))}
-          {days.length === 0 && (
+                <td className="border border-slate-800 px-1.5 py-1 text-center">{boardOf(p.code)}</td>
+                <td className={`border border-slate-800 px-1.5 py-1 ${p.departments.length > 3 ? "text-left" : "text-center"}`}>
+                  {p.departments.length ? p.departments.map((d) => d.toUpperCase()).join(", ") : "Back paper"}
+                </td>
+                <td className="whitespace-nowrap border border-slate-800 px-1.5 py-1 text-center">
+                  {new Date(`${p.date}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-")}
+                </td>
+                <td className="whitespace-nowrap border border-slate-800 px-1.5 py-1 text-center">
+                  {dot(from)}-{dot(to)} Hrs
+                </td>
+                <td className="border border-slate-800 px-1.5 py-1 text-center">{p.session}</td>
+              </tr>
+            );
+          })}
+          {rows.length === 0 && (
             <tr>
-              <td colSpan={3} className="border border-slate-800 px-2 py-6 text-center text-slate-500">
+              <td colSpan={9} className="border border-slate-800 px-2 py-6 text-center text-slate-500">
                 No papers scheduled{dept || sem ? " for this selection" : ""}.
               </td>
             </tr>
