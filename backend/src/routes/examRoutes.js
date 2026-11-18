@@ -32,7 +32,7 @@ import {
   clearFees,
 } from "../controllers/feeController.js";
 import { getTimetable, saveTimetable, suggest, publishTimetable } from "../controllers/timetableController.js";
-import { listHallTickets } from "../controllers/hallTicketController.js";
+import { listHallTickets, hallTicketSummary, markHallTicketsPrinted } from "../controllers/hallTicketController.js";
 import {
   listPapers,
   getPaperDetail,
@@ -119,6 +119,8 @@ router.post("/:id/timetable/publish", MANAGE, publishTimetable);
 
 // Hall tickets
 router.get("/:id/hall-tickets", VIEW, listHallTickets);
+router.get("/:id/hall-tickets/summary", VIEW, hallTicketSummary);
+router.post("/:id/hall-tickets/printed", VIEW, markHallTicketsPrinted);
 
 // Valuation (hard copy): COE runs it, Exam Officer helps with attendance and packets.
 // The coding sheet (register number ↔ dummy number) is for COE / Admin only.

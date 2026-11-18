@@ -24,6 +24,7 @@ function PrintHallTickets() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const sig = useSignatures(); // COE and Principal, private (Admin → Settings)
+  const [skipPrinted, setSkipPrinted] = useState(false);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -37,7 +38,18 @@ function PrintHallTickets() {
   if (error) return <p className="p-8 text-sm text-red-700">{error}</p>;
   if (!data) return <p className="p-8 text-sm text-slate-500">Loading…</p>;
 
-  const tickets = data.data;
+  const all = data.data;
+  const before = all.filter((t) => t.printedAt).length; // printed earlier
+  const tickets = skipPrinted ? all.filter((t) => !t.printedAt) : all;
+  // record them as printed, then open the browser's print window
+  const doPrint = async () => {
+    try {
+      await api("post", `/exams/${id}/hall-tickets/printed`, { ids: tickets.map((t) => t._id), printed: true });
+    } catch {
+      // printing is not stopped if this fails
+    }
+    window.print();
+  };
   return (
     <div className="mx-auto max-w-[210mm] bg-white text-slate-900 print:max-w-none">
       <style>{`
@@ -54,10 +66,21 @@ function PrintHallTickets() {
       <div className="flex items-center gap-3 border-b border-slate-200 p-4 print:hidden">
         <p className="flex-1 text-sm text-slate-600">
           <b>{tickets.length}</b> hall ticket{tickets.length === 1 ? "" : "s"} · two per A4 page
-          {data.total > tickets.length && ` (first ${tickets.length} of ${data.total})`}
+          {data.total > all.length && ` (first ${all.length} of ${data.total})`}
+          {before > 0 && (
+            <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800">
+              {before} already printed before
+            </span>
+          )}
         </p>
+        {before > 0 && (
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input type="checkbox" checked={skipPrinted} onChange={(e) => setSkipPrinted(e.target.checked)} />
+            Leave out already printed
+          </label>
+        )}
         <button
-          onClick={() => window.print()}
+          onClick={doPrint}
           disabled={!tickets.length}
           className="h-10 rounded-xl bg-slate-950 px-5 text-sm font-semibold text-white disabled:opacity-40"
         >

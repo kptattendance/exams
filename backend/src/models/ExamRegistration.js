@@ -196,6 +196,14 @@ const examRegistrationSchema = new mongoose.Schema(
       before: { semester: { type: Number, default: null }, status: { type: String, default: "" } }, // to undo
     },
 
+    // Hall ticket printed (recorded when "Print" is pressed, or marked by hand),
+    // so the office does not print the same hall ticket twice
+    hallTicket: {
+      printedAt: { type: Date, default: null },
+      printedBy: { type: String, default: "" },
+      times: { type: Number, default: 0 },
+    },
+
     // Filled when the COE processes the results
     result: {
       courses: { type: [resultCourseSchema], default: [] },

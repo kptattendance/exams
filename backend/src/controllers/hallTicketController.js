@@ -20,6 +20,17 @@ import { collegeFilter } from "../services/evening.js";
 
 const isId = (id) => mongoose.Types.ObjectId.isValid(id);
 const fail = (res, status, error) => res.status(status).json({ error });
+const who = (req) => req.user?.email || req.user?.id || "unknown";
+
+// the time table as the hall ticket needs it
+const ttOf = (exam) => ({
+  entries: exam.timetable?.entries || [],
+  sessions: {
+    FN: exam.timetable?.sessions?.FN || { start: "09:00", end: "12:00" },
+    AN: exam.timetable?.sessions?.AN || { start: "14:00", end: "17:00" },
+  },
+  published: Boolean(exam.timetable?.published),
+});
 
 export const listHallTickets = async (req, res) => {
   if (!isId(req.params.id)) return fail(res, 400, "Invalid exam id.");
@@ -37,21 +48,17 @@ export const listHallTickets = async (req, res) => {
     const rx = new RegExp(String(q).trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
     filter.$or = [{ name: rx }, { registerNumber: rx }, { rollNumber: rx }];
   }
+  // ?printed=YES / NO
+  if (req.query.printed === "YES") filter["hallTicket.printedAt"] = { $ne: null };
+  else if (req.query.printed === "NO") filter["hallTicket.printedAt"] = null;
 
   const regs = await ExamRegistration.find(filter)
-    .select("registerNumber rollNumber name department semester batch admissionType imageUrl group subjects overall warnings regularFee student")
+    .select("registerNumber rollNumber name department semester batch admissionType imageUrl group subjects overall warnings regularFee student hallTicket")
     .sort({ semester: 1, department: 1, rollNumber: 1, registerNumber: 1 })
     .collation({ locale: "en", numericOrdering: true })
     .lean();
 
-  const tt = {
-    entries: exam.timetable?.entries || [],
-    sessions: {
-      FN: exam.timetable?.sessions?.FN || { start: "09:00", end: "12:00" },
-      AN: exam.timetable?.sessions?.AN || { start: "14:00", end: "17:00" },
-    },
-    published: Boolean(exam.timetable?.published),
-  };
+  const tt = ttOf(exam);
 
   let tickets = regs.map((r) => ({ reg: r, ...ticketFor(r, tt) }));
   const counts = { ready: tickets.filter((t) => t.ready).length, notReady: tickets.filter((t) => !t.ready).length };
@@ -148,6 +155,54 @@ export const listHallTickets = async (req, res) => {
       reasons,
       permittedCount,
       subjects,
+      printedAt: reg.hallTicket?.printedAt || null,
+      printedBy: reg.hallTicket?.printedBy || "",
+      printTimes: reg.hallTicket?.times || 0,
     })),
   });
+};
+
+// GET /api/exams/:id/hall-tickets/summary?college=
+// For the class list: { "cs-3": { total, ready, printed }, …, backlog: {…} }
+export const hallTicketSummary = async (req, res) => {
+  if (!isId(req.params.id)) return fail(res, 400, "Invalid exam id.");
+  const exam = await Exam.findById(req.params.id).lean();
+  if (!exam) return fail(res, 404, "Exam not found.");
+  const regs = await ExamRegistration.find({ exam: exam._id, ...collegeFilter(req.query) })
+    .select("department semester group subjects overall warnings regularFee hallTicket")
+    .lean();
+  const tt = ttOf(exam);
+  const out = {};
+  for (const r of regs) {
+    const key = r.group === "backlog" || r.group === "manual" ? "backlog" : `${String(r.department || "").toLowerCase()}-${r.semester}`;
+    const o = (out[key] ||= { total: 0, ready: 0, printed: 0 });
+    o.total++;
+    if (ticketFor(r, tt).ready) o.ready++;
+    if (r.hallTicket?.printedAt) o.printed++;
+  }
+  res.json({ data: out });
+};
+
+// POST /api/exams/:id/hall-tickets/printed   { ids: [...], printed: true | false }
+// Recorded by the print page when "Print" is pressed; also ticked / unticked by hand.
+export const markHallTicketsPrinted = async (req, res) => {
+  if (!isId(req.params.id)) return fail(res, 400, "Invalid exam id.");
+  const ids = [...new Set((Array.isArray(req.body?.ids) ? req.body.ids : []).map(String))].filter(isId).slice(0, 1000);
+  if (!ids.length) return fail(res, 400, "No hall ticket chosen.");
+  const printed = req.body?.printed !== false;
+  const filter = { _id: { $in: ids }, exam: req.params.id };
+  const update = printed
+    ? { $set: { "hallTicket.printedAt": new Date(), "hallTicket.printedBy": who(req) }, $inc: { "hallTicket.times": 1 } }
+    : { $set: { "hallTicket.printedAt": null, "hallTicket.printedBy": "" } };
+  const r = await ExamRegistration.updateMany(filter, update);
+  AuditLog.create({
+    action: printed ? "HALL_TICKETS_MARKED_PRINTED" : "HALL_TICKETS_MARKED_NOT_PRINTED",
+    entity: "Exam",
+    entityId: req.params.id,
+    actorClerkId: req.user?.id || "unknown",
+    actorEmail: req.user?.email || "",
+    actorRole: req.user?.role || "",
+    details: { count: r.modifiedCount },
+  }).catch(() => {});
+  res.json({ message: printed ? `${r.modifiedCount} hall ticket${r.modifiedCount === 1 ? "" : "s"} marked as printed.` : "Marked as not printed." });
 };

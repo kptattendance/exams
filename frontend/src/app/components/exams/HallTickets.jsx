@@ -8,7 +8,7 @@ import Link from "next/link";
 
 import Icon from "../shell/Icon";
 import { btn } from "../ui/Modal";
-import { useToast } from "../ui/Feedback";
+import { confirmBox, useToast } from "../ui/Feedback";
 import { ADMISSION_SHORT, errMsg, useApi } from "./shared";
 import CollegeSelect, { classesFor, keepClass } from "../ui/CollegeFilter";
 import { T } from "../ui/table";
@@ -27,6 +27,9 @@ export default function HallTickets({ timetableHref }) {
   const [q, setQ] = useState("");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
+  const [printed, setPrinted] = useState(""); // "" | "YES" | "NO"
+  const [summary, setSummary] = useState({}); // "cs-3" -> { total, ready, printed }
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -46,7 +49,7 @@ export default function HallTickets({ timetableHref }) {
     const t = setTimeout(() => setQuery(q.trim()), 300);
     return () => clearTimeout(t);
   }, [q]);
-  useEffect(() => setPage(1), [cls, state, query, examId, college]);
+  useEffect(() => setPage(1), [cls, state, query, examId, college, printed]);
 
   const filter = useMemo(() => {
     const p = {};
@@ -58,8 +61,33 @@ export default function HallTickets({ timetableHref }) {
     }
     if (query) p.q = query;
     if (college) p.college = college;
+    if (printed) p.printed = printed;
     return p;
-  }, [cls, query, college]);
+  }, [cls, query, college, printed]);
+
+  // ready / printed count of every class, for the class list
+  useEffect(() => {
+    if (!examId) return;
+    let alive = true;
+    api("get", `/exams/${examId}/hall-tickets/summary`, undefined, { params: college ? { college } : {} })
+      .then((r) => alive && setSummary(r.data.data || {}))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [api, examId, college, reload]);
+
+  // tick / untick "printed" by hand
+  const markPrinted = async (t, value) => {
+    if (!value && !(await confirmBox(`Mark ${t.registerNumber} as not printed?\nIt will be counted as not printed again.`))) return;
+    try {
+      const r = await api("post", `/exams/${examId}/hall-tickets/printed`, { ids: [t._id], printed: value });
+      toast.success(r.data.message);
+      setReload((n) => n + 1);
+    } catch (e) {
+      toast.error(errMsg(e, "Could not save."));
+    }
+  };
 
   useEffect(() => {
     if (!examId) return;
@@ -73,7 +101,7 @@ export default function HallTickets({ timetableHref }) {
     return () => {
       alive = false;
     };
-  }, [api, examId, filter, state, page, toast]);
+  }, [api, examId, filter, state, page, toast, reload]);
 
   const exam = exams?.find((e) => e._id === examId);
   const printUrl = (extra = {}) => `/print/hall-tickets/${examId}?${new URLSearchParams({ ...filter, ...extra })}`;
@@ -175,11 +203,24 @@ export default function HallTickets({ timetableHref }) {
             />
             <select value={cls} onChange={(e) => setCls(e.target.value)} className={T.field}>
               <option value="">All classes</option>
-              {classes.map(([v, l]) => (
-                <option key={v} value={v}>
-                  {l}
-                </option>
-              ))}
+              {classes.map(([v, l]) => {
+                const o = summary[v];
+                // e.g. "CS · Sem 3 — 58/60 ready · 58 printed ✓"
+                const info = o
+                  ? ` — ${o.ready}/${o.total} ready${o.printed ? ` · ${o.printed} printed` : ""}${o.ready && o.printed >= o.ready ? " ✓" : ""}`
+                  : "";
+                return (
+                  <option key={v} value={v}>
+                    {l}
+                    {info}
+                  </option>
+                );
+              })}
+            </select>
+            <select value={printed} onChange={(e) => setPrinted(e.target.value)} className={T.field} aria-label="Printed or not">
+              <option value="">Printed + not printed</option>
+              <option value="NO">Not printed yet</option>
+              <option value="YES">Already printed</option>
             </select>
           </div>
 
@@ -196,6 +237,7 @@ export default function HallTickets({ timetableHref }) {
                     <th className={T.th}>Class</th>
                     <th className={T.th}>Subjects</th>
                     <th className={T.th}>Status</th>
+                    <th className={T.th}>Printed</th>
                     <th className={`${T.th} text-right`}>Hall ticket</th>
                   </tr>
                 </thead>
@@ -228,6 +270,23 @@ export default function HallTickets({ timetableHref }) {
                             </span>
                             <p className="mt-1 text-[11px] leading-4 text-red-600">{t.reasons.join(" ")}</p>
                           </>
+                        )}
+                      </td>
+                      <td className={`${T.td} whitespace-nowrap`}>
+                        {t.printedAt ? (
+                          <button
+                            onClick={() => markPrinted(t, false)}
+                            title={`Printed by ${t.printedBy || "?"}${t.printTimes > 1 ? ` · printed ${t.printTimes} times` : ""} – click to mark as not printed`}
+                            className={`${T.pill} bg-blue-50 text-blue-700 hover:bg-blue-100`}
+                          >
+                            ✓ Printed {new Date(t.printedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                          </button>
+                        ) : t.ready ? (
+                          <button onClick={() => markPrinted(t, true)} className="text-xs font-semibold text-slate-500 underline-offset-2 hover:text-slate-900 hover:underline">
+                            Mark printed
+                          </button>
+                        ) : (
+                          <span className="text-xs text-slate-300">—</span>
                         )}
                       </td>
                       <td className={`${T.td} text-right`}>
