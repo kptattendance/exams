@@ -93,7 +93,8 @@ function PrintHallTickets() {
         /* Two tickets per portrait A4: (297 - 16mm margins) / 2 = 140mm each */
         .ticket { height: 140mm; overflow: hidden; break-inside: avoid; page-break-inside: avoid; }
         /* many back papers: the whole page (297 - 16mm margins) */
-        .ticket.full { height: 281mm; }
+        /* many courses: as tall as its content (up to the whole page); the rest of the sheet stays blank */
+        .ticket.full { height: auto; max-height: 281mm; }
         .sheet { break-after: page; page-break-after: always; }
         .sheet:last-child { break-after: auto; page-break-after: auto; }
         /* Long subject lists shrink so the ticket still fits its half page */
@@ -288,7 +289,7 @@ function Ticket({ t, exam, sig, full = false }) {
         </p>
 
         {/* signatures – pushed to the bottom of the half page */}
-        <div className="mt-auto grid grid-cols-4 items-end gap-2 pt-1 text-center text-[10px] font-semibold">
+        <div className={`${full ? "mt-10" : "mt-auto"} grid grid-cols-4 items-end gap-2 pt-1 text-center text-[10px] font-semibold`}>
           {["Student", "HOD"].map((who) => (
             <span key={who} className="border-t border-slate-500 pt-0.5">
               {who}
