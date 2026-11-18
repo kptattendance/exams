@@ -251,16 +251,24 @@ export function findClashes(batches, changed, written = new Map(), paperTimes = 
         `${batchName(a)} on ${at}: ${numbers(who)} ${who.length === 1 ? "writes" : "write"} the theory paper ${paper} at that time. Choose another date / time for this batch.`
       );
     for (const b of list) {
-      if (b === a || b.date !== a.date || !overlap(a.session, b.session)) continue;
+      if (b === a || b.date !== a.date) continue;
       if (changed.has(b.label) && b.label < a.label) continue; // report each pair once
+      const sameTime = overlap(a.session, b.session);
+      // a student writes only ONE practical exam a day (any time of that day)
       const ids = new Set((b.students || []).map((s) => String(s.id)));
       const both = (a.students || []).filter((s) => ids.has(String(s.id)));
       if (both.length)
         out.push(
-          `${numbers(both)} ${both.length === 1 ? "is" : "are"} already in ${batchName(b)} on ${at}. A student cannot attend two practical exams at the same time – remove ${
-            both.length === 1 ? "him" : "them"
-          } from ${batchName(a)} or choose another date / time.`
+          sameTime
+            ? `${numbers(both)} ${both.length === 1 ? "is" : "are"} already in ${batchName(b)} on ${at}. A student cannot attend two practical exams at the same time – remove ${
+                both.length === 1 ? "him" : "them"
+              } from ${batchName(a)} or choose another date / time.`
+            : `${numbers(both)} already ${both.length === 1 ? "has" : "have"} a practical exam on ${dmy(a.date)} (${batchName(b)}, ${sessionName(b.session)}). A student may write only one practical exam a day – remove ${
+                both.length === 1 ? "him" : "them"
+              } from ${batchName(a)} or choose another date.`
         );
+      // examiners and the lab: only a clash when the times overlap
+      if (!sameTime) continue;
       if (same(a.set, b.set) || same(a.internal, b.internal) || same(a.external, b.external))
         out.push(
           `The same examiner${a.examiners ? ` (${a.examiners})` : ""} is already conducting ${batchName(b)} on ${at}. Choose another examiner set or another date / time for ${batchName(a)}.`

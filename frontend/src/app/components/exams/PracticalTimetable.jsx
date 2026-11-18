@@ -45,7 +45,11 @@ export default function PracticalTimetable() {
   const load = useCallback(async () => {
     if (!examId) return;
     try {
-      const [r, s] = await Promise.all([api("get", `/practicals/${examId}/schedule`), api("get", `/practicals/${examId}/subjects`)]);
+      // students=1: also the batches of other departments in which this department's students sit
+      const [r, s] = await Promise.all([
+        api("get", `/practicals/${examId}/schedule`, undefined, { params: { students: "1" } }),
+        api("get", `/practicals/${examId}/subjects`),
+      ]);
       setData(r.data);
       setSubjects(s.data.data || []);
       const dates = r.data.batches.map((b) => b.date).filter(Boolean).sort();
@@ -63,14 +67,17 @@ export default function PracticalTimetable() {
   }, [load]);
 
   const batches = useMemo(() => data?.batches || [], [data]);
+  // other departments' practicals of this department's students (shown, not editable)
+  const others = useMemo(() => (data?.otherBatches || []).filter((b) => b.date && b.session), [data]);
 
   // Rows: every date from → to (Sundays optional) and any date already used
   const dates = useMemo(() => {
     const out = new Set();
     if (from && to && from <= to) for (let d = from, n = 0; d <= to && n < 120; d = addDays(d, 1), n++) if (!skipSunday || !isSunday(d)) out.add(d);
     for (const b of batches) if (b.date) out.add(b.date);
+    for (const b of others) out.add(b.date);
     return [...out].sort();
-  }, [from, to, skipSunday, batches]);
+  }, [from, to, skipSunday, batches, others]);
 
   if (exams && exams.length === 0)
     return (
@@ -218,6 +225,23 @@ export default function PracticalTimetable() {
                           {inCell(d, s.code).map((b) => (
                             <BatchCard key={b._id} b={b} panels={data.panels} onClick={() => setEdit({ code: b.code, number: b.number, date: d, session: s.code })} />
                           ))}
+                          {/* your students' practical in another department – only shown */}
+                          {others
+                            .filter((b) => b.date === d && b.session === s.code)
+                            .map((b) => (
+                              <div
+                                key={b._id}
+                                title={`Fixed by the ${dept(b.department)} department – your students in it: ${(b.students || []).map((x) => x.registerNumber).join(", ")}`}
+                                className="rounded-lg border border-dashed border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-900"
+                              >
+                                <p className="font-semibold">
+                                  {b.label} <span className="font-normal">{b.name}</span>
+                                </p>
+                                <p className="mt-0.5 text-[11px]">
+                                  {b.count} of your students · by {dept(b.department)}
+                                </p>
+                              </div>
+                            ))}
                           <button
                             onClick={() => setEdit({ date: d, session: s.code })}
                             disabled={subjects.length === 0}

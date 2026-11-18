@@ -130,7 +130,10 @@ test("timetable clashes stop the save", () => {
   const changed = new Set(["ENG-B1"]);
   // nothing in common, or a different session → fine
   assert.deepEqual(findClashes([b("ENG-B1", { students: st("a"), set: "p1", lab: "Lab 1" }), b("IT-B1", { students: st("b"), set: "p2", lab: "Lab 2" })], changed), []);
-  assert.deepEqual(findClashes([b("ENG-B1", { students: st("a"), set: "p1" }), b("IT-B1", { students: st("a"), set: "p1", session: "AN" })], changed), []);
+  // the same examiner set in another session of the day is fine …
+  assert.deepEqual(findClashes([b("ENG-B1", { students: st("a"), set: "p1" }), b("IT-B1", { students: st("b"), set: "p1", session: "AN" })], changed), []);
+  // … but the same student on the same day is not (one practical exam a day)
+  assert.match(findClashes([b("ENG-B1", { students: st("a") }), b("IT-B1", { students: st("a"), session: "AN" })], changed)[0], /only one practical exam a day/);
   // no date yet → never a clash
   assert.deepEqual(findClashes([b("ENG-B1", { date: "", students: st("a") }), b("IT-B1", { students: st("a") })], changed), []);
   // the same student in two practicals
@@ -153,6 +156,10 @@ test("practical time table slots S1–S4: overlapping slots clash, written paper
   const b = (label, o = {}) => ({ label, date: "2026-11-20", session: "S1", lab: "", set: "", internal: "", external: "", students: [], ...o });
   // S1 and S2 follow each other → the same examiner is fine
   assert.deepEqual(findClashes([b("ENG-B1", { set: "p1" }), b("IT-B1", { set: "p1", session: "S2" })], changed), []);
+  // one practical exam a day: the same student in S1 and S3 of one day clashes; on another day it is fine
+  const one = [{ id: "s1", registerNumber: "103CS26001" }];
+  assert.match(findClashes([b("ENG-B1", { students: one }), b("IT-B1", { students: one, session: "S3" })], changed)[0], /only one practical exam a day/);
+  assert.deepEqual(findClashes([b("ENG-B1", { students: one }), b("IT-B1", { students: one, session: "S3", date: "2026-11-21" })], changed), []);
   // S3 (till 5:30) and S4 (from 5:30) follow each other → fine; the same slot clashes
   assert.deepEqual(findClashes([b("ENG-B1", { set: "p1", session: "S3" }), b("IT-B1", { set: "p1", session: "S4" })], changed), []);
   assert.match(findClashes([b("ENG-B1", { set: "p1", session: "S4" }), b("IT-B1", { set: "p1", session: "S4" })], changed)[0], /same examiner/);
