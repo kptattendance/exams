@@ -563,10 +563,9 @@ function RoomDiary({ exam, room }) {
             <th className={`${th} w-8`}>#</th>
             <th className={`${th} w-28`}>Register No.</th>
             <th className={th}>Name</th>
-            <th className={`${th} w-12`}>Branch</th>
             {/* written by the candidate: the number printed on his answer script */}
-            <th className={`${th} w-28`}>Answer script No.</th>
-            <th className={`${th} w-28`}>Signature of candidate</th>
+            <th className={`${th} w-36`}>Answer script No.</th>
+            <th className={`${th} w-48`}>Signature of candidate</th>
           </tr>
         </thead>
         <tbody>
@@ -575,7 +574,7 @@ function RoomDiary({ exam, room }) {
               {/* several batches in one room: a heading row where each batch starts */}
               {several && (i === 0 || students[i - 1].batch !== s.batch) && (
                 <tr className="bg-slate-50">
-                  <td colSpan={6} className={`${td} font-semibold`}>
+                  <td colSpan={5} className={`${td} font-semibold`}>
                     {s.batch} · {students.filter((x) => x.batch === s.batch).length} students
                   </td>
                 </tr>
@@ -584,7 +583,6 @@ function RoomDiary({ exam, room }) {
                 <td className={td}>{i + 1}</td>
                 <td className={`${td} font-semibold`}>{s.registerNumber}</td>
                 <td className={td}>{s.name}</td>
-                <td className={td}>{String(s.department || "").toUpperCase()}</td>
                 <td className={td} />
                 <td className={td} />
               </tr>
@@ -647,7 +645,7 @@ function BlankMarkList({ exam, b }) {
       </div>
       <div className="mt-3 flex items-end justify-between">
         <p className="text-[11px] leading-5">
-          Date: {day(b.date)} &nbsp;·&nbsp; Session: {session(b.session)} &nbsp;·&nbsp; Maximum marks: {b.max}
+          Maximum marks: {b.max}
         </p>
         <p className="border-2 border-slate-900 px-3 py-1 text-[15px] font-bold tracking-wide">{b.label}</p>
       </div>
