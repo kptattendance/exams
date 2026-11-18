@@ -14,7 +14,8 @@
 //   ?sheet=tt-examiners             date, time and examiners with phone numbers – for the HOD
 //   &auto=1                         opens the print (Save as PDF) dialog by itself
 
-import { Suspense, useEffect, useState } from "react";
+import { Fragment, Suspense, useEffect, useState } from "react";
+import { flushSync } from "react-dom";
 import { useParams, useSearchParams } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 
@@ -75,6 +76,25 @@ function PrintPractical() {
     call.then((r) => setData(r.data)).catch((e) => setError(errMsg(e, "Could not load.")));
   }, [api, examId, batchId, department, branch, shift, office, grid, isLoaded, isSignedIn]);
 
+  // Footer of every printed page: the IP address and the date / time of printing
+  // (no browser header / footer: the page's own footer replaces them)
+  const [ip, setIp] = useState("");
+  const [printedAt, setPrintedAt] = useState(() => new Date());
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    api("get", "/settings/print-stamp")
+      .then((r) => setIp(r.data?.data?.ip || ""))
+      .catch(() => {});
+  }, [api, isLoaded, isSignedIn]);
+  useEffect(() => {
+    const now = () => flushSync(() => setPrintedAt(new Date()));
+    window.addEventListener("beforeprint", now);
+    return () => window.removeEventListener("beforeprint", now);
+  }, []);
+  const stamp = `Printed from IP ${ip || "unknown"} on ${printedAt
+    .toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" })
+    .replace(/\//g, "-")}, ${printedAt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`;
+
   // "PDF" button of the office pages: open the print dialog once the sheet is drawn
   useEffect(() => {
     if (!auto || !data) return;
@@ -88,6 +108,8 @@ function PrintPractical() {
 
   return (
     <div className={`mx-auto ${grid ? "max-w-[297mm]" : "max-w-[210mm]"} bg-white px-6 py-6 text-[11.5px] text-slate-900 print:max-w-none print:p-0`}>
+      {/* footer on every page (a page margin box: the browser's own header and footer are then not printed) */}
+      <style>{`@page { @bottom-center { content: "${stamp}   ·   Page " counter(page) " of " counter(pages); font-size: 8pt; color: #475569; font-family: sans-serif; } }`}</style>
       {/* time tables (HOD and students): landscape, so the register numbers get room */}
       <style>{grid ? `@page{size:A4 landscape;margin:8mm} @media print{body{background:#fff}}` : `@page{size:A4;margin:12mm} @media print{body{background:#fff}}`}</style>
       <div className="mb-5 flex items-center gap-3 rounded-xl bg-slate-100 p-3 print:hidden">
@@ -460,6 +482,7 @@ function RoomSignatures({ batches }) {
 
 function RoomDiary({ exam, room }) {
   const students = room.batches.flatMap((b) => b.students.map((s) => ({ ...s, batch: b.label })));
+  const several = room.batches.length > 1;
   const done = room.batches.every((b) => b.status === "SUBMITTED");
   const count = (a) => students.filter((s) => s.attendance === a).length;
   return (
@@ -499,7 +522,10 @@ function RoomDiary({ exam, room }) {
                 <b>{b.code}</b> {b.name}
                 <span className="block text-[10px]">Conducted by {conductedBy(b)}</span>
               </td>
-              <td className={`${td} text-center`}>{b.count}</td>
+              <td className={`${td} text-center`}>
+                {b.count}
+                <span className="block text-[10px] text-slate-600">Batch {b.number ?? String(b.label || "").split("-B").pop()}</span>
+              </td>
               <td className={td}>{b.internal.name || "________________"}</td>
               <td className={td}>
                 {b.external.name || "________________"}
@@ -516,7 +542,6 @@ function RoomDiary({ exam, room }) {
             <th className={`${th} w-28`}>Register No.</th>
             <th className={th}>Name</th>
             <th className={`${th} w-12`}>Branch</th>
-            <th className={`${th} w-24`}>Batch</th>
             {/* written by the candidate: the number printed on his answer script */}
             <th className={`${th} w-28`}>Answer script No.</th>
             <th className={`${th} w-28`}>Signature of candidate</th>
@@ -524,15 +549,24 @@ function RoomDiary({ exam, room }) {
         </thead>
         <tbody>
           {students.map((s, i) => (
-            <tr key={`${s.batch}-${s.registerNumber}`} className="h-[7mm]">
-              <td className={td}>{i + 1}</td>
-              <td className={`${td} font-semibold`}>{s.registerNumber}</td>
-              <td className={td}>{s.name}</td>
-              <td className={td}>{String(s.department || "").toUpperCase()}</td>
-              <td className={td}>{s.batch}</td>
-              <td className={td} />
-              <td className={td} />
-            </tr>
+            <Fragment key={`${s.batch}-${s.registerNumber}`}>
+              {/* several batches in one room: a heading row where each batch starts */}
+              {several && (i === 0 || students[i - 1].batch !== s.batch) && (
+                <tr className="bg-slate-50">
+                  <td colSpan={6} className={`${td} font-semibold`}>
+                    {s.batch} · {students.filter((x) => x.batch === s.batch).length} students
+                  </td>
+                </tr>
+              )}
+              <tr className="h-[7mm]">
+                <td className={td}>{i + 1}</td>
+                <td className={`${td} font-semibold`}>{s.registerNumber}</td>
+                <td className={td}>{s.name}</td>
+                <td className={td}>{String(s.department || "").toUpperCase()}</td>
+                <td className={td} />
+                <td className={td} />
+              </tr>
+            </Fragment>
           ))}
         </tbody>
       </table>
@@ -579,9 +613,7 @@ function BlankMarkList({ exam, b }) {
       </div>
       <div className="mt-3 flex items-end justify-between">
         <p className="text-[11px] leading-5">
-          Conducted by: {conductedBy(b)} &nbsp;·&nbsp; Semester: {b.semester ?? "–"} &nbsp;·&nbsp; Maximum marks: {b.max}
-          <br />
-          Date: {day(b.date)} &nbsp;·&nbsp; Session: {session(b.session)} &nbsp;·&nbsp; Lab: {b.lab || "__________"}
+          Date: {day(b.date)} &nbsp;·&nbsp; Session: {session(b.session)} &nbsp;·&nbsp; Maximum marks: {b.max}
         </p>
         <p className="border-2 border-slate-900 px-3 py-1 text-[15px] font-bold tracking-wide">{b.label}</p>
       </div>
@@ -591,7 +623,6 @@ function BlankMarkList({ exam, b }) {
             <th className={`${th} w-8`}>#</th>
             <th className={`${th} w-28`}>Register No.</th>
             <th className={th}>Name</th>
-            <th className={`${th} w-12`}>Branch</th>
             <th className={`${th} w-24`}>Marks (figures)</th>
             <th className={`${th} w-60`}>Marks (words)</th>
           </tr>
@@ -605,14 +636,12 @@ function BlankMarkList({ exam, b }) {
                 {s.name}
                 {s.kind === "BACKLOG" && <span className="ml-1 text-[9px]">(B)</span>}
               </td>
-              <td className={td}>{String(s.department || "").toUpperCase()}</td>
               <td className={td} />
               <td className={td} />
             </tr>
           ))}
         </tbody>
       </table>
-      <p className="mt-3 text-[11px]">Students: {b.count} &nbsp;·&nbsp; Present: ______ &nbsp;·&nbsp; Absent: ______ &nbsp;·&nbsp; Write AB for absent.</p>
       <ExaminerSignatures b={b} />
     </div>
   );
