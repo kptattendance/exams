@@ -303,9 +303,12 @@ function GridSheet({ sheet, data }) {
             <th className={`${th} w-[19mm]`}>Time</th>
             <th className={`${th} ${forStudents ? "w-[48mm]" : "w-[40mm]"}`}>Subject</th>
             <th className={`${th} w-[11mm]`}>Batch</th>
-            <th className={`${th} w-[18mm]`}>Lab</th>
+            <th className={`${th} w-[22mm]`}>Lab</th>
             {forStudents ? (
-              <th className={th}>Register numbers</th>
+              <>
+                <th className={`${th} w-[15mm]`}>Students</th>
+                <th className={th}>Register numbers</th>
+              </>
             ) : (
               <>
                 <th className={`${th} w-[13mm]`}>Students</th>
@@ -333,9 +336,13 @@ function GridSheet({ sheet, data }) {
                   {b.other && <span className="block text-[9.5px] italic">Conducted by {dept(b.department)} department</span>}
                 </td>
                 <td className={`${td} text-center`}>{b.number}</td>
-                <td className={td}>{b.lab}</td>
+                {/* a long lab name wraps inside its own column */}
+                <td className={`${td} text-[10.5px] leading-snug [overflow-wrap:anywhere]`}>{b.lab}</td>
                 {forStudents ? (
-                  <td className={`${td} text-[10.5px] leading-snug`}>{b.students.map((s) => s.registerNumber).join(", ")}</td>
+                  <>
+                    <td className={`${td} text-center`}>{b.count}</td>
+                    <td className={`${td} text-[10.5px] leading-snug`}>{b.students.map((s) => s.registerNumber).join(", ")}</td>
+                  </>
                 ) : (
                   <>
                     <td className={`${td} text-center`}>{b.count}</td>

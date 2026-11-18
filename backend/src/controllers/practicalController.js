@@ -25,7 +25,7 @@ import PracticalPanel from "../models/PracticalPanel.js";
 import AuditLog from "../models/AuditLog.js";
 import { sendPracticalAllotmentEmail, sendPracticalOrderEmail, sendPracticalScheduleEmail } from "../services/mailer.js";
 import { collegeParts, practicalOrdersPdf } from "../services/practicalOrder.js";
-import { effectiveOf } from "../services/exams/rules.js";
+import { effectiveOf, subjectFeePaid } from "../services/exams/rules.js";
 import { EVENING_DEPARTMENTS, EVENING_ROLE, EVENING_RX } from "../services/evening.js";
 import {
   batchLabel,
@@ -952,6 +952,64 @@ export const getSchedule = async (req, res) => {
 // For each practical subject of the department: who registered for it but is
 // not in the time table – permitted students left out of every batch (to be
 // placed) and students not permitted (not eligible / fee not paid).
+// GET /api/practicals/:id/students – every practical subject the department
+// conducts, with all its students: eligible (and in which batch, if any) or not
+// permitted (and why). Read only – for the HOD to plan the batches early.
+const NOT_OK = {
+  NE: "IA below minimum (NE)",
+  ANS: "Attendance shortage (ANS)",
+  PENDING: "Eligibility pending – IA / attendance not frozen yet",
+  WITHHELD: "Withheld",
+};
+export const listPracticalStudents = async (req, res) => {
+  const exam = await loadExam(req, res);
+  if (!exam) return;
+  const department = departmentFor(req, req.query.department);
+  if (!department) return fail(res, 400, "Department is required.");
+  const scope = scopeOf(eveningOf(req), department);
+  const { subjects, codes, regs } = await practicalWork(exam, scope);
+  const batches = await PracticalBatch.find({ exam: exam._id, code: { $in: codes }, ...scope.batches })
+    .select("code label date session students.registration")
+    .lean();
+  const data = [];
+  for (const code of codes) {
+    const takers = regs.filter((r) => r.subjects.some((x) => x.code === code && x.hasPractical));
+    if (!takers.length) continue;
+    const info = subjects.find((x) => x.code === code);
+    const placedIn = new Map();
+    for (const b of batches) if (b.code === code) for (const st of b.students) placedIn.set(String(st.registration), b);
+    const students = takers
+      .map((r) => {
+        const s = r.subjects.find((x) => x.code === code);
+        const eff = effectiveOf(s);
+        const ok = eff === "ELIGIBLE" && subjectFeePaid(r, s);
+        const b = placedIn.get(String(r._id));
+        return {
+          registerNumber: r.registerNumber,
+          name: r.name,
+          branch: lower(r.department),
+          kind: s.kind,
+          semester: s.semester ?? null,
+          eligible: ok,
+          reason: ok ? "" : eff !== "ELIGIBLE" ? NOT_OK[eff] || "Not eligible" : "Fee not paid",
+          batch: b ? { label: b.label, date: b.date || "", session: b.session || "" } : null,
+        };
+      })
+      .sort((a, b) => String(a.registerNumber).localeCompare(String(b.registerNumber), undefined, { numeric: true }));
+    data.push({
+      code,
+      name: info?.name || "",
+      semester: info?.semester ?? null,
+      registered: students.length,
+      eligible: students.filter((s) => s.eligible).length,
+      placed: students.filter((s) => s.eligible && s.batch).length,
+      students,
+    });
+  }
+  data.sort((a, b) => (a.semester || 9) - (b.semester || 9) || a.code.localeCompare(b.code));
+  res.json({ exam: examView(exam), department, evening: scope.evening, data });
+};
+
 async function missingStudents(exam, scope, batches) {
   const { subjects, codes, regs } = await practicalWork(exam, scope);
   const out = [];
