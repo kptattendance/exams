@@ -283,8 +283,17 @@ function GridSheet({ sheet, data }) {
     .sort((a, b) => a.date.localeCompare(b.date) || order(a.session) - order(b.session) || a.label.localeCompare(b.label, undefined, { numeric: true }));
   const notPlaced = all.filter((b) => !(b.date && b.session));
   const panels = new Map((data.panels || []).map((p) => [String(p._id), p]));
-  // the date is printed once for all its rows
-  const span = (i) => (i > 0 && placed[i - 1].date === placed[i].date ? 0 : placed.filter((b) => b.date === placed[i].date).length);
+  // Students' sheet: one part per semester (each on its own page, date-wise inside);
+  // the examiners' sheet stays one date-wise table
+  const groups = forStudents
+    ? [...new Set(all.map((b) => b.semester ?? null))]
+        .sort((a, b) => (a ?? 99) - (b ?? 99))
+        .map((sem) => ({
+          sem,
+          list: placed.filter((b) => (b.semester ?? null) === sem),
+          later: notPlaced.filter((b) => (b.semester ?? null) === sem),
+        }))
+    : [{ sem: undefined, list: placed, later: notPlaced }];
   const person = (name, phone, extra) => (
     <>
       {name || "________________"}
@@ -294,84 +303,97 @@ function GridSheet({ sheet, data }) {
   );
   return (
     <div>
-      <Letterhead evening={Boolean(data.evening)} />
-      <div className="mt-2 text-center">
-        <p className="text-[12px] font-semibold">{data.exam?.name}</p>
-        <p className="mt-1 text-[13px] font-bold tracking-[0.15em]">
-          {forStudents ? "PRACTICAL EXAMINATION – TIME TABLE FOR STUDENTS" : "PRACTICAL EXAMINATION – TIME TABLE AND EXAMINERS"}
-        </p>
-        <p className="text-[12px]">{data.evening ? `Evening college – ${dept(data.department)} students` : `Conducted by the ${dept(data.department)} department`}</p>
-      </div>
-      {/* narrow date / time / batch / lab columns; the register numbers take the rest */}
-      <table className="mt-4 w-full table-fixed border-collapse">
-        <thead>
-          <tr className="bg-slate-100">
-            <th className={`${th} w-[21mm]`}>Date / day</th>
-            <th className={`${th} w-[19mm]`}>Time</th>
-            <th className={`${th} ${forStudents ? "w-[48mm]" : "w-[40mm]"}`}>Subject</th>
-            <th className={`${th} w-[11mm]`}>Batch</th>
-            <th className={`${th} w-[22mm]`}>Lab</th>
-            {forStudents ? (
-              <>
-                <th className={`${th} w-[15mm]`}>Students</th>
-                <th className={th}>Register numbers</th>
-              </>
-            ) : (
-              <>
-                <th className={`${th} w-[13mm]`}>Students</th>
-                <th className={th}>Register numbers</th>
-                <th className={`${th} w-[27mm]`}>Internal examiner</th>
-                <th className={`${th} w-[30mm]`}>External examiner</th>
-              </>
+      {groups.map(({ sem, list, later }, gi) => {
+        // the date is printed once for all its rows
+        const span = (i) => (i > 0 && list[i - 1].date === list[i].date ? 0 : list.filter((b) => b.date === list[i].date).length);
+        return (
+          <div key={String(sem)} className={gi ? "break-before-page pt-2" : ""}>
+            <Letterhead evening={Boolean(data.evening)} />
+            <div className="mt-2 text-center">
+              <p className="text-[12px] font-semibold">{data.exam?.name}</p>
+              <p className="mt-1 text-[13px] font-bold tracking-[0.15em]">
+                {forStudents ? "PRACTICAL EXAMINATION – TIME TABLE FOR STUDENTS" : "PRACTICAL EXAMINATION – TIME TABLE AND EXAMINERS"}
+              </p>
+              <p className="text-[12px]">{data.evening ? `Evening college – ${dept(data.department)} students` : `Conducted by the ${dept(data.department)} department`}</p>
+              {forStudents && (
+                <p className="mx-auto mt-1.5 w-fit rounded border-2 border-slate-900 px-4 py-0.5 text-[14px] font-bold tracking-wide">
+                  {sem ? `SEMESTER ${sem}` : "SEMESTER NOT SET"}
+                </p>
+              )}
+            </div>
+            {/* narrow date / time / batch / lab columns; the register numbers take the rest */}
+            <table className="mt-4 w-full table-fixed border-collapse">
+              <thead>
+                <tr className="bg-slate-100">
+                  <th className={`${th} w-[21mm]`}>Date / day</th>
+                  <th className={`${th} w-[19mm]`}>Time</th>
+                  <th className={`${th} ${forStudents ? "w-[48mm]" : "w-[40mm]"}`}>Subject</th>
+                  <th className={`${th} w-[11mm]`}>Batch</th>
+                  <th className={`${th} w-[22mm]`}>Lab</th>
+                  {forStudents ? (
+                    <>
+                      <th className={`${th} w-[15mm]`}>Students</th>
+                      <th className={th}>Register numbers</th>
+                    </>
+                  ) : (
+                    <>
+                      <th className={`${th} w-[13mm]`}>Students</th>
+                      <th className={th}>Register numbers</th>
+                      <th className={`${th} w-[27mm]`}>Internal examiner</th>
+                      <th className={`${th} w-[30mm]`}>External examiner</th>
+                    </>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {list.map((b, i) => {
+                  const p = panels.get(String(b.panel || ""));
+                  return (
+                    <tr key={b._id} className="break-inside-avoid align-top">
+                      {span(i) > 0 && (
+                        <td rowSpan={span(i)} className={`${td} font-semibold`}>
+                          {day(b.date)}
+                          <span className="block text-[10px] font-normal">{longDay(b.date)}</span>
+                        </td>
+                      )}
+                      <td className={`${td} text-[10.5px]`}>{session(b.session)}</td>
+                      <td className={td}>
+                        <b>{b.code}</b> {b.name}
+                        {b.other && <span className="block text-[9.5px] italic">Conducted by {dept(b.department)} department</span>}
+                      </td>
+                      <td className={`${td} text-center`}>{b.number}</td>
+                      {/* a long lab name wraps inside its own column */}
+                      <td className={`${td} text-[10.5px] leading-snug [overflow-wrap:anywhere]`}>{b.lab}</td>
+                      {forStudents ? (
+                        <>
+                          <td className={`${td} text-center`}>{b.count}</td>
+                          <td className={`${td} text-[10.5px] leading-snug`}>{b.students.map((s) => s.registerNumber).join(", ")}</td>
+                        </>
+                      ) : (
+                        <>
+                          <td className={`${td} text-center`}>{b.count}</td>
+                          <td className={`${td} text-[10px] leading-snug`}>{b.students.map((s) => s.registerNumber).join(", ")}</td>
+                          <td className={td}>{p ? person(p.internal.name, p.internal.phone) : b.internal?.name || "Not allotted"}</td>
+                          <td className={td}>{p ? person(p.external.name, p.external.phone, p.external.college) : b.external?.name || "Not allotted"}</td>
+                        </>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {list.length === 0 && <p className="mt-4 text-sm text-slate-500">No batch is in the time table yet.</p>}
+            {later.length > 0 && (
+              <p className="mt-3 text-[11px]">
+                <b>Not scheduled yet:</b> {later.map((b) => b.label).join(", ")}
+              </p>
             )}
-          </tr>
-        </thead>
-        <tbody>
-          {placed.map((b, i) => {
-            const p = panels.get(String(b.panel || ""));
-            return (
-              <tr key={b._id} className="break-inside-avoid align-top">
-                {span(i) > 0 && (
-                  <td rowSpan={span(i)} className={`${td} font-semibold`}>
-                    {day(b.date)}
-                    <span className="block text-[10px] font-normal">{longDay(b.date)}</span>
-                  </td>
-                )}
-                <td className={`${td} text-[10.5px]`}>{session(b.session)}</td>
-                <td className={td}>
-                  <b>{b.code}</b> {b.name}
-                  {b.other && <span className="block text-[9.5px] italic">Conducted by {dept(b.department)} department</span>}
-                </td>
-                <td className={`${td} text-center`}>{b.number}</td>
-                {/* a long lab name wraps inside its own column */}
-                <td className={`${td} text-[10.5px] leading-snug [overflow-wrap:anywhere]`}>{b.lab}</td>
-                {forStudents ? (
-                  <>
-                    <td className={`${td} text-center`}>{b.count}</td>
-                    <td className={`${td} text-[10.5px] leading-snug`}>{b.students.map((s) => s.registerNumber).join(", ")}</td>
-                  </>
-                ) : (
-                  <>
-                    <td className={`${td} text-center`}>{b.count}</td>
-                    <td className={`${td} text-[10px] leading-snug`}>{b.students.map((s) => s.registerNumber).join(", ")}</td>
-                    <td className={td}>{p ? person(p.internal.name, p.internal.phone) : b.internal?.name || "Not allotted"}</td>
-                    <td className={td}>{p ? person(p.external.name, p.external.phone, p.external.college) : b.external?.name || "Not allotted"}</td>
-                  </>
-                )}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      {placed.length === 0 && <p className="mt-4 text-sm text-slate-500">No batch is in the time table yet.</p>}
-      {notPlaced.length > 0 && (
-        <p className="mt-3 text-[11px]">
-          <b>Not scheduled yet:</b> {notPlaced.map((b) => b.label).join(", ")}
-        </p>
-      )}
-      {!forStudents && <MissingCheck check={data.check || []} />}
-      {forStudents && <p className="mt-3 text-[10.5px]">Report to the lab 15 minutes before the time. Bring your hall ticket, ID card and record book.</p>}
-      <Signatures who={data.evening ? ["Principal (Evening)", "COE"] : forStudents ? ["HOD", "Principal / Dean", "COE"] : ["HOD", "COE"]} />
+            {!forStudents && <MissingCheck check={data.check || []} />}
+            {forStudents && <p className="mt-3 text-[10.5px]">Report to the lab 15 minutes before the time. Bring your hall ticket, ID card and record book.</p>}
+            <Signatures who={data.evening ? ["Principal (Evening)", "COE"] : forStudents ? ["HOD", "Principal / Dean", "COE"] : ["HOD", "COE"]} />
+          </div>
+        );
+      })}
     </div>
   );
 }
