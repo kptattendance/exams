@@ -24,7 +24,7 @@ export default function Letterhead({ compact = false, evening = false, className
           DEPARTMENT OF TECHNICAL EDUCATION
         </p>
         <p className={`font-extrabold text-[#d42f21] ${compact ? "text-[12px]" : "text-[15px]"}`}>
-          {evening ? "KARNATAKA (GOVT.) POLYTECHNIC (EVENING), MANGALURU" : "KARNATAKA (GOVT.) POLYTECHNIC, MANGALURU"}
+          {evening ? "KARNATAKA (GOVT.) POLYTECHNIC (2ND SHIFT), MANGALURU" : "KARNATAKA (GOVT.) POLYTECHNIC, MANGALURU"}
         </p>
         <p className={`font-semibold text-[#2e74b5] ${compact ? "text-[8px]" : "text-[10.5px]"}`}>
           (First Autonomous Polytechnic in India from AICTE New Delhi)
