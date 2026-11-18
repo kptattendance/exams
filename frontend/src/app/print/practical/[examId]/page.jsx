@@ -87,8 +87,9 @@ function PrintPractical() {
   if (!data) return <p className="p-8 text-sm text-slate-500">Loading…</p>;
 
   return (
-    <div className="mx-auto max-w-[210mm] bg-white px-6 py-6 text-[11.5px] text-slate-900 print:max-w-none print:p-0">
-      <style>{`@page{size:A4;margin:12mm} @media print{body{background:#fff}}`}</style>
+    <div className={`mx-auto ${grid ? "max-w-[297mm]" : "max-w-[210mm]"} bg-white px-6 py-6 text-[11.5px] text-slate-900 print:max-w-none print:p-0`}>
+      {/* time tables (HOD and students): landscape, so the register numbers get room */}
+      <style>{grid ? `@page{size:A4 landscape;margin:8mm} @media print{body{background:#fff}}` : `@page{size:A4;margin:12mm} @media print{body{background:#fff}}`}</style>
       <div className="mb-5 flex items-center gap-3 rounded-xl bg-slate-100 p-3 print:hidden">
         <p className="flex-1 text-sm text-slate-600">Use Print → Save as PDF for a PDF.</p>
         <button onClick={() => window.print()} className="h-10 rounded-xl bg-slate-950 px-5 text-sm font-semibold text-white">
@@ -253,7 +254,6 @@ function GridSheet({ sheet, data }) {
   );
   return (
     <div>
-      <style>{forStudents ? "" : "@page{size:A4 landscape;margin:10mm}"}</style>
       <Letterhead evening={Boolean(data.evening)} />
       <div className="mt-2 text-center">
         <p className="text-[12px] font-semibold">{data.exam?.name}</p>
@@ -262,22 +262,23 @@ function GridSheet({ sheet, data }) {
         </p>
         <p className="text-[12px]">{data.evening ? `Evening college – ${dept(data.department)} students` : `Conducted by the ${dept(data.department)} department`}</p>
       </div>
-      <table className="mt-4 w-full border-collapse">
+      {/* narrow date / time / batch / lab columns; the register numbers take the rest */}
+      <table className="mt-4 w-full table-fixed border-collapse">
         <thead>
           <tr className="bg-slate-100">
-            <th className={`${th} w-24`}>Date / day</th>
-            <th className={`${th} w-28`}>Time</th>
-            <th className={th}>Subject</th>
-            <th className={`${th} w-12`}>Batch</th>
-            <th className={`${th} w-20`}>Lab</th>
+            <th className={`${th} w-[21mm]`}>Date / day</th>
+            <th className={`${th} w-[19mm]`}>Time</th>
+            <th className={`${th} ${forStudents ? "w-[48mm]" : "w-[40mm]"}`}>Subject</th>
+            <th className={`${th} w-[11mm]`}>Batch</th>
+            <th className={`${th} w-[18mm]`}>Lab</th>
             {forStudents ? (
               <th className={th}>Register numbers</th>
             ) : (
               <>
-                <th className={`${th} w-14`}>Students</th>
-                <th className={`${th} w-56`}>Register numbers</th>
-                <th className={th}>Internal examiner</th>
-                <th className={th}>External examiner</th>
+                <th className={`${th} w-[13mm]`}>Students</th>
+                <th className={th}>Register numbers</th>
+                <th className={`${th} w-[27mm]`}>Internal examiner</th>
+                <th className={`${th} w-[30mm]`}>External examiner</th>
               </>
             )}
           </tr>
@@ -293,18 +294,18 @@ function GridSheet({ sheet, data }) {
                     <span className="block text-[10px] font-normal">{longDay(b.date)}</span>
                   </td>
                 )}
-                <td className={`${td} whitespace-nowrap`}>{session(b.session)}</td>
+                <td className={`${td} text-[10.5px]`}>{session(b.session)}</td>
                 <td className={td}>
                   <b>{b.code}</b> {b.name}
                 </td>
                 <td className={`${td} text-center`}>{b.number}</td>
                 <td className={td}>{b.lab}</td>
                 {forStudents ? (
-                  <td className={`${td} text-[10px] leading-snug`}>{b.students.map((s) => s.registerNumber).join(", ")}</td>
+                  <td className={`${td} text-[10.5px] leading-snug`}>{b.students.map((s) => s.registerNumber).join(", ")}</td>
                 ) : (
                   <>
                     <td className={`${td} text-center`}>{b.count}</td>
-                    <td className={`${td} text-[9.5px] leading-snug`}>{b.students.map((s) => s.registerNumber).join(", ")}</td>
+                    <td className={`${td} text-[10px] leading-snug`}>{b.students.map((s) => s.registerNumber).join(", ")}</td>
                     <td className={td}>{p ? person(p.internal.name, p.internal.phone) : b.internal?.name || "Not allotted"}</td>
                     <td className={td}>{p ? person(p.external.name, p.external.phone, p.external.college) : b.external?.name || "Not allotted"}</td>
                   </>
