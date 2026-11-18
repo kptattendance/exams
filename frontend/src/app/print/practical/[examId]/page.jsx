@@ -121,7 +121,15 @@ function PrintPractical() {
       {grid ? (
         <GridSheet sheet={sheet} data={data} />
       ) : office ? (
-        <OfficeSheet sheet={sheet} data={data} department={department} date={search.get("date") || ""} status={search.get("status") || ""} />
+        <OfficeSheet
+          sheet={sheet}
+          data={data}
+          department={department}
+          date={search.get("date") || ""}
+          status={search.get("status") || ""}
+          code={search.get("code") || ""}
+          only={search.get("only") || ""}
+        />
       ) : batchId ? (
         <MarkList b={data.data} />
       ) : (
@@ -396,8 +404,8 @@ function MissingCheck({ check }) {
 
 // ------------------------------------------------------------------ office sheets
 
-function OfficeSheet({ sheet, data, department, date, status }) {
-  const { batches, subjects } = filterOffice(data, { department, date, status });
+function OfficeSheet({ sheet, data, department, date, status, code = "", only = "" }) {
+  const { batches, subjects } = filterOffice(data, { department, date, status, code, only });
   const exam = data.exam?.name || "";
   const empty = <p className="mt-6 text-sm text-slate-500">Nothing to print for this selection.</p>;
   if (sheet === "status") return <StatusSheet exam={exam} subjects={subjects} department={department} />;

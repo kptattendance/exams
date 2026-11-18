@@ -53,9 +53,11 @@ export function roomsOf(batches) {
 }
 
 // Shared filters (department that conducts the exam, date, subject status)
-export function filterOffice(data, { department = "", date = "", status = "" }) {
-  const batches = (data?.batches || []).filter((b) => (!department || b.department === department) && (!date || b.date === date));
-  const subjects = (data?.subjects || []).filter((s) => (!department || s.department === department) && (!status || s.status === status));
+export function filterOffice(data, { department = "", date = "", status = "", code = "", only = "" }) {
+  const batches = (data?.batches || []).filter(
+    (b) => (!department || b.department === department) && (!date || b.date === date) && (!code || b.code === code) && (!only || String(b._id) === only)
+  );
+  const subjects = (data?.subjects || []).filter((s) => (!department || s.department === department) && (!status || s.status === status) && (!code || s.code === code));
   return { batches, subjects };
 }
 
@@ -70,6 +72,7 @@ export default function OfficePractical({ view }) {
   const [department, setDepartment] = useState("");
   const [date, setDate] = useState("");
   const [status, setStatus] = useState("");
+  const [code, setCode] = useState(""); // one subject
 
   useEffect(() => {
     if (!examId) return;
@@ -91,15 +94,24 @@ export default function OfficePractical({ view }) {
     [data]
   );
   const dates = useMemo(() => [...new Set((data?.batches || []).map((b) => b.date).filter(Boolean))].sort(), [data]);
-  const { batches, subjects } = filterOffice(data, { department, date, status });
+  // subjects of the chosen department (for the subject filter)
+  const codes = useMemo(() => {
+    const m = new Map();
+    for (const b of data?.batches || []) if (!department || b.department === department) m.set(b.code, b.name);
+    return [...m.entries()].sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }));
+  }, [data, department]);
+  const { batches, subjects } = filterOffice(data, { department, date, status, code });
   const rooms = roomsOf(batches);
 
   const examName = data?.exam?.name || "";
-  const fileTag = [department.toUpperCase(), date].filter(Boolean).join("_") || "all";
+  const fileTag = [department.toUpperCase(), code, date].filter(Boolean).join("_") || "all";
 
-  const openPdf = () => {
+  // only = one batch (the PDF button of a row)
+  const openPdf = (only = "") => {
     const q = new URLSearchParams({ sheet: V.sheet, auto: "1" });
+    if (only) q.set("only", only);
     if (department) q.set("department", department);
+    if (code) q.set("code", code);
     if (date && view !== "report") q.set("date", date);
     if (status && view === "report") q.set("status", status);
     window.open(`/print/practical/${examId}?${q}`, "_blank");
@@ -185,7 +197,7 @@ export default function OfficePractical({ view }) {
   const sel = T.field;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-7">
+    <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-7">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0">
           <h2 className="text-2xl font-bold tracking-tight text-slate-950">{V.title}</h2>
@@ -198,7 +210,7 @@ export default function OfficePractical({ view }) {
               <Icon name="download" className="h-4 w-4" />
               Excel
             </button>
-            <button onClick={openPdf} className={btn.primary}>
+            <button onClick={() => openPdf()} className={btn.primary}>
               <Icon name="download" className="h-4 w-4" />
               PDF
             </button>
@@ -211,11 +223,26 @@ export default function OfficePractical({ view }) {
       {examId && (
         <>
           <div className="mt-5 flex flex-wrap gap-2">
-            <select value={department} onChange={(e) => setDepartment(e.target.value)} className={sel}>
+            <select
+              value={department}
+              onChange={(e) => {
+                setDepartment(e.target.value);
+                setCode("");
+              }}
+              className={sel}
+            >
               <option value="">All departments</option>
               {departments.map((d) => (
                 <option key={d} value={d}>
                   {dept(d)}
+                </option>
+              ))}
+            </select>
+            <select value={code} onChange={(e) => setCode(e.target.value)} className={`${sel} max-w-[22rem]`} aria-label="Subject">
+              <option value="">All subjects</option>
+              {codes.map(([c, n]) => (
+                <option key={c} value={c}>
+                  {c} – {n}
                 </option>
               ))}
             </select>
@@ -243,7 +270,7 @@ export default function OfficePractical({ view }) {
           <div className={`mt-4 ${T.wrap}`}>
             {data === null && <div className="h-48 animate-pulse" />}
             {data && view === "room-diary" && <RoomTable rooms={rooms} />}
-            {data && view === "mark-sheets" && <BatchTable batches={batches} />}
+            {data && view === "mark-sheets" && <BatchTable batches={batches} onPdf={openPdf} />}
             {data && view === "report" && <StatusTable subjects={subjects} />}
           </div>
         </>
@@ -302,7 +329,7 @@ function RoomTable({ rooms }) {
   );
 }
 
-function BatchTable({ batches }) {
+function BatchTable({ batches, onPdf }) {
   if (!batches.length) return <Empty>No practical batches for this selection yet.</Empty>;
   return (
     <table className={T.table}>
@@ -314,6 +341,7 @@ function BatchTable({ batches }) {
           <th className={T.th}>Date / lab</th>
           <th className={`${T.th} text-right`}>Students</th>
           <th className={T.th}>Status</th>
+          <th className={`${T.th} text-right`}>Print</th>
         </tr>
       </thead>
       <tbody className={T.body}>
@@ -334,6 +362,13 @@ function BatchTable({ batches }) {
               <td className={`${T.td} text-right tabular-nums`}>{b.count}</td>
               <td className={T.td}>
                 <span className={`${T.pill} ${st.chip}`}>{st.label}</span>
+              </td>
+              <td className={`${T.td} text-right`}>
+                {/* this batch's ML sheet only */}
+                <button onClick={() => onPdf(String(b._id))} className={btn.small}>
+                  <Icon name="download" className="h-3.5 w-3.5" />
+                  PDF
+                </button>
               </td>
             </tr>
           );
