@@ -925,12 +925,26 @@ export const getSchedule = async (req, res) => {
   ]);
   batches.sort((a, b) => (a.date || "9").localeCompare(b.date || "9") || sessionRank(a.session) - sessionRank(b.session) || a.label.localeCompare(b.label, undefined, { numeric: true }));
   const pm = new Map(panels.map((p) => [String(p._id), p]));
+  // ?students=1 (the students' time table PDF): also the batches other
+  // departments conduct in which this department's students sit (e.g. English
+  // by Science & English) – with only this department's students. Read only.
+  let otherBatches;
+  if (req.query.students === "1") {
+    const others = await PracticalBatch.find({
+      exam: exam._id,
+      department: { $ne: department },
+      "students.department": department,
+      ...shiftFilter(scope.evening),
+    }).lean();
+    otherBatches = others.map((b) => batchView({ ...b, students: b.students.filter((s) => s.department === department) }, null));
+  }
   res.json({
     exam: examView(exam),
     department,
     evening: scope.evening,
     panels: panels.map(panelView),
     batches: batches.map((b) => batchView(b, pm.get(String(b.panel)))),
+    ...(otherBatches ? { otherBatches } : {}),
     check: await missingStudents(exam, scope, batches),
   });
 };

@@ -69,7 +69,7 @@ function PrintPractical() {
     const call = office
       ? api("get", `/practicals/${examId}/office`)
       : grid
-      ? api("get", `/practicals/${examId}/schedule`, undefined, { params: { department } })
+      ? api("get", `/practicals/${examId}/schedule`, undefined, { params: { department, ...(sheet === "tt-students" ? { students: "1" } : {}) } })
       : batchId
         ? api("get", `/practicals/batches/${batchId}`, undefined, { params: department ? { department } : {} })
         : api("get", `/practicals/${examId}/batches`, undefined, { params: { ...(branch ? { branch } : department ? { department } : {}), ...(shift ? { shift } : {}) } });
@@ -109,7 +109,7 @@ function PrintPractical() {
   return (
     <div className={`mx-auto ${grid ? "max-w-[297mm]" : "max-w-[210mm]"} bg-white px-6 py-6 text-[11.5px] text-slate-900 print:max-w-none print:p-0`}>
       {/* footer on every page (a page margin box: the browser's own header and footer are then not printed) */}
-      <style>{`@page { @bottom-center { content: "${stamp}   ·   Page " counter(page) " of " counter(pages); font-size: 8pt; color: #475569; font-family: sans-serif; } }`}</style>
+      <style>{`@page { @bottom-center { content: "${stamp}"; font-size: 8pt; color: #475569; font-family: sans-serif; } }`}</style>
       {/* time tables (HOD and students): landscape, so the register numbers get room */}
       <style>{grid ? `@page{size:A4 landscape;margin:8mm} @media print{body{background:#fff}}` : `@page{size:A4;margin:12mm} @media print{body{background:#fff}}`}</style>
       <div className="mb-5 flex items-center gap-3 rounded-xl bg-slate-100 p-3 print:hidden">
@@ -260,10 +260,12 @@ const longDay = (iso) => new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN",
 function GridSheet({ sheet, data }) {
   const forStudents = sheet === "tt-students";
   const order = (s) => SLOTS.findIndex((x) => x.code === s);
-  const placed = data.batches
+  // students' sheet: also their practicals conducted by other departments
+  const all = forStudents ? [...data.batches, ...(data.otherBatches || []).map((b) => ({ ...b, other: true }))] : data.batches;
+  const placed = all
     .filter((b) => b.date && b.session)
     .sort((a, b) => a.date.localeCompare(b.date) || order(a.session) - order(b.session) || a.label.localeCompare(b.label, undefined, { numeric: true }));
-  const notPlaced = data.batches.filter((b) => !(b.date && b.session));
+  const notPlaced = all.filter((b) => !(b.date && b.session));
   const panels = new Map((data.panels || []).map((p) => [String(p._id), p]));
   // the date is printed once for all its rows
   const span = (i) => (i > 0 && placed[i - 1].date === placed[i].date ? 0 : placed.filter((b) => b.date === placed[i].date).length);
@@ -319,6 +321,7 @@ function GridSheet({ sheet, data }) {
                 <td className={`${td} text-[10.5px]`}>{session(b.session)}</td>
                 <td className={td}>
                   <b>{b.code}</b> {b.name}
+                  {b.other && <span className="block text-[9.5px] italic">Conducted by {dept(b.department)} department</span>}
                 </td>
                 <td className={`${td} text-center`}>{b.number}</td>
                 <td className={td}>{b.lab}</td>
@@ -570,12 +573,24 @@ function RoomDiary({ exam, room }) {
           ))}
         </tbody>
       </table>
-      <p className="mt-3 text-[11px]">
-        Allotted: {students.length} &nbsp;·&nbsp; Present: {done ? count("PRESENT") : "______"} &nbsp;·&nbsp; Absent:{" "}
-        {done ? count("ABSENT") : "______"} &nbsp;·&nbsp; Malpractice: {done ? count("MALPRACTICE") : "______"}
-        <br />
-        Absentees (register numbers): {done ? students.filter((s) => s.attendance === "ABSENT").map((s) => s.registerNumber).join(", ") || "Nil" : "______________________________________________"}
-      </p>
+      {/* room to write by hand: a full line for the counts, two lines for the absentees */}
+      <div className="mt-5 space-y-5 text-[11.5px] break-inside-avoid">
+        <p>
+          Allotted: <b>{students.length}</b> &nbsp;&nbsp;·&nbsp;&nbsp; Present: {done ? count("PRESENT") : "__________"} &nbsp;&nbsp;·&nbsp;&nbsp; Absent:{" "}
+          {done ? count("ABSENT") : "__________"} &nbsp;&nbsp;·&nbsp;&nbsp; Malpractice: {done ? count("MALPRACTICE") : "__________"}
+        </p>
+        {done ? (
+          <p>Absentees (register numbers): {students.filter((s) => s.attendance === "ABSENT").map((s) => s.registerNumber).join(", ") || "Nil"}</p>
+        ) : (
+          <>
+            <p className="flex items-end gap-2">
+              <span className="whitespace-nowrap">Absentees (register numbers):</span>
+              <span className="flex-1 border-b border-slate-500" />
+            </p>
+            <p className="h-4 border-b border-slate-500" />
+          </>
+        )}
+      </div>
       <RoomSignatures batches={room.batches} />
     </div>
   );
