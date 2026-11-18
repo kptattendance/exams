@@ -109,7 +109,14 @@ function PrintPractical() {
   return (
     <div className={`mx-auto ${grid ? "max-w-[297mm]" : "max-w-[210mm]"} bg-white px-6 py-6 text-[11.5px] text-slate-900 print:max-w-none print:p-0`}>
       {/* footer on every page (a page margin box: the browser's own header and footer are then not printed) */}
-      <style>{`@page { @bottom-center { content: "${stamp}"; font-size: 8pt; color: #475569; font-family: sans-serif; } }`}</style>
+      {/* The browser prints its own header (date, time, page title) in the top margin and its own footer
+          (address, page number) in the bottom margin, unless the page fills those margins itself:
+          the top is left blank on purpose, the bottom carries our stamp. */}
+      <style>{`@page {
+        @top-left { content: "\\00a0"; } @top-center { content: "\\00a0"; } @top-right { content: "\\00a0"; }
+        @bottom-left { content: "\\00a0"; } @bottom-right { content: "\\00a0"; }
+        @bottom-center { content: "${stamp}"; font-size: 8pt; color: #475569; font-family: sans-serif; }
+      }`}</style>
       {/* time tables (HOD and students): landscape, so the register numbers get room */}
       <style>{grid ? `@page{size:A4 landscape;margin:8mm} @media print{body{background:#fff}}` : `@page{size:A4;margin:12mm} @media print{body{background:#fff}}`}</style>
       <div className="mb-5 flex items-center gap-3 rounded-xl bg-slate-100 p-3 print:hidden">
