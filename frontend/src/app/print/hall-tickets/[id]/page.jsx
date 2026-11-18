@@ -1,10 +1,11 @@
 "use client";
 
-// Printable hall tickets, two per portrait A4 page (each exactly half a page). Opened in a new tab from
-// "Hall tickets". Use Print → "Save as PDF" for a PDF.
+// Printable hall tickets, two per portrait A4 page (each exactly half a page). A hall ticket whose
+// content does not fit half a page (many back papers) gets a full page of its own – measured in the
+// browser, so nothing is ever cut off. Opened in a new tab from "Hall tickets". Use Print → "Save as PDF".
 // Only students whose hall ticket is ready are printed.
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useLayoutEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 
@@ -25,6 +26,7 @@ function PrintHallTickets() {
   const [error, setError] = useState("");
   const sig = useSignatures(); // COE and Principal, private (Admin → Settings)
   const [skipPrinted, setSkipPrinted] = useState(false);
+  const [full, setFull] = useState(() => new Set()); // hall tickets that need a full page
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -35,12 +37,44 @@ function PrintHallTickets() {
       .catch((e) => setError(errMsg(e, "Could not load hall tickets.")));
   }, [api, id, isLoaded, isSignedIn, search]);
 
+  // After drawing: a half-page hall ticket whose content overflows, or leaves less than
+  // about 5 mm above the signatures (printing is a little narrower than the screen),
+  // is given a full page instead.
+  useLayoutEffect(() => {
+    if (!data) return;
+    const over = [];
+    document.querySelectorAll(".ticket[data-id]:not(.full) .ticket-body").forEach((el) => {
+      const signs = el.lastElementChild;
+      const before = signs?.previousElementSibling;
+      const gap = signs && before ? signs.offsetTop - (before.offsetTop + before.offsetHeight) : 99;
+      if (el.scrollHeight > el.clientHeight + 1 || gap < 20) over.push(el.closest(".ticket").dataset.id);
+    });
+    if (over.length) setFull((f) => new Set([...f, ...over]));
+  }, [data, skipPrinted, full, sig]);
+
   if (error) return <p className="p-8 text-sm text-red-700">{error}</p>;
   if (!data) return <p className="p-8 text-sm text-slate-500">Loading…</p>;
 
   const all = data.data;
   const before = all.filter((t) => t.printedAt).length; // printed earlier
   const tickets = skipPrinted ? all.filter((t) => !t.printedAt) : all;
+  // sheets of paper, in the same order: two half-page hall tickets, or one full-page one
+  const sheets = [];
+  let pair = [];
+  for (const t of tickets) {
+    if (full.has(t._id)) {
+      if (pair.length) sheets.push(pair);
+      pair = [];
+      sheets.push([t]);
+    } else {
+      pair.push(t);
+      if (pair.length === 2) {
+        sheets.push(pair);
+        pair = [];
+      }
+    }
+  }
+  if (pair.length) sheets.push(pair);
   // record them as printed, then open the browser's print window
   const doPrint = async () => {
     try {
@@ -58,7 +92,10 @@ function PrintHallTickets() {
         * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         /* Two tickets per portrait A4: (297 - 16mm margins) / 2 = 140mm each */
         .ticket { height: 140mm; overflow: hidden; break-inside: avoid; page-break-inside: avoid; }
-        .ticket:nth-child(2n) { break-after: page; page-break-after: always; }
+        /* many back papers: the whole page (297 - 16mm margins) */
+        .ticket.full { height: 281mm; }
+        .sheet { break-after: page; page-break-after: always; }
+        .sheet:last-child { break-after: auto; page-break-after: auto; }
         /* Long subject lists shrink so the ticket still fits its half page */
         .ticket.dense .subj td, .ticket.dense .subj th { padding-top: 1px; padding-bottom: 1px; font-size: 9.5px; }
       `}</style>
@@ -66,6 +103,7 @@ function PrintHallTickets() {
       <div className="flex items-center gap-3 border-b border-slate-200 p-4 print:hidden">
         <p className="flex-1 text-sm text-slate-600">
           <b>{tickets.length}</b> hall ticket{tickets.length === 1 ? "" : "s"} · two per A4 page
+          {full.size > 0 && ` (${tickets.filter((t) => full.has(t._id)).length} with many courses on a page of their own)`}
           {data.total > all.length && ` (first ${all.length} of ${data.total})`}
           {before > 0 && (
             <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800">
@@ -93,8 +131,12 @@ function PrintHallTickets() {
       )}
 
       <div>
-        {tickets.map((t) => (
-          <Ticket key={t._id} t={t} exam={data.exam} sig={sig} />
+        {sheets.map((sheet) => (
+          <div key={sheet[0]._id} className="sheet">
+            {sheet.map((t) => (
+              <Ticket key={t._id} t={t} exam={data.exam} sig={sig} full={full.has(t._id)} />
+            ))}
+          </div>
         ))}
       </div>
     </div>
@@ -117,13 +159,14 @@ function Signed({ title, s }) {
   );
 }
 
-function Ticket({ t, exam, sig }) {
-  const dense = t.subjects.length > 8;
+function Ticket({ t, exam, sig, full = false }) {
+  const dense = !full && t.subjects.length > 8;
   return (
     <section
-      className={`ticket ${dense ? "dense" : ""} flex flex-col border-b border-dashed border-slate-300 px-4 py-3 text-[10.5px] leading-snug print:border-0 print:px-0 print:py-[2mm]`}
+      data-id={t._id}
+      className={`ticket ${full ? "full" : ""} ${dense ? "dense" : ""} flex flex-col border-b border-dashed border-slate-300 px-4 py-3 text-[10.5px] leading-snug print:border-0 print:px-0 print:py-[2mm]`}
     >
-      <div className="flex min-h-0 flex-1 flex-col border-2 border-slate-900 px-3 pb-2 pt-1.5">
+      <div className="ticket-body flex min-h-0 flex-1 flex-col border-2 border-slate-900 px-3 pb-2 pt-1.5">
         <Letterhead compact evening={String(t.registerNumber || "").startsWith("186")} />
 
         {/* heading */}
