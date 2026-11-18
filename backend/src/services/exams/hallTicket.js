@@ -84,13 +84,18 @@ export function ticketFor(reg, { entries = [], sessions = {}, published = false 
 
 
   if (!published) reasons.push("Timetable is not published yet.");
-  if (reg.overall === "PENDING" || isIncomplete(reg.warnings)) {
+  // Only the student's own (current) courses can keep the hall ticket waiting.
+  // A back paper still pending is printed struck out ("eligibility pending")
+  // and does not hold the hall ticket back.
+  const waiting =
+    reg.overall === "PENDING" && (reg.subjects || []).some((s) => s.kind !== "BACKLOG" && effectiveOf(s) === "PENDING");
+  if (waiting || isIncomplete(reg.warnings)) {
     reasons.push(
       isIncomplete(reg.warnings) ? "Elective not chosen yet." : "Eligibility is still waiting for IA / attendance."
     );
   }
   const permitted = subjects.filter((s) => s.permitted);
-  if (!permitted.length && reg.overall !== "PENDING") {
+  if (!permitted.length && !waiting) {
     const feeOnly = subjects.some((s) => s.note === NOT_PERMITTED.FEE);
     reasons.push(feeOnly ? "Fee not paid." : "No subject permitted.");
   }

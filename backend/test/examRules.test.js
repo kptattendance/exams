@@ -78,7 +78,10 @@ test("back papers: latest attempt that is not a pass", () => {
   assert.equal(backPaperAllowed("SAME_PARITY", [1, 3, 5], 1), true);
   assert.equal(backPaperAllowed("ALL", [1], 2), true);
   assert.equal(backlogEligibility("FAIL").status, "ELIGIBLE");
-  assert.equal(backlogEligibility("NE").status, "PENDING");
+  // NE / ANS last time, no make-up mark: the old result stands – not permitted, no COE step
+  assert.equal(backlogEligibility("NE").status, "NE");
+  assert.equal(backlogEligibility("ANS").status, "ANS");
+  assert.equal(backlogEligibility("WITHHELD").status, "PENDING");
 });
 
 test("eligibility: attendance below 75% is ANS", () => {

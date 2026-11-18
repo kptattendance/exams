@@ -286,11 +286,14 @@ export function eligibilityFor(subject, ia, attendance, minAttendance = 75) {
 }
 
 // Back paper: FAIL/ABSENT carry IA forward; NE/ANS need re-registration.
+// NE / ANS last time and no CIE make-up mark entered by the HOD (a make-up
+// mark makes it ELIGIBLE before this is reached) → the old result stands:
+// not permitted. No COE decision is needed.
 export function backlogEligibility(lastStatus) {
   if (lastStatus === "NE" || lastStatus === "ANS") {
     return {
-      status: "PENDING",
-      reasons: [`Previous result was ${lastStatus}: student must re-register for this course. COE to confirm.`],
+      status: lastStatus,
+      reasons: [`Previous result was ${lastStatus} and no CIE make-up mark is entered – not permitted (the student must re-register for this course).`],
     };
   }
   if (lastStatus === "WITHHELD") {

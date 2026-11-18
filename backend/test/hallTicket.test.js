@@ -50,3 +50,21 @@ test("not ready: unpublished timetable, waiting eligibility, nothing permitted",
     /Elective/
   );
 });
+
+test("a back paper still pending does not hold the hall ticket back – printed struck out", () => {
+  const t = ticketFor(
+    {
+      overall: "PENDING",
+      regularFee: { paid: true },
+      subjects: [s("R1"), s("B1", { kind: "BACKLOG", status: "PENDING", fee: { paid: true } })],
+    },
+    tt
+  );
+  assert.equal(t.ready, true);
+  const b = t.subjects.find((x) => x.code === "B1");
+  assert.equal(b.permitted, false);
+  assert.match(b.note, /eligibility pending/);
+  // a current course still pending does keep it waiting
+  const w = ticketFor({ overall: "PENDING", regularFee: { paid: true }, subjects: [s("R1"), s("R2", { status: "PENDING" })] }, tt);
+  assert.equal(w.ready, false);
+});
