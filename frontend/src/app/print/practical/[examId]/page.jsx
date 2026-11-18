@@ -129,6 +129,7 @@ function PrintPractical() {
           status={search.get("status") || ""}
           code={search.get("code") || ""}
           only={search.get("only") || ""}
+          room={search.get("room") || ""}
         />
       ) : batchId ? (
         <MarkList b={data.data} />
@@ -404,7 +405,7 @@ function MissingCheck({ check }) {
 
 // ------------------------------------------------------------------ office sheets
 
-function OfficeSheet({ sheet, data, department, date, status, code = "", only = "" }) {
+function OfficeSheet({ sheet, data, department, date, status, code = "", only = "", room = "" }) {
   const { batches, subjects } = filterOffice(data, { department, date, status, code, only });
   const exam = data.exam?.name || "";
   const empty = <p className="mt-6 text-sm text-slate-500">Nothing to print for this selection.</p>;
@@ -416,7 +417,10 @@ function OfficeSheet({ sheet, data, department, date, status, code = "", only = 
         <BlankMarkList exam={exam} b={b} />
       </div>
     ));
-  return roomsOf(batches).map((r, i) => (
+  // room = one lab and session (the PDF button of a room-diary row)
+  return roomsOf(batches)
+    .filter((r) => !room || r.key === room)
+    .map((r, i) => (
     <div key={r.key} className={i ? "break-before-page pt-2" : ""}>
       <RoomDiary exam={exam} room={r} />
     </div>

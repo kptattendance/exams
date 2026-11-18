@@ -107,9 +107,11 @@ export default function OfficePractical({ view }) {
   const fileTag = [department.toUpperCase(), code, date].filter(Boolean).join("_") || "all";
 
   // only = one batch (the PDF button of a row)
-  const openPdf = (only = "") => {
+  // only = one batch (ML row), room = one lab and session (room diary row)
+  const openPdf = (only = "", room = "") => {
     const q = new URLSearchParams({ sheet: V.sheet, auto: "1" });
     if (only) q.set("only", only);
+    if (room) q.set("room", room);
     if (department) q.set("department", department);
     if (code) q.set("code", code);
     if (date && view !== "report") q.set("date", date);
@@ -269,7 +271,7 @@ export default function OfficePractical({ view }) {
 
           <div className={`mt-4 ${T.wrap}`}>
             {data === null && <div className="h-48 animate-pulse" />}
-            {data && view === "room-diary" && <RoomTable rooms={rooms} />}
+            {data && view === "room-diary" && <RoomTable rooms={rooms} onPdf={(key) => openPdf("", key)} />}
             {data && view === "mark-sheets" && <BatchTable batches={batches} onPdf={openPdf} />}
             {data && view === "report" && <StatusTable subjects={subjects} />}
           </div>
@@ -287,7 +289,7 @@ function sheet(rows, empty) {
 
 const Empty = ({ children }) => <p className="px-4 py-10 text-center text-sm text-slate-500">{children}</p>;
 
-function RoomTable({ rooms }) {
+function RoomTable({ rooms, onPdf }) {
   if (!rooms.length) return <Empty>No practical batches for this selection yet.</Empty>;
   return (
     <table className={T.table}>
@@ -299,6 +301,7 @@ function RoomTable({ rooms }) {
           <th className={T.th}>Batches</th>
           <th className={`${T.th} text-right`}>Students</th>
           <th className={T.th}>Examiners</th>
+          <th className={`${T.th} text-right`}>Print</th>
         </tr>
       </thead>
       <tbody className={T.body}>
@@ -321,6 +324,13 @@ function RoomTable({ rooms }) {
             <td className={`${T.td} text-xs text-slate-600`}>
               {[...new Set(r.batches.map((b) => b.internal.name).filter(Boolean))].join(", ") || "–"}
               <span className="block text-slate-400">{[...new Set(r.batches.map((b) => b.external.name).filter(Boolean))].join(", ")}</span>
+            </td>
+            <td className={`${T.td} text-right`}>
+              {/* this room's diary only */}
+              <button onClick={() => onPdf(r.key)} className={btn.small}>
+                <Icon name="download" className="h-3.5 w-3.5" />
+                PDF
+              </button>
             </td>
           </tr>
         ))}
