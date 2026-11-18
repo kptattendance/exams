@@ -27,17 +27,24 @@ const to12 = (t = "") => {
 };
 
 export const AUDIT_NOTE = "No semester-end exam – audit course";
+// an audit course the student is not eligible for: struck out, in red
+const AUDIT_BLOCKED = {
+  NE: "Not eligible – IA below minimum",
+  ANS: "Not eligible – attendance shortage",
+};
 
 export function ticketFor(reg, { entries = [], sessions = {}, published = false } = {}) {
   const slot = new Map(entries.map((e) => [e.code, e]));
   const reasons = [];
 
   // audit courses: internal test only – no exam. Shown on the hall ticket in
-  // their place, struck out with a note, so the student knows; they never
-  // count as "not permitted" and never stop the hall ticket from being ready.
+  // their place with "no end exam"; struck out in red only when the student is
+  // NE / ANS in it. They never count as "not permitted" and never stop the
+  // hall ticket from being ready.
   const audits = (reg.subjects || [])
     .filter((s) => s.kind === "AUDIT")
-    .map((s) => ({
+    .map((s) => ({ s, blockedAs: AUDIT_BLOCKED[effectiveOf(s)] || "" }))
+    .map(({ s, blockedAs }) => ({
       code: s.code,
       name: s.name,
       semester: s.semester,
@@ -49,7 +56,8 @@ export function ticketFor(reg, { entries = [], sessions = {}, published = false 
       session: "",
       time: "",
       permitted: false,
-      note: AUDIT_NOTE,
+      blocked: Boolean(blockedAs),
+      note: blockedAs || AUDIT_NOTE,
     }));
   const subjects = (reg.subjects || []).filter((s) => s.kind !== "AUDIT").map((s) => {
     const eff = effectiveOf(s);

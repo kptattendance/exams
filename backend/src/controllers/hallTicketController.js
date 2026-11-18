@@ -12,6 +12,8 @@ import Student from "../models/Student.js";
 import Subject from "../models/Subject.js";
 import AuditLog from "../models/AuditLog.js";
 import { ticketFor } from "../services/exams/hallTicket.js";
+import PracticalBatch from "../models/PracticalBatch.js";
+import { PRACTICAL_SESSIONS } from "../services/exams/practical.js";
 import { ADMISSION_LABEL } from "../services/exams/rules.js";
 import { refreshStale } from "../services/exams/autoRefresh.js";
 import { collegeFilter } from "../services/evening.js";
@@ -81,6 +83,32 @@ export const listHallTickets = async (req, res) => {
       .map((s, i) => ({ s, i, seq: seqOf(s.code, t.reg.department) }))
       .sort((a, b) => (!a.seq - !b.seq) || a.seq.localeCompare(b.seq, undefined, { numeric: true }) || a.i - b.i)
       .map((x) => x.s);
+  }
+
+  // Practical-only courses: once the HOD has fixed the student's batch (date and
+  // slot), print them; otherwise "as per department schedule" as before.
+  const batches = await PracticalBatch.find({
+    exam: exam._id,
+    "students.registration": { $in: pageItems.map((t) => t.reg._id) },
+    date: { $ne: "" },
+    session: { $ne: "" },
+  })
+    .select("code date session students.registration")
+    .lean();
+  const practicalSlot = new Map();
+  for (const b of batches) for (const st of b.students) practicalSlot.set(`${st.registration}|${b.code}`, b);
+  const to12 = (t = "") => {
+    const [h, m] = t.split(":").map(Number);
+    return Number.isNaN(h) ? "" : `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+  };
+  for (const t of pageItems) {
+    t.subjects = t.subjects.map((s) => {
+      if (!s.practicalOnly || !s.permitted) return s;
+      const b = practicalSlot.get(`${t.reg._id}|${s.code}`);
+      const time = b && PRACTICAL_SESSIONS[b.session];
+      if (!b || !time) return s;
+      return { ...s, practicalDate: b.date, practicalTime: `${to12(time.start)} – ${to12(time.end)}` };
+    });
   }
 
   if (req.query.print === "1") {

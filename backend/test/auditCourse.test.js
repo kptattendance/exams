@@ -39,6 +39,26 @@ test("an audit course is on the hall ticket, struck out – no semester-end exam
   assert.equal(t.permittedCount, 1);
 });
 
+test("an audit course with NE / ANS is marked not eligible; it still never stops the hall ticket", () => {
+  const reg = {
+    overall: "ALL_CLEAR",
+    regularFee: { paid: true },
+    subjects: [
+      { code: "25CS31T", kind: "REGULAR", hasTheory: true, status: "ELIGIBLE" },
+      { code: "25CS36A", kind: "AUDIT", hasTheory: false, status: "NE" },
+      { code: "25KA31A", kind: "AUDIT", hasTheory: false, status: "ANS" },
+    ],
+  };
+  const t = ticketFor(reg, { entries: [{ code: "25CS31T", date: "2026-11-20", session: "FN" }], published: true });
+  const [, ne, ans] = t.subjects;
+  assert.equal(ne.blocked, true);
+  assert.match(ne.note, /IA below minimum/);
+  assert.equal(ans.blocked, true);
+  assert.match(ans.note, /attendance shortage/);
+  assert.equal(t.ready, true);
+  assert.equal(t.permittedCount, 1);
+});
+
 test("an audit course is decided by the internal test alone", () => {
   assert.equal(courseResult(audit, { cie: 30 }).status, "PASS");
   assert.equal(courseResult(audit, { cie: 30 }).max, 50);

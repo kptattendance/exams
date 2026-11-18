@@ -164,25 +164,40 @@ function Ticket({ t, exam, sig }) {
             </tr>
           </thead>
           <tbody>
-            {t.subjects.map((s, i) => (
-              <tr key={s.code} className={s.permitted ? "" : "text-slate-500"}>
+            {t.subjects.map((s, i) => {
+              // an audit course is printed normally ("no end exam"); struck out only when NE / ANS in it
+              const auditOk = s.audit && !s.blocked;
+              const struck = !s.permitted && !auditOk;
+              return (
+              <tr key={s.code} className={struck ? "text-slate-500" : ""}>
                 <td className="border border-slate-400 px-1.5 py-[2px]">{i + 1}</td>
-                <td className={`border border-slate-400 px-1.5 py-[2px] font-semibold ${s.permitted ? "" : "line-through"}`}>{s.code}</td>
+                <td className={`border border-slate-400 px-1.5 py-[2px] font-semibold ${struck ? "line-through" : ""}`}>{s.code}</td>
                 <td className="border border-slate-400 px-1.5 py-[2px] text-center">{s.semester ?? "–"}</td>
                 <td className="border border-slate-400 px-1.5 py-[2px]">
-                  <span className={s.permitted ? "" : "line-through"}>{s.name}</span>
-                  {!s.permitted &&
-                    (s.audit ? (
-                      <span className="ml-1 text-[9.5px] font-semibold italic text-slate-600">({s.note})</span>
-                    ) : (
-                      <span className="ml-1 text-[9.5px] font-bold uppercase text-red-700">{s.note}</span>
-                    ))}
+                  <span className={struck ? "line-through" : ""}>{s.name}</span>
+                  {struck && <span className="ml-1 text-[9.5px] font-bold uppercase text-red-700">{s.note}</span>}
                 </td>
-                {s.permitted ? (
+                {auditOk ? (
+                  <td colSpan={2} className="border border-slate-400 px-1.5 py-[2px] text-[10px] italic">
+                    No end exam (audit course)
+                  </td>
+                ) : s.permitted ? (
                   s.practicalOnly ? (
-                    <td colSpan={2} className="border border-slate-400 px-1.5 py-[2px] text-[10px]">
-                      Practical – as per department schedule
-                    </td>
+                    s.practicalDate ? (
+                      // the HOD has fixed his practical batch
+                      <>
+                        <td className="whitespace-nowrap border border-slate-400 px-1.5 py-[2px]">
+                          {fmtDate(s.practicalDate)} <span className="text-[9.5px] text-slate-500">{weekday(s.practicalDate)}</span>
+                        </td>
+                        <td className="whitespace-nowrap border border-slate-400 px-1.5 py-[2px] text-[10px]">
+                          {s.practicalTime} <span className="text-[9px] font-semibold text-slate-500">(Practical)</span>
+                        </td>
+                      </>
+                    ) : (
+                      <td colSpan={2} className="border border-slate-400 px-1.5 py-[2px] text-[10px]">
+                        Practical – as per department schedule
+                      </td>
+                    )
                   ) : (
                     <>
                       <td className="whitespace-nowrap border border-slate-400 px-1.5 py-[2px]">
@@ -196,13 +211,14 @@ function Ticket({ t, exam, sig }) {
                 )}
                 <td className="border border-slate-400 px-1.5 py-[2px]" />
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
 
         <p className="mt-1 text-[8.5px] leading-snug text-slate-600">
           Bring this hall ticket and your college ID card to every exam. Be seated 15 minutes before the start. Mobile phones and
-          other electronic devices are not allowed. Courses marked “Not permitted” may not be written. Audit courses (struck out) have no semester-end exam.
+          other electronic devices are not allowed. Courses marked “Not permitted” may not be written. Audit courses have no semester-end exam.
         </p>
 
         {/* signatures – pushed to the bottom of the half page */}
