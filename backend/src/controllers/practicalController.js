@@ -945,20 +945,25 @@ export const getSchedule = async (req, res) => {
     otherBatches = others.map((b) => batchView({ ...b, students: b.students.filter((s) => s.department === department) }, null));
   }
   const views = batches.map((b) => batchView(b, pm.get(String(b.panel))));
-  // students' time table: the semester the SUBJECT belongs to, so each subject is on one
-  // semester page only. A common subject (25EG010P, 25CS010P …) is sem 1 for some branches
-  // and sem 2 for others: this department's syllabus decides; otherwise the semester digit
-  // of the code (25EE330P → 3); otherwise the batch's own.
+  // students' time table: the semester the SUBJECT belongs to (from the Subjects list),
+  // so each subject is on one semester page only. A common subject (25EG010P …) is
+  // sem 1 for some branches and sem 2 for others, and may also be a bridge course in
+  // sem 3: this department's regular entry decides; else the semester most branches
+  // use in their regular entries; else a bridge entry; else the batch's own.
   if (otherBatches) {
     const all = [...views, ...otherBatches];
-    const docs = await Subject.find({ code: { $in: [...new Set(all.map((b) => b.code))] } }).select("code department semester").lean();
+    const docs = await Subject.find({ code: { $in: [...new Set(all.map((b) => b.code))] } }).select("code department semester subjectCategory").lean();
     const own = String(department || "").toUpperCase();
+    const regular = (d) => String(d.subjectCategory || "REGULAR").toUpperCase() !== "BRIDGE" && d.semester;
     const semOf = (b) => {
-      const mine = docs.find((d) => d.code === b.code && String(d.department || "").toUpperCase() === own);
-      if (mine?.semester) return mine.semester;
-      const digit = Number(String(b.code || "").charAt(4));
-      if (digit >= 1 && digit <= 6) return digit;
-      return b.semester ?? null;
+      const same = docs.filter((d) => d.code === b.code);
+      const mine = same.find((d) => String(d.department || "").toUpperCase() === own && regular(d));
+      if (mine) return mine.semester;
+      const votes = {};
+      for (const d of same.filter(regular)) votes[d.semester] = (votes[d.semester] || 0) + 1;
+      const best = Object.entries(votes).sort(([sa, a], [sb, c]) => c - a || sa - sb)[0];
+      if (best) return Number(best[0]);
+      return same.find((d) => d.semester)?.semester ?? b.semester ?? null;
     };
     for (const b of all) b.subjectSemester = semOf(b);
   }
