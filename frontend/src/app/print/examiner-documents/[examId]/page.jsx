@@ -9,13 +9,14 @@
 // &panel=<set> for one set, &department= / &shift= for many.
 // The file number, letter date and every date can be corrected on screen before printing.
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, createContext, useContext, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 
 import { errMsg, useApi } from "../../../components/exams/shared";
 import { dept } from "../../../components/exams/practicalShared";
 import Letterhead from "../../../components/print/Letterhead";
+import { useRole } from "../../../components/useRole";
 
 const FILE_NO = "ಕೆಪಿಎಂ/35/ ಸ್ವಾಯತ್ತತೆ (ಪರೀಕ್ಷೆ) /2026-27";
 const CENTRE = "Karnataka (Govt.) Polytechnic (Autonomous), Mangaluru";
@@ -23,8 +24,13 @@ const dmy = (iso) => (iso ? iso.split("-").reverse().join(".") : "");
 const dmyShort = (iso) => (iso ? `${iso.slice(8, 10)}-${iso.slice(5, 7)}-${iso.slice(2, 4)}` : "");
 const two = (n) => String(n).padStart(2, "0");
 
-// text the exam section may correct on screen (dotted outline only on screen)
+// text the exam section (office, COE, Admin) may correct on screen (dotted outline only on
+// screen); for a HOD the documents are read-only
+const CanEdit = createContext(false);
+const EDITORS = ["office", "coe", "acoe", "admin"];
 function Edit({ children, className = "" }) {
+  const canEdit = useContext(CanEdit);
+  if (!canEdit) return <span className={className}>{children}</span>;
   return (
     <span
       contentEditable
@@ -41,7 +47,7 @@ function Edit({ children, className = "" }) {
 const personLines = (p, internal) => [
   p.name,
   p.designation || "Lecturer",
-  internal ? `${dept(p.department)} Dept.` : p.department ? `${p.department} Dept.` : "",
+  internal ? `${dept(p.department)} Dept.` : "", // the external examiner's department is not printed
   internal ? "Karnataka (Govt.) Polytechnic," : p.college ? `${p.college},` : "",
   internal ? "MANGALURU – 575 004" : "",
 ].filter(Boolean);
@@ -160,7 +166,7 @@ function Intimation({ exam, d }) {
 
 function Conducting({ d, p, internal }) {
   const total = d.rows.reduce((a, r) => ({ b: a.b + r.batches, c: a.c + r.candidates, cb: a.cb + r.conducted, ca: a.ca + r.attended }), { b: 0, c: 0, cb: 0, ca: 0 });
-  const who = [p.name, p.designation || "Lecturer", internal ? `${dept(p.department)} Dept.` : p.department ? `${p.department} Dept.` : "", internal ? "Karnataka (Govt.) Polytechnic, Mangaluru" : p.college]
+  const who = [p.name, p.designation || "Lecturer", internal ? `${dept(p.department)} Dept.` : "", internal ? "Karnataka (Govt.) Polytechnic, Mangaluru" : p.college]
     .filter(Boolean)
     .join(", ");
   return (
@@ -236,7 +242,7 @@ function Conducting({ d, p, internal }) {
 }
 
 function Attendance({ exam, d, p, internal }) {
-  const who = [p.name, p.designation || "Lecturer", internal ? `${dept(p.department)} Department` : p.department ? `${p.department} Department` : "", internal ? "Karnataka (Govt.) Polytechnic, Mangaluru" : p.college]
+  const who = [p.name, p.designation || "Lecturer", internal ? `${dept(p.department)} Department` : "", internal ? "Karnataka (Govt.) Polytechnic, Mangaluru" : p.college]
     .filter(Boolean)
     .join(", ");
   return (
@@ -353,8 +359,16 @@ function Statement({ exam, d }) {
         </tbody>
       </table>
       <div className="mt-16 grid grid-cols-3 gap-8 text-center text-[12px] font-semibold">
-        <span className="border-t border-slate-700 pt-1">Internal Examiner</span>
-        <span className="border-t border-slate-700 pt-1">External Examiner</span>
+        <span className="border-t border-slate-700 pt-1">
+          Internal Examiner
+          {d.internal.name && <span className="block font-normal">{d.internal.name}</span>}
+          {d.internal.name && <span className="block text-[10.5px] font-normal text-slate-600">Karnataka (Govt.) Polytechnic, Mangaluru</span>}
+        </span>
+        <span className="border-t border-slate-700 pt-1">
+          External Examiner
+          {d.external.name && <span className="block font-normal">{d.external.name}</span>}
+          {d.external.college && <span className="block text-[10.5px] font-normal text-slate-600">{d.external.college}</span>}
+        </span>
         <span className="border-t border-slate-700 pt-1">
           Signature of HOD
           <span className="block font-normal">{dept(d.panel.department)}</span>
@@ -372,6 +386,7 @@ function PrintExaminerDocuments() {
   const api = useApi();
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
+  const canEdit = EDITORS.includes(useRole());
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -426,15 +441,17 @@ function PrintExaminerDocuments() {
       `}</style>
       <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 p-4 font-sans print:hidden">
         <p className="flex-1 text-sm text-slate-600">
-          <b>{title}</b> · {pages.length} page{pages.length === 1 ? "" : "s"}. Dates, numbers and the file number with a dotted outline can be corrected – click
-          and type – before printing.
+          <b>{title}</b> · {pages.length} page{pages.length === 1 ? "" : "s"}.
+          {canEdit && " Dates and numbers with a dotted outline can be corrected – click and type – before printing."}
         </p>
         <button onClick={() => window.print()} disabled={!pages.length} className="h-10 rounded-xl bg-slate-950 px-5 text-sm font-semibold text-white disabled:opacity-40">
           Print / Save as PDF
         </button>
       </div>
       {!pages.length && <p className="p-8 text-center font-sans text-sm text-slate-500">No examiner set has batches in the time table for this selection yet.</p>}
-      <div className="px-6 py-6 print:p-0">{pages}</div>
+      <CanEdit.Provider value={canEdit}>
+        <div className="px-6 py-6 print:p-0">{pages}</div>
+      </CanEdit.Provider>
     </div>
   );
 }

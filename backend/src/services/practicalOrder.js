@@ -324,7 +324,8 @@ function drawOrder(doc, A, { exam, panel, college = {}, date = new Date(), from 
   const asKn = internal ? "ಆಂತರಿಕ ಪರೀಕ್ಷಕರಾಗಿ" : "ಬಾಹ್ಯ ಪರೀಕ್ಷಕರಾಗಿ";
   const designation = ext.designation || "Lecturer";
   const designationKn = DESIGNATION_KN[designation] || "ಉಪನ್ಯಾಸಕರು";
-  const department = deptFull(ext.department || panel.department);
+  // the conducting department – the department typed for the external examiner is often wrong
+  const department = deptFull(panel.department);
   const collegeName = college.name || ext.college || "";
   const full = PAGE.w - M.left - M.right;
 
