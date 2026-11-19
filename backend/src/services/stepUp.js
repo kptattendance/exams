@@ -13,7 +13,8 @@
 //
 // Env:
 //   STEP_UP_SECRET          signing key for the passes (falls back to a hash of CLERK_SECRET_KEY)
-//   STEP_UP_DISABLED=true   switch the whole thing off (testing only)
+// The Admin switches the codes off for a while / on again in Admin → Settings
+// (Setting "stepUp") – there is no server (Vercel) setting for it any more.
 //   TWOFACTOR_API_KEY       2Factor.in API key – when set, codes go by SMS through 2Factor
 //   TWOFACTOR_OTP_TEMPLATE  name of the approved OTP template in 2Factor (optional; default template if blank)
 //   MSG91_AUTH_KEY          MSG91 account key            ┐ used instead when both are set
@@ -22,6 +23,10 @@
 
 import crypto from "node:crypto";
 import axios from "axios";
+
+import mongoose from "mongoose";
+
+import Setting from "../models/Setting.js";
 
 // Scopes and how long one verification lasts (minutes)
 export const SCOPES = {
@@ -64,8 +69,35 @@ export function hasPass(header, userId, scope) {
   return false;
 }
 
-export const requireStepUp = (scope) => (req, res, next) => {
-  if (String(process.env.STEP_UP_DISABLED || "").trim().replace(/^["']|["']$/g, "").toLowerCase() === "true") return next(); // "true", "TRUE", " true", "\"true\""
+// Off by the Admin (Admin → Settings); read at most every 30 seconds.
+// Without a database connection the last known state is kept (on at start).
+let adminSwitch = { at: 0, off: false };
+export async function stepUpOff() {
+  if (Date.now() - adminSwitch.at < 30000) return adminSwitch.off;
+  if (mongoose.connection.readyState !== 1) return adminSwitch.off;
+  try {
+    const s = await Setting.findById("stepUp").lean();
+    adminSwitch = { at: Date.now(), off: Boolean(s?.value?.disabled) };
+  } catch {
+    adminSwitch = { at: Date.now(), off: adminSwitch.off }; // keep the last known state
+  }
+  return adminSwitch.off;
+}
+export async function setStepUpOff(off, by) {
+  await Setting.updateOne(
+    { _id: "stepUp" },
+    { $set: { value: { disabled: Boolean(off), at: new Date(), by }, updatedBy: by } },
+    { upsert: true }
+  );
+  adminSwitch = { at: Date.now(), off: Boolean(off) };
+}
+// tests only: switch without a database
+export const setStepUpOffForTests = (off) => {
+  adminSwitch = { at: off === null ? 0 : Date.now(), off: Boolean(off) };
+};
+
+export const requireStepUp = (scope) => async (req, res, next) => {
+  if (await stepUpOff()) return next();
   if (hasPass(req.headers["x-step-up"], req.user?.id, scope)) return next();
   return res.status(428).json({
     error: `Verification needed for ${SCOPES[scope].label}.`,

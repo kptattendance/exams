@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { issuePass, hasPass, requireStepUp, indianMobile } from "../src/services/stepUp.js";
+import { issuePass, hasPass, requireStepUp, indianMobile, setStepUpOffForTests } from "../src/services/stepUp.js";
 
 test("a pass works only for its user and scope, and not after it expires", () => {
   const p = issuePass("user_a", "fees");
@@ -14,19 +14,32 @@ test("a pass works only for its user and scope, and not after it expires", () =>
   assert.equal(hasPass("", "user_a", "fees"), false);
 });
 
-test("the guard answers 428 without a pass", () => {
+test("the guard answers 428 without a pass", async () => {
   let status = 0;
   let body = null;
   const res = { status: (s) => ((status = s), res), json: (b) => (body = b) };
   let passed = false;
-  requireStepUp("qp")({ headers: {}, user: { id: "u" } }, res, () => (passed = true));
+  await requireStepUp("qp")({ headers: {}, user: { id: "u" } }, res, () => (passed = true));
   assert.equal(passed, false);
   assert.equal(status, 428);
   assert.equal(body.stepUp.scope, "qp");
 
   const p = issuePass("u", "qp");
-  requireStepUp("qp")({ headers: { "x-step-up": p.token }, user: { id: "u" } }, res, () => (passed = true));
+  await requireStepUp("qp")({ headers: { "x-step-up": p.token }, user: { id: "u" } }, res, () => (passed = true));
   assert.equal(passed, true);
+});
+
+test("the Admin's switch: codes off lets every request through, on asks again", async () => {
+  const res = { status: () => res, json: () => {} };
+  let passed = false;
+  setStepUpOffForTests(true);
+  await requireStepUp("qp")({ headers: {}, user: { id: "u" } }, res, () => (passed = true));
+  assert.equal(passed, true);
+  setStepUpOffForTests(false);
+  passed = false;
+  await requireStepUp("qp")({ headers: {}, user: { id: "u" } }, res, () => (passed = true));
+  assert.equal(passed, false);
+  setStepUpOffForTests(null);
 });
 
 test("Indian mobile numbers", () => {

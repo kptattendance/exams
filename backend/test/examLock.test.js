@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import Exam from "../src/models/Exam.js";
 import AuditLog from "../src/models/AuditLog.js";
 import { lockedExamGuard } from "../src/services/examLock.js";
+import { setStepUpOffForTests } from "../src/services/stepUp.js";
 
 const ID = "6aebbcc752652869b9a5240e";
 const published = { _id: ID, name: "Nov/Dec 2026", results: { publishedAt: new Date("2027-01-10") } };
@@ -41,8 +42,8 @@ test("the Admin must give a reason, then a code", async () => {
   const noCode = await run({ role: "admin", reason: "Revaluation order 12/2027" });
   assert.equal(noCode.status, 428); // the verification code is asked
   assert.equal(noCode.body.stepUp.scope, "unlock");
-  process.env.STEP_UP_DISABLED = "true";
+  setStepUpOffForTests(true); // the Admin switched the codes off
   const ok = await run({ role: "admin", reason: "ಮರುಮೌಲ್ಯಮಾಪನ ಆದೇಶ" }); // a Kannada reason works
-  delete process.env.STEP_UP_DISABLED;
+  setStepUpOffForTests(null);
   assert.equal(ok.next, true);
 });
