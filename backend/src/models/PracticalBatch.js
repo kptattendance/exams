@@ -55,6 +55,13 @@ const practicalBatchSchema = new mongoose.Schema(
     students: { type: [batchStudentSchema], default: [] },
 
     status: { type: String, enum: ["OPEN", "SUBMITTED"], default: "OPEN", index: true },
+    // the exam section printed the room diary / the ML entry sheet (so it is not printed twice)
+    printed: {
+      diaryAt: { type: Date, default: null },
+      diaryBy: { type: String, default: "" },
+      mlAt: { type: Date, default: null },
+      mlBy: { type: String, default: "" },
+    },
     // Who submitted – kept here so a later change of examiners never rewrites it
     submitted: {
       at: { type: Date, default: null },

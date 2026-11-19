@@ -214,6 +214,12 @@ function batchView(b, panel, { students = true, marks = false } = {}) {
     submitted: b.submitted || {},
     corrections: marks ? b.corrections || [] : undefined,
     summary: done ? sheetSummary(b.students) : undefined,
+    printed: {
+      diaryAt: b.printed?.diaryAt || null,
+      diaryBy: b.printed?.diaryBy || "",
+      mlAt: b.printed?.mlAt || null,
+      mlBy: b.printed?.mlBy || "",
+    },
     students: students
       ? b.students.map((s) => ({
           registration: s.registration,
@@ -938,12 +944,22 @@ export const getSchedule = async (req, res) => {
     }).lean();
     otherBatches = others.map((b) => batchView({ ...b, students: b.students.filter((s) => s.department === department) }, null));
   }
+  const views = batches.map((b) => batchView(b, pm.get(String(b.panel))));
+  // students' time table: each student's own current semester (a common subject
+  // can be sem 1 for one branch and sem 2 for another, so the batch's is not enough)
+  if (otherBatches) {
+    const ids = [...new Set([...views, ...otherBatches].flatMap((b) => (b.students || []).map((s) => String(s.registration))))];
+    const sems = new Map(
+      (await ExamRegistration.find({ _id: { $in: ids } }).select("semester").lean()).map((r) => [String(r._id), r.semester ?? null])
+    );
+    for (const b of [...views, ...otherBatches]) for (const s of b.students || []) s.studentSemester = sems.get(String(s.registration)) ?? null;
+  }
   res.json({
     exam: examView(exam),
     department,
     evening: scope.evening,
     panels: panels.map(panelView),
-    batches: batches.map((b) => batchView(b, pm.get(String(b.panel)))),
+    batches: views,
     ...(otherBatches ? { otherBatches } : {}),
     check: await missingStudents(exam, scope, batches),
   });
@@ -1127,6 +1143,25 @@ export const saveSchedule = async (req, res) => {
 // GET /api/practicals/:id/office – exam section (office): every batch with its
 // students (room diary, blank mark-entry sheets) and, per subject, how far the
 // marks entry has gone. Marks appear only after the examiners submit.
+// POST /api/practicals/:id/printed  { ids: [batchId…], sheet: "diary" | "ml", printed: true | false }
+// Recorded by the print page when a room diary / ML sheet is printed; also ticked by hand.
+export const markSheetsPrinted = async (req, res) => {
+  const exam = await loadExam(req, res);
+  if (!exam) return;
+  const sheet = req.body?.sheet === "ml" ? "ml" : req.body?.sheet === "diary" ? "diary" : "";
+  if (!sheet) return fail(res, 400, "Say which sheet: diary or ml.");
+  const ids = [...new Set((Array.isArray(req.body?.ids) ? req.body.ids : []).map(String))].filter(isId).slice(0, 2000);
+  if (!ids.length) return fail(res, 400, "No batch chosen.");
+  const printed = req.body?.printed !== false;
+  const r = await PracticalBatch.updateMany(
+    { _id: { $in: ids }, exam: exam._id },
+    { $set: printed ? { [`printed.${sheet}At`]: new Date(), [`printed.${sheet}By`]: who(req) } : { [`printed.${sheet}At`]: null, [`printed.${sheet}By`]: "" } }
+  );
+  await log(req, printed ? "PRACTICAL_SHEETS_PRINTED" : "PRACTICAL_SHEETS_NOT_PRINTED", exam._id, { sheet, batches: r.modifiedCount });
+  const what = sheet === "ml" ? "ML sheet" : "Room diary";
+  res.json({ message: printed ? `${what} marked as printed (${r.modifiedCount} batch${r.modifiedCount === 1 ? "" : "es"}).` : `${what} marked as not printed.` });
+};
+
 export const officeOverview = async (req, res) => {
   const exam = await loadExam(req, res);
   if (!exam) return;

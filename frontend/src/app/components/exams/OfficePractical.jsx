@@ -17,6 +17,12 @@ import { errMsg, useApi } from "./shared";
 import { ExamSelect, NoExam, batchState, dept, fmtDay, sessionLabel, usePracticalExams } from "./practicalShared";
 
 const VIEWS = {
+  // room diary and ML sheet of every batch on one page, with "printed or not"
+  sheets: {
+    title: "Room diary & ML sheets",
+    help: "Every batch with its room diary and its blank ML (mark list) entry sheet. Print one or all; each is ticked as printed when you print it, so nothing is printed twice.",
+    sheet: "sheets",
+  },
   "room-diary": {
     title: "Room diary",
     help: "One diary for each lab and session – the batches, their students and the examiners. Print it and keep it in the lab.",
@@ -73,6 +79,8 @@ export default function OfficePractical({ view }) {
   const [date, setDate] = useState("");
   const [status, setStatus] = useState("");
   const [code, setCode] = useState(""); // one subject
+  const [reload, setReload] = useState(0);
+  const [printedFilter, setPrintedFilter] = useState(""); // "" | NO | YES (sheets view)
 
   useEffect(() => {
     if (!examId) return;
@@ -87,7 +95,18 @@ export default function OfficePractical({ view }) {
     return () => {
       alive = false;
     };
-  }, [api, examId, toast]);
+  }, [api, examId, toast, reload]);
+
+  // tick / untick a room diary or ML sheet as printed
+  const markPrinted = async (ids, sheet, printed) => {
+    try {
+      const r = await api("post", `/practicals/${examId}/printed`, { ids, sheet, printed });
+      toast.success(r.data.message);
+      setReload((n) => n + 1);
+    } catch (e) {
+      toast.error(errMsg(e, "Could not save."));
+    }
+  };
 
   const departments = useMemo(
     () => [...new Set([...(data?.batches || []).map((b) => b.department), ...(data?.subjects || []).map((s) => s.department)].filter(Boolean))].sort(),
@@ -100,16 +119,22 @@ export default function OfficePractical({ view }) {
     for (const b of data?.batches || []) if (!department || b.department === department) m.set(b.code, b.name);
     return [...m.entries()].sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }));
   }, [data, department]);
-  const { batches, subjects } = filterOffice(data, { department, date, status, code });
+  const filtered = filterOffice(data, { department, date, status, code });
+  const subjects = filtered.subjects;
+  const both = (b) => b.printed?.diaryAt && b.printed?.mlAt;
+  const batches =
+    view === "sheets" && printedFilter
+      ? filtered.batches.filter((b) => (printedFilter === "YES" ? both(b) : !both(b)))
+      : filtered.batches;
   const rooms = roomsOf(batches);
 
   const examName = data?.exam?.name || "";
   const fileTag = [department.toUpperCase(), code, date].filter(Boolean).join("_") || "all";
 
   // only = one batch (the PDF button of a row)
-  // only = one batch (ML row), room = one lab and session (room diary row)
-  const openPdf = (only = "", room = "") => {
-    const q = new URLSearchParams({ sheet: V.sheet, auto: "1" });
+  // only = one batch (ML row), room = one lab and session (room diary row); as = which sheet
+  const openPdf = (only = "", room = "", as = V.sheet) => {
+    const q = new URLSearchParams({ sheet: as, auto: "1" });
     if (only) q.set("only", only);
     if (room) q.set("room", room);
     if (department) q.set("department", department);
@@ -121,7 +146,7 @@ export default function OfficePractical({ view }) {
 
   const downloadExcel = () => {
     const wb = XLSX.utils.book_new();
-    if (view === "room-diary") {
+    if (view === "room-diary" || view === "sheets") {
       const summary = rooms.map((r, i) => ({
         "Sl No": i + 1,
         Date: r.date || "",
@@ -155,7 +180,8 @@ export default function OfficePractical({ view }) {
           );
       XLSX.utils.book_append_sheet(wb, sheet(summary, "No batches."), "Rooms");
       XLSX.utils.book_append_sheet(wb, sheet(students, "No students."), "Students");
-    } else if (view === "mark-sheets") {
+    }
+    if (view === "mark-sheets" || view === "sheets") {
       const used = new Set();
       for (const b of batches) {
         const rows = [
@@ -176,7 +202,8 @@ export default function OfficePractical({ view }) {
         XLSX.utils.book_append_sheet(wb, ws, name);
       }
       if (!batches.length) XLSX.utils.book_append_sheet(wb, sheet([], "No batches."), "ML");
-    } else {
+    }
+    if (view === "report") {
       const rows = subjects.map((s, i) => ({
         "Sl No": i + 1,
         "Subject code": s.code,
@@ -212,10 +239,23 @@ export default function OfficePractical({ view }) {
               <Icon name="download" className="h-4 w-4" />
               Excel
             </button>
-            <button onClick={() => openPdf()} className={btn.primary}>
-              <Icon name="download" className="h-4 w-4" />
-              PDF
-            </button>
+            {view === "sheets" ? (
+              <>
+                <button onClick={() => openPdf("", "", "room-diary")} className={btn.primary}>
+                  <Icon name="download" className="h-4 w-4" />
+                  Room diaries PDF
+                </button>
+                <button onClick={() => openPdf("", "", "ml")} className={btn.primary}>
+                  <Icon name="download" className="h-4 w-4" />
+                  ML sheets PDF
+                </button>
+              </>
+            ) : (
+              <button onClick={() => openPdf()} className={btn.primary}>
+                <Icon name="download" className="h-4 w-4" />
+                PDF
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -248,6 +288,13 @@ export default function OfficePractical({ view }) {
                 </option>
               ))}
             </select>
+            {view === "sheets" && (
+              <select value={printedFilter} onChange={(e) => setPrintedFilter(e.target.value)} className={sel} aria-label="Printed or not">
+                <option value="">Printed + not printed</option>
+                <option value="NO">Not fully printed</option>
+                <option value="YES">Both printed</option>
+              </select>
+            )}
             {view !== "report" ? (
               <select value={date} onChange={(e) => setDate(e.target.value)} className={sel}>
                 <option value="">All dates</option>
@@ -273,6 +320,14 @@ export default function OfficePractical({ view }) {
             {data === null && <div className="h-48 animate-pulse" />}
             {data && view === "room-diary" && <RoomTable rooms={rooms} onPdf={(key) => openPdf("", key)} />}
             {data && view === "mark-sheets" && <BatchTable batches={batches} onPdf={openPdf} />}
+            {data && view === "sheets" && (
+              <SheetsTable
+                batches={batches}
+                rooms={roomsOf(data.batches || [])}
+                onPdf={(as, only, room) => openPdf(only, room, as)}
+                onMark={markPrinted}
+              />
+            )}
             {data && view === "report" && <StatusTable subjects={subjects} />}
           </div>
         </>
@@ -334,6 +389,91 @@ function RoomTable({ rooms, onPdf }) {
             </td>
           </tr>
         ))}
+      </tbody>
+    </table>
+  );
+}
+
+const shortDay = (d) => new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+
+// One row per batch: its room diary, its ML sheet, and whether both are printed
+function SheetsTable({ batches, rooms, onPdf, onMark }) {
+  if (!batches.length) return <Empty>No practical batches for this selection yet.</Empty>;
+  const roomOf = (b) => rooms.find((r) => r.batches.some((x) => x._id === b._id));
+  const Mark = ({ at, by, onClick }) =>
+    at ? (
+      <button onClick={onClick} title={`Printed by ${by || "?"} – click to mark as not printed`} className={`${T.pill} bg-blue-50 text-blue-700 hover:bg-blue-100`}>
+        ✓ Printed {shortDay(at)}
+      </button>
+    ) : (
+      <button onClick={onClick} className="text-xs font-semibold text-slate-500 underline-offset-2 hover:text-slate-900 hover:underline">
+        Mark printed
+      </button>
+    );
+  return (
+    <table className={T.table}>
+      <thead>
+        <tr className={T.headRow}>
+          <th className={T.thNum}>Sl.</th>
+          <th className={T.th}>Batch</th>
+          <th className={T.th}>Subject</th>
+          <th className={T.th}>Date / lab</th>
+          <th className={`${T.th} text-right`}>Students</th>
+          <th className={T.th}>Room diary</th>
+          <th className={T.th}>ML sheet</th>
+          <th className={T.th}>Printed</th>
+        </tr>
+      </thead>
+      <tbody className={T.body}>
+        {batches.map((b, i) => {
+          const room = roomOf(b);
+          // a room diary covers every batch in that lab and session
+          const roomIds = (room?.batches || [b]).map((x) => String(x._id));
+          const d = b.printed?.diaryAt;
+          const m = b.printed?.mlAt;
+          return (
+            <tr key={b._id} className={T.row}>
+              <td className={T.tdNum}>{i + 1}</td>
+              <td className={`${T.td} font-semibold`}>{b.label}</td>
+              <td className={T.td}>
+                {b.name}
+                <span className="block text-xs text-slate-500">{dept(b.department)}</span>
+              </td>
+              <td className={`${T.td} text-xs`}>
+                {fmtDay(b.date)} {sessionLabel(b.session)}
+                <span className="block text-slate-500">{b.lab}</span>
+              </td>
+              <td className={`${T.td} text-right tabular-nums`}>{b.count}</td>
+              <td className={T.td}>
+                <div className="flex flex-col items-start gap-1">
+                  <button onClick={() => onPdf("room-diary", "", room?.key || "")} className={btn.small} title={room && room.batches.length > 1 ? `One diary for ${room.batches.length} batches in this lab and session` : ""}>
+                    <Icon name="download" className="h-3.5 w-3.5" />
+                    PDF
+                  </button>
+                  <Mark at={d} by={b.printed?.diaryBy} onClick={() => onMark(roomIds, "diary", !d)} />
+                </div>
+              </td>
+              <td className={T.td}>
+                <div className="flex flex-col items-start gap-1">
+                  <button onClick={() => onPdf("ml", String(b._id), "")} className={btn.small}>
+                    <Icon name="download" className="h-3.5 w-3.5" />
+                    PDF
+                  </button>
+                  <Mark at={m} by={b.printed?.mlBy} onClick={() => onMark([String(b._id)], "ml", !m)} />
+                </div>
+              </td>
+              <td className={T.td}>
+                {d && m ? (
+                  <span className={`${T.pill} bg-emerald-50 text-emerald-700`}>Both printed</span>
+                ) : d || m ? (
+                  <span className={`${T.pill} bg-orange-50 text-orange-700`}>{d ? "Diary only" : "ML only"}</span>
+                ) : (
+                  <span className={`${T.pill} bg-slate-100 text-slate-600`}>Not printed</span>
+                )}
+              </td>
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );

@@ -95,11 +95,31 @@ function PrintPractical() {
     .toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" })
     .replace(/\//g, "-")}, ${printedAt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`;
 
+  // Room diaries / ML sheets: record them as printed when printing (the office page shows it)
+  const printedSheet = sheet === "room-diary" ? "diary" : sheet === "ml" ? "ml" : "";
+  const doPrint = async () => {
+    if (office && printedSheet && data) {
+      const room = search.get("room") || "";
+      const { batches } = filterOffice(data, {
+        department,
+        date: search.get("date") || "",
+        status: search.get("status") || "",
+        code: search.get("code") || "",
+        only: search.get("only") || "",
+      });
+      const ids = (printedSheet === "diary" ? roomsOf(batches).filter((r) => !room || r.key === room).flatMap((r) => r.batches) : batches).map((b) => String(b._id));
+      if (ids.length) await api("post", `/practicals/${examId}/printed`, { ids, sheet: printedSheet, printed: true }).catch(() => {});
+    }
+    window.print();
+  };
+
   // "PDF" button of the office pages: open the print dialog once the sheet is drawn
   useEffect(() => {
     if (!auto || !data) return;
-    const t = setTimeout(() => window.print(), 800);
+    const t = setTimeout(() => doPrint(), 800);
     return () => clearTimeout(t);
+    // doPrint reads the same data; it runs once per opened page
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auto, data]);
 
   if (examinerOnly) return <p className="p-8 text-sm text-slate-700">Mark lists and room diaries are printed by the exam section.</p>;
@@ -121,7 +141,7 @@ function PrintPractical() {
       <style>{grid ? `@page{size:A4 landscape;margin:8mm} @media print{body{background:#fff}}` : `@page{size:A4;margin:12mm} @media print{body{background:#fff}}`}</style>
       <div className="mb-5 flex items-center gap-3 rounded-xl bg-slate-100 p-3 print:hidden">
         <p className="flex-1 text-sm text-slate-600">Use Print → Save as PDF for a PDF.</p>
-        <button onClick={() => window.print()} className="h-10 rounded-xl bg-slate-950 px-5 text-sm font-semibold text-white">
+        <button onClick={doPrint} className="h-10 rounded-xl bg-slate-950 px-5 text-sm font-semibold text-white">
           Print
         </button>
       </div>
@@ -276,8 +296,22 @@ const longDay = (iso) => new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN",
 function GridSheet({ sheet, data }) {
   const forStudents = sheet === "tt-students";
   const order = (s) => SLOTS.findIndex((x) => x.code === s);
-  // students' sheet: also their practicals conducted by other departments
-  const all = forStudents ? [...data.batches, ...(data.otherBatches || []).map((b) => ({ ...b, other: true }))] : data.batches;
+  // students' sheet: also their practicals conducted by other departments, and each
+  // batch split by the students' own current semester (a sem-3 student's back paper
+  // is on the Semester 3 page; a common subject is sem 1 for some branches, sem 2 for others)
+  const bySemester = (b) => {
+    const parts = new Map();
+    for (const s of b.students || []) {
+      const sem = s.studentSemester ?? b.semester ?? null;
+      if (!parts.has(sem)) parts.set(sem, []);
+      parts.get(sem).push(s);
+    }
+    if (!parts.size) return [b];
+    return [...parts].map(([sem, students]) => ({ ...b, _id: `${b._id}-${sem}`, semester: sem, students, count: students.length }));
+  };
+  const all = forStudents
+    ? [...data.batches, ...(data.otherBatches || []).map((b) => ({ ...b, other: true }))].flatMap(bySemester)
+    : data.batches;
   const placed = all
     .filter((b) => b.date && b.session)
     .sort((a, b) => a.date.localeCompare(b.date) || order(a.session) - order(b.session) || a.label.localeCompare(b.label, undefined, { numeric: true }));
