@@ -328,7 +328,9 @@ function GridSheet({ sheet, data }) {
     <div>
       {groups.map(({ sem, list, later }, gi) => {
         // the date is printed once for all its rows
-        const span = (i) => (i > 0 && list[i - 1].date === list[i].date ? 0 : list.filter((b) => b.date === list[i].date).length);
+        // first row of a date: date in bold (and a thicker line above); the day's other rows
+        // repeat it small and grey – no tall merged cell, so a page can break between any rows
+        const firstOfDay = (i) => i === 0 || list[i - 1].date !== list[i].date;
         return (
           <div key={String(sem)} className={gi ? "break-before-page pt-2" : ""}>
             <Letterhead evening={Boolean(data.evening)} />
@@ -372,12 +374,14 @@ function GridSheet({ sheet, data }) {
                 {list.map((b, i) => {
                   const p = panels.get(String(b.panel || ""));
                   return (
-                    <tr key={b._id} className="break-inside-avoid align-top">
-                      {span(i) > 0 && (
-                        <td rowSpan={span(i)} className={`${td} font-semibold`}>
+                    <tr key={b._id} className={`break-inside-avoid align-top ${firstOfDay(i) && i ? "border-t-2 border-t-slate-800" : ""}`}>
+                      {firstOfDay(i) ? (
+                        <td className={`${td} font-semibold`}>
                           {day(b.date)}
                           <span className="block text-[10px] font-normal">{longDay(b.date)}</span>
                         </td>
+                      ) : (
+                        <td className={`${td} text-[9.5px] text-slate-400`}>{day(b.date)}</td>
                       )}
                       <td className={`${td} text-[10.5px]`}>{session(b.session)}</td>
                       <td className={td}>
@@ -412,8 +416,10 @@ function GridSheet({ sheet, data }) {
               </p>
             )}
             {!forStudents && <MissingCheck check={data.check || []} />}
-            {forStudents && <p className="mt-3 text-[10.5px]">Report to the lab 15 minutes before the time. Bring your hall ticket, ID card and record book.</p>}
-            <Signatures who={data.evening ? ["Principal (Evening)", "COE"] : forStudents ? ["HOD", "Principal / Dean", "COE"] : ["HOD", "COE"]} />
+            <div className="break-inside-avoid">
+              {forStudents && <p className="mt-3 text-[10.5px]">Report to the lab 15 minutes before the time. Bring your hall ticket, ID card and record book.</p>}
+              <Signatures who={data.evening ? ["Principal (Evening)", "COE"] : forStudents ? ["HOD", "Principal / Dean", "COE"] : ["HOD", "COE"]} />
+            </div>
           </div>
         );
       })}
@@ -523,7 +529,7 @@ function OfficeSheet({ sheet, data, department, date, status, code = "", only = 
 
 function Signatures({ who }) {
   return (
-    <div className="mt-12 grid gap-4 text-center text-[11px] font-semibold" style={{ gridTemplateColumns: `repeat(${who.length}, 1fr)` }}>
+    <div className="mt-10 grid gap-4 text-center text-[11px] font-semibold" style={{ gridTemplateColumns: `repeat(${who.length}, 1fr)` }}>
       {who.map((w) => (
         <span key={w} className="border-t border-slate-700 pt-1">
           {w}
