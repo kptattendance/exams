@@ -100,6 +100,10 @@ export default function BackupPanel() {
           <p className="text-xs text-slate-500">
             Every collection (students, marks, results, fees, logs…) in one encrypted file, saved to Google Drive → “Backups”.
           </p>
+          <p className="mt-0.5 text-xs text-slate-500">
+            How to recover, step by step: the file <b>backend/docs/BACKUP_AND_RESTORE.md</b> in the project folder. The key that opens the backups is{" "}
+            <b>PAPER_MASTER_KEY</b> (backend/.env and Vercel) – keep a copy offline.
+          </p>
         </div>
         <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Note (optional), e.g. before results" className="h-10 w-64 max-w-full rounded-xl border border-slate-300 px-3 text-sm" />
         <button onClick={backUp} disabled={busy} className={btn.primary}>
