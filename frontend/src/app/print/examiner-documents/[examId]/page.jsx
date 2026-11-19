@@ -52,8 +52,10 @@ function Head({ date, confidential = false }) {
       <Letterhead />
       {confidential && <p className="mt-2 text-[12px] font-bold tracking-[0.25em] text-[#8e0d3c]">CONFIDENTIAL</p>}
       <div className={`${confidential ? "mt-1" : "mt-4"} flex items-start justify-between gap-6 text-[12.5px]`}>
-        <p className="pt-6 font-semibold underline underline-offset-2">
-          No. <Edit>{FILE_NO}</Edit> <Edit className="inline-block min-w-[14mm]">{" "}</Edit>
+        {/* fixed file number; room after it for the dispatch number written by hand */}
+        <p className="pt-6 font-semibold">
+          <span className="underline underline-offset-2">No. {FILE_NO}</span>
+          <span className="ml-1 inline-block w-[16mm]" />
         </p>
         <p className="text-right leading-snug">
           Office of the Controller of Examination (COE),
