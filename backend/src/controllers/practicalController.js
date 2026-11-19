@@ -945,14 +945,22 @@ export const getSchedule = async (req, res) => {
     otherBatches = others.map((b) => batchView({ ...b, students: b.students.filter((s) => s.department === department) }, null));
   }
   const views = batches.map((b) => batchView(b, pm.get(String(b.panel))));
-  // students' time table: each student's own current semester (a common subject
-  // can be sem 1 for one branch and sem 2 for another, so the batch's is not enough)
+  // students' time table: the semester the SUBJECT belongs to, so each subject is on one
+  // semester page only. A common subject (25EG010P, 25CS010P …) is sem 1 for some branches
+  // and sem 2 for others: this department's syllabus decides; otherwise the semester digit
+  // of the code (25EE330P → 3); otherwise the batch's own.
   if (otherBatches) {
-    const ids = [...new Set([...views, ...otherBatches].flatMap((b) => (b.students || []).map((s) => String(s.registration))))];
-    const sems = new Map(
-      (await ExamRegistration.find({ _id: { $in: ids } }).select("semester").lean()).map((r) => [String(r._id), r.semester ?? null])
-    );
-    for (const b of [...views, ...otherBatches]) for (const s of b.students || []) s.studentSemester = sems.get(String(s.registration)) ?? null;
+    const all = [...views, ...otherBatches];
+    const docs = await Subject.find({ code: { $in: [...new Set(all.map((b) => b.code))] } }).select("code department semester").lean();
+    const own = String(department || "").toUpperCase();
+    const semOf = (b) => {
+      const mine = docs.find((d) => d.code === b.code && String(d.department || "").toUpperCase() === own);
+      if (mine?.semester) return mine.semester;
+      const digit = Number(String(b.code || "").charAt(4));
+      if (digit >= 1 && digit <= 6) return digit;
+      return b.semester ?? null;
+    };
+    for (const b of all) b.subjectSemester = semOf(b);
   }
   res.json({
     exam: examView(exam),

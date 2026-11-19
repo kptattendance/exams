@@ -296,21 +296,10 @@ const longDay = (iso) => new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN",
 function GridSheet({ sheet, data }) {
   const forStudents = sheet === "tt-students";
   const order = (s) => SLOTS.findIndex((x) => x.code === s);
-  // students' sheet: also their practicals conducted by other departments, and each
-  // batch split by the students' own current semester (a sem-3 student's back paper
-  // is on the Semester 3 page; a common subject is sem 1 for some branches, sem 2 for others)
-  const bySemester = (b) => {
-    const parts = new Map();
-    for (const s of b.students || []) {
-      const sem = s.studentSemester ?? b.semester ?? null;
-      if (!parts.has(sem)) parts.set(sem, []);
-      parts.get(sem).push(s);
-    }
-    if (!parts.size) return [b];
-    return [...parts].map(([sem, students]) => ({ ...b, _id: `${b._id}-${sem}`, semester: sem, students, count: students.length }));
-  };
+  // students' sheet: also their practicals conducted by other departments; each subject
+  // on the page of the semester it belongs to (worked out by the server, subjectSemester)
   const all = forStudents
-    ? [...data.batches, ...(data.otherBatches || []).map((b) => ({ ...b, other: true }))].flatMap(bySemester)
+    ? [...data.batches, ...(data.otherBatches || []).map((b) => ({ ...b, other: true }))].map((b) => ({ ...b, semester: b.subjectSemester ?? b.semester ?? null }))
     : data.batches;
   const placed = all
     .filter((b) => b.date && b.session)
@@ -561,7 +550,7 @@ function RoomSignatures({ batches }) {
     </div>
   );
   return (
-    <div className="mt-12 grid grid-cols-4 gap-4 text-center text-[11px] leading-4 break-inside-avoid">
+    <div className="mt-9 grid grid-cols-4 gap-4 text-center text-[11px] leading-4 break-inside-avoid">
       {cell(
         "Internal Examiner",
         internals.length ? (
@@ -607,8 +596,9 @@ function RoomDiary({ exam, room }) {
   const count = (a) => students.filter((s) => s.attendance === a).length;
   return (
     <div>
-      <Letterhead evening={room.batches.every((b) => b.shift === "EVENING")} />
-      <div className="mt-2 text-center">
+      {/* compact letterhead and rows: a diary of about 20–25 students fits one A4 page at 100% */}
+      <Letterhead compact evening={room.batches.every((b) => b.shift === "EVENING")} />
+      <div className="mt-1 text-center">
         <p className="text-[12px] font-semibold">{exam}</p>
         <p className="mt-1 text-[13px] font-bold tracking-[0.15em]">PRACTICAL EXAMINATION – ROOM DIARY</p>
       </div>
@@ -677,7 +667,7 @@ function RoomDiary({ exam, room }) {
                   </td>
                 </tr>
               )}
-              <tr className="h-[7mm]">
+              <tr className="h-[6.2mm]">
                 <td className={td}>{i + 1}</td>
                 <td className={`${td} font-semibold`}>{s.registerNumber}</td>
                 <td className={td}>{s.name}</td>
@@ -689,7 +679,7 @@ function RoomDiary({ exam, room }) {
         </tbody>
       </table>
       {/* room to write by hand: a full line for the counts, two lines for the absentees */}
-      <div className="mt-5 space-y-5 text-[11.5px] break-inside-avoid">
+      <div className="mt-3 space-y-4 text-[11.5px] break-inside-avoid">
         <p>
           Allotted: <b>{students.length}</b> &nbsp;&nbsp;·&nbsp;&nbsp; Present: {done ? count("PRESENT") : "__________"} &nbsp;&nbsp;·&nbsp;&nbsp; Absent:{" "}
           {done ? count("ABSENT") : "__________"} &nbsp;&nbsp;·&nbsp;&nbsp; Malpractice: {done ? count("MALPRACTICE") : "__________"}
