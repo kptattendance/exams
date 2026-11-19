@@ -23,6 +23,7 @@ import {
   submitBatch,
   correctMark,
   officeOverview,
+  examinerDocuments,
   markSheetsPrinted,
   getSchedule,
   saveSchedule,
@@ -76,7 +77,8 @@ router.post("/batches/:batchId/correct", requireRole("admin"), requireStepUp("ma
 
 router.get("/:id/panels", VIEW, listPanels);
 router.post("/:id/panels", ALLOT, addPanel);
-router.get("/:id/orders", requireRole("coe", "acoe", "admin", "office"), listOrders); // office orders (print; the exam section keeps them on file)
+router.get("/:id/orders", requireRole("coe", "acoe", "admin", "office"), listOrders);
+router.get("/:id/examiner-documents", requireRole("coe", "acoe", "admin", "office"), examinerDocuments); // intimation, conducting and attendance certificates // office orders (print; the exam section keeps them on file)
 router.get("/:id/subjects", BATCHES, listSubjects);
 router.get("/:id/students", BATCHES, listPracticalStudents); // every practical subject of the department with its students (read only)
 router.get("/:id/subjects/:code", BATCHES, getSubject);

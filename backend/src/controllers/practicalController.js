@@ -45,6 +45,7 @@ import {
   MAX_CODE_TRIES,
   SESSION_CODES,
   sessionRank,
+  PRACTICAL_SESSIONS,
 } from "../services/exams/practical.js";
 
 const isId = (id) => mongoose.Types.ObjectId.isValid(id);
@@ -460,6 +461,83 @@ async function sendOrder(exam, panel) {
 async function sendInternalOrder(exam, panel) {
   return sendPracticalOrderEmail({ to: panel.internal.email, name: panel.internal.name, exam, orderPdf: await internalOrderPdfOf(exam, panel), internal: true });
 }
+
+// GET /api/practicals/:id/examiner-documents?department=&shift=&panel=
+// For the exam section's intimation letter, setting / conducting certificate and
+// attendance certificate of each examiner set: the two examiners and, from the
+// HOD's time table, one row per subject, date and class (with batches,
+// candidates allotted, batches conducted and candidates attended).
+const ROMAN = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII"];
+export const examinerDocuments = async (req, res) => {
+  const exam = await loadExam(req, res);
+  if (!exam) return;
+  const filter = { exam: exam._id };
+  if (req.query.panel) {
+    if (!isId(req.query.panel)) return fail(res, 400, "Invalid examiner set.");
+    filter._id = req.query.panel;
+  }
+  if (req.query.department) filter.department = lower(req.query.department);
+  if (req.query.shift) Object.assign(filter, shiftFilter(String(req.query.shift).toUpperCase() === "EVENING"));
+  const panels = await PracticalPanel.find(filter).sort({ department: 1, shift: 1, number: 1 }).lean();
+  const batches = await PracticalBatch.find({ exam: exam._id, panel: { $in: panels.map((p) => p._id) }, date: { $ne: "" } })
+    .select("panel code name date session shift students.department students.attendance status")
+    .lean();
+  const subjects = await Subject.find({ code: { $in: [...new Set(batches.map((b) => b.code))] } }).select("code department semester subjectCategory").lean();
+  const users = new Map(
+    (await User.find({ _id: { $in: panels.map((p) => p.internal?.user).filter(Boolean) } }).select("designation department").lean()).map((u) => [String(u._id), u])
+  );
+  // "I Sem AT": the subject's semester in that branch's syllabus (a regular entry first)
+  const semOf = (code, branch) => {
+    const same = subjects.filter((s) => s.code === code && lower(s.department) === branch);
+    return (same.find((s) => String(s.subjectCategory || "REGULAR").toUpperCase() !== "BRIDGE") || same[0])?.semester || null;
+  };
+  const classOf = (b) =>
+    [...new Set((b.students || []).map((s) => lower(s.department)).filter(Boolean))]
+      .sort()
+      .map((br) => `${ROMAN[semOf(b.code, br)] || "?"} Sem ${br.toUpperCase()}${b.shift === "EVENING" ? " (Evng)" : ""}`)
+      .join(", ");
+  const time = (s) => {
+    const t = PRACTICAL_SESSIONS[s];
+    if (!t) return "";
+    const h = (x) => {
+      const [hh, mm] = x.split(":").map(Number);
+      return `${((hh + 11) % 12) + 1}.${String(mm).padStart(2, "0")}`;
+    };
+    return `${h(t.start)} – ${h(t.end)}`;
+  };
+  const data = [];
+  for (const p of panels) {
+    const mine = batches.filter((b) => String(b.panel) === String(p._id));
+    if (!mine.length) continue;
+    const rows = new Map();
+    for (const b of mine) {
+      const cls = classOf(b);
+      const key = `${b.date}|${b.code}|${cls}`;
+      if (!rows.has(key)) rows.set(key, { date: b.date, code: b.code, name: b.name, cls, sessions: [], batches: 0, candidates: 0, conducted: 0, attended: 0 });
+      const r = rows.get(key);
+      if (!r.sessions.includes(b.session)) r.sessions.push(b.session);
+      r.batches++;
+      r.candidates += (b.students || []).length;
+      if (b.status === "SUBMITTED") {
+        r.conducted++;
+        r.attended += (b.students || []).filter((s) => s.attendance === "PRESENT" || s.attendance === "MALPRACTICE").length;
+      }
+    }
+    const list = [...rows.values()]
+      .map((r) => ({ ...r, times: r.sessions.sort((a, c) => sessionRank(a) - sessionRank(c)).map(time) }))
+      .sort((a, c) => a.date.localeCompare(c.date) || a.code.localeCompare(c.code) || a.cls.localeCompare(c.cls));
+    const u = users.get(String(p.internal?.user || ""));
+    data.push({
+      panel: { _id: p._id, department: p.department, number: p.number, shift: p.shift || "DAY" },
+      internal: { name: p.internal?.name || "", designation: u?.designation || "", department: u?.department || p.department, college: HOME_COLLEGE.name },
+      external: { name: p.external?.name || "", designation: p.external?.designation || "", department: p.external?.department || "", college: p.external?.college || "" },
+      from: list[0].date,
+      to: list[list.length - 1].date,
+      rows: list,
+    });
+  }
+  res.json({ exam: examView(exam), data });
+};
 
 // GET /api/practicals/:id/orders?panel=<id>&department=cs&who=external|internal|both
 // – office orders as one PDF; who: external (default), internal, or both (each

@@ -224,6 +224,7 @@ export const MENUS = {
           { label: "Room diary & ML sheets", href: "/office/practical/sheets", icon: "list" },
           { label: "Marks status report", href: "/office/practical/report", icon: "chart" },
           { label: "Examiner orders", href: "/office/practical/orders", icon: "report" },
+          { label: "Examiner certificates", href: "/office/practical/certificates", icon: "paper" },
         ],
       },
       {
