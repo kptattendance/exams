@@ -12,6 +12,7 @@ import { useAuth } from "@clerk/nextjs";
 
 import { errMsg, programmeName, useApi } from "../../components/exams/shared";
 import Letterhead from "../../components/print/Letterhead";
+import { isEveningNo } from "../../components/ui/CollegeFilter";
 
 const fmt = (d) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" }) : "");
 const MEDAL = { 1: "Gold Medal", 2: "Silver Medal", 3: "Bronze Medal" };
@@ -38,7 +39,7 @@ function PrintDiploma() {
   if (!list) return <p className="p-8 text-sm text-slate-500">Loading… please wait</p>;
   const rows = mode === "ranks" ? list.filter((a) => a.rank).sort((a, b) => a.rank - b.rank) : list;
   const first = list[0];
-  const evening = String(first?.registerNumber || "").startsWith("186");
+  const evening = isEveningNo(first?.registerNumber);
 
   return (
     <div className="mx-auto max-w-[210mm] bg-white text-slate-900 print:max-w-none">
@@ -110,7 +111,7 @@ function PrintDiploma() {
         rows.map((a) => (
           <section key={a._id} className="cert flex flex-col p-4 print:p-0">
             <div className="flex flex-1 flex-col border-[3px] border-double border-slate-900 px-8 py-6">
-              <Letterhead evening={String(a.registerNumber).startsWith("186")} />
+              <Letterhead evening={isEveningNo(a.registerNumber)} />
               <p className="mt-8 text-center text-[22px] font-bold tracking-[0.15em] text-[#8e0d3c]">PROVISIONAL DIPLOMA CERTIFICATE</p>
               <p className="mt-1 text-center text-[11px] text-slate-600">(Issued under KPT 14.6.1 – the Diploma Certificate follows from the DTE / BTE)</p>
               <div className="mt-10 space-y-5 text-center text-[14px] leading-relaxed">

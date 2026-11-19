@@ -24,6 +24,7 @@ import { SLOTS, branches, conductedBy, dept, sessionLabel } from "../../../compo
 import { STATUS, filterOffice, roomsOf } from "../../../components/exams/OfficePractical";
 import Letterhead from "../../../components/print/Letterhead";
 import { useRole } from "../../../components/useRole";
+import { isEveningNo } from "../../../components/ui/CollegeFilter";
 
 const OFFICE_SHEETS = ["room-diary", "ml", "status"];
 const TT_SHEETS = ["tt-students", "tt-examiners"];
@@ -436,7 +437,7 @@ function MissingCheck({ check }) {
     const groups = new Map();
     for (const r of rows) {
       const rn = String(r.registerNumber || "");
-      const key = `${rn.slice(3, 5).toUpperCase() || "?"}${rn.startsWith("186") ? " (2nd shift)" : ""}`;
+      const key = `${rn.slice(3, 5).toUpperCase() || "?"}${isEveningNo(rn) ? " (2nd shift)" : ""}`;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(rn);
     }

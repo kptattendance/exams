@@ -12,6 +12,7 @@ import { useAuth } from "@clerk/nextjs";
 import { errMsg, programmeName, useApi } from "../../../components/exams/shared";
 import Letterhead from "../../../components/print/Letterhead";
 import { useSignatures } from "../../../components/print/useSignatures";
+import { isEveningNo } from "../../../components/ui/CollegeFilter";
 
 const fmtDate = (iso) =>
   iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }) : "";
@@ -168,7 +169,7 @@ function Ticket({ t, exam, sig, full = false }) {
       className={`ticket ${full ? "full" : ""} ${dense ? "dense" : ""} flex flex-col border-b border-dashed border-slate-300 px-4 py-3 text-[10.5px] leading-snug print:border-0 print:px-0 print:py-[2mm]`}
     >
       <div className="ticket-body flex min-h-0 flex-1 flex-col border-2 border-slate-900 px-3 pb-2 pt-1.5">
-        <Letterhead compact evening={String(t.registerNumber || "").startsWith("186")} />
+        <Letterhead compact evening={isEveningNo(t.registerNumber)} />
 
         {/* heading */}
         <div className="mt-1 flex items-center justify-between gap-2">

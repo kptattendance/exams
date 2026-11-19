@@ -14,7 +14,7 @@
 // The controllers then add studentShift(req) to student queries and
 // sheetShift(req) / shiftQuery(req) to the IA / attendance sheets.
 
-import { EVENING_CODE } from "./studentImport/rules.js";
+import { COLLEGE_CODE, EVENING_CODE } from "./studentImport/rules.js";
 
 export const EVENING_ROLE = "evening_principal";
 export const EVENING_DEPARTMENTS = String(process.env.EVENING_DEPARTMENTS || "ee,me")
@@ -22,10 +22,15 @@ export const EVENING_DEPARTMENTS = String(process.env.EVENING_DEPARTMENTS || "ee
   .map((d) => d.trim().toLowerCase())
   .filter(Boolean);
 
-export const isEvening = (registerNumber) => String(registerNumber || "").startsWith(EVENING_CODE);
-export const shiftOf = (registerNumber) => (isEvening(registerNumber) ? "EVENING" : "DAY");
+// Working professionals (KPT 3.3): the "51 and up" lateral series 351–399, 451–499, 751–999.
+// They are evening (second-shift) students whether their number starts with 186 or,
+// as now, with 103 (e.g. 103ME26451) – never day students.
+const WORKING_SERIES = "(35[1-9]|3[6-9]\\d|45[1-9]|4[6-9]\\d|75[1-9]|7[6-9]\\d|[89]\\d\\d)";
 
-export const EVENING_RX = new RegExp(`^${EVENING_CODE}`);
+// Evening: every 186 number, and a 103 number in the working-professional series
+export const EVENING_RX = new RegExp(`^(?:${EVENING_CODE}|${COLLEGE_CODE}[A-Z]{2}\\d{2}${WORKING_SERIES}$)`, "i");
+export const isEvening = (registerNumber) => EVENING_RX.test(String(registerNumber || "").trim());
+export const shiftOf = (registerNumber) => (isEvening(registerNumber) ? "EVENING" : "DAY");
 
 export function asHodScope(req, res, next) {
   const role = String(req.user?.role || "").toLowerCase();
@@ -60,11 +65,11 @@ export function shiftQuery(req) {
 // Working professionals (KPT 3.3) are evening (186) students in the "51 and
 // up" lateral series: 351–399 (ITI), 451–499 (ITI, other trade), 751–999
 // (PUC). 301–350, 401–450, 701–750 are evening-shift laterals; 001–299 regular.
-export const WORKING_RX = new RegExp(`^${EVENING_CODE}[A-Z]{2}\\d{2}(35[1-9]|3[6-9]\\d|45[1-9]|4[6-9]\\d|75[1-9]|7[6-9]\\d|[89]\\d\\d)$`, "i");
+export const WORKING_RX = new RegExp(`^(?:${EVENING_CODE}|${COLLEGE_CODE})[A-Z]{2}\\d{2}${WORKING_SERIES}$`, "i");
 export const isWorkingProfessional = (registerNumber) => WORKING_RX.test(String(registerNumber || "").trim());
 
-// COE / office / Admin lists: ?college=DAY (103…), EVENING (186, evening shift),
-// WORKING (186, working professionals); anything else = all.
+// COE / office / Admin lists: ?college=DAY (103…, not working professionals),
+// EVENING (186, evening shift), WORKING (working professionals, 186 or 103); anything else = all.
 // A HOD / Evening Principal is already limited (studentShift).
 export function collegeFilter(query) {
   const c = String(query?.college || "").toUpperCase();

@@ -9,6 +9,7 @@ import { Suspense, useEffect, useMemo, useSyncExternalStore } from "react";
 import { useSearchParams } from "next/navigation";
 
 import Letterhead from "../../components/print/Letterhead";
+import { isEveningNo } from "../../components/ui/CollegeFilter";
 
 const FEE_STORE = "kpt-exam-fees"; // written by components/exams/HodExamFees.jsx
 const noSubscribe = () => () => {};
@@ -71,7 +72,7 @@ function Sheet() {
         </button>
       </div>
 
-      <Letterhead compact evening={d.rows.length > 0 && d.rows.every((r) => String(r.registerNumber || "").startsWith("186"))} />
+      <Letterhead compact evening={d.rows.length > 0 && d.rows.every((r) => isEveningNo(r.registerNumber))} />
       <div className="mt-2 rounded-lg bg-gradient-to-r from-indigo-600 to-sky-500 px-4 py-2 text-center text-white">
         <p className="text-[14px] font-bold tracking-wide">EXAM FEE – {d.exam?.name}</p>
         <p className="text-[11px]">

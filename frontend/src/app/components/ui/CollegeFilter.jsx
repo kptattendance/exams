@@ -8,9 +8,14 @@
 //   <EveningTag registerNumber={s.registerNumber} />
 
 export const EVENING_CODE = process.env.NEXT_PUBLIC_EVENING_COLLEGE_CODE || "186";
-export const isEveningNo = (registerNumber) => String(registerNumber || "").startsWith(EVENING_CODE);
+const DAY_CODE = "103";
+// working professionals: the 351–399, 451–499, 751–999 series – evening (second shift)
+// whether the number starts with 186 or with 103 (e.g. 103ME26451)
+const SERIES = "(35[1-9]|3[6-9]\\d|45[1-9]|4[6-9]\\d|75[1-9]|7[6-9]\\d|[89]\\d\\d)";
+const EVENING_RX = new RegExp(`^(?:${EVENING_CODE}|${DAY_CODE}[A-Z]{2}\\d{2}${SERIES}$)`, "i");
+export const isEveningNo = (registerNumber) => EVENING_RX.test(String(registerNumber || "").trim());
 // working professionals: evening numbers in the 351–399, 451–499, 751–999 series
-const WORKING_RX = new RegExp(`^${EVENING_CODE}[A-Z]{2}\\d{2}(35[1-9]|3[6-9]\\d|45[1-9]|4[6-9]\\d|75[1-9]|7[6-9]\\d|[89]\\d\\d)$`, "i");
+const WORKING_RX = new RegExp(`^(?:${EVENING_CODE}|${DAY_CODE})[A-Z]{2}\\d{2}${SERIES}$`, "i");
 export const isWorkingNo = (registerNumber) => WORKING_RX.test(String(registerNumber || "").trim());
 // "" (all), "DAY", "EVENING" (evening shift), "WORKING" -> does this register number match?
 export const matchesCollege = (college, registerNumber) => {
@@ -38,7 +43,7 @@ export const COLLEGES = [
   ["", "Day + Evening + Working prof."],
   ["DAY", "Day college (103)"],
   ["EVENING", `Evening shift (${EVENING_CODE})`],
-  ["WORKING", `Working professionals (${EVENING_CODE})`],
+  ["WORKING", "Working professionals (351 / 451 / 751…)"],
 ];
 
 export default function CollegeSelect({ value, onChange, className = "" }) {

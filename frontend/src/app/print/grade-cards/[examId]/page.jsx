@@ -14,6 +14,7 @@ import { useAuth } from "@clerk/nextjs";
 
 import { KIND, errMsg, programmeName, useApi } from "../../../components/exams/shared";
 import Letterhead from "../../../components/print/Letterhead";
+import { isEveningNo } from "../../../components/ui/CollegeFilter";
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }) : "");
 const two = (n) => (n === null || n === undefined ? "—" : Number(n).toFixed(2));
@@ -113,7 +114,7 @@ function Card({ g, exam }) {
   return (
     <section className="card flex flex-col px-4 py-4 text-[11px] leading-snug print:px-0 print:py-0">
       <div className="flex flex-1 flex-col border-2 border-slate-900 px-4 pb-3 pt-2">
-        <Letterhead evening={String(g.registerNumber || "").startsWith("186")} />
+        <Letterhead evening={isEveningNo(g.registerNumber)} />
 
         <div className="mt-2 text-center">
           <p className="inline-block bg-slate-900 px-4 py-0.5 text-[13px] font-bold tracking-[0.25em] text-white">GRADE CARD</p>

@@ -14,6 +14,7 @@ import { useSearchParams } from "next/navigation";
 
 import Letterhead from "../../components/print/Letterhead";
 import { readSignatureSheetRaw } from "../../components/HodSheetPanel";
+import { isEveningNo } from "../../components/ui/CollegeFilter";
 
 const SHORTAGE_BELOW = 75;
 const th = "border border-slate-700 px-1 py-1 text-center";
@@ -70,7 +71,7 @@ function Sheet() {
         </button>
       </div>
 
-      <Letterhead compact evening={students.length > 0 && students.every((st) => String(st.registerNumber || "").startsWith("186"))} />
+      <Letterhead compact evening={students.length > 0 && students.every((st) => isEveningNo(st.registerNumber))} />
       <p className="mt-2 text-center text-[13px] font-bold tracking-[0.12em]">{ia ? "FINAL INTERNAL ASSESSMENT (IA) MARKS" : "FINAL ATTENDANCE (%)"}</p>
       {verify && <p className="text-center text-[11px] font-semibold tracking-[0.2em]">VERIFICATION COPY</p>}
       <p className="mt-1 text-center text-[11.5px]">

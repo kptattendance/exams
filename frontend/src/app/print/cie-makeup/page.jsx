@@ -83,7 +83,7 @@ function PrintMakeup() {
       {total === 0 && <p className="p-8 text-center text-sm text-slate-500">No one for this selection.</p>}
 
       {groups.map(([dept, list]) => {
-        const evening = list.every((r) => String(r.registerNumber).startsWith("186"));
+        const evening = list.every((r) => isEveningNo(r.registerNumber));
         return (
           <section key={dept} className="dept p-4 text-[11px] print:p-0">
             <Letterhead compact evening={evening} />

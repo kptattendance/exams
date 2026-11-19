@@ -16,7 +16,7 @@ import Subject from "../models/Subject.js";
 import CourseResult from "../models/CourseResult.js";
 import AuditLog from "../models/AuditLog.js";
 import { REQUIRED_OLD_COLUMNS, examDate, mapOldColumns, oldRowResult, sdCodeOf } from "../services/exams/oldResults.js";
-import { EVENING_CODE } from "../services/studentImport/rules.js";
+import { isEvening } from "../services/evening.js";
 import { refreshAfterChange, refreshNote } from "../services/exams/autoRefresh.js";
 
 const fail = (res, status, error, extra = {}) => res.status(status).json({ error, ...extra });
@@ -108,7 +108,7 @@ async function analyse(buffer) {
 
     const student = studentOf.get(row.regNo);
     if (!student) {
-      const m = missing.get(row.regNo) || { regNo: row.regNo, department: dept, rows: 0, evening: row.regNo.startsWith(EVENING_CODE) };
+      const m = missing.get(row.regNo) || { regNo: row.regNo, department: dept, rows: 0, evening: isEvening(row.regNo) };
       m.rows++;
       missing.set(row.regNo, m);
       return;
@@ -144,7 +144,7 @@ async function analyse(buffer) {
         name: student.name,
         department: student.department.toUpperCase(),
         semester: student.semester,
-        evening: student.registerNumber.startsWith(EVENING_CODE),
+        evening: isEvening(student.registerNumber),
         subjects: list.length,
         passed: list.filter((x) => x.result.status === "PASS").length,
         backPapers: list

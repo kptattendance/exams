@@ -19,8 +19,16 @@ test("186 register numbers are the evening college", () => {
 
 test("working professionals: 186 numbers in the 351–399, 451–499, 751–999 series", () => {
   for (const n of ["186EE26351", "186EE26399", "186ME26451", "186EE26751", "186EE26999"]) assert.equal(isWorkingProfessional(n), true, n);
-  for (const n of ["186EE26001", "186EE26301", "186EE26350", "186EE26401", "186EE26450", "186EE26701", "186EE26750", "103EE26351"])
+  for (const n of ["186EE26001", "186EE26301", "186EE26350", "186EE26401", "186EE26450", "186EE26701", "186EE26750", "103EE26001", "103CE26701", "103CE26750"])
     assert.equal(isWorkingProfessional(n), false, n);
+  // working professionals now get 103 numbers too – still evening (second shift), never day
+  for (const n of ["103ME26451", "103EE26351", "103EE26751"]) {
+    assert.equal(isWorkingProfessional(n), true, n);
+    assert.equal(isEvening(n), true, n);
+    assert.equal(shiftOf(n), "EVENING", n);
+  }
+  assert.equal(collegeFilter({ college: "DAY" }).registerNumber.$not.test("103ME26451"), true); // left out of the day college
+  assert.equal(collegeFilter({ college: "WORKING" }).registerNumber.test("103ME26451"), true);
   const evening = collegeFilter({ college: "EVENING" }).registerNumber;
   assert.equal(evening.$regex.test("186EE26301") && !evening.$not.test("186EE26301"), true);
   assert.equal(evening.$regex.test("186EE26351") && !evening.$not.test("186EE26351"), false);
