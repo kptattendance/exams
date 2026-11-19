@@ -41,6 +41,7 @@ import {
   codePaper,
   undoCoding,
   codingSheet,
+  saveBooklets,
   packetSlips,
   setValuer,
   reopenPacket,
@@ -133,6 +134,7 @@ router.post("/:id/valuation/packets/:packetId/reopen", adminOnly, reopenPacket);
 router.get("/:id/valuation/:code", VALUE, getPaperDetail);
 router.patch("/:id/valuation/:code", MANAGE, updatePaper);
 router.post("/:id/valuation/:code/attendance", VALUE, saveAttendance);
+router.post("/:id/valuation/:code/booklets", VALUE, saveBooklets); // answer-booklet numbers from the room diary
 router.post("/:id/valuation/:code/coding", MANAGE, codePaper);
 router.post("/:id/valuation/:code/coding/undo", MANAGE, undoCoding);
 router.get("/:id/valuation/:code/coding-sheet", SECRET, codingSheet);

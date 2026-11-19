@@ -21,6 +21,10 @@ const valuationPaperSchema = new mongoose.Schema(
     coded: { type: Boolean, default: false },
     codedAt: { type: Date, default: null },
     packetSize: { type: Number, default: 30 },
+    // BOOKLET: the printed serial number of the answer booklet (tear-off flap
+    // with the register number) is the code – nothing written or pasted.
+    // RANDOM: a random dummy number written on each script (the older way).
+    codingMode: { type: String, enum: ["BOOKLET", "RANDOM"], default: "BOOKLET" },
 
     decoded: { type: Boolean, default: false },
     decodedAt: { type: Date, default: null },

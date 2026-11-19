@@ -205,6 +205,8 @@ export const getPaperDetail = async (req, res) => {
         semester: s.semester,
         kind: s.kind,
         attendance: s.attendance,
+        // typed from the room diary before coding; hidden once the paper is coded
+        booklet: paper.coded ? undefined : s.booklet || "",
       })),
       packets: (await ValuationPacket.find({ exam: exam._id, code }).select("number round status valuer scripts mismatches").sort({ round: 1, number: 1 }).lean()).map((p) => ({
         _id: p._id,
@@ -238,8 +240,59 @@ export const updatePaper = async (req, res) => {
     if (!(v >= 5 && v <= 100)) return fail(res, 400, "Packet size must be between 5 and 100.");
     paper.packetSize = v;
   }
+  if (req.body?.codingMode !== undefined) {
+    if (!["BOOKLET", "RANDOM"].includes(req.body.codingMode)) return fail(res, 400, "Coding must be BOOKLET or RANDOM.");
+    paper.codingMode = req.body.codingMode;
+  }
   await paper.save();
   res.json({ data: paper, message: "Saved." });
+};
+
+// POST /api/exams/:id/valuation/:code/booklets  { booklets: { "103CS25001": "0012345", … } }
+// The answer-booklet serial number of each candidate, typed from the room diary (before coding).
+const BOOKLET_RX = /^[A-Z0-9][A-Z0-9/-]{0,19}$/;
+export const saveBooklets = async (req, res) => {
+  const exam = await loadExam(req, res);
+  if (!exam) return;
+  const code = codeOf(req);
+  const paper = await getPaper(exam, code);
+  if (!paper) return fail(res, 404, "Paper not found.");
+  if (paper.coded) return fail(res, 409, "The paper is already coded. Undo coding to change booklet numbers.");
+  const given = req.body?.booklets && typeof req.body.booklets === "object" ? req.body.booklets : {};
+  const scripts = await AnswerScript.find({ exam: exam._id, code }).select("registerNumber booklet").lean();
+  const known = new Set(scripts.map((s) => s.registerNumber));
+  const next = new Map(scripts.map((s) => [s.registerNumber, s.booklet || ""]));
+  const bad = [];
+  for (const [rn, raw] of Object.entries(given)) {
+    if (!known.has(rn)) return fail(res, 400, `${rn} is not a candidate for ${code}.`);
+    const v = String(raw ?? "").trim().toUpperCase().replace(/\s+/g, "");
+    if (v && !BOOKLET_RX.test(v)) bad.push(`${rn} (${raw})`);
+    next.set(rn, v);
+  }
+  if (bad.length) return fail(res, 400, `Booklet number not valid: ${bad.join(", ")}. Use only letters, digits, - or /.`);
+  // the same booklet number twice in this paper
+  const seen = new Map();
+  const dup = [];
+  for (const [rn, v] of next) {
+    if (!v) continue;
+    if (seen.has(v)) dup.push(`${v} (${seen.get(v)} and ${rn})`);
+    else seen.set(v, rn);
+  }
+  if (dup.length) return fail(res, 400, `The same booklet number is typed twice: ${dup.join(", ")}.`);
+  // … or already used in another paper of this exam
+  const others = await AnswerScript.find({ exam: exam._id, code: { $ne: code }, $or: [{ booklet: { $in: [...seen.keys()] } }, { dummy: { $in: [...seen.keys()] } }] })
+    .select("code registerNumber booklet dummy")
+    .lean();
+  if (others.length) {
+    const o = others[0];
+    return fail(res, 400, `Booklet number ${o.booklet || o.dummy} is already used in ${o.code} (${o.registerNumber}). Check the room diary.`);
+  }
+  await AnswerScript.bulkWrite(
+    [...next].map(([rn, v]) => ({ updateOne: { filter: { exam: exam._id, code, registerNumber: rn }, update: { $set: { booklet: v } } } })),
+    { ordered: false }
+  );
+  await log(req, "VALUATION_BOOKLETS_SAVED", exam._id, { code, entered: seen.size });
+  res.json({ message: `Saved: ${seen.size} booklet number${seen.size === 1 ? "" : "s"}.` });
 };
 
 // POST /api/exams/:id/valuation/:code/attendance  { absent: ["103CS25001"], malpractice: [] }
@@ -279,12 +332,23 @@ export const codePaper = async (req, res) => {
   if (paper.coded) return fail(res, 409, "This paper is already coded.");
   await syncCandidates(exam, paper);
 
-  const present = await AnswerScript.find({ exam: exam._id, code, attendance: "PRESENT" }).select("_id").lean();
+  const present = await AnswerScript.find({ exam: exam._id, code, attendance: "PRESENT" }).select("_id registerNumber booklet").lean();
   if (!present.length) return fail(res, 400, "No candidates present for this paper.");
 
-  const taken = new Set(await AnswerScript.distinct("dummy", { exam: exam._id, dummy: { $type: "string" } }));
-  const dummies = makeDummies(present.length, taken);
-  const order = shuffle(present.map((s, i) => ({ id: s._id, dummy: dummies[i] })));
+  let order;
+  if (paper.codingMode === "BOOKLET") {
+    // the printed booklet number is the code
+    const missing = present.filter((s) => !s.booklet).map((s) => s.registerNumber);
+    if (missing.length)
+      return fail(res, 400, `Booklet number not typed for ${missing.length} present student${missing.length === 1 ? "" : "s"}: ${missing.slice(0, 10).join(", ")}${missing.length > 10 ? " …" : ""}`);
+    const taken = await AnswerScript.find({ exam: exam._id, code: { $ne: code }, dummy: { $in: present.map((s) => s.booklet) } }).select("dummy code").lean();
+    if (taken.length) return fail(res, 400, `Booklet number ${taken[0].dummy} is already used in ${taken[0].code}. Check the room diary.`);
+    order = shuffle(present.map((s) => ({ id: s._id, dummy: s.booklet })));
+  } else {
+    const taken = new Set(await AnswerScript.distinct("dummy", { exam: exam._id, dummy: { $type: "string" } }));
+    const dummies = makeDummies(present.length, taken);
+    order = shuffle(present.map((s, i) => ({ id: s._id, dummy: dummies[i] })));
+  }
 
   await AnswerScript.bulkWrite(order.map((o) => ({ updateOne: { filter: { _id: o.id }, update: { $set: { dummy: o.dummy } } } })), { ordered: false });
   const groups = packetize(order, paper.packetSize || 30);
@@ -305,6 +369,7 @@ export const codePaper = async (req, res) => {
   paper.coded = true;
   paper.codedAt = new Date();
   paper.attendanceLocked = true;
+  paper.markModified("codingMode"); // store the choice (papers made before it existed only have the default)
   await paper.save();
   await log(req, "VALUATION_PAPER_CODED", exam._id, { code, scripts: present.length, packets: groups.length });
   res.json({ message: `${present.length} scripts coded into ${groups.length} packets.` });
@@ -347,7 +412,7 @@ export const codingSheet = async (req, res) => {
   res.json({
     data: {
       exam: { name: exam.name },
-      paper: { code, name: paper.name },
+      paper: { code, name: paper.name, codingMode: paper.codingMode || "RANDOM" },
       rows: scripts.map((s) => ({ registerNumber: s.registerNumber, name: s.name, attendance: s.attendance, dummy: s.dummy, packet: packetOf.get(String(s._id)) || "" })),
     },
   });
@@ -367,7 +432,7 @@ export const packetSlips = async (req, res) => {
   res.json({
     data: {
       exam: { name: exam.name },
-      paper: { code, name: paper.name, rawMax: paper.rawMax },
+      paper: { code, name: paper.name, rawMax: paper.rawMax, codingMode: paper.codingMode || "RANDOM" },
       packets: packets.map((p) => ({ _id: p._id, number: p.number, round: p.round, valuer: p.valuer, dummies: p.dummies })),
     },
   });

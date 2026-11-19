@@ -30,7 +30,8 @@ const answerScriptSchema = new mongoose.Schema(
 
     attendance: { type: String, enum: ["PRESENT", "ABSENT", "MALPRACTICE"], default: "PRESENT" },
 
-    dummy: { type: String, default: null }, // e.g. "KQ4821"
+    booklet: { type: String, default: "" }, // printed answer-booklet serial number (from the room diary)
+    dummy: { type: String, default: null }, // e.g. "KQ4821", or the booklet number
     valuations: { type: [valuationSchema], default: [] },
   },
   { timestamps: true }

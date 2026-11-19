@@ -69,6 +69,8 @@ export default function ValuationPaper({ examId, code, backHref, canManage = fal
   const enc = encodeURIComponent(code);
   const packets = d.packets;
   const allDone = packets.length > 0 && packets.every((p) => p.status === "VERIFIED");
+  const booklet = (paper.codingMode || "BOOKLET") === "BOOKLET";
+  const missingBooklets = d.candidates.filter((c) => c.attendance === "PRESENT" && !c.booklet).length;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 pb-16 sm:px-6 lg:px-7">
@@ -94,30 +96,63 @@ export default function ValuationPaper({ examId, code, backHref, canManage = fal
         <Step n={2} title="Coding & packets" done={paper.coded} disabled={false}>
           {!paper.coded ? (
             <div>
-              <p className="text-sm text-slate-600">
-                Every present script gets a random <b>dummy number</b> and scripts are bundled into packets of about {paper.packetSize}. Valuers and
-                the exam clerk see only dummy numbers.
-              </p>
+              {booklet ? (
+                <p className="text-sm text-slate-600">
+                  The printed <b>answer-booklet number</b> is the code: type each present student&apos;s booklet number from the room diary, tear off
+                  the flaps with the register numbers, then code. Scripts are bundled into packets of about {paper.packetSize}. Valuers and the exam
+                  clerk see only booklet numbers.
+                </p>
+              ) : (
+                <p className="text-sm text-slate-600">
+                  Every present script gets a random <b>dummy number</b> and scripts are bundled into packets of about {paper.packetSize}. Valuers
+                  and the exam clerk see only dummy numbers.
+                </p>
+              )}
+              {canManage && (
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+                  <span className="font-semibold text-slate-700">Coding by:</span>
+                  {[
+                    ["BOOKLET", "Booklet number (tear-off)"],
+                    ["RANDOM", "Random dummy number"],
+                  ].map(([v, l]) => (
+                    <label key={v} className="flex items-center gap-1.5">
+                      <input
+                        type="radio"
+                        checked={(paper.codingMode || "BOOKLET") === v}
+                        disabled={busy}
+                        onChange={() => run("patch", `/${enc}`, { codingMode: v })}
+                      />
+                      {l}
+                    </label>
+                  ))}
+                </div>
+              )}
+              {booklet && <Booklets d={d} busy={busy} onSave={(booklets) => run("post", `/${enc}/booklets`, { booklets })} />}
               {canManage ? (
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <button
-                    disabled={busy || !d.present}
+                    disabled={busy || !d.present || (booklet && missingBooklets > 0)}
                     onClick={async () => {
                       const ok = await confirm({
-                        title: "Generate dummy numbers?",
-                        message: `${d.present} present scripts will be coded into packets.\n\nAttendance is locked after this.`,
-                        confirmText: "Generate",
+                        title: booklet ? "Code with the booklet numbers?" : "Generate dummy numbers?",
+                        message: `${d.present} present scripts will be coded into packets.\n\nAttendance${booklet ? " and booklet numbers are" : " is"} locked after this.`,
+                        confirmText: booklet ? "Code" : "Generate",
                       });
                       if (ok) run("post", `/${enc}/coding`);
                     }}
                     className={btn.primary}
                   >
-                    Generate dummy numbers & packets
+                    {booklet ? "Code with booklet numbers & make packets" : "Generate dummy numbers & packets"}
                   </button>
                   <PaperSettings paper={paper} onSave={(body) => run("patch", `/${enc}`, body)} />
+                  {booklet && missingBooklets > 0 && (
+                    <span className="text-sm text-orange-700">
+                      {missingBooklets} present student{missingBooklets === 1 ? "" : "s"} without a booklet number
+                    </span>
+                  )}
                 </div>
               ) : (
-                <p className="mt-2 text-sm text-slate-500">The COE generates the dummy numbers.</p>
+                <p className="mt-2 text-sm text-slate-500">The COE codes the paper.</p>
               )}
             </div>
           ) : (
@@ -258,6 +293,73 @@ function Attendance({ d, printHref, locked, onSave, busy }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Booklet numbers of the present students, typed from the room diary (Enter → next student)
+function Booklets({ d, busy, onSave }) {
+  const present = useMemo(() => d.candidates.filter((c) => c.attendance === "PRESENT"), [d.candidates]);
+  const [values, setValues] = useState(() => Object.fromEntries(present.map((c) => [c.registerNumber, c.booklet || ""])));
+  const clean = (v) => String(v || "").trim().toUpperCase().replace(/\s+/g, "");
+  const counts = {};
+  for (const v of Object.values(values).map(clean)) if (v) counts[v] = (counts[v] || 0) + 1;
+  const typed = present.filter((c) => clean(values[c.registerNumber])).length;
+  const changed = present.some((c) => clean(values[c.registerNumber]) !== clean(c.booklet));
+  const next = (i) => document.getElementById(`booklet-${i + 1}`)?.focus();
+  return (
+    <div className="mt-4 rounded-xl border border-slate-200">
+      <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 px-3 py-2 text-sm">
+        <b className="text-slate-900">Booklet numbers</b>
+        <span className="text-slate-500">
+          {typed} of {present.length} typed
+        </span>
+        <button disabled={busy || !changed} onClick={() => onSave(Object.fromEntries(present.map((c) => [c.registerNumber, clean(values[c.registerNumber])])))} className={`${btn.primary} ml-auto`}>
+          Save booklet numbers
+        </button>
+      </div>
+      <div className="max-h-[50vh] overflow-auto">
+        <table className="w-full text-sm">
+          <thead className="sticky top-0 bg-slate-50 text-xs text-slate-600">
+            <tr>
+              <th className="px-3 py-2 text-left">#</th>
+              <th className="px-3 py-2 text-left">Register No.</th>
+              <th className="px-3 py-2 text-left">Name</th>
+              <th className="px-3 py-2 text-left">Booklet No.</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {present.map((c, i) => {
+              const v = clean(values[c.registerNumber]);
+              const twice = v && counts[v] > 1;
+              return (
+                <tr key={c.registerNumber}>
+                  <td className="px-3 py-1.5 text-slate-400">{i + 1}</td>
+                  <td className="px-3 py-1.5 font-semibold tabular-nums">{c.registerNumber}</td>
+                  <td className="px-3 py-1.5">{c.name}</td>
+                  <td className="px-3 py-1">
+                    <input
+                      id={`booklet-${i}`}
+                      value={values[c.registerNumber] || ""}
+                      onChange={(e) => setValues((x) => ({ ...x, [c.registerNumber]: e.target.value }))}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          next(i);
+                        }
+                      }}
+                      inputMode="text"
+                      autoComplete="off"
+                      className={`h-8 w-40 rounded-lg border px-2 font-semibold uppercase tabular-nums ${twice ? "border-red-500 bg-red-50" : "border-slate-300"}`}
+                    />
+                    {twice && <span className="ml-2 text-xs font-semibold text-red-600">typed twice</span>}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

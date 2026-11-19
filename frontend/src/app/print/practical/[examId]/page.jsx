@@ -402,36 +402,71 @@ function GridSheet({ sheet, data }) {
 // or listed here (permitted but left out / not permitted).
 function MissingCheck({ check }) {
   const gaps = check.filter((c) => c.notInBatch.length || c.notPermitted.length);
-  const list = (rows, reason) => rows.map((s) => `${s.registerNumber}${reason && s.reason ? ` (${s.reason})` : ""}`).join(", ");
+  // register numbers grouped by branch: "CS (12): 103CS26001, 103CS26002 …" (186… = second shift)
+  const byBranch = (rows) => {
+    const groups = new Map();
+    for (const r of rows) {
+      const rn = String(r.registerNumber || "");
+      const key = `${rn.slice(3, 5).toUpperCase() || "?"}${rn.startsWith("186") ? " (2nd shift)" : ""}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(rn);
+    }
+    return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
+  };
+  const Grouped = ({ rows }) =>
+    rows.length ? (
+      byBranch(rows).map(([branch, numbers]) => (
+        <p key={branch} className="mb-1 last:mb-0">
+          <b>
+            {branch} ({numbers.length}):
+          </b>{" "}
+          {numbers.sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).join(", ")}
+        </p>
+      ))
+    ) : (
+      <span className="text-slate-500">None</span>
+    );
   return (
-    <div className="mt-4 break-inside-avoid">
+    <div className="mt-4">
       <p className="text-[12px] font-bold">Register number check</p>
       {check.length > 0 && gaps.length === 0 && (
         <p className="mt-1 text-[11px]">All registered students of every subject are in the time table – nobody is missing.</p>
       )}
       {gaps.length > 0 && (
-        <table className="mt-1 w-full border-collapse">
+        <table className="mt-1 w-full table-fixed border-collapse">
           <thead>
             <tr className="bg-slate-100">
-              <th className={`${th} w-48`}>Subject</th>
-              <th className={`${th} w-28`}>Registered / permitted</th>
-              <th className={th}>Permitted but NOT in any batch (add them)</th>
-              <th className={th}>Not permitted (eligibility / fee)</th>
+              <th className={`${th} w-[38mm]`}>Subject</th>
+              <th className={`${th} w-[20mm]`}>Registered / permitted</th>
+              <th className={`${th} w-[45mm]`}>Permitted but NOT in any batch (add them)</th>
+              <th className={th}>Not eligible</th>
+              <th className={`${th} w-[55mm]`}>Fee not paid</th>
             </tr>
           </thead>
           <tbody>
-            {gaps.map((c) => (
-              <tr key={c.code} className="align-top">
-                <td className={td}>
-                  <b>{c.code}</b> {c.name}
-                </td>
-                <td className={`${td} text-center`}>
-                  {c.registered} / {c.permitted}
-                </td>
-                <td className={`${td} text-[10px] font-semibold leading-snug`}>{c.notInBatch.length ? list(c.notInBatch) : "None"}</td>
-                <td className={`${td} text-[10px] leading-snug`}>{c.notPermitted.length ? list(c.notPermitted, true) : "None"}</td>
-              </tr>
-            ))}
+            {gaps.map((c) => {
+              const notEligible = c.notPermitted.filter((s) => s.reason !== "Fee not paid");
+              const feeNotPaid = c.notPermitted.filter((s) => s.reason === "Fee not paid");
+              return (
+                <tr key={c.code} className="align-top">
+                  <td className={td}>
+                    <b>{c.code}</b> {c.name}
+                  </td>
+                  <td className={`${td} text-center`}>
+                    {c.registered} / {c.permitted}
+                  </td>
+                  <td className={`${td} text-[10px] font-semibold leading-snug`}>
+                    <Grouped rows={c.notInBatch} />
+                  </td>
+                  <td className={`${td} text-[10px] leading-snug`}>
+                    <Grouped rows={notEligible} />
+                  </td>
+                  <td className={`${td} text-[10px] leading-snug`}>
+                    <Grouped rows={feeNotPaid} />
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}

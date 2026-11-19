@@ -129,7 +129,7 @@ function CodingSheet({ d }) {
             <th className={`${th} w-8`}>#</th>
             <th className={`${th} w-28`}>Register No.</th>
             <th className={th}>Name</th>
-            <th className={`${th} w-24`}>Dummy No.</th>
+            <th className={`${th} w-24`}>{d.paper.codingMode === "BOOKLET" ? "Booklet No." : "Dummy No."}</th>
             <th className={`${th} w-32`}>Packet</th>
           </tr>
         </thead>
@@ -166,7 +166,7 @@ function AwardLists({ d }) {
             <thead>
               <tr className="bg-slate-100">
                 <th className={`${th} w-8`}>#</th>
-                <th className={`${th} w-28`}>Dummy No.</th>
+                <th className={`${th} w-28`}>{d.paper.codingMode === "BOOKLET" ? "Booklet No." : "Dummy No."}</th>
                 <th className={`${th} w-32`}>Marks (out of {d.paper.rawMax})</th>
                 <th className={th}>Marks in words</th>
               </tr>
