@@ -4,6 +4,8 @@
 //   ?doc=intimation   intimation for setting & conducting (one letter per examiner set, to both examiners)
 //   ?doc=conducting   practical setting / conducting certificate (one per examiner)
 //   ?doc=attendance   attendance certificate (one per examiner)
+//   ?doc=statement    the HOD's statement of the practical examination (one per examiner set),
+//                     signed by the HOD and handed to the office
 // &panel=<set> for one set, &department= / &shift= for many.
 // The file number, letter date and every date can be corrected on screen before printing.
 
@@ -248,6 +250,118 @@ function Attendance({ exam, d, p, internal }) {
   );
 }
 
+// The HOD's statement: examiners, and per subject / date / class the batches and candidates
+function Statement({ exam, d }) {
+  const total = d.rows.reduce((a, r) => ({ b: a.b + r.batches, c: a.c + r.candidates, cb: a.cb + r.conducted, ca: a.ca + r.attended }), { b: 0, c: 0, cb: 0, ca: 0 });
+  const people = [d.external, d.internal].map((p, i) => ({ p, internal: i === 1 })).filter((x) => x.p.name);
+  return (
+    <section className="doc">
+      <Letterhead compact />
+      <div className="mt-2 text-center">
+        <p className="text-[14px] font-bold tracking-wide text-[#1f4e79]">PRACTICAL EXAMINATION – STATEMENT OF EXAMINERS</p>
+        <p className="text-[12.5px] font-semibold">{exam.name}</p>
+        <p className="text-[12px]">
+          {dept(d.panel.department)} Department{d.panel.shift === "EVENING" ? " (Second Shift)" : ""} · Examiner set {d.panel.number}
+        </p>
+      </div>
+      <p className="mt-3 text-[12.5px]">
+        Date: From <Edit className="font-bold">{dmy(d.from)}</Edit> to <Edit className="font-bold">{dmy(d.to)}</Edit>
+      </p>
+      <table className="mt-2 w-full border-collapse text-[12px]">
+        <thead>
+          <tr>
+            <th colSpan={people.length || 1} className={`${th} text-left`}>
+              Examiners&apos; name &amp; college address
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            {people.map(({ p, internal }, i) => (
+              <td key={i} className={`${td} text-left align-top leading-snug`}>
+                <span className="mr-1 text-slate-500">{i + 1})</span>
+                <span className="text-[10.5px] font-semibold uppercase text-slate-500">{internal ? "Internal" : "External"}</span>
+                {personLines(p, internal).map((l, j) => (
+                  <span key={j} className={`block ${j === 0 ? "font-semibold" : ""}`}>
+                    {l}
+                  </span>
+                ))}
+              </td>
+            ))}
+          </tr>
+        </tbody>
+      </table>
+      <table className="mt-3 w-full border-collapse text-[11.5px]">
+        <thead>
+          <tr>
+            <th className={`${th} w-9`}>Sl. No.</th>
+            <th className={`${th} w-[22mm]`}>Code No.</th>
+            <th className={`${th} w-[14mm]`}>No. of students</th>
+            <th className={th}>Name of the subject</th>
+            <th className={`${th} w-[18mm]`}>Class</th>
+            <th className={`${th} w-[18mm]`}>Date</th>
+            <th className={`${th} w-[22mm]`}>Time</th>
+            <th className={`${th} w-[15mm] text-[10.5px]`}>Total no. of batches allotted</th>
+            <th className={`${th} w-[15mm] text-[10.5px]`}>No. of candidates allotted</th>
+            <th className={`${th} w-[15mm] text-[10.5px]`}>No. of batches conducted</th>
+            <th className={`${th} w-[15mm] text-[10.5px]`}>No. of candidates attended</th>
+          </tr>
+        </thead>
+        <tbody>
+          {d.rows.map((r, i) => (
+            <tr key={i}>
+              <td className={td}>{i + 1}.</td>
+              <td className={`${td} font-semibold`}>{r.code}</td>
+              <td className={td}>{two(r.candidates)}</td>
+              <td className={`${td} text-left`}>{r.name}</td>
+              <td className={td}>{r.cls}</td>
+              <td className={td}>
+                <Edit>{dmyShort(r.date)}</Edit>
+              </td>
+              <td className={`${td} p-0 text-[10.5px]`}>
+                {r.times.map((t, j) => (
+                  <span key={j} className={`block px-1 py-0.5 ${j ? "border-t border-slate-500" : ""}`}>
+                    {t}
+                  </span>
+                ))}
+              </td>
+              <td className={td}>{two(r.batches)}</td>
+              <td className={td}>{two(r.candidates)}</td>
+              <td className={td}>
+                <Edit>{two(r.conducted)}</Edit>
+              </td>
+              <td className={td}>
+                <Edit>{two(r.attended)}</Edit>
+              </td>
+            </tr>
+          ))}
+          <tr className="font-bold">
+            <td className={`${td} text-right`} colSpan={7}>
+              Total
+            </td>
+            <td className={td}>{two(total.b)}</td>
+            <td className={td}>{two(total.c)}</td>
+            <td className={td}>
+              <Edit>{two(total.cb)}</Edit>
+            </td>
+            <td className={td}>
+              <Edit>{two(total.ca)}</Edit>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div className="mt-16 grid grid-cols-3 gap-8 text-center text-[12px] font-semibold">
+        <span className="border-t border-slate-700 pt-1">Internal Examiner</span>
+        <span className="border-t border-slate-700 pt-1">External Examiner</span>
+        <span className="border-t border-slate-700 pt-1">
+          Signature of HOD
+          <span className="block font-normal">{dept(d.panel.department)}</span>
+        </span>
+      </div>
+    </section>
+  );
+}
+
 function PrintExaminerDocuments() {
   const { examId } = useParams();
   const search = useSearchParams();
@@ -273,6 +387,7 @@ function PrintExaminerDocuments() {
   const pages = [];
   for (const d of data.data) {
     if (doc === "intimation") pages.push(<Intimation key={`${d.panel._id}-i`} exam={data.exam} d={d} />);
+    else if (doc === "statement") pages.push(<Statement key={`${d.panel._id}-s`} exam={data.exam} d={d} />);
     else
       for (const [p, internal] of [
         [d.external, false],
@@ -287,7 +402,12 @@ function PrintExaminerDocuments() {
             )
           );
   }
-  const title = { intimation: "Intimation for setting & conducting", conducting: "Setting / conducting certificates", attendance: "Attendance certificates" }[doc];
+  const title = {
+    intimation: "Intimation for setting & conducting",
+    conducting: "Setting / conducting certificates",
+    attendance: "Attendance certificates",
+    statement: "Statement of examiners (sign as HOD and give to the office)",
+  }[doc];
   const blank = "\\00a0";
   return (
     <div className="mx-auto max-w-[210mm] bg-white text-slate-900 print:max-w-none" style={{ fontFamily: "'Noto Serif', 'Noto Sans Kannada', 'Nirmala UI', Georgia, serif" }}>

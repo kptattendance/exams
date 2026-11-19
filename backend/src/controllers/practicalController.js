@@ -476,8 +476,14 @@ export const examinerDocuments = async (req, res) => {
     if (!isId(req.query.panel)) return fail(res, 400, "Invalid examiner set.");
     filter._id = req.query.panel;
   }
-  if (req.query.department) filter.department = lower(req.query.department);
-  if (req.query.shift) Object.assign(filter, shiftFilter(String(req.query.shift).toUpperCase() === "EVENING"));
+  if (req.user?.role === "hod") {
+    // a HOD (or the Evening Principal): only his own department's examiner sets
+    filter.department = lower(req.user.department);
+    Object.assign(filter, shiftFilter(eveningOf(req)));
+  } else {
+    if (req.query.department) filter.department = lower(req.query.department);
+    if (req.query.shift) Object.assign(filter, shiftFilter(String(req.query.shift).toUpperCase() === "EVENING"));
+  }
   const panels = await PracticalPanel.find(filter).sort({ department: 1, shift: 1, number: 1 }).lean();
   const batches = await PracticalBatch.find({ exam: exam._id, panel: { $in: panels.map((p) => p._id) }, date: { $ne: "" } })
     .select("panel code name date session shift students.department students.attendance status")

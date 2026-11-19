@@ -137,6 +137,11 @@ export default function PracticalTimetable() {
                 <Icon name="download" className="h-4 w-4" />
                 PDF for HOD (examiners)
               </a>
+              {/* after the exams: one statement per examiner set, signed by the HOD, for the office */}
+              <a href={`/print/examiner-documents/${examId}?doc=statement`} target="_blank" rel="noreferrer" className={btn.small}>
+                <Icon name="download" className="h-4 w-4" />
+                Examiner statement (for office)
+              </a>
             </div>
             {subjects.length === 0 ? (
               <p className="mt-2 text-sm text-slate-500">No practical exams for your board. Students must be registered for the examination first.</p>
