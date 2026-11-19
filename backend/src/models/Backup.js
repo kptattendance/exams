@@ -18,6 +18,8 @@ const backupSchema = new mongoose.Schema(
     reason: { type: String, default: "" },
     by: { type: String, default: "" },
     seconds: { type: Number, default: 0 },
+    auto: { type: Boolean, default: false }, // made by the nightly job
+    keep: { type: Boolean, default: false }, // never removed automatically
   },
   { timestamps: { createdAt: true, updatedAt: false } }
 );

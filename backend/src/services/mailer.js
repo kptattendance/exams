@@ -365,3 +365,19 @@ export async function sendSchemeRequestEmail({ to, name, subject, paper }) {
   });
   return true;
 }
+
+// The nightly database backup failed (services/backupJob.js)
+export async function sendBackupAlertEmail({ to, error, name = "" }) {
+  const t = getTransporter();
+  if (!t || !to) return false;
+  const when = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  await t.sendMail({
+    to,
+    subject: "KPT Examinations – the nightly database backup FAILED",
+    html: `<p>The automatic database backup of ${esc(when)}${name ? ` (${esc(name)})` : ""} could not be made.</p>
+      <p><b>Reason:</b> ${esc(error)}</p>
+      <p>Please open <b>Admin → Database backup</b> and press <b>Back up now</b>. If it fails again, the reason above tells what to fix
+      (for example Google Drive full, or the backup key missing on the server).</p>`,
+  });
+  return true;
+}
