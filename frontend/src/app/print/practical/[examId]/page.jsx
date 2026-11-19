@@ -320,7 +320,7 @@ function GridSheet({ sheet, data }) {
   const person = (name, phone, extra) => (
     <>
       {name || "________________"}
-      {extra && <span className="block text-[10px]">{extra}</span>}
+      {extra && <span className="block text-[10px]">{String(extra).replace(/,(?=\S)/g, ", ")}</span>}
       {phone && <span className="block text-[10px] font-semibold">Ph: {phone}</span>}
     </>
   );
@@ -396,8 +396,8 @@ function GridSheet({ sheet, data }) {
                         <>
                           <td className={`${td} text-center`}>{b.count}</td>
                           <td className={`${td} text-[10px] leading-snug`}>{b.students.map((s) => s.registerNumber).join(", ")}</td>
-                          <td className={td}>{p ? person(p.internal.name, p.internal.phone) : b.internal?.name || "Not allotted"}</td>
-                          <td className={td}>{p ? person(p.external.name, p.external.phone, p.external.college) : b.external?.name || "Not allotted"}</td>
+                          <td className={`${td} [overflow-wrap:anywhere]`}>{p ? person(p.internal.name, p.internal.phone) : b.internal?.name || "Not allotted"}</td>
+                          <td className={`${td} [overflow-wrap:anywhere]`}>{p ? person(p.external.name, p.external.phone, p.external.college) : b.external?.name || "Not allotted"}</td>
                         </>
                       )}
                     </tr>
