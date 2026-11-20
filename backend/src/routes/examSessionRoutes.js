@@ -3,7 +3,7 @@ import { lockedExamGuard } from "../services/examLock.js";
 
 import { authenticateUser } from "../middlewares/authMiddleware.js";
 import { requireRole } from "../middlewares/requireRole.js";
-import { getSession, listSessions, markPrinted, saveAbsentees, saveRooms } from "../controllers/examSessionController.js";
+import { getSession, listSessions, markPrinted, saveAbsentees, saveRooms, trialEndSession } from "../controllers/examSessionController.js";
 
 const router = express.Router();
 
@@ -19,5 +19,6 @@ router.get("/:examId/:date/:session", RUN, getSession);
 router.put("/:examId/:date/:session/rooms", RUN, saveRooms);
 router.post("/:examId/:date/:session/absent", RUN, saveAbsentees);
 router.post("/:examId/:date/:session/printed", RUN, markPrinted); // room diaries printed again
+router.post("/:examId/:date/:session/trial-end", RUN, trialEndSession); // local trial database only
 
 export default router;

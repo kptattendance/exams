@@ -33,6 +33,9 @@ const fail = (res, status, error, extra = {}) => res.status(status).json({ error
 const who = (req) => req.user?.email || req.user?.id || "unknown";
 const isChief = (req) => req.user?.role === "chief_examiner";
 const isAdmin = (req) => req.user?.role === "admin";
+// TRIAL ONLY: a local copy running on a trial database (name ending "_trial") may
+// end a session at once, to show the whole process without waiting. Never on the live website.
+const TRIAL_DB = String(process.env.MONGO_DB_NAME || "").endsWith("_trial");
 // who sees the ATS against the register numbers: COE / ACOE / Admin, and the
 // Chief Examiner on the exam day (to print the room diaries)
 const seesAts = (req, date) => ["coe", "acoe", "admin"].includes(req.user?.role) || (isChief(req) && date === todayIST());
@@ -152,6 +155,7 @@ export const getSession = async (req, res) => {
       reprint: Boolean(d.reprint),
     })),
     seesAts: showAts,
+    trial: TRIAL_DB,
     // rooms (and ATS) can be changed until the session starts; after that only the Admin
     roomsOpen: isAdmin(req) ? !papers.some((p) => p.coded) : Date.now() < new Date(times.startsAt).getTime(),
   });
@@ -263,6 +267,26 @@ export const saveRooms = async (req, res) => {
       `${clean.length} room${clean.length === 1 ? "" : "s"} saved · ${seen.size} of ${known.size} candidates allotted · ${plan.length} room diar${plan.length === 1 ? "y" : "ies"} with ATS numbers.` +
       (reprint ? ` ${reprint} room diar${reprint === 1 ? "y has" : "ies have"} changed – print ${reprint === 1 ? "it" : "them"} again.` : ""),
   });
+};
+
+// POST /api/exam-sessions/:examId/:date/:session/trial-end – TRIAL DATABASE ONLY:
+// the session is moved to a free past date, so it is over now (packets are made).
+export const trialEndSession = async (req, res) => {
+  if (!TRIAL_DB) return fail(res, 404, "Not found.");
+  const s = await loadSession(req, res);
+  if (!s) return;
+  const { exam, date, session } = s;
+  const used = new Set((exam.timetable?.entries || []).filter((e) => e.session === session).map((e) => e.date));
+  let t = Date.now();
+  let past;
+  do {
+    t -= 86400000;
+    past = todayIST(new Date(t));
+  } while (used.has(past));
+  await Exam.updateOne({ _id: exam._id }, { $set: { "timetable.entries.$[e].date": past } }, { arrayFilters: [{ "e.date": date, "e.session": session }] });
+  await ExamRoom.updateMany({ exam: exam._id, date, session }, { $set: { date: past } });
+  await RoomDiary.updateMany({ exam: exam._id, date, session }, { $set: { date: past } });
+  res.json({ date: past, message: "Trial: this session is now over. The packets are made – see Valuation." });
 };
 
 // POST /api/exam-sessions/:examId/:date/:session/printed  { room }  – the room diaries

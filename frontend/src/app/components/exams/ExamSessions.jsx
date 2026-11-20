@@ -83,12 +83,23 @@ export default function ExamSessions({ qpHref = "/chief-examiner", codingHref = 
         </label>
       )}
 
-      {key && <Session key={key} id={key} qpHref={qpHref} codingHref={codingHref} />}
+      {key && (
+        <Session
+          key={key}
+          id={key}
+          qpHref={qpHref}
+          codingHref={codingHref}
+          onMoved={async (k) => {
+            await loadList();
+            setKey(k);
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function Session({ id, qpHref, codingHref }) {
+function Session({ id, qpHref, codingHref, onMoved }) {
   const api = useApi();
   const toast = useToast();
   const [examId, date, session] = id.split("|");
@@ -125,8 +136,29 @@ function Session({ id, qpHref, codingHref }) {
     { n: 4, title: "Packets (automatic)", when: allCoded ? "made" : anyCoded ? "partly made" : `after ${time(t.endsAt)}`, state: allCoded ? "DONE" : "BEFORE", href: codingHref },
   ];
 
+  // TRIAL DATABASE ONLY (local copy): end the session now, to see the packets without waiting
+  const trialEnd = async () => {
+    try {
+      const r = await api("post", `${path}/trial-end`);
+      toast.success(r.data.message, 6000);
+      onMoved(`${examId}|${r.data.date}|${session}`);
+    } catch (e) {
+      toast.error(errMsg(e, "Could not end the session."));
+    }
+  };
+
   return (
     <>
+      {d.trial && !allCoded && (
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border-2 border-dashed border-amber-400 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <span className="flex-1">
+            <b>Trial copy.</b> No waiting: end this session now to make its packets.
+          </span>
+          <button onClick={trialEnd} className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600">
+            End this session now (trial)
+          </button>
+        </div>
+      )}
       {/* the four steps with their times */}
       <ol className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {steps.map((s) => {
