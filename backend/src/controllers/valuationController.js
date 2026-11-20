@@ -379,6 +379,8 @@ export const getPaperDetail = async (req, res) => {
       present: scripts.filter((s) => s.attendance === "PRESENT").length,
       // why the packets are not made yet (after the session)
       waiting,
+      // TRIAL DATABASE ONLY (local copy): the page may end the session at once
+      trial: String(process.env.MONGO_DB_NAME || "").endsWith("_trial"),
       sessionOver: sessionOver(exam, code),
     },
   });

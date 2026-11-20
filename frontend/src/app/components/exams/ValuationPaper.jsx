@@ -108,6 +108,32 @@ export default function ValuationPaper({ examId, code, backHref, canManage = fal
           </Status>
         )}
 
+        {/* TRIAL DATABASE ONLY (local copy): no waiting for the exam to be over */}
+        {d.trial && !paper.coded && paper.date && paper.session && (
+          <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border-2 border-dashed border-amber-400 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <span className="flex-1">
+              <b>Trial copy.</b> End this exam session now to make the packets.
+            </span>
+            <button
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  const r = await api("post", `/exam-sessions/${examId}/${paper.date}/${paper.session}/trial-end`);
+                  toast.success(r.data.message, 6000);
+                  await load();
+                } catch (e) {
+                  toast.error(errMsg(e, "Could not end the session."));
+                }
+                setBusy(false);
+              }}
+              className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-50"
+            >
+              End this session now (trial)
+            </button>
+          </div>
+        )}
+
         {paper.coded && (
           <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
             {canManage && (
