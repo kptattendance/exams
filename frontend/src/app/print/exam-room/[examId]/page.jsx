@@ -108,14 +108,11 @@ function PrintRoomDiary() {
                     <td className={`${td} font-semibold`}>Invigilator</td>
                     <td className={td}>{room?.invigilator || ""}</td>
                   </tr>
+                  {/* no packet number here – students see the diary; it is on the packet cover only */}
                   <tr>
                     <td className={`${td} font-semibold`}>Paper</td>
-                    <td className={`${td} font-semibold`}>
+                    <td className={`${td} font-semibold`} colSpan={3}>
                       {x.code} – {paperName.get(x.code) || ""}
-                    </td>
-                    <td className={`${td} font-semibold`}>Packet No.</td>
-                    <td className={`${td} text-[14px] font-bold tracking-wide`}>
-                      {x.number} <span className="ml-2 text-[11px] font-semibold">ATS {x.base}</span>
                     </td>
                   </tr>
                 </tbody>
@@ -152,7 +149,7 @@ function PrintRoomDiary() {
                 <br />
                 Candidate: copy <b>your ATS number</b> into the ATS boxes of the answer booklet, write the answer script number here and sign.
                 <br />
-                Invigilator: write <b>“Absent”</b> against every candidate who did not come. Put the answer scripts of this diary in packet <b>{x.number}</b>.
+                Invigilator: write <b>“Absent”</b> against every candidate who did not come. Put the answer scripts in the packet whose cover shows ATS number <b>{x.base}</b>.
               </p>
               <div className="mt-10 grid grid-cols-2 gap-10 text-center text-[11px] font-semibold">
                 <span className="border-t border-slate-700 pt-1">Invigilator (name &amp; signature)</span>
