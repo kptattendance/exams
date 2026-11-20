@@ -2,9 +2,11 @@
 
 // Written (theory) exam – one session at a time, as the Chief Examiner runs it:
 //   1. Question papers  (print from 1 hour before – "Question papers today")
-//   2. Rooms            allot register numbers to rooms, print the room diaries
+//   2. Rooms            allot register numbers to rooms (25 a room) until the session
+//                       starts; saving gives every student an ATS number. One room
+//                       diary per paper per room = one packet (P-0001 …)
 //   3. Absentees        from 30 minutes after the start until the session ends
-//   4. Coding           done by the COE (Valuation) once absentees are in
+//   4. Packets          made automatically when the session is over
 // The server enforces the times; this screen only shows them.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -106,7 +108,7 @@ function Session({ id, qpHref, codingHref }) {
   useEffect(() => {
     load();
     // the open / closed state changes with the clock
-    const t = setInterval(() => api("get", path).then((r) => setD((old) => (old ? { ...old, times: r.data.times } : r.data))).catch(() => {}), 60 * 1000);
+    const t = setInterval(() => api("get", path).then((r) => setD((old) => (old ? { ...old, times: r.data.times, roomsOpen: r.data.roomsOpen } : r.data))).catch(() => {}), 60 * 1000);
     return () => clearInterval(t);
   }, [load, api, path]);
 
@@ -118,9 +120,9 @@ function Session({ id, qpHref, codingHref }) {
   const t = d.times;
   const steps = [
     { n: 1, title: "Question papers", when: `from ${time(t.printOpensAt)}`, state: t.print, href: qpHref },
-    { n: 2, title: "Rooms & room diary", when: `until ${time(t.endsAt)}`, state: t.absent === "CLOSED" ? "CLOSED" : "OPEN", tab: "rooms" },
+    { n: 2, title: "Rooms, ATS & room diary", when: `until ${time(t.startsAt)}`, state: d.roomsOpen ? "OPEN" : "CLOSED", tab: "rooms" },
     { n: 3, title: "Mark absentees", when: `${time(t.absentOpensAt)} – ${time(t.endsAt)}`, state: t.absent, tab: "absent" },
-    { n: 4, title: "Coding (COE)", when: allCoded ? "coded" : anyCoded ? "partly coded" : "after absentees", state: allCoded ? "DONE" : "BEFORE", href: codingHref },
+    { n: 4, title: "Packets (automatic)", when: allCoded ? "made" : anyCoded ? "partly made" : `after ${time(t.endsAt)}`, state: allCoded ? "DONE" : "BEFORE", href: codingHref },
   ];
 
   return (
@@ -153,7 +155,7 @@ function Session({ id, qpHref, codingHref }) {
               <th className="px-3 py-2">Paper</th>
               <th className="px-3 py-2 text-right">Candidates</th>
               <th className="px-3 py-2 text-right">Absent</th>
-              <th className="px-3 py-2">Coding</th>
+              <th className="px-3 py-2">Packets</th>
             </tr>
           </thead>
           <tbody>
@@ -166,9 +168,14 @@ function Session({ id, qpHref, codingHref }) {
                 <td className="px-3 py-2 text-right tabular-nums">{p.candidates}</td>
                 <td className={`px-3 py-2 text-right tabular-nums ${p.absent ? "font-bold text-red-700" : ""}`}>{p.absent}</td>
                 <td className="px-3 py-2">
-                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${p.coded ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"}`}>
-                    {p.coded ? "Coded" : "Not coded yet"}
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                      p.coded ? "bg-emerald-100 text-emerald-800" : p.waiting ? "bg-orange-100 text-orange-800" : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    {p.coded ? "Made" : p.waiting ? "Waiting" : "After the session"}
                   </span>
+                  {p.waiting && <p className="mt-1 max-w-md text-xs text-orange-800">{p.waiting}</p>}
                 </td>
               </tr>
             ))}
@@ -190,7 +197,7 @@ function Session({ id, qpHref, codingHref }) {
       {tab === "rooms" ? (
         <Rooms d={d} path={path} tint={tint} onSaved={load} />
       ) : (
-        <Absentees d={d} path={path} tint={tint} locked={anyCoded} onSaved={load} />
+        <Absentees d={d} path={path} tint={tint} onSaved={load} />
       )}
     </>
   );
@@ -202,14 +209,15 @@ function Rooms({ d, path, tint, onSaved }) {
   const api = useApi();
   const toast = useToast();
   const confirm = useConfirm();
-  const closed = d.times.absent === "CLOSED";
+  // rooms (and so the ATS numbers) are locked from the start of the session (Admin: until the packets are made)
+  const closed = !d.roomsOpen;
   const [rooms, setRooms] = useState(() => d.rooms.map((r) => ({ name: r.name, invigilator: r.invigilator, students: [...r.students] })));
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [picked, setPicked] = useState(() => new Set());
   const [target, setTarget] = useState(d.rooms[0]?.name || "");
   const [newRoom, setNewRoom] = useState("");
-  const [size, setSize] = useState("30");
+  const [size, setSize] = useState("25");
   const [paper, setPaper] = useState("");
   const [show, setShow] = useState("ALL"); // ALL | FREE | <room name>
   const [q, setQ] = useState("");
@@ -255,7 +263,7 @@ function Rooms({ d, path, tint, onSaved }) {
   // the next N not-allotted candidates (shown order, i.e. register-number order) go to the room
   const fillNext = () => {
     if (!target) return toast.error("Add a room first.");
-    const n = Math.max(1, Number(size) || 30);
+    const n = Math.max(1, Number(size) || 25);
     const next = list.filter((c) => !roomOf.has(c.registerNumber)).slice(0, n).map((c) => c.registerNumber);
     if (!next.length) return toast.error("Everybody in this list is already in a room.");
     put(next, target);
@@ -281,7 +289,16 @@ function Rooms({ d, path, tint, onSaved }) {
 
   return (
     <div className="pb-24">
-      {closed && <p className="mt-4 rounded-xl bg-slate-100 px-4 py-2.5 text-sm text-slate-700">The session is over – rooms can only be viewed and printed.</p>}
+      {closed ? (
+        <p className="mt-4 rounded-xl bg-slate-100 px-4 py-2.5 text-sm text-slate-700">
+          The session has started – rooms and ATS numbers are locked. They can only be viewed and printed (any change: the Admin).
+        </p>
+      ) : (
+        <p className="mt-4 rounded-xl bg-blue-50 px-4 py-2.5 text-sm text-blue-900">
+          Saving the rooms gives every student an <b>ATS number</b> (one room diary per paper per room = one packet). The ATS is printed in the room diary
+          against the register number. Rooms can be changed until {time(d.times.startsAt)}.
+        </p>
+      )}
 
       {/* rooms */}
       <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -300,11 +317,23 @@ function Rooms({ d, path, tint, onSaved }) {
               placeholder="Invigilator (optional)"
               className="mt-2 h-8 w-full rounded-lg border border-slate-200 px-2 text-xs"
             />
+            {/* its room diaries (one per paper) = its packets */}
+            {!dirty &&
+              d.diaries
+                .filter((x) => x.room === r.name)
+                .map((x) => (
+                  <p key={x._id} className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-600">
+                    <b className="tabular-nums text-slate-900">{x.number}</b>
+                    <span className={`rounded-md px-1.5 py-0.5 font-bold ${PAPER_CHIPS[tint[x.code]] || "bg-slate-100"}`}>{x.code}</span>
+                    {x.students} students
+                    {x.reprint && <span className="rounded-full bg-red-100 px-2 py-0.5 font-bold text-red-700">Changed – print again</span>}
+                  </p>
+                ))}
             <div className="mt-2 flex flex-wrap gap-1.5">
               <button onClick={() => setShow(r.name)} className={btn.small}>
                 Show
               </button>
-              {!dirty && r.students.length > 0 && (
+              {!dirty && r.students.length > 0 && d.seesAts && (
                 <a href={print(r.name)} target="_blank" rel="noreferrer" className={btn.small}>
                   <Icon name="download" className="h-3.5 w-3.5" />
                   Room diary
@@ -335,7 +364,12 @@ function Rooms({ d, path, tint, onSaved }) {
         <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${free.length ? "bg-orange-100 text-orange-800" : "bg-emerald-100 text-emerald-800"}`}>
           {free.length ? `${free.length} of ${d.candidates.length} not allotted` : `All ${d.candidates.length} allotted ✓`}
         </span>
-        {dirty && <span className="text-xs text-orange-700">Save the rooms to print the room diaries.</span>}
+        {dirty && <span className="text-xs text-orange-700">Save the rooms to make the ATS numbers and print the room diaries.</span>}
+        {!dirty && d.diaries.some((x) => x.reprint) && (
+          <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">
+            {d.diaries.filter((x) => x.reprint).length} room diar{d.diaries.filter((x) => x.reprint).length === 1 ? "y has" : "ies have"} changed – print again
+          </span>
+        )}
       </div>
 
       {/* allotting */}
@@ -354,7 +388,7 @@ function Rooms({ d, path, tint, onSaved }) {
             <input type="number" min="1" value={size} onChange={(e) => setSize(e.target.value)} className="mt-1 block h-9 w-20 rounded-lg border border-slate-300 px-2 text-sm" />
           </label>
           <button onClick={fillNext} className={btn.primary}>
-            Put the next {Math.max(1, Number(size) || 30)} not-allotted in {target || "the room"}
+            Put the next {Math.max(1, Number(size) || 25)} not-allotted in {target || "the room"}
           </button>
           <button onClick={putPicked} disabled={!picked.size} className={btn.secondary}>
             Put {picked.size || ""} ticked in {target || "the room"}
@@ -401,12 +435,12 @@ function Rooms({ d, path, tint, onSaved }) {
       />
 
       {/* printing – at the end of the page */}
-      {rooms.some((r) => r.students.length) && (
+      {rooms.some((r) => r.students.length) && d.seesAts && (
         <div className="mt-4 flex flex-wrap items-center justify-end gap-3 rounded-2xl border border-slate-200 bg-white p-4">
           <p className="mr-auto text-sm text-slate-600">
             {dirty
               ? "Save the rooms first, then print."
-              : `${rooms.filter((r) => r.students.length).length} room diaries · ${d.candidates.length - free.length} students`}
+              : `${rooms.filter((r) => r.students.length).length} rooms · ${d.diaries.length} room diaries (packets) · ${d.candidates.length - free.length} students`}
             {free.length > 0 && !dirty && <span className="font-semibold text-orange-700"> · {free.length} not allotted yet</span>}
           </p>
           {dirty ? (
@@ -439,7 +473,7 @@ function Rooms({ d, path, tint, onSaved }) {
 
 // ------------------------------------------------------------------ absentees
 
-function Absentees({ d, path, tint, locked, onSaved }) {
+function Absentees({ d, path, tint, onSaved }) {
   const api = useApi();
   const toast = useToast();
   const [absent, setAbsent] = useState(() => new Set(d.candidates.filter((c) => c.attendance === "ABSENT").map((c) => c.registerNumber)));
@@ -451,7 +485,8 @@ function Absentees({ d, path, tint, locked, onSaved }) {
   const [q, setQ] = useState("");
   const [paste, setPaste] = useState("");
   const t = d.times;
-  const open = t.absent === "OPEN" && !locked;
+  // the server refuses a change for a packet whose marks are already typed
+  const open = t.absent === "OPEN";
 
   const list = d.candidates.filter(
     (c) =>
@@ -496,12 +531,10 @@ function Absentees({ d, path, tint, locked, onSaved }) {
     <div className="pb-24">
       <div
         className={`mt-4 rounded-xl px-4 py-3 text-sm ${
-          locked ? "bg-slate-100 text-slate-700" : t.absent === "OPEN" ? "bg-emerald-50 text-emerald-900" : t.absent === "BEFORE" ? "bg-orange-50 text-orange-900" : "bg-red-50 text-red-800"
+          t.absent === "OPEN" ? "bg-emerald-50 text-emerald-900" : t.absent === "BEFORE" ? "bg-orange-50 text-orange-900" : "bg-red-50 text-red-800"
         }`}
       >
-        {locked
-          ? "A paper of this session is already coded – absentees can no longer be changed."
-          : t.absent === "OPEN"
+        {t.absent === "OPEN"
           ? `Open now until ${time(t.endsAt)}. Mark the students written “Absent” in the room diaries, then Save.`
           : t.absent === "BEFORE"
           ? `Absentees can be marked from ${time(t.absentOpensAt)} (30 minutes after the start) until ${time(t.endsAt)} on ${day(d.date)}.`

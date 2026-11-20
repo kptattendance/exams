@@ -1,7 +1,9 @@
 // src/controllers/marksEntryController.js
 //
 // The exam clerk types valuers' award lists, one packet at a time.
-// Only dummy numbers are ever shown here – never register numbers.
+// Only ATS numbers are ever shown here – never register numbers.
+// When a packet is complete, the 3rd valuation packets are made and the paper
+// is decoded automatically (valuationController: autoThird, autoDecode).
 //
 // With double entry (default):
 //   1st typing → FIRST_DONE
@@ -17,6 +19,7 @@ import ValuationPaper from "../models/ValuationPaper.js";
 import AnswerScript from "../models/AnswerScript.js";
 import AuditLog from "../models/AuditLog.js";
 import { parseMark, compareEntries } from "../services/exams/valuation.js";
+import { autoCodeExam, autoDecode, autoThird } from "./valuationController.js";
 
 const isId = (id) => mongoose.Types.ObjectId.isValid(id);
 const fail = (res, status, error, extra = {}) => res.status(status).json({ error, ...extra });
@@ -49,8 +52,10 @@ function packetView(p, exam, paper) {
 
 // GET /api/marks-entry/packets?done=1
 export const listEntryPackets = async (req, res) => {
-  const exams = await Exam.find({ status: { $ne: "COMPLETED" } }).select("name valuation").lean();
+  const exams = await Exam.find({ status: { $ne: "COMPLETED" } }).select("name valuation timetable").lean();
   const examIds = exams.map((e) => e._id);
+  // packets of papers whose session is over (made automatically)
+  for (const e of exams) await autoCodeExam(e, (e.timetable?.entries || []).map((x) => x.code)).catch(() => {});
   const decoded = await decodedCodes(examIds);
   const filter = { exam: { $in: examIds }, status: req.query.done === "1" ? "VERIFIED" : { $ne: "VERIFIED" } };
   const packets = await ValuationPacket.find(filter)
@@ -184,5 +189,16 @@ export const submitEntry = async (req, res) => {
     actorRole: req.user?.role || "",
     details: { packet: p.number, status: p.status },
   }).catch(() => {});
+  // complete: 3rd valuation packets (if 1st and 2nd differ too much), then decoding
+  if (p.status === "VERIFIED") {
+    try {
+      const [ex, paperDoc] = await Promise.all([Exam.findById(p.exam).lean(), ValuationPaper.findOne({ exam: p.exam, code: p.code })]);
+      const third = await autoThird(ex, paperDoc);
+      if (third) message += ` ${third} script${third === 1 ? " needs" : "s need"} a 3rd valuation – packet made.`;
+      else if (await autoDecode(ex, paperDoc)) message += ` ${p.code} is complete and has been decoded.`;
+    } catch (e) {
+      console.error("after marks entry:", e.message); // the marks are saved; the paper page retries
+    }
+  }
   res.json({ data: { status: p.status, need: NEED[p.status] }, message });
 };

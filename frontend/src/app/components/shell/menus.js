@@ -123,6 +123,7 @@ export const MENUS = {
           { label: "Paper setting", href: "/coe/paper-setting", icon: "lock", pinned: true },
           { label: "Exam sessions (rooms & absentees)", href: "/coe/exam-sessions", icon: "list" },
           { label: "Valuation", href: "/coe/valuation", icon: "valuation" },
+          { label: "Packet tracker & ATS lookup", href: "/coe/valuation/packets", icon: "list" },
           { label: "Marks entry", href: "/coe/marks-entry", icon: "marks" },
         ],
       },
@@ -232,6 +233,7 @@ export const MENUS = {
         title: "After the exam",
         items: [
           { label: "Absentees & packets", href: "/office/valuation", icon: "valuation" },
+          { label: "Packet tracker & ATS lookup", href: "/office/valuation/packets", icon: "list" },
           { label: "Revaluation applications", href: "/office/revaluation", icon: "results" },
           { label: "CIE make-up (check)", href: "/office/cie-makeup", icon: "marks" },
         ],

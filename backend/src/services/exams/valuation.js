@@ -1,30 +1,26 @@
 // src/services/exams/valuation.js
 //
-// Pure rules for coding and valuation (unit-tested in test/valuation.test.js).
+// Pure rules for ATS coding and valuation (unit-tested in test/valuation.test.js).
 
 import crypto from "node:crypto";
 
-// Dummy numbers: 2 letters + 4 digits, e.g. "KQ4821". Letters that look like
-// digits (I, O) are left out so the clerk can't misread them.
-const LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+// ATS (answer-script code) = 6-digit number of the room diary + 2-digit serial
+// of the student in that diary, e.g. "48271507" (shown as 482715-07).
+// One room diary = one paper in one room = one packet. The 6 digits are random
+// (nobody can tell the room or class from them) and never used twice in an exam.
+export const ATS_RX = /^\d{8}$/;
+export const fmtAts = (a) => (ATS_RX.test(String(a || "")) ? `${String(a).slice(0, 6)}-${String(a).slice(6)}` : String(a || ""));
+export const MAX_PER_DIARY = 99;
 
-export function makeDummies(count, taken = new Set()) {
-  const out = [];
-  const used = new Set(taken);
-  let guard = 0;
-  while (out.length < count) {
-    if (++guard > count * 50 + 1000) throw new Error("Could not create enough dummy numbers.");
-    const b = crypto.randomBytes(4);
-    const d =
-      LETTERS[b[0] % LETTERS.length] + LETTERS[b[1] % LETTERS.length] + String(b.readUInt16BE(2) % 10000).padStart(4, "0");
-    if (used.has(d)) continue;
-    used.add(d);
-    out.push(d);
+export function newAtsBase(taken = new Set()) {
+  for (let guard = 0; guard < 100000; guard++) {
+    const b = String(crypto.randomInt(100000, 1000000));
+    if (!taken.has(b)) return b;
   }
-  return out;
+  throw new Error("Could not make a new ATS number.");
 }
 
-// Random order so a packet never follows register-number order
+// Random order
 export function shuffle(list) {
   const a = [...list];
   for (let i = a.length - 1; i > 0; i--) {
@@ -34,19 +30,54 @@ export function shuffle(list) {
   return a;
 }
 
-// Split into packets of about `size`; the last packet is never tiny
-export function packetize(items, size = 30) {
-  const n = Math.max(1, Math.round(items.length / size));
-  const base = Math.floor(items.length / n);
-  const extra = items.length % n; // the first `extra` packets get one more
+// Serials of one diary. Students already there keep their serial; the others
+// get free serials in random order (so -01 is not the first register number).
+// old: { reg: "07" }, students: [reg] (register-number order) -> { reg: "07" }
+export function assignSerials(old = {}, students = []) {
+  if (students.length > MAX_PER_DIARY) throw new Error(`At most ${MAX_PER_DIARY} students of one paper in one room.`);
+  const out = {};
+  const used = new Set();
+  for (const r of students) if (old[r]) (out[r] = old[r]), used.add(Number(old[r]));
+  const add = students.filter((r) => !out[r]);
+  // the smallest free serials, handed out in random order
+  const free = [];
+  for (let n = 1; n <= MAX_PER_DIARY && free.length < add.length; n++) if (!used.has(n)) free.push(n);
+  const pool = shuffle(free);
+  add.forEach((r, i) => (out[r] = String(pool[i]).padStart(2, "0")));
+  return out;
+}
+
+// The room diaries of one session after the rooms are saved.
+//   rooms:  [{ name, students: [reg] }]
+//   papers: Map reg -> [code]  (papers each student writes in this session)
+//   old:    [{ room, code, base, number, serials: { reg: "07" } }]
+//   takenBases: Set of 6-digit numbers used anywhere in the exam
+//   nextNumber(): the next packet number ("P-0012")
+// -> [{ room, code, base, number, serials, isNew, changed }]  (diaries with students only)
+export function planDiaries({ rooms, papers, old = [], takenBases = new Set(), nextNumber }) {
+  const oldOf = new Map(old.map((d) => [`${d.room}|${d.code}`, d]));
+  const taken = new Set(takenBases);
   const out = [];
-  let i = 0;
-  for (let k = 0; k < n; k++) {
-    const len = base + (k < extra ? 1 : 0);
-    out.push(items.slice(i, i + len));
-    i += len;
+  for (const room of rooms) {
+    const byCode = new Map();
+    for (const reg of [...room.students].sort()) {
+      for (const code of papers.get(reg) || []) {
+        if (!byCode.has(code)) byCode.set(code, []);
+        byCode.get(code).push(reg);
+      }
+    }
+    for (const code of [...byCode.keys()].sort()) {
+      const students = byCode.get(code);
+      const prev = oldOf.get(`${room.name}|${code}`);
+      const serials = assignSerials(prev?.serials || {}, students);
+      let base = prev?.base;
+      if (!base) taken.add((base = newAtsBase(taken)));
+      const before = prev ? Object.entries(prev.serials || {}).sort().join(",") : "";
+      const after = Object.entries(serials).sort().join(",");
+      out.push({ room: room.name, code, base, number: prev?.number || nextNumber(), serials, isNew: !prev, changed: Boolean(prev) && before !== after });
+    }
   }
-  return out.filter((p) => p.length);
+  return out;
 }
 
 // Typed marks: whole or half marks between 0 and max
@@ -59,7 +90,7 @@ export function parseMark(value, max) {
   return { ok: true, value: n };
 }
 
-// Compare first and second entry of a packet → list of dummies that differ
+// Compare first and second entry of a packet → list of ATS numbers that differ
 export function compareEntries(first = {}, second = {}) {
   const keys = new Set([...Object.keys(first), ...Object.keys(second)]);
   return [...keys].filter((k) => first[k] !== second[k]).sort();

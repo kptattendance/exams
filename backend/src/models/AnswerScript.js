@@ -1,8 +1,8 @@
 // src/models/AnswerScript.js
 //
 // One student's answer script for one written paper.
-// Valuers and the exam clerk only ever see the dummy number; the link to the
-// register number is used again only when the COE decodes the paper.
+// Valuers and the exam clerk only ever see the ATS; the link to the register
+// number is used again only when the paper is decoded (automatically).
 
 import mongoose from "mongoose";
 
@@ -30,8 +30,10 @@ const answerScriptSchema = new mongoose.Schema(
 
     attendance: { type: String, enum: ["PRESENT", "ABSENT", "MALPRACTICE"], default: "PRESENT" },
 
-    booklet: { type: String, default: "" }, // printed answer-booklet serial number (from the room diary)
-    dummy: { type: String, default: null }, // e.g. "KQ4821", or the booklet number
+    // ATS = room diary's 6 digits + 2-digit serial, e.g. "48271507" (shown 482715-07);
+    // given when the rooms are saved, removed when the student leaves the rooms
+    dummy: { type: String, default: null },
+    diary: { type: mongoose.Schema.Types.ObjectId, ref: "RoomDiary", default: null },
     valuations: { type: [valuationSchema], default: [] },
   },
   { timestamps: true }

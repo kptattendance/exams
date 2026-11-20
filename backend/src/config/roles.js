@@ -9,7 +9,7 @@
 //   office         – exam section: fee verification, freezing IA and attendance,
 //                    subject changes for hall tickets, hall ticket printing,
 //                    marking absentees, paper-setter orders
-//   exam_clerk     – types the valuers' award lists (sees dummy numbers only)
+//   exam_clerk     – types the valuers' award lists (sees ATS numbers only)
 //   office_typist  – prints the practical examiners' certificates (intimation,
 //                    setting / conducting, attendance) – nothing else
 //   qp_scrutinizer – scrutinises the submitted question papers

@@ -1,7 +1,11 @@
 "use client";
 
-// One paper's valuation, in four simple steps:
-//   1 Attendance   2 Coding & packets   3 Valuation   4 Decode
+// One paper's valuation (ATS coding):
+//   1 Attendance        marked by the Chief Examiner; corrections here
+//   2 Packets           automatic after the session – one per room diary
+//   3 Valuation         award lists, marks typed twice; the COE chooses the 2nd
+//                       valuation; 3rd valuation packets are made automatically
+//   4 Decoded           automatically when everything is typed and checked
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -69,8 +73,10 @@ export default function ValuationPaper({ examId, code, backHref, canManage = fal
   const enc = encodeURIComponent(code);
   const packets = d.packets;
   const allDone = packets.length > 0 && packets.every((p) => p.status === "VERIFIED");
-  const booklet = (paper.codingMode || "BOOKLET") === "BOOKLET";
-  const missingBooklets = d.candidates.filter((c) => c.attendance === "PRESENT" && !c.booklet).length;
+  const typedAny = packets.some((p) => p.status !== "PENDING");
+  const slot = paper.date
+    ? `${new Date(`${paper.date}T00:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} ${paper.session === "AN" ? "afternoon" : "morning"}`
+    : "";
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 pb-16 sm:px-6 lg:px-7">
@@ -83,116 +89,51 @@ export default function ValuationPaper({ examId, code, backHref, canManage = fal
       </h2>
       <p className="mt-1 text-sm text-slate-500">
         {d.exam.name} · valued out of {paper.rawMax}, reduced to {paper.seeMax || paper.rawMax}
-        {paper.date && ` · exam on ${new Date(`${paper.date}T00:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`}
+        {slot && ` · exam on ${slot}`}
       </p>
 
       <div className="mt-6 space-y-4">
         {/* ---------------- 1. Attendance ---------------- */}
         <Step n={1} title="Attendance" done={paper.coded}>
-          <Attendance d={d} printHref={`${printBase}?sheet=attendance`} locked={paper.coded} onSave={(body) => run("post", `/${enc}/attendance`, body)} busy={busy} />
+          <Attendance d={d} locked={paper.decoded} onSave={(body) => run("post", `/${enc}/attendance`, body)} busy={busy} />
         </Step>
 
-        {/* ---------------- 2. Coding ---------------- */}
-        <Step n={2} title="Coding & packets" done={paper.coded} disabled={false}>
+        {/* ---------------- 2. Packets (automatic) ---------------- */}
+        <Step n={2} title="Packets (automatic)" done={paper.coded}>
           {!paper.coded ? (
             <div>
-              {booklet ? (
-                <p className="text-sm text-slate-600">
-                  The printed <b>answer-booklet number</b> is the code: type each present student&apos;s booklet number from the room diary, tear off
-                  the flaps with the register numbers, then code. Scripts are bundled into packets of about {paper.packetSize}. Valuers and the exam
-                  clerk see only booklet numbers.
-                </p>
-              ) : (
-                <p className="text-sm text-slate-600">
-                  Every present script gets a random <b>dummy number</b> and scripts are bundled into packets of about {paper.packetSize}. Valuers
-                  and the exam clerk see only dummy numbers.
-                </p>
-              )}
-              {canManage && (
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
-                  <span className="font-semibold text-slate-700">Coding by:</span>
-                  {[
-                    ["BOOKLET", "Booklet number (tear-off)"],
-                    ["RANDOM", "Random dummy number"],
-                  ].map(([v, l]) => (
-                    <label key={v} className="flex items-center gap-1.5">
-                      <input
-                        type="radio"
-                        checked={(paper.codingMode || "BOOKLET") === v}
-                        disabled={busy}
-                        onChange={() => run("patch", `/${enc}`, { codingMode: v })}
-                      />
-                      {l}
-                    </label>
-                  ))}
-                </div>
-              )}
-              {booklet && <Booklets d={d} busy={busy} onSave={(booklets) => run("post", `/${enc}/booklets`, { booklets })} />}
-              {canManage ? (
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <button
-                    disabled={busy || !d.present || (booklet && missingBooklets > 0)}
-                    onClick={async () => {
-                      const ok = await confirm({
-                        title: booklet ? "Code with the booklet numbers?" : "Generate dummy numbers?",
-                        message: `${d.present} present scripts will be coded into packets.\n\nAttendance${booklet ? " and booklet numbers are" : " is"} locked after this.`,
-                        confirmText: booklet ? "Code" : "Generate",
-                      });
-                      if (ok) run("post", `/${enc}/coding`);
-                    }}
-                    className={btn.primary}
-                  >
-                    {booklet ? "Code with booklet numbers & make packets" : "Generate dummy numbers & packets"}
-                  </button>
-                  <PaperSettings paper={paper} onSave={(body) => run("patch", `/${enc}`, body)} />
-                  {booklet && missingBooklets > 0 && (
-                    <span className="text-sm text-orange-700">
-                      {missingBooklets} present student{missingBooklets === 1 ? "" : "s"} without a booklet number
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <p className="mt-2 text-sm text-slate-500">The COE codes the paper.</p>
-              )}
+              <p className="text-sm text-slate-600">
+                Every room diary (one paper in one room) becomes its packet, with the same number (P-0001 …), <b>automatically when the session is over</b>
+                {slot && ` (${slot})`}. Valuers and the exam clerk see only ATS numbers.
+              </p>
+              {d.waiting && <p className="mt-2 rounded-xl bg-orange-50 px-4 py-2.5 text-sm font-semibold text-orange-800">Waiting: {d.waiting}</p>}
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-2">
               <span className="mr-2 text-sm text-slate-600">
-                {d.present} scripts · {packets.filter((p) => p.round === 1).length} packets
+                {d.present} scripts · {packets.filter((p) => p.round === 1).length} packets (one per room diary)
               </span>
               {canManage && (
                 <a href={`${printBase}?sheet=coding`} target="_blank" rel="noreferrer" className={btn.secondary}>
                   <Icon name="lock" className="h-4 w-4" />
-                  Coding sheet (confidential)
+                  ATS sheet (confidential)
                 </a>
               )}
               <a href={`${printBase}?sheet=award&round=1`} target="_blank" rel="noreferrer" className={btn.secondary}>
                 <Icon name="report" className="h-4 w-4" />
                 Print award lists
               </a>
-              {canManage && !paper.decoded && packets.every((p) => p.status === "PENDING") && (
-                <button
-                  disabled={busy}
-                  onClick={async () => {
-                    const ok = await confirm({
-                      title: "Undo coding?",
-                      message: "All dummy numbers and packets of this paper are removed. Printed award lists become invalid.",
-                      confirmText: "Undo coding",
-                      tone: "danger",
-                    });
-                    if (ok) run("post", `/${enc}/coding/undo`);
-                  }}
-                  className={btn.danger}
-                >
-                  Undo coding
-                </button>
-              )}
+            </div>
+          )}
+          {canManage && !paper.decoded && !typedAny && (
+            <div className="mt-3">
+              <PaperSettings paper={paper} onSave={(body) => run("patch", `/${enc}`, body)} />
             </div>
           )}
         </Step>
 
         {/* ---------------- 3. Valuation ---------------- */}
-        <Step n={3} title="Valuation & marks entry" done={allDone && !d.summary.NEEDS_THIRD} disabled={!paper.coded}>
+        <Step n={3} title="Valuation & marks entry" done={paper.decoded} disabled={!paper.coded}>
           {paper.coded && (
             <Packets
               d={d}
@@ -201,33 +142,25 @@ export default function ValuationPaper({ examId, code, backHref, canManage = fal
               busy={busy}
               onValuer={(p, valuer) => run("patch", `/packets/${p._id}`, { valuer })}
               onSecond={(packetIds) => run("post", `/${enc}/second`, packetIds === "all" ? { all: true } : { packetIds })}
-              onThird={() => run("post", `/${enc}/third`)}
+              onClose={async (closed) => {
+                if (closed) {
+                  const ok = await confirm({
+                    title: "Finished choosing the 2nd valuation?",
+                    message: `${paper.code} is then decoded automatically as soon as every packet is typed and checked (3rd valuation packets are made automatically when needed).`,
+                    confirmText: "Yes, finished",
+                  });
+                  if (!ok) return;
+                }
+                run("post", `/${enc}/second/close`, { closed });
+              }}
               onReopen={(p, reason) => run("post", `/packets/${p._id}/reopen`, { reason })}
             />
           )}
         </Step>
 
-        {/* ---------------- 4. Decode ---------------- */}
-        <Step n={4} title="Decode" done={paper.decoded} disabled={!paper.coded}>
-          {paper.coded && (
-            <Decode
-              d={d}
-              canManage={canManage}
-              allDone={allDone}
-              busy={busy}
-              examId={examId}
-              code={code}
-              onDecode={async () => {
-                const ok = await confirm({
-                  title: `Decode ${paper.code}?`,
-                  message: "Dummy numbers are matched back to register numbers and the marks are saved for results. Marks entry for this paper is locked after this.",
-                  confirmText: "Decode",
-                  requireText: "DECODE",
-                });
-                if (ok) run("post", `/${enc}/decode`);
-              }}
-            />
-          )}
+        {/* ---------------- 4. Decoded (automatic) ---------------- */}
+        <Step n={4} title="Decoding (automatic)" done={paper.decoded} disabled={!paper.coded}>
+          {paper.coded && <Decode d={d} canManage={canManage} allDone={allDone} examId={examId} code={code} />}
         </Step>
       </div>
     </div>
@@ -252,7 +185,7 @@ function Step({ n, title, done, disabled, children }) {
   );
 }
 
-function Attendance({ d, printHref, locked, onSave, busy }) {
+function Attendance({ d, locked, onSave, busy }) {
   const initialAbsent = d.candidates.filter((c) => c.attendance === "ABSENT").map((c) => c.registerNumber);
   const initialMal = d.candidates.filter((c) => c.attendance === "MALPRACTICE").map((c) => c.registerNumber);
   const [absent, setAbsent] = useState(initialAbsent.join(", "));
@@ -268,13 +201,12 @@ function Attendance({ d, printHref, locked, onSave, busy }) {
           <b className="text-slate-900">{d.candidates.length}</b> candidates permitted ·{" "}
           <b className="text-slate-900">{initialAbsent.length}</b> absent · <b className="text-slate-900">{initialMal.length}</b> malpractice
         </span>
-        <a href={printHref} target="_blank" rel="noreferrer" className={btn.secondary}>
-          <Icon name="report" className="h-4 w-4" />
-          Print attendance sheet
-        </a>
       </div>
+      <p className="mt-2 text-xs text-slate-500">
+        The Chief Examiner marks the absentees on the exam day. Corrections (and malpractice) here – allowed until the marks of that packet are typed.
+      </p>
       {locked ? (
-        <p className="mt-3 text-xs text-slate-500">Attendance is locked because the paper is coded.</p>
+        <p className="mt-3 text-xs text-slate-500">Attendance is locked because the paper is decoded.</p>
       ) : (
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <label className="block">
@@ -297,81 +229,13 @@ function Attendance({ d, printHref, locked, onSave, busy }) {
   );
 }
 
-// Booklet numbers of the present students, typed from the room diary (Enter → next student)
-function Booklets({ d, busy, onSave }) {
-  const present = useMemo(() => d.candidates.filter((c) => c.attendance === "PRESENT"), [d.candidates]);
-  const [values, setValues] = useState(() => Object.fromEntries(present.map((c) => [c.registerNumber, c.booklet || ""])));
-  const clean = (v) => String(v || "").trim().toUpperCase().replace(/\s+/g, "");
-  const counts = {};
-  for (const v of Object.values(values).map(clean)) if (v) counts[v] = (counts[v] || 0) + 1;
-  const typed = present.filter((c) => clean(values[c.registerNumber])).length;
-  const changed = present.some((c) => clean(values[c.registerNumber]) !== clean(c.booklet));
-  const next = (i) => document.getElementById(`booklet-${i + 1}`)?.focus();
-  return (
-    <div className="mt-4 rounded-xl border border-slate-200">
-      <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 px-3 py-2 text-sm">
-        <b className="text-slate-900">Booklet numbers</b>
-        <span className="text-slate-500">
-          {typed} of {present.length} typed
-        </span>
-        <button disabled={busy || !changed} onClick={() => onSave(Object.fromEntries(present.map((c) => [c.registerNumber, clean(values[c.registerNumber])])))} className={`${btn.primary} ml-auto`}>
-          Save booklet numbers
-        </button>
-      </div>
-      <div className="max-h-[50vh] overflow-auto">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 bg-slate-50 text-xs text-slate-600">
-            <tr>
-              <th className="px-3 py-2 text-left">#</th>
-              <th className="px-3 py-2 text-left">Register No.</th>
-              <th className="px-3 py-2 text-left">Name</th>
-              <th className="px-3 py-2 text-left">Booklet No.</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {present.map((c, i) => {
-              const v = clean(values[c.registerNumber]);
-              const twice = v && counts[v] > 1;
-              return (
-                <tr key={c.registerNumber}>
-                  <td className="px-3 py-1.5 text-slate-400">{i + 1}</td>
-                  <td className="px-3 py-1.5 font-semibold tabular-nums">{c.registerNumber}</td>
-                  <td className="px-3 py-1.5">{c.name}</td>
-                  <td className="px-3 py-1">
-                    <input
-                      id={`booklet-${i}`}
-                      value={values[c.registerNumber] || ""}
-                      onChange={(e) => setValues((x) => ({ ...x, [c.registerNumber]: e.target.value }))}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          next(i);
-                        }
-                      }}
-                      inputMode="text"
-                      autoComplete="off"
-                      className={`h-8 w-40 rounded-lg border px-2 font-semibold uppercase tabular-nums ${twice ? "border-red-500 bg-red-50" : "border-slate-300"}`}
-                    />
-                    {twice && <span className="ml-2 text-xs font-semibold text-red-600">typed twice</span>}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
 function PaperSettings({ paper, onSave }) {
   const [open, setOpen] = useState(false);
   const [rawMax, setRawMax] = useState(paper.rawMax);
-  const [size, setSize] = useState(paper.packetSize);
   return (
     <>
       <button onClick={() => setOpen(true)} className={btn.secondary}>
-        Paper out of {paper.rawMax} · packets of {paper.packetSize}
+        Question paper out of {paper.rawMax}
       </button>
       <Modal
         open={open}
@@ -384,7 +248,7 @@ function PaperSettings({ paper, onSave }) {
             </button>
             <button
               onClick={async () => {
-                if (await onSave({ rawMax: Number(rawMax), packetSize: Number(size) })) setOpen(false);
+                if (await onSave({ rawMax: Number(rawMax) })) setOpen(false);
               }}
               className={btn.primary}
             >
@@ -398,16 +262,12 @@ function PaperSettings({ paper, onSave }) {
           <input type="number" value={rawMax} onChange={(e) => setRawMax(e.target.value)} className={`${field} mt-1.5`} />
           <span className="mt-1 block text-xs text-slate-500">Marks are reduced to the subject’s theory maximum ({paper.seeMax}) when decoded.</span>
         </label>
-        <label className="mt-4 block">
-          <span className="text-sm font-semibold text-slate-800">Scripts per packet</span>
-          <input type="number" value={size} onChange={(e) => setSize(e.target.value)} className={`${field} mt-1.5`} />
-        </label>
       </Modal>
     </>
   );
 }
 
-function Packets({ d, canManage, printBase, busy, onValuer, onSecond, onThird, onReopen }) {
+function Packets({ d, canManage, printBase, busy, onValuer, onSecond, onClose, onReopen }) {
   const [picked, setPicked] = useState([]);
   const [reopen, setReopen] = useState(null);
   const isAdmin = useIsAdmin(); // reopening wipes entered marks: Admin only
@@ -421,7 +281,7 @@ function Packets({ d, canManage, printBase, busy, onValuer, onSecond, onThird, o
       <div className="mb-4 flex flex-wrap gap-2 text-xs font-semibold">
         <span className="rounded-lg bg-emerald-50 px-2 py-1 text-emerald-700">{d.summary.DONE || 0} scripts final</span>
         <span className="rounded-lg bg-slate-100 px-2 py-1 text-slate-600">{d.summary.WAITING || 0} waiting for marks</span>
-        {d.summary.NEEDS_THIRD > 0 && <span className="rounded-lg bg-red-50 px-2 py-1 text-red-700">{d.summary.NEEDS_THIRD} need 3rd valuation</span>}
+        {d.summary.NEEDS_THIRD > 0 && <span className="rounded-lg bg-red-50 px-2 py-1 text-red-700">{d.summary.NEEDS_THIRD} need 3rd valuation (packet made automatically)</span>}
       </div>
 
       {rounds.map((r) => (
@@ -447,8 +307,10 @@ function Packets({ d, canManage, printBase, busy, onValuer, onSecond, onThird, o
                         aria-label={`Choose ${p.number} for second valuation`}
                       />
                     )}
-                    <span className="w-44 font-semibold tabular-nums text-slate-900">{p.number}</span>
-                    <span className="w-20 text-xs text-slate-500">{p.count} scripts</span>
+                    <span className="w-36 font-semibold tabular-nums text-slate-900">{p.number}</span>
+                    <span className="w-28 text-xs text-slate-500">
+                      {p.count} scripts{p.room && r === 1 ? ` · ${p.room}` : ""}
+                    </span>
                     <ValuerInput p={p} onSave={onValuer} disabled={!canManage && false} />
                     <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${PACKET[p.status].chip}`}>{PACKET[p.status].label}</span>
                     {canManage && isAdmin && p.status === "VERIFIED" && (
@@ -464,21 +326,32 @@ function Packets({ d, canManage, printBase, busy, onValuer, onSecond, onThird, o
       ))}
 
       {canManage && (
-        <div className="flex flex-wrap gap-2">
-          {firstNoSecond.length > 0 && (
-            <>
-              <button disabled={busy || !picked.length} onClick={() => onSecond(picked).then(() => setPicked([]))} className={btn.secondary}>
-                Send {picked.length || ""} chosen for 2nd valuation
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <p className="text-sm font-semibold text-slate-900">2nd valuation (COE)</p>
+          {d.paper.secondClosed ? (
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+              <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">Choosing finished</span>
+              <span className="text-slate-600">The paper is decoded automatically when every packet is typed and checked.</span>
+              <button disabled={busy} onClick={() => onClose(false)} className={btn.small}>
+                Choose more packets
               </button>
-              <button disabled={busy} onClick={() => onSecond("all")} className={btn.secondary}>
-                Send all for 2nd valuation
+            </div>
+          ) : (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {firstNoSecond.length > 0 && (
+                <>
+                  <button disabled={busy || !picked.length} onClick={() => onSecond(picked).then(() => setPicked([]))} className={btn.secondary}>
+                    Send {picked.length || ""} ticked for 2nd valuation
+                  </button>
+                  <button disabled={busy} onClick={() => onSecond("all")} className={btn.secondary}>
+                    Send all for 2nd valuation
+                  </button>
+                </>
+              )}
+              <button disabled={busy} onClick={() => onClose(true)} className={btn.primary}>
+                Finished choosing – decode when complete
               </button>
-            </>
-          )}
-          {d.summary.NEEDS_THIRD > 0 && (
-            <button disabled={busy} onClick={onThird} className={btn.primary}>
-              Create 3rd valuation packets ({d.summary.NEEDS_THIRD})
-            </button>
+            </div>
           )}
         </div>
       )}
@@ -530,7 +403,7 @@ function ValuerInput({ p, onSave }) {
   );
 }
 
-function Decode({ d, canManage, allDone, busy, onDecode, examId, code }) {
+function Decode({ d, canManage, allDone, examId, code }) {
   const api = useApi();
   const toast = useToast();
   const [marks, setMarks] = useState(null);
@@ -545,28 +418,23 @@ function Decode({ d, canManage, allDone, busy, onDecode, examId, code }) {
 
   if (!paper.decoded) {
     const blockers = [];
-    if (!allDone) blockers.push("all packets must be typed and checked");
+    if (!allDone) blockers.push("every packet must be typed and checked");
     if (d.summary.NEEDS_THIRD) blockers.push(`${d.summary.NEEDS_THIRD} scripts need a 3rd valuation`);
+    if (!paper.secondClosed) blockers.push("the COE has to finish choosing the 2nd valuation");
     return (
       <div>
         <p className="text-sm text-slate-600">
-          When every packet is done, the COE decodes the paper: dummy numbers are matched back to register numbers and marks are reduced to{" "}
-          {paper.seeMax || paper.rawMax}.
+          Nothing to press: the website matches the ATS numbers back to the register numbers and reduces the marks to {paper.seeMax || paper.rawMax}{" "}
+          <b>automatically</b>, as soon as everything is complete.
         </p>
-        {blockers.length > 0 && <p className="mt-2 text-sm font-semibold text-orange-700">Not yet: {blockers.join("; ")}.</p>}
-        {canManage && (
-          <button disabled={busy || blockers.length > 0} onClick={onDecode} className={`${btn.primary} mt-3`}>
-            <Icon name="key" className="h-4 w-4" />
-            Decode {paper.code}
-          </button>
-        )}
+        {blockers.length > 0 && <p className="mt-2 text-sm font-semibold text-orange-700">Waiting: {blockers.join("; ")}.</p>}
       </div>
     );
   }
   return (
     <div>
       <p className="text-sm text-emerald-700">
-        Decoded on {new Date(paper.decodedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}. Marks are saved for results.
+        Decoded automatically on {new Date(paper.decodedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}. Marks are saved for results.
       </p>
       {canManage && marks && (
         <>
@@ -587,6 +455,7 @@ function Decode({ d, canManage, allDone, busy, onDecode, examId, code }) {
                 <tr>
                   <th className="px-3 py-2">Register no.</th>
                   <th className="px-3 py-2">Name</th>
+                  <th className="px-3 py-2">ATS</th>
                   <th className="px-2 py-2 text-right">V1</th>
                   <th className="px-2 py-2 text-right">V2</th>
                   <th className="px-2 py-2 text-right">V3</th>
@@ -599,6 +468,7 @@ function Decode({ d, canManage, allDone, busy, onDecode, examId, code }) {
                   <tr key={r.registerNumber}>
                     <td className="px-3 py-1.5 font-semibold tabular-nums">{r.registerNumber}</td>
                     <td className="px-3 py-1.5 text-slate-600">{r.name}</td>
+                    <td className="px-3 py-1.5 tabular-nums text-slate-600">{r.ats}</td>
                     <td className="px-2 py-1.5 text-right tabular-nums">{r.v1 ?? ""}</td>
                     <td className="px-2 py-1.5 text-right tabular-nums">{r.v2 ?? ""}</td>
                     <td className="px-2 py-1.5 text-right tabular-nums">{r.v3 ?? ""}</td>

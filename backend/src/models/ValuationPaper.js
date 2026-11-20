@@ -1,7 +1,8 @@
 // src/models/ValuationPaper.js
 //
 // One written paper (subject code) of one exam, and how far its
-// valuation has gone:  candidates → attendance → coding → valuation → decoded
+// valuation has gone:  candidates → rooms (ATS) → attendance → packets → valuation → decoded
+// Coding and decoding are automatic (see valuationController: autoCode, autoDecode).
 
 import mongoose from "mongoose";
 
@@ -17,14 +18,12 @@ const valuationPaperSchema = new mongoose.Schema(
     seeMax: { type: Number, default: 0 },
     seeMin: { type: Number, default: 0 },
 
-    attendanceLocked: { type: Boolean, default: false },
+    // packets made (one per room diary) – automatically when the session is over
     coded: { type: Boolean, default: false },
     codedAt: { type: Date, default: null },
-    packetSize: { type: Number, default: 30 },
-    // BOOKLET: the printed serial number of the answer booklet (tear-off flap
-    // with the register number) is the code – nothing written or pasted.
-    // RANDOM: a random dummy number written on each script (the older way).
-    codingMode: { type: String, enum: ["BOOKLET", "RANDOM"], default: "BOOKLET" },
+    // the COE has finished choosing packets for the 2nd valuation; the paper is
+    // decoded automatically only after this (and when every packet is checked)
+    secondClosed: { type: Boolean, default: false },
 
     decoded: { type: Boolean, default: false },
     decodedAt: { type: Date, default: null },

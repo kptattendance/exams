@@ -1,7 +1,7 @@
 "use client";
 
 // Exam clerk: type the marks from a valuer's award list.
-// Only dummy numbers appear here. Press Enter to jump to the next box.
+// Only ATS numbers appear here (482715-07). Press Enter to jump to the next box.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -9,6 +9,9 @@ import Icon from "../shell/Icon";
 import { btn } from "../ui/Modal";
 import { useToast } from "../ui/Feedback";
 import { errMsg, useApi } from "./shared";
+
+// ATS "48271507" is shown as 482715-07
+const fmtAts = (a) => (/^\d{8}$/.test(String(a)) ? `${String(a).slice(0, 6)}-${String(a).slice(6)}` : a);
 
 const NEED = {
   FIRST: { label: "First entry", chip: "bg-slate-100 text-slate-700" },
@@ -209,7 +212,7 @@ function EntryScreen({ id, onClose }) {
           <ul className="grid grid-cols-2 divide-x divide-y divide-slate-100 sm:grid-cols-3">
             {p.dummies.map((d) => (
               <li key={d} className="flex justify-between px-4 py-2 text-sm">
-                <span className="font-semibold tracking-wider">{d}</span>
+                <span className="font-semibold tracking-wider">{fmtAts(d)}</span>
                 <span className="tabular-nums">{p.final?.[d]}</span>
               </li>
             ))}
@@ -226,7 +229,7 @@ function EntryScreen({ id, onClose }) {
                 return (
                   <li key={d} className={`flex items-center gap-3 px-4 py-2 ${err ? "bg-red-50" : ""}`}>
                     <span className="w-8 text-xs tabular-nums text-slate-400">{i + 1}</span>
-                    <span className="w-24 font-bold tracking-wider text-slate-900">{d}</span>
+                    <span className="w-28 font-bold tracking-wider text-slate-900">{fmtAts(d)}</span>
                     {m && (
                       <span className="text-xs text-slate-500">
                         1st: <b className="text-slate-800">{m.first}</b> · 2nd: <b className="text-slate-800">{m.second}</b>
@@ -247,7 +250,7 @@ function EntryScreen({ id, onClose }) {
                           else save();
                         }
                       }}
-                      aria-label={`Marks for ${d}`}
+                      aria-label={`Marks for ${fmtAts(d)}`}
                       className={`ml-auto h-10 w-24 rounded-xl border px-3 text-right text-base font-semibold tabular-nums outline-none focus:ring-4 focus:ring-slate-100 ${
                         err ? "border-red-400" : "border-slate-300 focus:border-slate-500"
                       }`}

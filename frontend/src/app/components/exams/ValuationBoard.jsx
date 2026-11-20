@@ -1,7 +1,8 @@
 "use client";
 
-// Valuation: every written paper of an exam and where it stands.
-//   Attendance → Coded → Valuation → Ready to decode → Decoded
+// Valuation: every written paper of an exam and where it stands (ATS coding).
+//   Rooms & absentees → Valuation (packets made automatically after the session)
+//   → 2nd valuation choice → Decoded (automatically)
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
@@ -13,9 +14,9 @@ import { errMsg, useApi } from "./shared";
 import { T } from "../ui/table";
 
 export const STAGE = {
-  ATTENDANCE: { label: "Mark absentees", chip: "bg-slate-100 text-slate-600" },
+  ATTENDANCE: { label: "Rooms & absentees", chip: "bg-slate-100 text-slate-600" },
   VALUATION: { label: "Valuation", chip: "bg-blue-50 text-blue-700" },
-  READY: { label: "Ready to decode", chip: "bg-orange-50 text-orange-700" },
+  READY: { label: "Choose 2nd valuation", chip: "bg-orange-50 text-orange-700" },
   DECODED: { label: "Decoded", chip: "bg-emerald-50 text-emerald-700" },
 };
 
@@ -86,7 +87,13 @@ export default function ValuationBoard({ basePath, canManage = false }) {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-7">
-      <h2 className="text-2xl font-bold tracking-tight text-slate-950">Valuation</h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-2xl font-bold tracking-tight text-slate-950">Valuation</h2>
+        <Link href={`${basePath}/packets`} className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50">
+          <Icon name="list" className="h-4 w-4" />
+          Packet tracker &amp; ATS lookup
+        </Link>
+      </div>
       {exams && exams.length > 1 ? (
         <select value={examId} onChange={(e) => setExamId(e.target.value)} className="mt-2 h-10 max-w-full rounded-xl border border-slate-200 bg-white px-3 text-sm">
           {exams.map((e) => (

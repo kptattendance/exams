@@ -38,16 +38,14 @@ import {
   getPaperDetail,
   updatePaper,
   saveAttendance,
-  codePaper,
-  undoCoding,
   codingSheet,
-  saveBooklets,
   packetSlips,
   setValuer,
   reopenPacket,
   sendSecondValuation,
-  createThirdValuation,
-  decodePaper,
+  closeSecondValuation,
+  packetTracker,
+  atsLookup,
   paperMarks,
   updateValuationSettings,
 } from "../controllers/valuationController.js";
@@ -128,20 +126,19 @@ router.post("/:id/hall-tickets/printed", VIEW, markHallTicketsPrinted);
 const VALUE = requireRole("coe", "acoe", "admin", "office");
 const SECRET = requireRole("coe", "acoe", "admin");
 router.get("/:id/valuation", VALUE, listPapers);
+// ATS coding: packet tracker and ATS lookup (no register numbers)
+router.get("/:id/valuation-packets", requireRole("coe", "acoe", "admin", "office", "exam_clerk"), packetTracker);
+router.get("/:id/ats/:ats", requireRole("coe", "acoe", "admin", "office", "exam_clerk"), atsLookup);
 router.patch("/:id/valuation-settings", MANAGE, updateValuationSettings);
 router.patch("/:id/valuation/packets/:packetId", VALUE, setValuer);
 router.post("/:id/valuation/packets/:packetId/reopen", adminOnly, reopenPacket); // wipes entered marks: Admin only
 router.get("/:id/valuation/:code", VALUE, getPaperDetail);
 router.patch("/:id/valuation/:code", MANAGE, updatePaper);
 router.post("/:id/valuation/:code/attendance", VALUE, saveAttendance);
-router.post("/:id/valuation/:code/booklets", VALUE, saveBooklets); // answer-booklet numbers from the room diary
-router.post("/:id/valuation/:code/coding", MANAGE, codePaper);
-router.post("/:id/valuation/:code/coding/undo", MANAGE, undoCoding);
 router.get("/:id/valuation/:code/coding-sheet", SECRET, codingSheet);
 router.get("/:id/valuation/:code/slips", requireRole("coe", "acoe", "admin", "office", "exam_clerk"), packetSlips);
 router.post("/:id/valuation/:code/second", MANAGE, sendSecondValuation);
-router.post("/:id/valuation/:code/third", MANAGE, createThirdValuation);
-router.post("/:id/valuation/:code/decode", SECRET, requireStepUp("results"), decodePaper);
+router.post("/:id/valuation/:code/second/close", MANAGE, closeSecondValuation); // decoding is then automatic
 router.get("/:id/valuation/:code/marks", SECRET, paperMarks);
 
 // Results: marks with names and moderation are for COE / Admin only

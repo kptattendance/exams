@@ -1,16 +1,22 @@
 // src/controllers/valuationController.js
 //
-// Paper valuation (hard-copy) for one written paper of an exam:
+// Paper valuation (hard-copy) for one written paper of an exam – ATS coding:
 //
 //   1. Candidates  – every student permitted to write the paper
-//   2. Attendance  – exam section marks absentees / malpractice
-//   3. Coding      – random dummy numbers, scripts bundled into packets of ~30
-//   4. Valuation   – valuers mark scripts on paper and fill award lists;
-//                    the exam clerk types them in (see marksEntryController)
-//                    2nd valuation on chosen packets; 3rd when 1st & 2nd
-//                    differ by more than 15 %
-//   5. Decode      – COE links dummy numbers back to register numbers and the
-//                    marks (out of 100) are reduced to the theory maximum
+//   2. Rooms       – the Chief Examiner saves the rooms; every room diary (one
+//                    paper in one room) gets a random 6-digit number and each
+//                    student a shuffled 2-digit serial: ATS = 482715-07
+//                    (examSessionController). The ATS is printed in the diary.
+//   3. Attendance  – the Chief Examiner (or the office) marks the absentees
+//   4. Packets     – AUTOMATIC when the session is over: each room diary becomes
+//                    its packet (same number, P-0007) with its present scripts
+//   5. Valuation   – valuers fill award lists (ATS only); the exam clerk types
+//                    them twice (marksEntryController). The COE chooses packets
+//                    for the 2nd valuation; the 3rd valuation packets are made
+//                    AUTOMATICALLY when 1st & 2nd differ by more than 15 %
+//   6. Decode      – AUTOMATIC when every packet is typed and checked and the
+//                    COE has finished choosing the 2nd valuation: the marks go
+//                    to the register numbers, reduced to the theory maximum
 
 import mongoose from "mongoose";
 import XLSX from "xlsx";
@@ -24,7 +30,9 @@ import ValuationPacket from "../models/ValuationPacket.js";
 import AuditLog from "../models/AuditLog.js";
 import { effectiveOf, subjectFeePaid } from "../services/exams/rules.js";
 import { buildPapers } from "../services/exams/timetable.js";
-import { makeDummies, shuffle, packetize, finalMarks, reduce, valuationsOf } from "../services/exams/valuation.js";
+import RoomDiary from "../models/RoomDiary.js";
+import { finalMarks, fmtAts, reduce, valuationsOf } from "../services/exams/valuation.js";
+import { printWindow } from "../services/examDay.js";
 
 const isId = (id) => mongoose.Types.ObjectId.isValid(id);
 const fail = (res, status, error, extra = {}) => res.status(status).json({ error, ...extra });
@@ -67,7 +75,7 @@ export async function getPaper(exam, code) {
 
 // Which rounds each script must have, from the packets it is in
 async function expectedRounds(examId, code) {
-  const packets = await ValuationPacket.find({ exam: examId, code }).select("round scripts status").lean();
+  const packets = await ValuationPacket.find({ exam: examId, code }).select("number round scripts status").lean();
   const map = new Map();
   for (const p of packets) for (const s of p.scripts) {
     const k = String(s);
@@ -84,6 +92,191 @@ function scriptResult(script, rounds, paper, percent) {
   return finalMarks(v, { rawMax: paper.rawMax, percent });
 }
 
+// ------------------------------------------------------------------ automatic coding & decoding
+
+const system = (action, examId, details) =>
+  AuditLog.create({ action, entity: "Valuation", entityId: examId, actorClerkId: "system", actorEmail: "", actorRole: "system", details }).catch(() => {});
+
+// the paper's session is over (published time table, IST)
+export function sessionOver(exam, code, now = Date.now()) {
+  const e = (exam.timetable?.entries || []).find((x) => x.code === code);
+  if (!e?.date || !e?.session) return false;
+  return now > printWindow(e, exam.timetable?.sessions).closesAt.getTime();
+}
+
+const v2Of = (n) => `${n}-V2`;
+const baseOf = (n) => String(n).replace(/-V\d.*$/, "");
+
+// The round-1 packet of every room diary = its present scripts (absent and
+// malpractice are left out – printed AB / MP on the award list). A packet with
+// no marks typed yet follows attendance changes, and so does its 2nd-valuation copy.
+export async function syncPackets(exam, paper) {
+  const code = paper.code;
+  const [diaries, scripts, packets] = await Promise.all([
+    RoomDiary.find({ exam: exam._id, code }).select("number").lean(),
+    AnswerScript.find({ exam: exam._id, code, attendance: "PRESENT", dummy: { $type: "string" } }).select("_id dummy diary").lean(),
+    ValuationPacket.find({ exam: exam._id, code, round: { $in: [1, 2] } }),
+  ]);
+  const byNumber = new Map(packets.map((p) => [p.number, p]));
+  const want = new Map(); // packet number -> its present scripts in ATS order
+  for (const d of diaries) {
+    const mine = scripts.filter((x) => String(x.diary) === String(d._id)).sort((a, b) => a.dummy.localeCompare(b.dummy));
+    if (mine.length) want.set(d.number, mine);
+  }
+  const same = (p, list) => p.dummies.length === list.length && p.dummies.every((x, i) => x === list[i].dummy);
+  const creates = [];
+  for (const [number, list] of want) {
+    for (const [n, round] of [
+      [number, 1],
+      [v2Of(number), 2],
+    ]) {
+      const p = byNumber.get(n);
+      if (!p) {
+        if (round === 1) creates.push({ exam: exam._id, code, round: 1, number: n, scripts: list.map((x) => x._id), dummies: list.map((x) => x.dummy), rawMax: paper.rawMax });
+        continue; // the 2nd valuation only when the COE sends it
+      }
+      if (p.status !== "PENDING" || same(p, list)) continue;
+      p.scripts = list.map((x) => x._id);
+      p.dummies = list.map((x) => x.dummy);
+      await p.save();
+    }
+  }
+  // packets of diaries that are gone or now have nobody present (only while no marks are typed)
+  const gone = packets.filter((p) => p.status === "PENDING" && !want.has(baseOf(p.number)));
+  if (gone.length) await ValuationPacket.deleteMany({ _id: { $in: gone.map((p) => p._id) } });
+  if (creates.length) await ValuationPacket.insertMany(creates);
+}
+
+// When the session is over: every room diary becomes its packet. Waits (and says
+// why) while a present student has no room (no ATS). -> "" or the reason it waits
+export async function autoCode(exam, paper) {
+  if (paper.coded) return "";
+  if (!sessionOver(exam, paper.code)) return "";
+  await syncCandidates(exam, paper);
+  const noRoom = await AnswerScript.find({ exam: exam._id, code: paper.code, attendance: "PRESENT", dummy: null }).select("registerNumber").lean();
+  if (noRoom.length)
+    return `${noRoom.length} present student${noRoom.length === 1 ? " is" : "s are"} not in any room (no ATS): ${noRoom
+      .slice(0, 8)
+      .map((x) => x.registerNumber)
+      .join(", ")}${noRoom.length > 8 ? " …" : ""}. Mark ${noRoom.length === 1 ? "him / her" : "them"} absent, or the Admin puts ${noRoom.length === 1 ? "him / her" : "them"} in a room.`;
+  await syncPackets(exam, paper);
+  paper.coded = true;
+  paper.codedAt = new Date();
+  await paper.save();
+  await system("VALUATION_PAPER_CODED", exam._id, { code: paper.code, packets: await ValuationPacket.countDocuments({ exam: exam._id, code: paper.code, round: 1 }) });
+  return "";
+}
+
+// every paper of the exam whose session is over gets its packets
+export async function autoCodeExam(exam, codes) {
+  const over = codes.filter((c) => sessionOver(exam, c));
+  if (!over.length) return;
+  const done = new Set((await ValuationPaper.find({ exam: exam._id, code: { $in: over }, coded: true }).select("code").lean()).map((p) => p.code));
+  for (const c of over) {
+    if (done.has(c)) continue;
+    const paper = await getPaper(exam, c);
+    if (paper) await autoCode(exam, paper);
+  }
+}
+
+// 3rd valuation: scripts whose 1st and 2nd valuation differ too much go into
+// "<packet>-V3" (one per round-1 packet). -> number of scripts added
+export async function autoThird(exam, paper) {
+  if (!paper?.coded || paper.decoded) return 0;
+  const code = paper.code;
+  const percent = exam.valuation?.thirdValuationPercent ?? 15;
+  const [scripts, { packets, map }] = await Promise.all([
+    AnswerScript.find({ exam: exam._id, code, attendance: "PRESENT" }).lean(),
+    expectedRounds(exam._id, code),
+  ]);
+  const firstOf = new Map();
+  for (const p of packets) if (p.round === 1) for (const x of p.scripts) firstOf.set(String(x), p.number);
+  const need = scripts.filter((x) => {
+    const rounds = map.get(String(x._id)) || new Set();
+    return !rounds.has(3) && scriptResult(x, [...rounds], paper, percent).status === "NEEDS_THIRD";
+  });
+  if (!need.length) return 0;
+  const groups = new Map();
+  for (const x of need) {
+    const n = firstOf.get(String(x._id)) || code;
+    if (!groups.has(n)) groups.set(n, []);
+    groups.get(n).push(x);
+  }
+  const taken = new Set(packets.map((p) => p.number));
+  for (const [n, list] of groups) {
+    list.sort((a, b) => a.dummy.localeCompare(b.dummy));
+    let number = `${n}-V3`;
+    for (let k = 2; taken.has(number); k++) number = `${n}-V3-${k}`;
+    taken.add(number);
+    await ValuationPacket.create({ exam: exam._id, code, round: 3, number, scripts: list.map((x) => x._id), dummies: list.map((x) => x.dummy), rawMax: paper.rawMax });
+  }
+  await system("VALUATION_THIRD_CREATED", exam._id, { code, scripts: need.length, packets: groups.size });
+  return need.length;
+}
+
+// Decoding, automatically: every packet typed and checked, no 3rd valuation
+// pending and the COE has finished choosing the 2nd valuation. -> true when decoded
+export async function autoDecode(exam, paper) {
+  if (!paper?.coded || paper.decoded || !paper.secondClosed) return false;
+  const code = paper.code;
+  if (await ValuationPacket.exists({ exam: exam._id, code, status: { $ne: "VERIFIED" } })) return false;
+  const percent = exam.valuation?.thirdValuationPercent ?? 15;
+  const [scripts, { map }] = await Promise.all([AnswerScript.find({ exam: exam._id, code }).lean(), expectedRounds(exam._id, code)]);
+  const results = scripts.map((x) => ({ s: x, r: scriptResult(x, [...(map.get(String(x._id)) || [])], paper, percent) }));
+  if (results.some((x) => x.r.status !== "DONE")) {
+    await autoThird(exam, paper);
+    return false;
+  }
+  const now = new Date();
+  if (results.length)
+    await ExamRegistration.bulkWrite(
+      results.map(({ s: x, r }) => ({
+        updateOne: {
+          filter: { _id: x.registration },
+          update: {
+            $set: {
+              "subjects.$[x].see": {
+                attendance: x.attendance,
+                raw: x.attendance === "PRESENT" ? r.raw : null,
+                marks: x.attendance === "PRESENT" ? reduce(r.raw, paper.rawMax, paper.seeMax) : null,
+                decodedAt: now,
+              },
+            },
+          },
+          arrayFilters: [{ "x.code": code }],
+        },
+      })),
+      { ordered: false }
+    );
+  paper.decoded = true;
+  paper.decodedAt = now;
+  paper.decodedBy = "automatic";
+  await paper.save();
+  await system("VALUATION_PAPER_DECODED", exam._id, { code, scripts: scripts.length });
+  return true;
+}
+
+// The attendance of these scripts may change only while their packets have no
+// marks typed. changed: scripts { code, registerNumber, diary, dummy }, toPresent:
+// register numbers that become PRESENT. -> "" or why not
+export async function attendanceBlocked(exam, changed, toPresent = []) {
+  if (!changed.length) return "";
+  const codes = [...new Set(changed.map((x) => x.code))];
+  const decoded = await ValuationPaper.find({ exam: exam._id, code: { $in: codes }, decoded: true }).select("code").lean();
+  if (decoded.length) return `${decoded.map((p) => p.code).join(", ")} is already decoded. Attendance can no longer be changed.`;
+  // once the packets are made, a student with no ATS (not in any room) cannot be present
+  const coded = new Set((await ValuationPaper.find({ exam: exam._id, code: { $in: codes }, coded: true }).select("code").lean()).map((p) => p.code));
+  const noAts = changed.filter((x) => coded.has(x.code) && !x.dummy && toPresent.includes(x.registerNumber)).map((x) => x.registerNumber);
+  if (noAts.length) return `${noAts.join(", ")} was not in any room (no ATS number), so cannot be marked present.`;
+  const diaryIds = [...new Set(changed.filter((x) => x.diary).map((x) => String(x.diary)))];
+  if (!diaryIds.length) return "";
+  const numbers = (await RoomDiary.find({ _id: { $in: diaryIds } }).select("number").lean()).flatMap((d) => [d.number, v2Of(d.number)]);
+  const typed = await ValuationPacket.find({ exam: exam._id, number: { $in: numbers }, status: { $ne: "PENDING" } }).select("number").lean();
+  if (typed.length)
+    return `Marks are already typed for packet ${[...new Set(typed.map((p) => baseOf(p.number)))].join(", ")}. Ask the Admin to reopen the packet first.`;
+  return "";
+}
+
 // ------------------------------------------------------------------ overview
 
 // GET /api/exams/:id/valuation – every written paper with its progress
@@ -94,6 +287,7 @@ export const listPapers = async (req, res) => {
     .select("department subjects.code subjects.name subjects.semester subjects.kind subjects.hasTheory")
     .lean();
   const { papers } = buildPapers(regs);
+  await autoCodeExam(exam, papers.map((p) => p.code)); // packets of every paper whose session is over
   const [docs, scriptStats, packetStats] = await Promise.all([
     ValuationPaper.find({ exam: exam._id }).lean(),
     AnswerScript.aggregate([
@@ -126,7 +320,8 @@ export const listPapers = async (req, res) => {
       decoded: Boolean(d?.decoded),
       packets,
       packetsVerified: pk("VERIFIED"),
-      stage: d?.decoded ? "DECODED" : !d?.coded ? "ATTENDANCE" : packets && pk("VERIFIED") === packets ? "READY" : "VALUATION",
+      // READY: every packet checked – waiting for the COE to finish choosing the 2nd valuation
+      stage: d?.decoded ? "DECODED" : !d?.coded ? "ATTENDANCE" : packets && pk("VERIFIED") === packets && !d?.secondClosed ? "READY" : "VALUATION",
     };
   });
   out.sort((a, b) => (a.date || "9").localeCompare(b.date || "9") || a.code.localeCompare(b.code));
@@ -177,7 +372,14 @@ export const getPaperDetail = async (req, res) => {
   const code = codeOf(req);
   const paper = await getPaper(exam, code);
   if (!paper) return fail(res, 404, `Subject ${code} not found.`);
-  if (!paper.coded) await syncCandidates(exam, paper); // list follows eligibility / fee until coding
+  let waiting = "";
+  if (!paper.coded) {
+    await syncCandidates(exam, paper); // list follows eligibility / fee until the packets are made
+    waiting = await autoCode(exam, paper);
+  } else if (!paper.decoded) {
+    await autoThird(exam, paper); // self-healing: normally done when marks are typed
+    await autoDecode(exam, paper);
+  }
 
   const [scripts, { map }] = await Promise.all([
     AnswerScript.find({ exam: exam._id, code }).sort({ registerNumber: 1 }).lean(),
@@ -191,6 +393,9 @@ export const getPaperDetail = async (req, res) => {
     summary[r.status] = (summary[r.status] || 0) + 1;
   }
   const slot = (exam.timetable?.entries || []).find((e) => e.code === code);
+  const diaries = await RoomDiary.find({ exam: exam._id, code }).select("room number").lean();
+  const roomOf = new Map(diaries.map((d) => [String(d._id), d.room]));
+  const numberRoom = new Map(diaries.map((d) => [d.number, String(d._id)]));
 
   res.json({
     data: {
@@ -205,8 +410,7 @@ export const getPaperDetail = async (req, res) => {
         semester: s.semester,
         kind: s.kind,
         attendance: s.attendance,
-        // typed from the room diary before coding; hidden once the paper is coded
-        booklet: paper.coded ? undefined : s.booklet || "",
+        room: roomOf.get(String(s.diary)) || "",
       })),
       packets: (await ValuationPacket.find({ exam: exam._id, code }).select("number round status valuer scripts mismatches").sort({ round: 1, number: 1 }).lean()).map((p) => ({
         _id: p._id,
@@ -216,83 +420,34 @@ export const getPaperDetail = async (req, res) => {
         valuer: p.valuer,
         count: p.scripts.length,
         mismatches: p.mismatches.length,
+        room: roomOf.get(numberRoom.get(baseOf(p.number))) || "",
       })),
       summary,
       present: scripts.filter((s) => s.attendance === "PRESENT").length,
+      // why the packets are not made yet (after the session)
+      waiting,
+      sessionOver: sessionOver(exam, code),
     },
   });
 };
 
-// PATCH /api/exams/:id/valuation/:code   { rawMax, packetSize }   (before coding)
+// PATCH /api/exams/:id/valuation/:code   { rawMax }   (until marks are typed)
 export const updatePaper = async (req, res) => {
   const exam = await loadExam(req, res);
   if (!exam) return;
   const paper = await getPaper(exam, codeOf(req));
   if (!paper) return fail(res, 404, "Paper not found.");
-  if (paper.coded) return fail(res, 409, "Already coded. Undo coding first.");
+  if (paper.decoded) return fail(res, 409, "Already decoded.");
+  if (await ValuationPacket.exists({ exam: exam._id, code: paper.code, status: { $ne: "PENDING" } }))
+    return fail(res, 409, "Marks are already typed for this paper. The paper maximum can no longer be changed.");
   if (req.body?.rawMax !== undefined) {
     const v = Number(req.body.rawMax);
     if (!(v >= 1 && v <= 500)) return fail(res, 400, "Paper maximum must be between 1 and 500.");
     paper.rawMax = v;
-  }
-  if (req.body?.packetSize !== undefined) {
-    const v = Number(req.body.packetSize);
-    if (!(v >= 5 && v <= 100)) return fail(res, 400, "Packet size must be between 5 and 100.");
-    paper.packetSize = v;
-  }
-  if (req.body?.codingMode !== undefined) {
-    if (!["BOOKLET", "RANDOM"].includes(req.body.codingMode)) return fail(res, 400, "Coding must be BOOKLET or RANDOM.");
-    paper.codingMode = req.body.codingMode;
+    await ValuationPacket.updateMany({ exam: exam._id, code: paper.code }, { $set: { rawMax: v } });
   }
   await paper.save();
   res.json({ data: paper, message: "Saved." });
-};
-
-// POST /api/exams/:id/valuation/:code/booklets  { booklets: { "103CS25001": "0012345", … } }
-// The answer-booklet serial number of each candidate, typed from the room diary (before coding).
-const BOOKLET_RX = /^[A-Z0-9][A-Z0-9/-]{0,19}$/;
-export const saveBooklets = async (req, res) => {
-  const exam = await loadExam(req, res);
-  if (!exam) return;
-  const code = codeOf(req);
-  const paper = await getPaper(exam, code);
-  if (!paper) return fail(res, 404, "Paper not found.");
-  if (paper.coded) return fail(res, 409, "The paper is already coded. Undo coding to change booklet numbers.");
-  const given = req.body?.booklets && typeof req.body.booklets === "object" ? req.body.booklets : {};
-  const scripts = await AnswerScript.find({ exam: exam._id, code }).select("registerNumber booklet").lean();
-  const known = new Set(scripts.map((s) => s.registerNumber));
-  const next = new Map(scripts.map((s) => [s.registerNumber, s.booklet || ""]));
-  const bad = [];
-  for (const [rn, raw] of Object.entries(given)) {
-    if (!known.has(rn)) return fail(res, 400, `${rn} is not a candidate for ${code}.`);
-    const v = String(raw ?? "").trim().toUpperCase().replace(/\s+/g, "");
-    if (v && !BOOKLET_RX.test(v)) bad.push(`${rn} (${raw})`);
-    next.set(rn, v);
-  }
-  if (bad.length) return fail(res, 400, `Booklet number not valid: ${bad.join(", ")}. Use only letters, digits, - or /.`);
-  // the same booklet number twice in this paper
-  const seen = new Map();
-  const dup = [];
-  for (const [rn, v] of next) {
-    if (!v) continue;
-    if (seen.has(v)) dup.push(`${v} (${seen.get(v)} and ${rn})`);
-    else seen.set(v, rn);
-  }
-  if (dup.length) return fail(res, 400, `The same booklet number is typed twice: ${dup.join(", ")}.`);
-  // … or already used in another paper of this exam
-  const others = await AnswerScript.find({ exam: exam._id, code: { $ne: code }, $or: [{ booklet: { $in: [...seen.keys()] } }, { dummy: { $in: [...seen.keys()] } }] })
-    .select("code registerNumber booklet dummy")
-    .lean();
-  if (others.length) {
-    const o = others[0];
-    return fail(res, 400, `Booklet number ${o.booklet || o.dummy} is already used in ${o.code} (${o.registerNumber}). Check the room diary.`);
-  }
-  await AnswerScript.bulkWrite(
-    [...next].map(([rn, v]) => ({ updateOne: { filter: { exam: exam._id, code, registerNumber: rn }, update: { $set: { booklet: v } } } })),
-    { ordered: false }
-  );
-  await log(req, "VALUATION_BOOKLETS_SAVED", exam._id, { code, entered: seen.size });
-  res.json({ message: `Saved: ${seen.size} booklet number${seen.size === 1 ? "" : "s"}.` });
 };
 
 // POST /api/exams/:id/valuation/:code/attendance  { absent: ["103CS25001"], malpractice: [] }
@@ -302,138 +457,100 @@ export const saveAttendance = async (req, res) => {
   const code = codeOf(req);
   const paper = await getPaper(exam, code);
   if (!paper) return fail(res, 404, "Paper not found.");
-  if (paper.coded) return fail(res, 409, "Attendance is locked because the paper is already coded. Undo coding to change it.");
   const norm = (l) => [...new Set((Array.isArray(l) ? l : []).map((x) => String(x).trim().toUpperCase()).filter(Boolean))];
   const absent = norm(req.body?.absent);
   const malpractice = norm(req.body?.malpractice);
   const both = absent.filter((x) => malpractice.includes(x));
   if (both.length) return fail(res, 400, `${both.join(", ")} cannot be both absent and malpractice.`);
 
-  const scripts = await AnswerScript.find({ exam: exam._id, code }).select("registerNumber").lean();
+  const scripts = await AnswerScript.find({ exam: exam._id, code }).select("code registerNumber attendance diary dummy").lean();
   const known = new Set(scripts.map((s) => s.registerNumber));
   const unknown = [...absent, ...malpractice].filter((x) => !known.has(x));
   if (unknown.length) return fail(res, 400, `Not a candidate for ${code}: ${unknown.join(", ")}`);
+  const next = (n) => (absent.includes(n) ? "ABSENT" : malpractice.includes(n) ? "MALPRACTICE" : "PRESENT");
+  const changing = scripts.filter((x) => x.attendance !== next(x.registerNumber));
+  const blocked = await attendanceBlocked(exam, changing, changing.filter((x) => next(x.registerNumber) === "PRESENT").map((x) => x.registerNumber));
+  if (blocked) return fail(res, 409, blocked);
 
   await AnswerScript.updateMany({ exam: exam._id, code }, { $set: { attendance: "PRESENT" } });
   if (absent.length) await AnswerScript.updateMany({ exam: exam._id, code, registerNumber: { $in: absent } }, { $set: { attendance: "ABSENT" } });
   if (malpractice.length)
     await AnswerScript.updateMany({ exam: exam._id, code, registerNumber: { $in: malpractice } }, { $set: { attendance: "MALPRACTICE" } });
+  if (paper.coded) await syncPackets(exam, paper); // the packets follow the attendance
   await log(req, "VALUATION_ATTENDANCE_SAVED", exam._id, { code, absent: absent.length, malpractice: malpractice.length });
   res.json({ message: `Saved: ${scripts.length - absent.length - malpractice.length} present, ${absent.length} absent, ${malpractice.length} malpractice.` });
 };
 
-// POST /api/exams/:id/valuation/:code/coding   – dummy numbers + round-1 packets
-export const codePaper = async (req, res) => {
-  const exam = await loadExam(req, res);
-  if (!exam) return;
-  const code = codeOf(req);
-  const paper = await getPaper(exam, code);
-  if (!paper) return fail(res, 404, "Paper not found.");
-  if (paper.coded) return fail(res, 409, "This paper is already coded.");
-  await syncCandidates(exam, paper);
-
-  const present = await AnswerScript.find({ exam: exam._id, code, attendance: "PRESENT" }).select("_id registerNumber booklet").lean();
-  if (!present.length) return fail(res, 400, "No candidates present for this paper.");
-
-  let order;
-  if (paper.codingMode === "BOOKLET") {
-    // the printed booklet number is the code
-    const missing = present.filter((s) => !s.booklet).map((s) => s.registerNumber);
-    if (missing.length)
-      return fail(res, 400, `Booklet number not typed for ${missing.length} present student${missing.length === 1 ? "" : "s"}: ${missing.slice(0, 10).join(", ")}${missing.length > 10 ? " …" : ""}`);
-    const taken = await AnswerScript.find({ exam: exam._id, code: { $ne: code }, dummy: { $in: present.map((s) => s.booklet) } }).select("dummy code").lean();
-    if (taken.length) return fail(res, 400, `Booklet number ${taken[0].dummy} is already used in ${taken[0].code}. Check the room diary.`);
-    order = shuffle(present.map((s) => ({ id: s._id, dummy: s.booklet })));
-  } else {
-    const taken = new Set(await AnswerScript.distinct("dummy", { exam: exam._id, dummy: { $type: "string" } }));
-    const dummies = makeDummies(present.length, taken);
-    order = shuffle(present.map((s, i) => ({ id: s._id, dummy: dummies[i] })));
-  }
-
-  await AnswerScript.bulkWrite(order.map((o) => ({ updateOne: { filter: { _id: o.id }, update: { $set: { dummy: o.dummy } } } })), { ordered: false });
-  const groups = packetize(order, paper.packetSize || 30);
-  await ValuationPacket.insertMany(
-    groups.map((g, i) => {
-      const sorted = [...g].sort((a, b) => a.dummy.localeCompare(b.dummy));
-      return {
-        exam: exam._id,
-        code,
-        round: 1,
-        number: `${code}-P${String(i + 1).padStart(2, "0")}`,
-        scripts: sorted.map((o) => o.id),
-        dummies: sorted.map((o) => o.dummy),
-        rawMax: paper.rawMax,
-      };
-    })
-  );
-  paper.coded = true;
-  paper.codedAt = new Date();
-  paper.attendanceLocked = true;
-  paper.markModified("codingMode"); // store the choice (papers made before it existed only have the default)
-  await paper.save();
-  await log(req, "VALUATION_PAPER_CODED", exam._id, { code, scripts: present.length, packets: groups.length });
-  res.json({ message: `${present.length} scripts coded into ${groups.length} packets.` });
-};
-
-// POST /api/exams/:id/valuation/:code/coding/undo – only before any marks are typed
-export const undoCoding = async (req, res) => {
-  const exam = await loadExam(req, res);
-  if (!exam) return;
-  const code = codeOf(req);
-  const paper = await getPaper(exam, code);
-  if (!paper?.coded) return fail(res, 409, "This paper is not coded.");
-  if (paper.decoded) return fail(res, 409, "Already decoded.");
-  const started = await ValuationPacket.exists({ exam: exam._id, code, status: { $ne: "PENDING" } });
-  if (started) return fail(res, 409, "Marks are already entered for some packets. Coding can no longer be undone.");
-  await ValuationPacket.deleteMany({ exam: exam._id, code });
-  await AnswerScript.updateMany({ exam: exam._id, code }, { $set: { dummy: null, valuations: [] } });
-  paper.coded = false;
-  paper.codedAt = null;
-  paper.attendanceLocked = false;
-  await paper.save();
-  await log(req, "VALUATION_CODING_UNDONE", exam._id, { code });
-  res.json({ message: "Coding undone. Attendance can be changed again." });
-};
-
-// GET /api/exams/:id/valuation/:code/coding-sheet – COE only, keep confidential
+// GET /api/exams/:id/valuation/:code/coding-sheet – ATS ↔ register number (COE / ACOE / Admin only, confidential)
 export const codingSheet = async (req, res) => {
   const exam = await loadExam(req, res);
   if (!exam) return;
   const code = codeOf(req);
   const paper = await ValuationPaper.findOne({ exam: exam._id, code }).lean();
-  if (!paper?.coded) return fail(res, 409, "This paper is not coded yet.");
-  const [scripts, packets] = await Promise.all([
-    AnswerScript.find({ exam: exam._id, code }).sort({ registerNumber: 1 }).select("registerNumber name attendance dummy").lean(),
-    ValuationPacket.find({ exam: exam._id, code, round: 1 }).select("number scripts").lean(),
+  if (!paper) return fail(res, 404, "No room is allotted for this paper yet.");
+  const [scripts, diaries] = await Promise.all([
+    AnswerScript.find({ exam: exam._id, code }).sort({ registerNumber: 1 }).select("registerNumber name attendance dummy diary").lean(),
+    RoomDiary.find({ exam: exam._id, code }).select("room number").lean(),
   ]);
-  const packetOf = new Map();
-  for (const p of packets) for (const s of p.scripts) packetOf.set(String(s), p.number);
+  const diaryOf = new Map(diaries.map((d) => [String(d._id), d]));
   await log(req, "VALUATION_CODING_SHEET_VIEWED", exam._id, { code });
   res.json({
     data: {
       exam: { name: exam.name },
-      paper: { code, name: paper.name, codingMode: paper.codingMode || "RANDOM" },
-      rows: scripts.map((s) => ({ registerNumber: s.registerNumber, name: s.name, attendance: s.attendance, dummy: s.dummy, packet: packetOf.get(String(s._id)) || "" })),
+      paper: { code, name: paper.name },
+      rows: scripts.map((s) => ({
+        registerNumber: s.registerNumber,
+        name: s.name,
+        attendance: s.attendance,
+        ats: fmtAts(s.dummy),
+        room: diaryOf.get(String(s.diary))?.room || "",
+        packet: diaryOf.get(String(s.diary))?.number || "",
+      })),
     },
   });
 };
 
-// GET /api/exams/:id/valuation/:code/slips?round=1 – award lists to print (dummy numbers only)
+// GET /api/exams/:id/valuation/:code/slips?round=1 – award lists to print (ATS only)
 export const packetSlips = async (req, res) => {
   const exam = await loadExam(req, res);
   if (!exam) return;
   const code = codeOf(req);
   const paper = await ValuationPaper.findOne({ exam: exam._id, code }).lean();
-  if (!paper?.coded) return fail(res, 409, "This paper is not coded yet.");
+  if (!paper?.coded) return fail(res, 409, "The packets of this paper are made after its session.");
   const filter = { exam: exam._id, code };
   if (req.query.round) filter.round = Number(req.query.round);
   if (req.query.packet && isId(req.query.packet)) filter._id = req.query.packet;
   const packets = await ValuationPacket.find(filter).sort({ round: 1, number: 1 }).lean();
+  // round 1: every ATS of the room diary, absent / malpractice printed (not typed)
+  const diaries = await RoomDiary.find({ exam: exam._id, code }).select("number room date session").lean();
+  const diaryOf = new Map(diaries.map((d) => [d.number, d]));
+  const others = await AnswerScript.find({ exam: exam._id, code, attendance: { $ne: "PRESENT" }, diary: { $ne: null } }).select("dummy diary attendance").lean();
+  const notPresent = new Map(); // diary id -> [{ ats, mark }]
+  for (const x of others) {
+    const k = String(x.diary);
+    if (!notPresent.has(k)) notPresent.set(k, []);
+    notPresent.get(k).push({ ats: x.dummy, mark: x.attendance === "ABSENT" ? "AB" : "MP" });
+  }
   res.json({
     data: {
       exam: { name: exam.name },
-      paper: { code, name: paper.name, rawMax: paper.rawMax, codingMode: paper.codingMode || "RANDOM" },
-      packets: packets.map((p) => ({ _id: p._id, number: p.number, round: p.round, valuer: p.valuer, dummies: p.dummies })),
+      paper: { code, name: paper.name, rawMax: paper.rawMax },
+      packets: packets.map((p) => {
+        const d = diaryOf.get(baseOf(p.number));
+        const rows = p.dummies.map((a) => ({ ats: a, mark: "" }));
+        if (p.round === 1 && d) rows.push(...(notPresent.get(String(d._id)) || []));
+        rows.sort((a, b) => String(a.ats).localeCompare(String(b.ats)));
+        return {
+          _id: p._id,
+          number: p.number,
+          round: p.round,
+          valuer: p.valuer,
+          date: d?.date || "",
+          session: d?.session || "",
+          present: p.dummies.length,
+          rows: rows.map((r) => ({ ats: fmtAts(r.ats), mark: r.mark })),
+        };
+      }),
     },
   });
 };
@@ -473,8 +590,8 @@ export const sendSecondValuation = async (req, res) => {
   const exam = await loadExam(req, res);
   if (!exam) return;
   const code = codeOf(req);
-  const paper = await ValuationPaper.findOne({ exam: exam._id, code }).lean();
-  if (!paper?.coded) return fail(res, 409, "Code the paper first.");
+  const paper = await ValuationPaper.findOne({ exam: exam._id, code });
+  if (!paper?.coded) return fail(res, 409, "The packets of this paper are made after its session.");
   if (paper.decoded) return fail(res, 409, "Already decoded.");
   const filter = { exam: exam._id, code, round: 1 };
   if (!req.body?.all) {
@@ -489,94 +606,35 @@ export const sendSecondValuation = async (req, res) => {
     .map((p) => ({ exam: exam._id, code, round: 2, number: `${p.number}-V2`, scripts: p.scripts, dummies: p.dummies, rawMax: p.rawMax }));
   if (!create.length) return fail(res, 409, "These packets are already sent for second valuation.");
   await ValuationPacket.insertMany(create);
+  if (req.body?.all) {
+    paper.secondClosed = true; // nothing left to choose
+    await paper.save();
+  }
   await log(req, "VALUATION_SECOND_CREATED", exam._id, { code, packets: create.length });
   res.json({ message: `${create.length} packet${create.length > 1 ? "s" : ""} sent for second valuation.` });
 };
 
-// POST /api/exams/:id/valuation/:code/third – packets for scripts whose 1st & 2nd differ too much
-export const createThirdValuation = async (req, res) => {
+// POST /api/exams/:id/valuation/:code/second/close  { closed: true | false }
+// The COE has finished choosing the 2nd valuation – the paper is then decoded
+// automatically as soon as every packet is typed and checked.
+export const closeSecondValuation = async (req, res) => {
   const exam = await loadExam(req, res);
   if (!exam) return;
   const code = codeOf(req);
-  const paper = await ValuationPaper.findOne({ exam: exam._id, code }).lean();
-  if (!paper?.coded) return fail(res, 409, "Code the paper first.");
+  const paper = await getPaper(exam, code);
+  if (!paper) return fail(res, 404, "Paper not found.");
   if (paper.decoded) return fail(res, 409, "Already decoded.");
-  const percent = exam.valuation?.thirdValuationPercent ?? 15;
-  const [scripts, { map }] = await Promise.all([
-    AnswerScript.find({ exam: exam._id, code, attendance: "PRESENT" }).lean(),
-    expectedRounds(exam._id, code),
-  ]);
-  const need = scripts.filter((s) => {
-    const rounds = map.get(String(s._id)) || new Set();
-    if (rounds.has(3)) return false;
-    return scriptResult(s, [...rounds], paper, percent).status === "NEEDS_THIRD";
-  });
-  if (!need.length) return fail(res, 409, "No script needs a third valuation right now.");
-  const already = await ValuationPacket.countDocuments({ exam: exam._id, code, round: 3 });
-  const groups = packetize(
-    need.map((s) => ({ id: s._id, dummy: s.dummy })).sort((a, b) => a.dummy.localeCompare(b.dummy)),
-    paper.packetSize || 30
-  );
-  await ValuationPacket.insertMany(
-    groups.map((g, i) => ({
-      exam: exam._id,
-      code,
-      round: 3,
-      number: `${code}-T${String(already + i + 1).padStart(2, "0")}`,
-      scripts: g.map((o) => o.id),
-      dummies: g.map((o) => o.dummy),
-      rawMax: paper.rawMax,
-    }))
-  );
-  await log(req, "VALUATION_THIRD_CREATED", exam._id, { code, scripts: need.length });
-  res.json({ message: `${need.length} scripts need a third valuation – ${groups.length} packet${groups.length > 1 ? "s" : ""} created.` });
-};
-
-// POST /api/exams/:id/valuation/:code/decode
-export const decodePaper = async (req, res) => {
-  const exam = await loadExam(req, res);
-  if (!exam) return;
-  const code = codeOf(req);
-  const paper = await ValuationPaper.findOne({ exam: exam._id, code });
-  if (!paper?.coded) return fail(res, 409, "Code the paper first.");
-  const percent = exam.valuation?.thirdValuationPercent ?? 15;
-
-  const unverified = await ValuationPacket.countDocuments({ exam: exam._id, code, status: { $ne: "VERIFIED" } });
-  if (unverified) return fail(res, 409, `${unverified} packet${unverified > 1 ? "s are" : " is"} not fully entered yet.`);
-
-  const [scripts, { map }] = await Promise.all([AnswerScript.find({ exam: exam._id, code }).lean(), expectedRounds(exam._id, code)]);
-  const results = scripts.map((s) => ({ s, r: scriptResult(s, [...(map.get(String(s._id)) || [])], paper, percent) }));
-  const third = results.filter((x) => x.r.status === "NEEDS_THIRD").length;
-  if (third) return fail(res, 409, `${third} scripts need a third valuation first.`);
-  const waiting = results.filter((x) => x.r.status === "WAITING").length;
-  if (waiting) return fail(res, 409, `${waiting} scripts are still waiting for marks.`);
-
-  const now = new Date();
-  await ExamRegistration.bulkWrite(
-    results.map(({ s, r }) => ({
-      updateOne: {
-        filter: { _id: s.registration },
-        update: {
-          $set: {
-            "subjects.$[x].see": {
-              attendance: s.attendance,
-              raw: s.attendance === "PRESENT" ? r.raw : null,
-              marks: s.attendance === "PRESENT" ? reduce(r.raw, paper.rawMax, paper.seeMax) : null,
-              decodedAt: now,
-            },
-          },
-        },
-        arrayFilters: [{ "x.code": code }],
-      },
-    })),
-    { ordered: false }
-  );
-  paper.decoded = true;
-  paper.decodedAt = now;
-  paper.decodedBy = who(req);
+  paper.secondClosed = req.body?.closed !== false;
   await paper.save();
-  await log(req, "VALUATION_PAPER_DECODED", exam._id, { code, scripts: scripts.length });
-  res.json({ message: `${code} decoded. Marks of ${scripts.length} candidates are now with their register numbers.` });
+  await log(req, paper.secondClosed ? "VALUATION_SECOND_CLOSED" : "VALUATION_SECOND_REOPENED", exam._id, { code });
+  const decoded = paper.secondClosed ? await autoDecode(exam, paper) : false;
+  res.json({
+    message: decoded
+      ? `${code} is complete and has been decoded. Marks are with the register numbers.`
+      : paper.secondClosed
+      ? "Done. The paper is decoded automatically when every packet is typed and checked."
+      : "You can choose more packets for the 2nd valuation.",
+  });
 };
 
 // GET /api/exams/:id/valuation/:code/marks  (after decoding)  ?format=xlsx
@@ -599,7 +657,7 @@ export const paperMarks = async (req, res) => {
       name: s.name,
       department: s.department,
       semester: s.semester,
-      dummy: s.dummy,
+      ats: fmtAts(s.dummy),
       attendance: s.attendance,
       v1: v.v1 ?? null,
       v2: v.v2 ?? null,
@@ -615,7 +673,7 @@ export const paperMarks = async (req, res) => {
         "Student Name": r.name,
         Department: String(r.department).toUpperCase(),
         Semester: r.semester,
-        "Dummy No": r.dummy || "",
+        ATS: r.ats || "",
         Attendance: r.attendance,
         "Valuation 1": r.v1 ?? "",
         "Valuation 2": r.v2 ?? "",
@@ -650,4 +708,86 @@ export const updateValuationSettings = async (req, res) => {
   await Exam.updateOne({ _id: exam._id }, { $set: set });
   await log(req, "VALUATION_SETTINGS_CHANGED", exam._id, set);
   res.json({ message: "Saved." });
+};
+
+// ------------------------------------------------------------------ packet tracker & ATS lookup
+
+// GET /api/exams/:id/valuation-packets – every packet of the exam and where it is
+// (filled in automatically – nothing to tick). No register numbers.
+export const packetTracker = async (req, res) => {
+  const exam = await loadExam(req, res);
+  if (!exam) return;
+  const [diaries, packets, papers, scripts] = await Promise.all([
+    RoomDiary.find({ exam: exam._id }).select("date session room code number").lean(),
+    ValuationPacket.find({ exam: exam._id }).select("number round status valuer dummies verifiedAt").lean(),
+    ValuationPaper.find({ exam: exam._id }).select("code name coded decoded secondClosed").lean(),
+    AnswerScript.aggregate([
+      { $match: { exam: exam._id, diary: { $ne: null } } },
+      { $group: { _id: { diary: "$diary", attendance: "$attendance" }, n: { $sum: 1 } } },
+    ]),
+  ]);
+  const paperOf = new Map(papers.map((p) => [p.code, p]));
+  const count = (id, a) => scripts.find((x) => String(x._id.diary) === String(id) && x._id.attendance === a)?.n || 0;
+  const byBase = new Map();
+  for (const p of packets) {
+    const b = baseOf(p.number);
+    if (!byBase.has(b)) byBase.set(b, []);
+    byBase.get(b).push({ number: p.number, round: p.round, status: p.status, valuer: p.valuer, scripts: p.dummies.length });
+  }
+  const rows = diaries.map((d) => {
+    const paper = paperOf.get(d.code);
+    const rounds = (byBase.get(d.number) || []).sort((a, b) => a.round - b.round || a.number.localeCompare(b.number));
+    const present = count(d._id, "PRESENT");
+    let stage;
+    if (paper?.decoded) stage = "DECODED";
+    else if (!paper?.coded) stage = "EXAM"; // packets are made after the session
+    else if (!present) stage = "ALL_ABSENT";
+    else if (rounds.some((r) => r.status === "MISMATCH")) stage = "MISMATCH";
+    else if (rounds.every((r) => r.status === "VERIFIED")) stage = "CHECKED";
+    else if (rounds.some((r) => r.status !== "PENDING")) stage = "TYPING";
+    else stage = "WITH_VALUER";
+    return {
+      number: d.number,
+      code: d.code,
+      name: paper?.name || "",
+      date: d.date,
+      session: d.session,
+      room: d.room,
+      allotted: present + count(d._id, "ABSENT") + count(d._id, "MALPRACTICE"),
+      present,
+      absent: count(d._id, "ABSENT"),
+      malpractice: count(d._id, "MALPRACTICE"),
+      rounds,
+      stage,
+    };
+  });
+  rows.sort((a, b) => a.number.localeCompare(b.number));
+  res.json({ exam: { _id: exam._id, name: exam.name }, data: rows });
+};
+
+// GET /api/exams/:id/ats/:ats – which packet an ATS (6 or 8 digits) belongs to. No names.
+export const atsLookup = async (req, res) => {
+  const exam = await loadExam(req, res);
+  if (!exam) return;
+  const raw = String(req.params.ats || "").replace(/\D/g, "");
+  if (raw.length !== 6 && raw.length !== 8) return fail(res, 400, "Type the 6-digit ATS number (or all 8 digits).");
+  const d = await RoomDiary.findOne({ exam: exam._id, base: raw.slice(0, 6) }).select("date session room code number serials").lean();
+  if (!d) return fail(res, 404, `No room diary has the ATS number ${raw.slice(0, 6)} in ${exam.name}.`);
+  const paper = await ValuationPaper.findOne({ exam: exam._id, code: d.code }).select("name").lean();
+  const serials = Object.values(d.serials || {});
+  const serial = raw.length === 8 ? raw.slice(6) : "";
+  res.json({
+    data: {
+      ats: raw.length === 8 ? fmtAts(raw) : raw,
+      number: d.number,
+      code: d.code,
+      name: paper?.name || "",
+      date: d.date,
+      session: d.session,
+      room: d.room,
+      students: serials.length,
+      // an 8-digit ATS whose serial is not in the diary is a mis-copied one
+      serialFound: serial ? serials.includes(serial) : null,
+    },
+  });
 };
