@@ -36,6 +36,7 @@ import {
 import { changeRecord } from "../services/textDiff.js";
 import { sendPaperSettingEmail, sendSchemeRequestEmail } from "../services/mailer.js";
 import { syllabusAttachments } from "./syllabusController.js";
+import { twoUp } from "../services/twoUp.js";
 
 const isId = (id) => mongoose.Types.ObjectId.isValid(id);
 
@@ -312,7 +313,7 @@ export const updateAssignment = async (req, res) => {
 
 // Deletes the record and its encrypted files in Drive
 async function removePaper(paper) {
-  for (const f of [paper.currentFile, paper.schemeFile, paper.scrutiny?.file, paper.finalPdf, ...(paper.fileHistory || [])]) {
+  for (const f of [paper.currentFile, paper.schemeFile, paper.scrutiny?.file, paper.finalPdf, paper.originalPdf, ...(paper.fileHistory || [])]) {
     if (f?.driveFileId) await deleteEncrypted(f.driveFileId);
   }
   if (paper.scrutiny?.docId) await deleteEncrypted(paper.scrutiny.docId);
@@ -949,9 +950,34 @@ async function scheduleFor(code, examSession) {
   return null;
 }
 
-// POST /api/paper-setting/:id/final-pdf   (COE; multipart "file") – freezes the paper
+// POST /api/paper-setting/:id/final-pdf/preview   (COE; multipart "file", trim) – the
+// 2-pages-per-side version of the PDF saved from Word, to check before freezing. Nothing is stored.
+export const previewFinalPdf = async (req, res) => {
+  try {
+    if (!isId(req.params.id)) return fail(res, 400, "Invalid id.");
+    if (!req.file) return fail(res, 400, "Choose the PDF saved from Word.");
+    const buf = req.file.buffer;
+    if (buf.subarray(0, 5).toString("latin1") !== "%PDF-") return fail(res, 400, "This is not a PDF file.");
+    const r = await twoUp(buf, { trimMm: req.body?.trim });
+    buf.fill(0);
+    res.set({
+      "Content-Type": "application/pdf",
+      "Cache-Control": "no-store",
+      "X-Pages": String(r.pages),
+      "X-Sheets": String(r.sheets),
+      "X-Scale": String(r.scale),
+      "Access-Control-Expose-Headers": "X-Pages, X-Sheets, X-Scale",
+    });
+    res.send(r.pdf);
+  } catch (err) {
+    handleError(res, err, "previewFinalPdf");
+  }
+};
+
+// POST /api/paper-setting/:id/final-pdf   (COE; multipart "file", layout TWO_UP | AS_IS, trim) – freezes the paper.
+// TWO_UP (the usual): the printed paper is the 2-pages-per-side version; the PDF from Word is kept as well.
 export const uploadFinalPdf = async (req, res) => {
-  let driveFileId = null;
+  const stored = [];
   try {
     if (!isId(req.params.id)) return fail(res, 400, "Invalid id.");
     if (!req.file) return fail(res, 400, "Choose the final PDF.");
@@ -961,30 +987,39 @@ export const uploadFinalPdf = async (req, res) => {
     if (!paper || paper.status !== "SUBMITTED") return fail(res, 404, "Submitted paper not found.");
     if (paper.scrutiny?.status !== "DONE") return fail(res, 400, "The scrutiniser has not finished this paper yet.");
     if (paper.frozenAt) return fail(res, 409, "This paper is already frozen.");
+    const layout = req.body?.layout === "AS_IS" ? "AS_IS" : "TWO_UP";
 
-    const { ciphertext, meta } = encryptPaper(buf, paper._id);
-    buf.fill(0);
-    driveFileId = await uploadEncrypted(ciphertext);
-    const file = {
-      driveFileId,
-      ...meta,
-      originalName: `${paper.subject.code}_${paper.examSession}_SET${paper.setNo}_final.pdf`,
-      uploadedBy: req.user.id,
-      uploadedAt: new Date(),
+    const base = `${paper.subject.code}_${paper.examSession}_SET${paper.setNo}`;
+    const keep = async (bytes, name) => {
+      const { ciphertext, meta } = encryptPaper(bytes, paper._id);
+      const driveFileId = await uploadEncrypted(ciphertext);
+      stored.push(driveFileId);
+      return { driveFileId, ...meta, originalName: name, uploadedBy: req.user.id, uploadedAt: new Date() };
     };
+    let finalFile;
+    let originalFile = null;
+    if (layout === "TWO_UP") {
+      const r = await twoUp(buf, { trimMm: req.body?.trim });
+      originalFile = await keep(buf, `${base}_from_word.pdf`);
+      finalFile = await keep(r.pdf, `${base}_final_2_per_side.pdf`);
+      r.pdf.fill(0);
+    } else {
+      finalFile = await keep(buf, `${base}_final.pdf`);
+    }
+    buf.fill(0);
     const saved = await PaperSetting.findOneAndUpdate(
       { _id: paper._id, frozenAt: null },
-      { $set: { finalPdf: file, frozenAt: new Date(), frozenBy: req.user.email || req.user.id } },
+      { $set: { finalPdf: finalFile, originalPdf: originalFile, layout, frozenAt: new Date(), frozenBy: req.user.email || req.user.id } },
       { returnDocument: "after" }
     ).populate(POPULATE);
     if (!saved) {
-      await deleteEncrypted(driveFileId);
+      for (const id of stored) await deleteEncrypted(id);
       return fail(res, 409, "This paper was frozen in another window.");
     }
-    await audit(req, "QP_FROZEN", paper._id, { sha256: meta.sha256, size: meta.size });
+    await audit(req, "QP_FROZEN", paper._id, { sha256: finalFile.sha256, size: finalFile.size, layout, trim: layout === "TWO_UP" ? Number(req.body?.trim) || 0 : undefined });
     res.json({ data: saved });
   } catch (err) {
-    if (driveFileId) await deleteEncrypted(driveFileId);
+    for (const id of stored) await deleteEncrypted(id);
     handleError(res, err, "uploadFinalPdf");
   }
 };

@@ -106,6 +106,10 @@ const paperSettingSchema = new mongoose.Schema(
     // there the paper is FROZEN: nobody opens it again except the Chief Examiner,
     // on the exam date, from 1 hour before the session (see services/examDay.js).
     finalPdf: { type: fileSchema, default: null },
+    // the PDF as the COE saved it from Word (finalPdf is then the 2-pages-per-side
+    // version that is printed); null when frozen "as it is"
+    originalPdf: { type: fileSchema, default: null },
+    layout: { type: String, enum: ["TWO_UP", "AS_IS", ""], default: "" },
     frozenAt: { type: Date, default: null },
     frozenBy: { type: String, default: "" },
     prints: {
@@ -171,6 +175,7 @@ paperSettingSchema.set("toJSON", {
     ret.currentFile = strip(ret.currentFile);
     ret.schemeFile = strip(ret.schemeFile);
     ret.finalPdf = strip(ret.finalPdf);
+    ret.originalPdf = strip(ret.originalPdf);
     if (ret.scrutiny) {
       ret.scrutiny.file = strip(ret.scrutiny.file);
       delete ret.scrutiny.docId;
