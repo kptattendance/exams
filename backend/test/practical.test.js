@@ -178,6 +178,10 @@ test("evening: one examiner set may conduct EE and ME batches of the same subjec
   const me = { ...base, label: "25EG010P-EV-ME1", number: 1, students: [{ id: "b", registerNumber: "186ME26001" }] };
   // the same subject, same time, same set and lab: one combined sitting – no clash
   assert.deepEqual(findClashes([ee, me], new Set([ee.label])), []);
+  // two sets with the same two persons (EE set 2 / ME set 2): also one sitting
+  assert.deepEqual(findClashes([ee, { ...me, set: "SET-ME-2" }], new Set([ee.label])), []);
+  // only one person the same: a clash
+  assert.ok(findClashes([ee, { ...me, set: "SET-ME-2", external: "other@y" }], new Set([ee.label])).some((m) => m.includes("same examiner")));
   // another subject at the same time with the same set: still a clash
   const cad = { ...me, code: "25ME010P", name: "CAD", label: "25ME010P-EV-ME1" };
   assert.ok(findClashes([ee, cad], new Set([ee.label])).some((m) => m.includes("same examiner")));

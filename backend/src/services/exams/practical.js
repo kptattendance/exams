@@ -270,9 +270,11 @@ export function findClashes(batches, changed, written = new Map(), paperTimes = 
         );
       // examiners and the lab: only a clash when the times overlap
       if (!sameTime) continue;
-      // evening batches of the same subject, same time, same examiner set: ONE combined
-      // sitting (e.g. English of EE and ME evening together) – same examiners and lab are fine
-      if (a.shift === "EVENING" && b.shift === "EVENING" && a.code === b.code && a.session === b.session && same(a.set, b.set)) continue;
+      // evening batches of the same subject, same time, same examiners (the same set, or
+      // two sets of the same two persons, e.g. EE set 2 and ME set 2): ONE combined sitting
+      // (e.g. English of EE and ME evening together) – same examiners and lab are fine
+      const sameExaminers = same(a.set, b.set) || (same(a.internal, b.internal) && same(a.external, b.external));
+      if (a.shift === "EVENING" && b.shift === "EVENING" && a.code === b.code && a.session === b.session && sameExaminers) continue;
       if (same(a.set, b.set) || same(a.internal, b.internal) || same(a.external, b.external))
         out.push(
           `The same examiner${a.examiners ? ` (${a.examiners})` : ""} is already conducting ${batchName(b)} on ${at}. Choose another examiner set or another date / time for ${batchName(a)}.`
