@@ -768,6 +768,8 @@ function Modal({ title, onClose, children, wide, full }) {
 const TRIMS = [0, 6, 12, 18, 24];
 function FreezeModal({ api, paper, onClose, onFreeze }) {
   const [file, setFile] = useState(null);
+  const [source, setSource] = useState("WEBSITE"); // WEBSITE (from the final Word file) | OWN (chosen by the COE)
+  const [making, setMaking] = useState(true);
   const [layout, setLayout] = useState("TWO_UP");
   const [trim, setTrim] = useState(12);
   const [original, setOriginal] = useState("");
@@ -775,7 +777,33 @@ function FreezeModal({ api, paper, onClose, onFreeze }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  // the PDF as chosen
+  // first: the website makes the PDF from the final (scrutinised) Word file, by Google Docs
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const r = await api("get", `/paper-setting/${paper._id}/final-pdf/from-word`, undefined, { responseType: "blob" });
+        if (!alive) return;
+        setFile(new File([r.data], `${paper.subject?.code}_SET${paper.setNo}.pdf`, { type: "application/pdf" }));
+        setSource("WEBSITE");
+      } catch (e) {
+        let msg = "The PDF could not be made from the Word file.";
+        try {
+          msg = JSON.parse(await e.response.data.text()).error || msg;
+        } catch {
+          // not a JSON error
+        }
+        if (alive) setError(`${msg} Use “Use my own PDF instead”.`);
+      } finally {
+        if (alive) setMaking(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [api, paper._id, paper.subject?.code, paper.setNo]);
+
+  // the PDF as made / chosen
   useEffect(() => {
     if (!file) return;
     const url = URL.createObjectURL(file);
@@ -821,15 +849,19 @@ function FreezeModal({ api, paper, onClose, onFreeze }) {
     <Modal title={`Page setting and freeze – ${paper.subject?.code} · Set ${paper.setNo}`} onClose={onClose} full>
       <ol className="list-decimal space-y-1 pl-5 text-sm text-slate-600">
         <li>
-          Open the final Word file and use <b>File → Save As → PDF</b> (Word keeps every symbol, equation and figure exactly).
+          The website makes the PDF from the final (scrutinised) Word file, with Google Docs – the program the paper was scrutinised in.
         </li>
-        <li>Choose that PDF below. The website places the pages 2 per side on A4 landscape – nothing inside a page is changed.</li>
-        <li>Compare both, choose how much white margin to trim, then freeze.</li>
+        <li>It places the pages 2 per side on A4 landscape – nothing inside a page is changed.</li>
+        <li>
+          Check equations, figures and symbols carefully, choose how much white margin to trim, then freeze. If something does not look right, open the
+          Word file, use <b>File → Save As → PDF</b> and press <b>Use my own PDF instead</b>.
+        </li>
       </ol>
+      {making && <p className="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-800">Making the PDF from the final Word file… please wait (about 10–20 seconds).</p>}
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <label className="cursor-pointer rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50">
-          {file ? `Chosen: ${file.name}` : "Choose the PDF saved from Word"}
+          {source === "OWN" && file ? `Your PDF: ${file.name} – choose another` : "Use my own PDF instead"}
           <input
             type="file"
             accept="application/pdf,.pdf"
@@ -840,6 +872,8 @@ function FreezeModal({ api, paper, onClose, onFreeze }) {
               if (!f) return;
               if (!/\.pdf$/i.test(f.name)) return setError("Choose a PDF file.");
               setPreview(null);
+              setError("");
+              setSource("OWN");
               setFile(f);
             }}
           />
@@ -882,7 +916,9 @@ function FreezeModal({ api, paper, onClose, onFreeze }) {
       {file && (
         <div className={`mt-3 grid gap-3 ${layout === "TWO_UP" ? "lg:grid-cols-2" : ""}`}>
           <div>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">As saved from Word</p>
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              {source === "OWN" ? "Your PDF (saved from Word)" : "PDF made from the final Word file"}
+            </p>
             {original && <iframe title="original" src={original} className="h-[65vh] w-full rounded-xl border border-slate-200" />}
           </div>
           {layout === "TWO_UP" && (

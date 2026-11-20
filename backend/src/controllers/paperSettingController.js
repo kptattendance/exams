@@ -32,6 +32,7 @@ import {
   shareForEditing,
   exportAsDocx,
   scrutinyDocUrl,
+  wordToPdf,
 } from "../services/driveStorage.js";
 import { changeRecord } from "../services/textDiff.js";
 import { sendPaperSettingEmail, sendSchemeRequestEmail } from "../services/mailer.js";
@@ -949,6 +950,26 @@ async function scheduleFor(code, examSession) {
   }
   return null;
 }
+
+// GET /api/paper-setting/:id/final-pdf/from-word   (COE) – the final (scrutinised) Word paper
+// as a PDF, made by Google Docs. Nothing is stored; the COE checks it, page-sets and freezes.
+export const pdfFromWord = async (req, res) => {
+  try {
+    if (!isId(req.params.id)) return fail(res, 400, "Invalid id.");
+    const paper = await PaperSetting.findById(req.params.id).populate(POPULATE[0]);
+    if (!paper || paper.status !== "SUBMITTED") return fail(res, 404, "Submitted paper not found.");
+    if (paper.frozenAt) return fail(res, 409, "This paper is already frozen.");
+    if (paper.scrutiny?.status !== "DONE" || !paper.scrutiny.file) return fail(res, 400, "The scrutiniser has not finished this paper yet.");
+    const word = await getDecryptedFile(paper, paper.scrutiny.file);
+    const pdf = await wordToPdf(word, `${paper.subject.code} Set ${paper.setNo} – PDF (temporary)`);
+    word.fill(0);
+    await audit(req, "QP_PDF_MADE", paper._id, { size: pdf.length });
+    res.set({ "Content-Type": "application/pdf", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" });
+    res.send(pdf);
+  } catch (err) {
+    handleError(res, err, "pdfFromWord");
+  }
+};
 
 // POST /api/paper-setting/:id/final-pdf/preview   (COE; multipart "file", trim) – the
 // 2-pages-per-side version of the PDF saved from Word, to check before freezing. Nothing is stored.

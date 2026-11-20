@@ -113,6 +113,25 @@ export async function createScrutinyDoc(buffer, name) {
   return res.data.id;
 }
 
+// The final (scrutinised) Word paper as a PDF, made by Google Docs – the same
+// program the paper was scrutinised in. The temporary Doc (in "Scrutiny", shared
+// with nobody) is deleted straight away, also when the export fails.
+export async function wordToPdf(buffer, name) {
+  const drive = getDrive();
+  const made = await drive.files.create({
+    requestBody: { name, parents: [await subFolderId("Scrutiny")], mimeType: "application/vnd.google-apps.document" },
+    media: { mimeType: DOCX, body: Readable.from(buffer) },
+    fields: "id",
+    supportsAllDrives: true,
+  });
+  try {
+    const res = await drive.files.export({ fileId: made.data.id, mimeType: "application/pdf" }, { responseType: "arraybuffer" });
+    return Buffer.from(res.data);
+  } finally {
+    await drive.files.delete({ fileId: made.data.id, supportsAllDrives: true }).catch(() => {});
+  }
+}
+
 // Only this person (a Google account) may open and edit the Doc
 export async function shareForEditing(fileId, email) {
   await getDrive().permissions.create({
