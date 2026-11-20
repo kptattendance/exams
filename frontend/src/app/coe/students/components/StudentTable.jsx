@@ -11,7 +11,7 @@ import axios from "axios";
 import { XLSX } from "../../../components/xlsx";
 import { sortOptions } from "../../../components/sortOptions";
 import { useIsAdmin } from "../../../components/useRole";
-import { usePopupMessage, confirmBox } from "../../../components/ui/Feedback";
+import { usePopupMessage, confirmBox, popup } from "../../../components/ui/Feedback";
 import ChangePhotoButton from "../../../components/students/ChangePhoto";
 import CollegeSelect, { matchesCollege } from "../../../components/ui/CollegeFilter";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -88,9 +88,12 @@ const getStatusName = (value) => {
   );
 };
 
+// officeMode (exam section office): only View and Edit – Edit opens every
+// field, the photo too, in one form (no add / upload / separate photo button)
 export default function StudentTable({
   onAddStudent,
   onBulkUpload,
+  officeMode = false,
 }) {
   const { getToken } = useAuth();
   const isAdmin = useIsAdmin(); // deleting is for the Admin only
@@ -124,6 +127,9 @@ export default function StudentTable({
   const [editForm, setEditForm] =
     useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  // office: a new photo chosen inside the edit form
+  const [editPhoto, setEditPhoto] = useState(null);
+  const [editPhotoPreview, setEditPhotoPreview] = useState("");
 
   // Delete
   const [deletingId, setDeletingId] =
@@ -402,6 +408,8 @@ const downloadStudentsExcel = () => {
   // =====================================================
 
   const handleEdit = async (student) => {
+    setEditPhoto(null); // a photo chosen earlier but not saved is dropped
+    setEditPhotoPreview("");
     try {
       setActionError("");
 
@@ -574,6 +582,17 @@ const downloadStudentsExcel = () => {
           },
         }
       );
+
+      // a new photo chosen in the form (office): the same photo change as "Change photo"
+      if (editPhoto) {
+        const fd = new FormData();
+        fd.append("image", editPhoto);
+        await axios.put(`${API_URL}/api/students/${editingStudent._id}/photo`, fd, {
+          headers: { Authorization: `Bearer ${await getToken()}` },
+        });
+        setEditPhoto(null);
+        setEditPhotoPreview("");
+      }
 
       setEditingStudent(null);
 
@@ -946,19 +965,23 @@ const downloadStudentsExcel = () => {
               </button>
             )}
 
+            {!officeMode && (
             <button
               onClick={onBulkUpload}
               className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
             >
               Bulk Upload
             </button>
+            )}
 
+            {!officeMode && (
             <button
               onClick={onAddStudent}
               className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
             >
               + Add Student
             </button>
+            )}
 <button
   type="button"
   onClick={downloadStudentsExcel}
@@ -1183,7 +1206,7 @@ const downloadStudentsExcel = () => {
                               Edit
                             </button>
 
-                            <ChangePhotoButton student={student} onChanged={fetchStudents} />
+                            {!officeMode && <ChangePhotoButton student={student} onChanged={fetchStudents} />}
 
                             {isAdmin && (
                             <button
@@ -1492,6 +1515,40 @@ const downloadStudentsExcel = () => {
               onSubmit={handleUpdate}
               className="space-y-6 p-6"
             >
+
+              {/* office: the photo is changed in the same form */}
+              {officeMode && (
+                <div className="flex items-center gap-4 rounded-xl border border-slate-200 p-3">
+                  {editPhotoPreview || editingStudent.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={editPhotoPreview || editingStudent.imageUrl} alt="" className="h-20 w-16 rounded-lg border border-slate-200 object-cover" />
+                  ) : (
+                    <div className="flex h-20 w-16 items-center justify-center rounded-lg bg-slate-100 text-xs text-slate-400">No photo</div>
+                  )}
+                  <div className="text-sm">
+                    <p className="font-semibold text-slate-800">Photo</p>
+                    <label className="mt-1 inline-block cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                      {editPhoto ? "Choose another photo" : "Choose a new photo"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          e.target.value = "";
+                          if (!f) return;
+                          if (!f.type.startsWith("image/")) return popup("error", "Choose a photo (JPG or PNG).");
+                          if (f.size > 5 * 1024 * 1024) return popup("error", "The photo is larger than 5 MB. Choose a smaller one.");
+                          if (editPhotoPreview) URL.revokeObjectURL(editPhotoPreview);
+                          setEditPhoto(f);
+                          setEditPhotoPreview(URL.createObjectURL(f));
+                        }}
+                      />
+                    </label>
+                    <p className="mt-1 text-xs text-slate-500">{editPhoto ? "The new photo is saved with “Save Changes”." : "JPG or PNG, up to 5 MB."}</p>
+                  </div>
+                </div>
+              )}
 
               {/* LOCKED */}
               <div className="grid gap-4 sm:grid-cols-2">

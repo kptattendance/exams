@@ -210,6 +210,7 @@ export const MENUS = {
       {
         title: "Before the exam",
         items: [
+          { label: "Students", href: "/office/students", icon: "students" },
           { label: "Fee verification", href: "/office/fees", icon: "money", pinned: true },
           { label: "Fee transactions", href: "/office/fees/transactions", icon: "report" },
           { label: "Scan with phone", href: "/office/fees/phone", icon: "ticket" },
