@@ -26,7 +26,7 @@ import RoomDiary from "../models/RoomDiary.js";
 import Counter from "../models/Counter.js";
 import { attendanceBlocked, autoCode, getPaper, syncCandidates, syncPackets } from "./valuationController.js";
 import { planDiaries } from "../services/exams/valuation.js";
-import { seatsOf } from "../services/exams/seating.js";
+import { arrangeSeats, roomSeats, sameBenches, seatsOf } from "../services/exams/seating.js";
 import Student from "../models/Student.js";
 import ExamRegistration from "../models/ExamRegistration.js";
 import { ABSENT_AFTER_MINUTES, printWindow, todayIST, windowState } from "../services/examDay.js";
@@ -151,7 +151,19 @@ export const getSession = async (req, res) => {
     times,
     papers,
     candidates: scripts.map((x) => ({ ...x, room: roomOf.get(x.registerNumber) || "", seat: seats.seatOf.get(x.registerNumber)?.seat || null })),
-    rooms: rooms.map((r) => ({ _id: r._id, name: r.name, invigilator: r.invigilator, students: r.students, seats: seats.ranges.get(r.name) || null })),
+    rooms: rooms.map((r) => {
+      const map = roomSeats(r);
+      return {
+        _id: r._id,
+        name: r.name,
+        invigilator: r.invigilator,
+        capacity: r.capacity || 50,
+        students: r.students,
+        seats: map, // register number -> desk number
+        // benches whose two students write the same paper AND are from the same department
+        sameBenches: sameBenches(r, map, new Map(scripts.map((x) => [x.registerNumber, x]))),
+      };
+    }),
     // one room diary per paper per room = one packet
     diaries: diaries.map((d) => ({
       _id: d._id,
@@ -196,12 +208,16 @@ export const saveRooms = async (req, res) => {
     if (names.has(name.toLowerCase())) return fail(res, 400, `Room "${name}" is listed twice.`);
     names.add(name.toLowerCase());
     const students = [...new Set((Array.isArray(r.students) ? r.students : []).map((x) => String(x).trim().toUpperCase()).filter(Boolean))];
+    const capacity = Math.min(200, Math.max(2, Math.round(Number(r.capacity) || 50)));
+    if (students.length > capacity) return fail(res, 400, `"${name}" holds ${capacity} students – ${students.length} are put in it.`);
     for (const n of students) {
       if (!known.has(n)) return fail(res, 400, `${n} does not write a paper in this session.`);
       if (seen.has(n)) return fail(res, 400, `${n} is in "${seen.get(n)}" and also in "${name}".`);
       seen.set(n, name);
     }
-    clean.push({ exam: exam._id, date, session, name, order: i, invigilator: String(r.invigilator || "").trim().slice(0, 80), students, savedBy: who(req) });
+    // desk numbers: the ones given (automatic arrangement), the lowest free desk for the rest
+    const seats = roomSeats({ capacity, students, seats: r.seats && typeof r.seats === "object" ? r.seats : {} });
+    clean.push({ exam: exam._id, date, session, name, order: i, invigilator: String(r.invigilator || "").trim().slice(0, 80), capacity, students, seats, savedBy: who(req) });
   }
 
   // ---- room diaries and ATS numbers
@@ -298,6 +314,35 @@ export const trialEndSession = async (req, res) => {
   res.json({ date: past, message: "Trial: this session is now over. The packets are made – see Valuation." });
 };
 
+// POST /api/exam-sessions/:examId/:date/:session/arrange  { rooms: [{ name, invigilator, capacity }] }
+// Makes the seating automatically (NOT saved – the screen shows it, then "Save rooms"):
+// bench partners write different papers; for a common paper, different departments.
+export const arrangeRooms = async (req, res) => {
+  const s = await loadSession(req, res);
+  if (!s) return;
+  const { exam, entries } = s;
+  const list = (Array.isArray(req.body?.rooms) ? req.body.rooms : [])
+    .map((r) => ({ name: String(r?.name || "").trim().slice(0, 40), invigilator: String(r?.invigilator || "").trim().slice(0, 80), capacity: Math.min(200, Math.max(2, Math.round(Number(r?.capacity) || 50))) }))
+    .filter((r) => r.name);
+  if (!list.length) return fail(res, 400, "Add the rooms first (name and how many students each holds).");
+  const scripts = await AnswerScript.find({ exam: exam._id, code: { $in: entries.map((e) => e.code) } }).select("registerNumber code department").lean();
+  const one = new Map(); // a student writing two papers in a session gets one seat
+  for (const x of scripts) if (!one.has(x.registerNumber)) one.set(x.registerNumber, x);
+  const r = arrangeSeats(list, [...one.values()]);
+  const inv = new Map(list.map((x) => [x.name, x.invigilator]));
+  res.json({
+    rooms: r.rooms.map((x) => ({ ...x, invigilator: inv.get(x.name) || "" })),
+    notAllotted: r.notAllotted,
+    message:
+      `${one.size - r.notAllotted.length} of ${one.size} students seated in ${list.length} room${list.length === 1 ? "" : "s"}: ${r.benches.differentPaper} benches with different papers` +
+      (r.benches.differentDept ? `, ${r.benches.differentDept} with the same paper but different departments` : "") +
+      (r.benches.same ? `, ${r.benches.same} with the same paper and department (no other choice – shown in orange)` : "") +
+      "." +
+      (r.notAllotted.length ? ` ${r.notAllotted.length} students do not fit – add a room.` : "") +
+      " Check it and press Save rooms.",
+  });
+};
+
 // POST /api/exam-sessions/:examId/:date/:session/printed  { room }  – the room diaries
 // (of one room, or all) are printed again: the "print again" mark goes
 export const markPrinted = async (req, res) => {
@@ -362,7 +407,7 @@ async function seatsForStudent(registerNumber) {
     }
     for (const [k, list] of bySlot) {
       const [date, session] = k.split("|");
-      const rooms = await ExamRoom.find({ exam: e._id, date, session }).select("name order students").lean();
+      const rooms = await ExamRoom.find({ exam: e._id, date, session }).select("name order students capacity seats").lean();
       const seat = seatsOf(rooms).seatOf.get(registerNumber) || null;
       const all = (e.timetable?.entries || []).filter((x) => x.date === date && x.session === session);
       const t = timesOf(all, e.timetable.sessions);

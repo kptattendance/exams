@@ -16,6 +16,9 @@ const examRoomSchema = new mongoose.Schema(
     order: { type: Number, default: 0 },
     invigilator: { type: String, default: "", trim: true },
     students: { type: [String], default: [] }, // register numbers
+    // benches of 2: capacity 50 = 25 benches; desk k (left) and k + 25 (right)
+    capacity: { type: Number, default: 50, min: 2, max: 200 },
+    seats: { type: Map, of: Number, default: {} }, // register number -> desk number
     savedBy: { type: String, default: "" },
   },
   { timestamps: true }

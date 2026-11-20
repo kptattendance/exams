@@ -244,13 +244,16 @@ function Rooms({ d, path, tint, onSaved }) {
   const confirm = useConfirm();
   // rooms (and so the ATS numbers) are locked from the start of the session (Admin: until the packets are made)
   const closed = !d.roomsOpen;
-  const [rooms, setRooms] = useState(() => d.rooms.map((r) => ({ name: r.name, invigilator: r.invigilator, students: [...r.students] })));
+  const [rooms, setRooms] = useState(() =>
+    d.rooms.map((r) => ({ name: r.name, invigilator: r.invigilator, capacity: r.capacity || 50, students: [...r.students], seats: { ...(r.seats || {}) } }))
+  );
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [picked, setPicked] = useState(() => new Set());
   const [target, setTarget] = useState(d.rooms[0]?.name || "");
   const [newRoom, setNewRoom] = useState("");
-  const [size, setSize] = useState("25");
+  const [newCap, setNewCap] = useState("50");
+  const [size, setSize] = useState("50");
   const [paper, setPaper] = useState("");
   const [show, setShow] = useState("ALL"); // ALL | FREE | <room name>
   const [q, setQ] = useState("");
@@ -260,20 +263,46 @@ function Rooms({ d, path, tint, onSaved }) {
     for (const r of rooms) for (const n of r.students) m.set(n, r.name);
     return m;
   }, [rooms]);
-  // seat (desk) numbers run on from room to room: Room 1 seats 1–25, Room 2 seats 26–50 …
-  const { seatOf, rangeOf } = useMemo(() => {
+  // desk numbers start at 1 in every room: bench k = desk k (left) and k + 25 (right);
+  // the arranged desk is kept, a student put in by hand gets the lowest free desk
+  const info = useMemo(() => new Map(d.candidates.map((c) => [c.registerNumber, c])), [d.candidates]);
+  const { seatOf, deskMaps, sameOf } = useMemo(() => {
     const seat = new Map();
-    const range = new Map();
-    let n = 0;
+    const maps = new Map();
+    const same = new Map();
+    const dept = (c) => String(c?.department || "").toLowerCase();
     for (const r of rooms) {
-      const list = [...r.students].sort();
-      if (!list.length) continue;
-      const from = n + 1;
-      for (const reg of list) seat.set(reg, ++n);
-      range.set(r.name, `${from}–${n}`);
+      const map = {};
+      const used = new Set();
+      for (const reg of r.students) {
+        const given = r.seats?.[reg];
+        if (given && !used.has(given)) {
+          map[reg] = given;
+          used.add(given);
+        }
+      }
+      let next = 1;
+      for (const reg of r.students) {
+        if (map[reg]) continue;
+        while (used.has(next)) next++;
+        map[reg] = next;
+        used.add(next);
+      }
+      maps.set(r.name, map);
+      for (const [reg, s] of Object.entries(map)) seat.set(reg, s);
+      // benches whose two students write the same paper and are from the same department
+      const half = Math.floor((r.capacity || 50) / 2);
+      const at = new Map(Object.entries(map).map(([reg, s]) => [s, reg]));
+      let n = 0;
+      for (let k = 1; k <= half; k++) {
+        const a = info.get(at.get(k));
+        const b = info.get(at.get(k + half));
+        if (a && b && a.code === b.code && dept(a) === dept(b)) n++;
+      }
+      same.set(r.name, n);
     }
-    return { seatOf: seat, rangeOf: range };
-  }, [rooms]);
+    return { seatOf: seat, deskMaps: maps, sameOf: same };
+  }, [rooms, info]);
   const free = d.candidates.filter((c) => !roomOf.has(c.registerNumber));
   const list = d.candidates.filter(
     (c) =>
@@ -283,25 +312,54 @@ function Rooms({ d, path, tint, onSaved }) {
   );
 
   const change = (fn) => {
-    setRooms((rs) => fn(rs.map((r) => ({ ...r, students: [...r.students] }))));
+    setRooms((rs) => fn(rs.map((r) => ({ ...r, students: [...r.students], seats: { ...(r.seats || {}) } }))));
     setDirty(true);
   };
   const addRoom = () => {
     const name = newRoom.trim();
     if (!name) return;
     if (rooms.some((r) => r.name.toLowerCase() === name.toLowerCase())) return toast.error("A room with this name is already there.");
-    change((rs) => [...rs, { name, invigilator: "", students: [] }]);
+    change((rs) => [...rs, { name, invigilator: "", capacity: Math.max(2, Number(newCap) || 50), students: [], seats: {} }]);
     setTarget(name);
     setNewRoom("");
   };
-  const put = (numbers, room) =>
+  const put = (numbers, room) => {
+    const t = rooms.find((r) => r.name === room);
+    const stay = t ? t.students.filter((n) => !numbers.includes(n)).length : 0;
+    const cap = t?.capacity || 50;
+    if (t && stay + numbers.length > cap) return toast.error(`${room} holds ${cap} students – only ${cap - stay} more fit.`);
     change((rs) => {
-      for (const r of rs) r.students = r.students.filter((n) => !numbers.includes(n));
-      const t = rs.find((r) => r.name === room);
-      if (t) t.students.push(...numbers);
+      for (const r of rs) {
+        r.students = r.students.filter((n) => !numbers.includes(n));
+        for (const n of numbers) delete r.seats[n];
+      }
+      const x = rs.find((r) => r.name === room);
+      if (x) x.students.push(...numbers);
       for (const r of rs) r.students.sort();
       return rs;
     });
+  };
+  // automatic seating: bench partners write different papers; for a common paper,
+  // different departments (not saved until "Save rooms")
+  const arrange = async () => {
+    if (!rooms.length) return toast.error("Add the rooms first (name and how many students each holds).");
+    const ok = await confirm({
+      title: "Arrange the seating automatically?",
+      message: "All students of this session are put into these rooms again, bench by bench. You can still move a student by hand, then Save rooms.",
+      confirmText: "Arrange",
+    });
+    if (!ok) return;
+    setBusy(true);
+    try {
+      const r = await api("post", `${path}/arrange`, { rooms: rooms.map((x) => ({ name: x.name, invigilator: x.invigilator, capacity: x.capacity })) });
+      setRooms(r.data.rooms.map((x) => ({ name: x.name, invigilator: x.invigilator, capacity: x.capacity, students: x.students, seats: x.seats })));
+      setDirty(true);
+      toast.success(r.data.message, 9000);
+    } catch (e) {
+      toast.error(errMsg(e, "Could not arrange the seating."), 8000);
+    }
+    setBusy(false);
+  };
   const putPicked = () => {
     if (!target) return toast.error("Add a room first.");
     put([...picked], target);
@@ -310,7 +368,7 @@ function Rooms({ d, path, tint, onSaved }) {
   // the next N not-allotted candidates (shown order, i.e. register-number order) go to the room
   const fillNext = () => {
     if (!target) return toast.error("Add a room first.");
-    const n = Math.max(1, Number(size) || 25);
+    const n = Math.max(1, Number(size) || 50);
     const next = list.filter((c) => !roomOf.has(c.registerNumber)).slice(0, n).map((c) => c.registerNumber);
     if (!next.length) return toast.error("Everybody in this list is already in a room.");
     put(next, target);
@@ -322,7 +380,8 @@ function Rooms({ d, path, tint, onSaved }) {
   const save = async () => {
     setBusy(true);
     try {
-      const r = await api("put", `${path}/rooms`, { rooms });
+      // the desks as shown are saved
+      const r = await api("put", `${path}/rooms`, { rooms: rooms.map((x) => ({ ...x, seats: deskMaps.get(x.name) || {} })) });
       toast.success(r.data.message, 6000);
       setDirty(false);
       onSaved();
@@ -355,11 +414,32 @@ function Rooms({ d, path, tint, onSaved }) {
               <button onClick={() => setTarget(r.name)} className="flex-1 text-left text-sm font-bold text-slate-950">
                 {r.name}
               </button>
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">{r.students.length}</span>
+              <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${r.students.length >= (r.capacity || 50) ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-700"}`}>
+                {r.students.length} / {r.capacity || 50}
+              </span>
             </div>
-            <div className="mt-0.5 text-[11px] font-semibold text-slate-500">
-              {rangeOf.get(r.name) ? `Seats ${rangeOf.get(r.name)}` : "No seats yet"}
+            <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-slate-500">
+              <span>
+                Desks 1–{r.capacity || 50} ({Math.floor((r.capacity || 50) / 2)} benches of 2)
+              </span>
+              {!closed && (
+                <label className="flex items-center gap-1 font-normal">
+                  holds
+                  <input
+                    type="number"
+                    min="2"
+                    value={r.capacity || 50}
+                    onChange={(e) => change((rs) => rs.map((x) => (x.name === r.name ? { ...x, capacity: Math.max(2, Number(e.target.value) || 50), seats: {} } : x)))}
+                    className="h-6 w-14 rounded border border-slate-200 px-1 text-[11px]"
+                  />
+                </label>
+              )}
             </div>
+            {sameOf.get(r.name) > 0 && (
+              <p className="mt-1 rounded-md bg-orange-50 px-2 py-0.5 text-[11px] font-semibold text-orange-800">
+                {sameOf.get(r.name)} bench{sameOf.get(r.name) === 1 ? "" : "es"}: same paper and same department side by side
+              </p>
+            )}
             <input
               value={r.invigilator}
               disabled={closed}
@@ -403,6 +483,7 @@ function Rooms({ d, path, tint, onSaved }) {
             <p className="text-xs font-semibold text-slate-500">Add a room</p>
             <div className="mt-2 flex gap-1.5">
               <input value={newRoom} onChange={(e) => setNewRoom(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addRoom()} placeholder="e.g. Room 12" className="h-8 min-w-0 flex-1 rounded-lg border border-slate-200 px-2 text-xs" />
+              <input type="number" min="2" value={newCap} onChange={(e) => setNewCap(e.target.value)} title="Students it holds" aria-label="Students it holds" className="h-8 w-14 rounded-lg border border-slate-200 px-1 text-xs" />
               <button onClick={addRoom} className={btn.small}>
                 Add
               </button>
@@ -423,7 +504,20 @@ function Rooms({ d, path, tint, onSaved }) {
         )}
       </div>
 
-      {/* allotting */}
+      {/* automatic seating */}
+      {!closed && rooms.length > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+          <p className="flex-1 text-sm text-emerald-900">
+            <b>Arrange automatically:</b> every student of this session is seated, 2 to a bench – bench partners write <b>different papers</b>; for a common paper
+            (e.g. Maths) they are from <b>different departments</b>.
+          </p>
+          <button onClick={arrange} disabled={busy} className={btn.primary}>
+            Arrange seating automatically
+          </button>
+        </div>
+      )}
+
+      {/* allotting by hand */}
       {!closed && rooms.length > 0 && (
         <div className="mt-3 flex flex-wrap items-end gap-2 rounded-xl border border-slate-200 bg-white p-3">
           <label className="text-xs text-slate-600">
@@ -439,7 +533,7 @@ function Rooms({ d, path, tint, onSaved }) {
             <input type="number" min="1" value={size} onChange={(e) => setSize(e.target.value)} className="mt-1 block h-9 w-20 rounded-lg border border-slate-300 px-2 text-sm" />
           </label>
           <button onClick={fillNext} className={btn.primary}>
-            Put the next {Math.max(1, Number(size) || 25)} not-allotted in {target || "the room"}
+            Put the next {Math.max(1, Number(size) || 50)} not-allotted in {target || "the room"}
           </button>
           <button onClick={putPicked} disabled={!picked.size} className={btn.secondary}>
             Put {picked.size || ""} ticked in {target || "the room"}
@@ -477,7 +571,7 @@ function Rooms({ d, path, tint, onSaved }) {
         extra={(c) =>
           roomOf.get(c.registerNumber) ? (
             <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[11px] font-semibold text-white">
-              {roomOf.get(c.registerNumber)} · Seat {seatOf.get(c.registerNumber)}
+              {roomOf.get(c.registerNumber)} · Desk {seatOf.get(c.registerNumber)}
             </span>
           ) : (
             <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-semibold text-orange-800">Not allotted</span>
@@ -493,7 +587,7 @@ function Rooms({ d, path, tint, onSaved }) {
           <p className="mr-auto text-sm text-slate-600">
             {dirty
               ? "Save the rooms first, then print."
-              : `${rooms.filter((r) => r.students.length).length} rooms · seats 1–${d.candidates.length - free.length}${d.seesAts ? ` · ${d.diaries.length} room diaries (packets)` : ""}`}
+              : `${rooms.filter((r) => r.students.length).length} rooms · ${d.candidates.length - free.length} students seated${d.seesAts ? ` · ${d.diaries.length} room diaries (packets)` : ""}`}
             {free.length > 0 && !dirty && <span className="font-semibold text-orange-700"> · {free.length} not allotted yet</span>}
           </p>
           {/* seating plan: notice-board list + door sheets (no ATS) – the exam section office */}

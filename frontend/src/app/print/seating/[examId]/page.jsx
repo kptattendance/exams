@@ -4,8 +4,8 @@
 // section office – no ATS numbers:
 //   ?date=2026-11-16&session=FN
 // 1. Notice board: every candidate in register-number order – room and seat
-// 2. Door sheets: one per room – "Room 2 · Seats 26 to 50", seat by seat
-// Seats run on from room to room (Room 1: 1–25, Room 2: 26–50 …).
+// 2. Door sheets: one per room – bench by bench (bench k = desk k left, desk k + 25 right)
+// Desk numbers start at 1 in every room.
 
 import { Suspense, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
@@ -57,17 +57,17 @@ function Seating() {
   if (failed) return <p className="p-8 text-sm text-slate-500">Nothing to print.</p>;
   if (!d) return <p className="p-8 text-sm text-slate-500">Loading… please wait</p>;
 
-  const paperName = new Map(d.papers.map((p) => [p.code, p.name]));
   const seated = d.candidates.filter((c) => c.seat);
   const byReg = [...seated].sort((a, b) => a.registerNumber.localeCompare(b.registerNumber, undefined, { numeric: true }));
-  const rooms = d.rooms.filter((r) => r.seats);
+  const rooms = d.rooms.filter((r) => r.students.length);
+  const byRegCode = new Map(d.candidates.map((c) => [c.registerNumber, c]));
 
   return (
     <div className="mx-auto max-w-[210mm] bg-white px-6 py-6 text-[11.5px] text-slate-900 print:max-w-none print:p-0">
       <style>{`@page{size:A4;margin:10mm} @media print{body{background:#fff}} *{-webkit-print-color-adjust:exact;print-color-adjust:exact}`}</style>
       <div className="mb-5 flex items-center gap-3 rounded-xl bg-slate-100 p-3 print:hidden">
         <p className="flex-1 text-sm text-slate-600">
-          Notice-board list ({seated.length} candidates) and {rooms.length} door sheet{rooms.length === 1 ? "" : "s"} · use Print → Save as PDF for a PDF.
+          Notice-board list ({seated.length} candidates) and {rooms.length} door sheet{rooms.length === 1 ? "" : "s"} (bench by bench) · use Print → Save as PDF for a PDF.
         </p>
         <button onClick={() => window.print()} className="h-10 rounded-xl bg-slate-950 px-5 text-sm font-semibold text-white">
           Print
@@ -88,7 +88,7 @@ function Seating() {
                   <th className={th}>Name</th>
                   <th className={`${th} w-24`}>Paper</th>
                   <th className={`${th} w-24`}>Room</th>
-                  <th className={`${th} w-14 text-center`}>Seat</th>
+                  <th className={`${th} w-14 text-center`}>Desk</th>
                 </tr>
               </thead>
               <tbody>
@@ -106,30 +106,36 @@ function Seating() {
             </table>
           </section>
 
-          {/* ---------------- 2. one sheet per room door ---------------- */}
+          {/* ---------------- 2. one sheet per room door: bench by bench ---------------- */}
           {rooms.map((r) => {
-            const list = seated.filter((c) => c.room === r.name).sort((a, b) => a.seat - b.seat);
+            const half = Math.floor((r.capacity || 50) / 2);
+            const at = new Map(Object.entries(r.seats || {}).map(([reg, desk]) => [desk, byRegCode.get(reg)]));
+            const cell = (c, desk) =>
+              c ? (
+                <>
+                  <span className="font-bold">{desk}.</span> <b>{c.registerNumber}</b> {c.name}
+                  <span className="block text-[9.5px] text-slate-600">{c.code}</span>
+                </>
+              ) : (
+                <span className="text-slate-400">{desk}. –</span>
+              );
             return (
               <section key={r.name} className="break-before-page">
-                <Head d={d} title="SEATING – ROOM" sub={`${r.name} · Seats ${r.seats.from} to ${r.seats.to}`} />
-                <table className="mt-3 w-full border-collapse">
+                <Head d={d} title="SEATING – ROOM" sub={`${r.name} · ${r.students.length} students`} />
+                <table className="mt-3 w-full border-collapse text-[10.5px]">
                   <thead>
                     <tr className="bg-slate-100">
-                      <th className={`${th} w-14 text-center`}>Seat</th>
-                      <th className={`${th} w-28`}>Register No.</th>
-                      <th className={th}>Name</th>
-                      <th className={th}>Paper</th>
+                      <th className={`${th} w-12 text-center`}>Bench</th>
+                      <th className={th}>Left desk (1–{half})</th>
+                      <th className={th}>Right desk ({half + 1}–{half * 2})</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {list.map((c) => (
-                      <tr key={`${c.registerNumber}|${c.code}`}>
-                        <td className={`${td} text-center text-[13px] font-bold`}>{c.seat}</td>
-                        <td className={`${td} font-semibold`}>{c.registerNumber}</td>
-                        <td className={td}>{c.name}</td>
-                        <td className={td}>
-                          {c.code} – {paperName.get(c.code) || ""}
-                        </td>
+                    {Array.from({ length: half }, (_, i) => i + 1).map((k) => (
+                      <tr key={k}>
+                        <td className={`${td} text-center font-bold`}>{k}</td>
+                        <td className={td}>{cell(at.get(k), k)}</td>
+                        <td className={td}>{cell(at.get(k + half), k + half)}</td>
                       </tr>
                     ))}
                   </tbody>
