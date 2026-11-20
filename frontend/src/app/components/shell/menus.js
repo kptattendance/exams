@@ -13,6 +13,7 @@ export const HOME_BY_ROLE = {
   office: "/office/fees", // the office starts on fee verification
   exam_officer: "/office/fees", // old name of office
   exam_clerk: "/clerk",
+  office_typist: "/typist",
   qp_scrutinizer: "/scrutiny",
   chief_examiner: "/chief-examiner",
   hod: "/hod",
@@ -266,6 +267,18 @@ export const MENUS = {
           { label: "Question papers today", href: "/chief-examiner", icon: "lock", pinned: true },
           { label: "Rooms & absentees", href: "/chief-examiner/sessions", icon: "list", pinned: true },
         ],
+      },
+    ],
+  },
+
+  // Office typist: only the practical examiners' certificates
+  typist: {
+    role: "Office typist",
+    home: "/typist",
+    sections: [
+      {
+        title: "Practical examination",
+        items: [{ label: "Examiner certificates", href: "/typist", icon: "paper", pinned: true }],
       },
     ],
   },

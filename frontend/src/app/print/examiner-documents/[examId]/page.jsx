@@ -27,7 +27,7 @@ const two = (n) => String(n).padStart(2, "0");
 // text the exam section (office, COE, Admin) may correct on screen (dotted outline only on
 // screen); for a HOD the documents are read-only
 const CanEdit = createContext(false);
-const EDITORS = ["office", "coe", "acoe", "admin"];
+const EDITORS = ["office", "office_typist", "coe", "acoe", "admin"];
 function Edit({ children, className = "" }) {
   const canEdit = useContext(CanEdit);
   if (!canEdit) return <span className={className}>{children}</span>;

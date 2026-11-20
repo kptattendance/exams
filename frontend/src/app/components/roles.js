@@ -12,6 +12,7 @@ export const ROLE_OPTIONS = [
     does: "Fees, freezing IA and attendance, hall-ticket subjects and printing, absentees, paper-setter orders",
   },
   { value: "exam_clerk", label: "Exam clerk", does: "Types the valuers' award lists" },
+  { value: "office_typist", label: "Office typist", does: "Prints the practical examiners' certificates (intimation, conducting, attendance)" },
   { value: "qp_scrutinizer", label: "QP scrutiniser", does: "Scrutinises the submitted question papers" },
   { value: "chief_examiner", label: "Chief Examiner", does: "On the exam date only, opens and prints the frozen question paper" },
   { value: "hod", label: "HOD", does: "Department IA, attendance, electives, practical batches" },

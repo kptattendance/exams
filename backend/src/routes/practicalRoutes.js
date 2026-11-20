@@ -59,7 +59,7 @@ router.use(authenticateUser, asHodScope);
 // Results published: no change to this examination (Admin: reason + code)
 router.use(lockedExamGuard(examOf));
 
-router.get("/exams", VIEW, practicalExams);
+router.get("/exams", requireRole("hod", "coe", "acoe", "admin", "office", "principal", "office_typist"), practicalExams);
 router.get("/examiners", ALLOT, listExaminers);
 router.get("/my", EXAMINER, myBatches);
 
@@ -78,7 +78,7 @@ router.post("/batches/:batchId/correct", requireRole("admin"), requireStepUp("ma
 router.get("/:id/panels", VIEW, listPanels);
 router.post("/:id/panels", ALLOT, addPanel);
 router.get("/:id/orders", requireRole("coe", "acoe", "admin", "office"), listOrders);
-router.get("/:id/examiner-documents", requireRole("hod", "coe", "acoe", "admin", "office"), examinerDocuments); // HOD: own department only // intimation, conducting and attendance certificates // office orders (print; the exam section keeps them on file)
+router.get("/:id/examiner-documents", requireRole("hod", "coe", "acoe", "admin", "office", "office_typist"), examinerDocuments); // HOD: own department only // intimation, conducting and attendance certificates // office orders (print; the exam section keeps them on file)
 router.get("/:id/subjects", BATCHES, listSubjects);
 router.get("/:id/students", BATCHES, listPracticalStudents); // every practical subject of the department with its students (read only)
 router.get("/:id/subjects/:code", BATCHES, getSubject);

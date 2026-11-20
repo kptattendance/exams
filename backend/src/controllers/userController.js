@@ -97,9 +97,9 @@ const ADMIN_ROLES = ["admin", "principal", "coe", "acoe"];
 // Which roles each role may create, edit and delete
 const rolePermissions = {
   admin: [...ROLES],
-  principal: ["acoe", "office", "exam_clerk", "qp_scrutinizer", "hod", "evening_principal", "staff"],
-  coe: ["acoe", "office", "exam_clerk", "qp_scrutinizer", "hod", "evening_principal", "staff"],
-  acoe: ["office", "exam_clerk", "hod", "staff"],
+  principal: ["acoe", "office", "exam_clerk", "office_typist", "qp_scrutinizer", "hod", "evening_principal", "staff"],
+  coe: ["acoe", "office", "exam_clerk", "office_typist", "qp_scrutinizer", "hod", "evening_principal", "staff"],
+  acoe: ["office", "exam_clerk", "office_typist", "hod", "staff"],
   hod: ["staff"],
 };
 

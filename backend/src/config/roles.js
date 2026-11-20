@@ -10,6 +10,8 @@
 //                    subject changes for hall tickets, hall ticket printing,
 //                    marking absentees, paper-setter orders
 //   exam_clerk     – types the valuers' award lists (sees dummy numbers only)
+//   office_typist  – prints the practical examiners' certificates (intimation,
+//                    setting / conducting, attendance) – nothing else
 //   qp_scrutinizer – scrutinises the submitted question papers
 //   chief_examiner – on the exam date only, opens and prints the frozen question paper
 //   hod            – department: IA, attendance, electives, practical batches
@@ -27,6 +29,7 @@ export const ROLE_LABELS = {
   acoe: "Assistant COE",
   office: "Exam section (office)",
   exam_clerk: "Exam clerk",
+  office_typist: "Office typist",
   qp_scrutinizer: "QP scrutiniser",
   chief_examiner: "Chief Examiner",
   hod: "Head of Department",
