@@ -99,7 +99,10 @@ async function loadSession(req, res) {
   if (!exam) return fail(res, 404, "Exam not found."), null;
   const entries = (exam.timetable?.entries || []).filter((e) => e.date === date && e.session === session);
   if (!entries.length) return fail(res, 404, "No paper is written in this session."), null;
-  return { exam, date, session, entries, times: timesOf(entries, exam.timetable.sessions) };
+  const times = timesOf(entries, exam.timetable.sessions);
+  // TRIAL DATABASE ONLY: no waiting – absentees can be marked at any time
+  if (TRIAL_DB) times.absent = "OPEN";
+  return { exam, date, session, entries, times };
 }
 
 // GET /api/exam-sessions/:examId/:date/:session – papers, candidates, rooms
@@ -158,7 +161,7 @@ export const getSession = async (req, res) => {
     seesAts: showAts,
     trial: TRIAL_DB,
     // rooms (and ATS) can be changed until the session starts; after that only the Admin
-    roomsOpen: isAdmin(req) ? !papers.some((p) => p.coded) : Date.now() < new Date(times.startsAt).getTime(),
+    roomsOpen: isAdmin(req) || TRIAL_DB ? !papers.some((p) => p.coded) : Date.now() < new Date(times.startsAt).getTime(),
   });
 };
 
@@ -170,7 +173,7 @@ export const saveRooms = async (req, res) => {
   const s = await loadSession(req, res);
   if (!s) return;
   const { exam, date, session, entries, times } = s;
-  if (!isAdmin(req) && Date.now() >= new Date(times.startsAt).getTime())
+  if (!isAdmin(req) && !TRIAL_DB && Date.now() >= new Date(times.startsAt).getTime())
     return fail(res, 403, "The session has started – rooms and ATS numbers are locked. Ask the Admin for any change.");
   const codes = entries.map((e) => e.code);
   const coded = await ValuationPaper.find({ exam: exam._id, code: { $in: codes }, coded: true }).select("code").lean();
