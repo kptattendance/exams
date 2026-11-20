@@ -21,8 +21,6 @@ import { useRole } from "../../../components/useRole";
 const FILE_NO = "ಕೆಪಿಎಂ/35/ ಸ್ವಾಯತ್ತತೆ (ಪರೀಕ್ಷೆ) /2026-27";
 const CENTRE = "Karnataka (Govt.) Polytechnic (Autonomous), Mangaluru";
 const dmy = (iso) => (iso ? iso.split("-").reverse().join(".") : "");
-// today, as on the statement: 20.11.2026
-const todayDmy = () => new Date().toLocaleDateString("en-GB", { timeZone: "Asia/Kolkata" }).replace(/\//g, ".");
 const dmyShort = (iso) => (iso ? `${iso.slice(8, 10)}-${iso.slice(5, 7)}-${iso.slice(2, 4)}` : "");
 const two = (n) => String(n).padStart(2, "0");
 
@@ -274,15 +272,9 @@ function Statement({ exam, d }) {
           {dept(d.panel.department)} Department{d.panel.shift === "EVENING" ? " (Second Shift)" : ""} · Examiner set {d.panel.number}
         </p>
       </div>
-      {/* No. on the left (written by hand), the date of this statement on the right */}
-      <div className="mt-3 flex items-end justify-between text-[12.5px]">
-        <p>
-          No: <span className="inline-block w-[45mm] border-b border-slate-700" />
-        </p>
-        <p>
-          Date: <b>{todayDmy()}</b>
-        </p>
-      </div>
+      <p className="mt-3 text-[12.5px]">
+        Date: From <Edit className="font-bold">{dmy(d.from)}</Edit> to <Edit className="font-bold">{dmy(d.to)}</Edit>
+      </p>
       <table className="mt-2 w-full border-collapse text-[12px]">
         <thead>
           <tr>
@@ -366,11 +358,20 @@ function Statement({ exam, d }) {
           </tr>
         </tbody>
       </table>
-      {/* signed by the Chief Superintendent only */}
-      <div className="mt-16 flex justify-end text-center text-[12px] font-semibold">
-        <span className="w-[70mm] border-t border-slate-700 pt-1">
-          Chief Superintendent
-          <span className="block font-normal">Karnataka (Govt.) Polytechnic, Mangaluru</span>
+      <div className="mt-16 grid grid-cols-3 gap-8 text-center text-[12px] font-semibold">
+        <span className="border-t border-slate-700 pt-1">
+          Internal Examiner
+          {d.internal.name && <span className="block font-normal">{d.internal.name}</span>}
+          {d.internal.name && <span className="block text-[10.5px] font-normal text-slate-600">Karnataka (Govt.) Polytechnic, Mangaluru</span>}
+        </span>
+        <span className="border-t border-slate-700 pt-1">
+          External Examiner
+          {d.external.name && <span className="block font-normal">{d.external.name}</span>}
+          {d.external.college && <span className="block text-[10.5px] font-normal text-slate-600">{d.external.college}</span>}
+        </span>
+        <span className="border-t border-slate-700 pt-1">
+          Signature of HOD
+          <span className="block font-normal">{dept(d.panel.department)}</span>
         </span>
       </div>
     </section>
