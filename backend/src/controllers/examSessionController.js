@@ -149,7 +149,8 @@ export const getSession = async (req, res) => {
       _id: d._id,
       room: d.room,
       code: d.code,
-      number: d.number,
+      // the packet number is the COE's (stuck over the ATS on the envelope later)
+      number: ["coe", "acoe", "admin"].includes(req.user?.role) ? d.number : undefined,
       base: showAts ? d.base : undefined,
       students: Object.keys(d.serials || {}).length,
       reprint: Boolean(d.reprint),

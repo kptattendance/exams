@@ -1,8 +1,8 @@
 "use client";
 
 // Valuation: every written paper of an exam and where it stands (ATS coding).
-//   Rooms & absentees → Valuation (packets made automatically after the session)
-//   → 2nd valuation choice → Decoded (automatically)
+//   Before the exam → Valuation (packets made automatically after the session)
+//   → Decoded (automatically when every packet is typed and checked)
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
@@ -14,9 +14,8 @@ import { errMsg, useApi } from "./shared";
 import { T } from "../ui/table";
 
 export const STAGE = {
-  ATTENDANCE: { label: "Rooms & absentees", chip: "bg-slate-100 text-slate-600" },
+  ATTENDANCE: { label: "Before / on exam day", chip: "bg-slate-100 text-slate-600" },
   VALUATION: { label: "Valuation", chip: "bg-blue-50 text-blue-700" },
-  READY: { label: "Choose 2nd valuation", chip: "bg-orange-50 text-orange-700" },
   DECODED: { label: "Decoded", chip: "bg-emerald-50 text-emerald-700" },
 };
 
@@ -83,16 +82,23 @@ export default function ValuationBoard({ basePath, canManage = false }) {
   );
 
   const doubleEntry = data?.exam?.valuation?.doubleEntry !== false;
-  const percent = data?.exam?.valuation?.thirdValuationPercent ?? 15;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-7">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-2xl font-bold tracking-tight text-slate-950">Valuation</h2>
-        <Link href={`${basePath}/packets`} className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50">
-          <Icon name="list" className="h-4 w-4" />
-          Packet tracker &amp; ATS lookup
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          {canManage && examId && (
+            <a href={`/print/packet-labels/${examId}`} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800">
+              <Icon name="download" className="h-4 w-4" />
+              Packet labels (all)
+            </a>
+          )}
+          <Link href={`${basePath}/packets`} className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50">
+            <Icon name="list" className="h-4 w-4" />
+            Packet tracker
+          </Link>
+        </div>
       </div>
       {exams && exams.length > 1 ? (
         <select value={examId} onChange={(e) => setExamId(e.target.value)} className="mt-2 h-10 max-w-full rounded-xl border border-slate-200 bg-white px-3 text-sm">
@@ -117,9 +123,6 @@ export default function ValuationBoard({ basePath, canManage = false }) {
             )}
           </span>
           <span>
-            3rd valuation when 1st & 2nd differ by more than <b className="text-slate-900">{percent}%</b>
-          </span>
-          <span>
             Papers valued out of <b className="text-slate-900">100</b>, reduced to the subject’s maximum
           </span>
         </div>
@@ -135,7 +138,7 @@ export default function ValuationBoard({ basePath, canManage = false }) {
       {data && (
         <>
           {/* stage tiles: click to filter */}
-          <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-5">
+          <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
             {[["", "All papers"], ...Object.entries(STAGE).map(([k, v]) => [k, v.label])].map(([k, label]) => (
               <button
                 key={label}

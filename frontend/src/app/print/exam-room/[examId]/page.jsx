@@ -7,8 +7,9 @@
 // against each register number: the student copies it onto the answer booklet,
 // writes the answer script number in the diary and signs; the invigilator
 // writes "Absent" against a student who did not come.
-// After each diary: the packet cover, twice on one page (answer-script packet
-// and head-slip envelope) – ATS numbers only, no names or register numbers.
+// After each diary: the packet cover, twice on one page (answer-script envelope
+// and head-slip envelope) – the 6-digit ATS number, paper and counts; no names, no
+// packet number (the COE sticks the packet label over the ATS number later).
 
 import { Suspense, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
@@ -81,7 +82,6 @@ function PrintRoomDiary() {
       {diaries.map((x, i) => {
         const room = roomOf.get(x.room);
         const students = d.candidates.filter((c) => c.code === x.code && c.room === x.room && c.ats?.startsWith(x.base)).sort((a, b) => a.registerNumber.localeCompare(b.registerNumber));
-        const serials = students.map((s) => s.ats.slice(6)).sort();
         return (
           <div key={x._id}>
             {/* ---------------- room diary ---------------- */}
@@ -157,9 +157,10 @@ function PrintRoomDiary() {
               </div>
             </section>
 
-            {/* ---------------- packet cover, 2 copies ---------------- */}
+            {/* ---------------- packet cover, 2 copies: ATS number, paper, counts – no packet
+                 number (the COE sticks the packet label over the ATS number box later) */}
             <section className="break-before-page">
-              {["Copy 1 – on the answer-script packet", "Copy 2 – on the head-slip envelope"].map((copy, c) => (
+              {["Copy 1 – on the answer-script envelope", "Copy 2 – on the head-slip envelope"].map((copy, c) => (
                 <div key={copy} className={`h-[132mm] overflow-hidden ${c ? "border-t-2 border-dashed border-slate-500 pt-4" : "pb-4"}`}>
                   <div className="flex items-start justify-between gap-4">
                     <div>
@@ -167,23 +168,18 @@ function PrintRoomDiary() {
                       <p className="text-[11px]">{d.exam.name}</p>
                       <p className="mt-0.5 text-[10px] uppercase tracking-wide text-slate-600">{copy}</p>
                     </div>
-                    <div className="rounded-lg border-[3px] border-slate-900 px-4 py-1 text-center">
-                      <p className="text-[10px] font-semibold uppercase tracking-widest">Packet</p>
-                      <p className="text-[30px] font-black leading-tight tracking-wide">{x.number}</p>
+                    <div className="h-[30mm] w-[70mm] rounded-lg border-[3px] border-slate-900 px-4 py-2 text-center">
+                      <p className="text-[10px] font-semibold uppercase tracking-widest">ATS number</p>
+                      <p className="text-[34px] font-black leading-tight tracking-[0.12em]">{x.base}</p>
+                      <p className="text-[8px] uppercase tracking-wide text-slate-500">COE: stick the packet label here</p>
                     </div>
                   </div>
-                  <table className="mt-3 w-full border-collapse">
+                  <table className="mt-4 w-full border-collapse">
                     <tbody>
                       <tr>
-                        <td className={`${td} w-32 font-semibold`}>ATS number</td>
-                        <td className={`${td} text-[16px] font-bold tracking-widest`}>
-                          {x.base} <span className="text-[11px] font-semibold tracking-normal">(-{serials[0]} to -{serials[serials.length - 1]})</span>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className={`${td} font-semibold`}>Paper</td>
-                        <td className={`${td} font-semibold`}>
-                          {x.code} – {paperName.get(x.code) || ""}
+                        <td className={`${td} w-36 font-semibold`}>Subject code</td>
+                        <td className={`${td} text-[15px] font-bold`}>
+                          {x.code} <span className="text-[11px] font-semibold">– {paperName.get(x.code) || ""}</span>
                         </td>
                       </tr>
                       <tr>
@@ -193,22 +189,24 @@ function PrintRoomDiary() {
                         </td>
                       </tr>
                       <tr>
-                        <td className={`${td} font-semibold`}>Candidates</td>
-                        <td className={td}>
-                          Allotted <b>{students.length}</b> &nbsp;·&nbsp; Present ______ &nbsp;·&nbsp; Absent ______ &nbsp;·&nbsp; Scripts enclosed ______
-                        </td>
+                        <td className={`${td} font-semibold`}>Allotted</td>
+                        <td className={`${td} font-bold`}>{students.length}</td>
+                      </tr>
+                      <tr className="h-[9mm]">
+                        <td className={`${td} font-semibold`}>Present</td>
+                        <td className={td} />
+                      </tr>
+                      <tr className="h-[9mm]">
+                        <td className={`${td} font-semibold`}>Absent</td>
+                        <td className={td} />
+                      </tr>
+                      <tr className="h-[9mm]">
+                        <td className={`${td} font-semibold`}>Scripts enclosed</td>
+                        <td className={td} />
                       </tr>
                     </tbody>
                   </table>
-                  <p className="mt-2 text-[10px] font-semibold uppercase tracking-wide text-slate-600">ATS numbers in this packet</p>
-                  <div className="mt-1 grid grid-cols-6 gap-x-2 gap-y-0.5 text-[11px] font-semibold tabular-nums tracking-wide">
-                    {serials.map((sr) => (
-                      <span key={sr}>
-                        {x.base}-{sr}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="mt-8 grid grid-cols-2 gap-10 text-center text-[11px] font-semibold">
+                  <div className="mt-10 grid grid-cols-2 gap-10 text-center text-[11px] font-semibold">
                     <span className="border-t border-slate-700 pt-1">Invigilator</span>
                     <span className="border-t border-slate-700 pt-1">Chief Superintendent</span>
                   </div>

@@ -1,7 +1,8 @@
 "use client";
 
 // Exam clerk: type the marks from a valuer's award list.
-// Only ATS numbers appear here (482715-07). Press Enter to jump to the next box.
+// Only the packet number and the last 2 digits of each ATS appear here – as on the
+// scripts the valuer marked. Press Enter to jump to the next box.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -10,8 +11,6 @@ import { btn } from "../ui/Modal";
 import { useToast } from "../ui/Feedback";
 import { errMsg, useApi } from "./shared";
 
-// ATS "48271507" is shown as 482715-07
-const fmtAts = (a) => (/^\d{8}$/.test(String(a)) ? `${String(a).slice(0, 6)}-${String(a).slice(6)}` : a);
 
 const NEED = {
   FIRST: { label: "First entry", chip: "bg-slate-100 text-slate-700" },
@@ -19,7 +18,6 @@ const NEED = {
   RESOLVE: { label: "Fix mismatches", chip: "bg-red-50 text-red-700" },
   DONE: { label: "Done", chip: "bg-emerald-50 text-emerald-700" },
 };
-const ROUND = { 1: "1st valuation", 2: "2nd valuation", 3: "3rd valuation" };
 
 export default function MarksEntry() {
   const api = useApi();
@@ -95,7 +93,7 @@ export default function MarksEntry() {
                   {p.number}
                 </span>
                 <span className="min-w-0 flex-1 text-sm text-slate-600">
-                  {p.paperName} · {ROUND[p.round]} · {p.count} scripts{p.valuer && ` · ${p.valuer}`}
+                  {p.paperName} · {p.count} scripts{p.valuer && ` · ${p.valuer}`}
                 </span>
                 <span className={`self-start rounded-full px-2.5 py-1 text-xs font-semibold sm:self-center ${NEED[p.need].chip}`}>{NEED[p.need].label}</span>
               </button>
@@ -190,7 +188,7 @@ function EntryScreen({ id, onClose }) {
         <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${NEED[p.need].chip}`}>{NEED[p.need].label}</span>
       </div>
       <p className="mt-1 text-sm text-slate-500">
-        {p.code} {p.paperName} · {ROUND[p.round]} · {p.count} scripts · marks out of {p.rawMax}
+        {p.code} {p.paperName} · {p.count} scripts · marks out of {p.rawMax}
         {p.valuer && ` · valuer ${p.valuer}`}
       </p>
 
@@ -212,7 +210,7 @@ function EntryScreen({ id, onClose }) {
           <ul className="grid grid-cols-2 divide-x divide-y divide-slate-100 sm:grid-cols-3">
             {p.dummies.map((d) => (
               <li key={d} className="flex justify-between px-4 py-2 text-sm">
-                <span className="font-semibold tracking-wider">{fmtAts(d)}</span>
+                <span className="font-semibold tracking-wider">{d}</span>
                 <span className="tabular-nums">{p.final?.[d]}</span>
               </li>
             ))}
@@ -229,7 +227,7 @@ function EntryScreen({ id, onClose }) {
                 return (
                   <li key={d} className={`flex items-center gap-3 px-4 py-2 ${err ? "bg-red-50" : ""}`}>
                     <span className="w-8 text-xs tabular-nums text-slate-400">{i + 1}</span>
-                    <span className="w-28 font-bold tracking-wider text-slate-900">{fmtAts(d)}</span>
+                    <span className="w-28 font-bold tracking-wider text-slate-900">{d}</span>
                     {m && (
                       <span className="text-xs text-slate-500">
                         1st: <b className="text-slate-800">{m.first}</b> · 2nd: <b className="text-slate-800">{m.second}</b>
@@ -250,7 +248,7 @@ function EntryScreen({ id, onClose }) {
                           else save();
                         }
                       }}
-                      aria-label={`Marks for ${fmtAts(d)}`}
+                      aria-label={`Marks for ${d}`}
                       className={`ml-auto h-10 w-24 rounded-xl border px-3 text-right text-base font-semibold tabular-nums outline-none focus:ring-4 focus:ring-slate-100 ${
                         err ? "border-red-400" : "border-slate-300 focus:border-slate-500"
                       }`}

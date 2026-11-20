@@ -42,8 +42,7 @@ import {
   packetSlips,
   setValuer,
   reopenPacket,
-  sendSecondValuation,
-  closeSecondValuation,
+  packetLabels,
   packetTracker,
   atsLookup,
   paperMarks,
@@ -128,7 +127,8 @@ const SECRET = requireRole("coe", "acoe", "admin");
 router.get("/:id/valuation", VALUE, listPapers);
 // ATS coding: packet tracker and ATS lookup (no register numbers)
 router.get("/:id/valuation-packets", requireRole("coe", "acoe", "admin", "office", "exam_clerk"), packetTracker);
-router.get("/:id/ats/:ats", requireRole("coe", "acoe", "admin", "office", "exam_clerk"), atsLookup);
+router.get("/:id/ats/:ats", SECRET, atsLookup); // ATS -> packet: the COE only
+router.get("/:id/packet-labels", SECRET, packetLabels); // labels over the ATS on each envelope
 router.patch("/:id/valuation-settings", MANAGE, updateValuationSettings);
 router.patch("/:id/valuation/packets/:packetId", VALUE, setValuer);
 router.post("/:id/valuation/packets/:packetId/reopen", adminOnly, reopenPacket); // wipes entered marks: Admin only
@@ -137,8 +137,6 @@ router.patch("/:id/valuation/:code", MANAGE, updatePaper);
 router.post("/:id/valuation/:code/attendance", VALUE, saveAttendance);
 router.get("/:id/valuation/:code/coding-sheet", SECRET, codingSheet);
 router.get("/:id/valuation/:code/slips", requireRole("coe", "acoe", "admin", "office", "exam_clerk"), packetSlips);
-router.post("/:id/valuation/:code/second", MANAGE, sendSecondValuation);
-router.post("/:id/valuation/:code/second/close", MANAGE, closeSecondValuation); // decoding is then automatic
 router.get("/:id/valuation/:code/marks", SECRET, paperMarks);
 
 // Results: marks with names and moderation are for COE / Admin only

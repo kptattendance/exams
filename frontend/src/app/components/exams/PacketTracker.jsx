@@ -3,7 +3,7 @@
 // Packet tracker: every packet (= room diary) of an exam and where it stands.
 // Filled in automatically – nothing to tick:
 //   Exam → With valuer / not typed → Typing → Checked → Decoded
-// ATS lookup: type the 6-digit ATS number (or all 8 digits) to see its packet.
+// ATS lookup (COE only): type the 6-digit ATS number (or all 8 digits) to see its packet.
 // No names or register numbers on this page.
 
 import { useCallback, useEffect, useState } from "react";
@@ -23,10 +23,9 @@ const STAGE = {
   DECODED: { label: "Decoded", chip: "bg-emerald-100 text-emerald-800" },
   ALL_ABSENT: { label: "All absent", chip: "bg-slate-100 text-slate-500" },
 };
-const ROUND_STATUS = { PENDING: "not typed", FIRST_DONE: "typed once", MISMATCH: "mismatch", VERIFIED: "checked" };
 const fmtDay = (iso) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : "");
 
-export default function PacketTracker({ backHref }) {
+export default function PacketTracker({ backHref, canLookup = false }) {
   const api = useApi();
   const toast = useToast();
   const [exams, setExams] = useState(null);
@@ -104,7 +103,8 @@ export default function PacketTracker({ backHref }) {
         </select>
       )}
 
-      {/* ATS lookup */}
+      {/* ATS lookup – the COE only (the ATS -> packet link is confidential) */}
+      {canLookup && (
       <form onSubmit={lookup} className="mt-4 flex flex-wrap items-end gap-2 rounded-2xl border border-slate-200 bg-white p-4">
         <label className="text-sm">
           <span className="font-semibold text-slate-800">ATS lookup</span>
@@ -127,6 +127,7 @@ export default function PacketTracker({ backHref }) {
           </p>
         )}
       </form>
+      )}
 
       {examId && !data && <div className="mt-6 h-64 animate-pulse rounded-2xl bg-white" />}
 
@@ -158,7 +159,7 @@ export default function PacketTracker({ backHref }) {
                   <th className="px-3 py-2">Date</th>
                   <th className="px-3 py-2">Room</th>
                   <th className="px-3 py-2 text-right">Present / absent</th>
-                  <th className="px-3 py-2">Valuations</th>
+                  <th className="px-3 py-2">Valuer</th>
                   <th className="px-3 py-2">Status</th>
                 </tr>
               </thead>
@@ -177,16 +178,7 @@ export default function PacketTracker({ backHref }) {
                       {r.present} / <span className={r.absent ? "font-semibold text-red-700" : ""}>{r.absent}</span>
                       {r.malpractice > 0 && <span className="ml-1 text-xs text-red-700">({r.malpractice} MP)</span>}
                     </td>
-                    <td className="px-3 py-2 text-xs text-slate-600">
-                      {r.rounds.length
-                        ? r.rounds.map((x) => (
-                            <span key={x.number} className="mr-2 inline-block">
-                              {x.round === 1 ? "1st" : x.round === 2 ? "2nd" : "3rd"}: {ROUND_STATUS[x.status]}
-                              {x.valuer && ` (${x.valuer})`}
-                            </span>
-                          ))
-                        : "–"}
-                    </td>
+                    <td className="px-3 py-2 text-xs text-slate-600">{r.valuer || "–"}</td>
                     <td className="px-3 py-2">
                       <span className={`${T.pill} ${STAGE[r.stage].chip}`}>{STAGE[r.stage].label}</span>
                     </td>

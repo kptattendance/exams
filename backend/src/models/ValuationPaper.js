@@ -21,9 +21,6 @@ const valuationPaperSchema = new mongoose.Schema(
     // packets made (one per room diary) – automatically when the session is over
     coded: { type: Boolean, default: false },
     codedAt: { type: Date, default: null },
-    // the COE has finished choosing packets for the 2nd valuation; the paper is
-    // decoded automatically only after this (and when every packet is checked)
-    secondClosed: { type: Boolean, default: false },
 
     decoded: { type: Boolean, default: false },
     decodedAt: { type: Date, default: null },

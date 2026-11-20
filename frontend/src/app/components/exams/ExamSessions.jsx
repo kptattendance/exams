@@ -355,7 +355,8 @@ function Rooms({ d, path, tint, onSaved }) {
                 .filter((x) => x.room === r.name)
                 .map((x) => (
                   <p key={x._id} className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-600">
-                    <b className="tabular-nums text-slate-900">{x.number}</b>
+                    {x.base && <b className="tabular-nums text-slate-900">ATS {x.base}</b>}
+                    {x.number && <span className="tabular-nums text-slate-500">({x.number})</span>}
                     <span className={`rounded-md px-1.5 py-0.5 font-bold ${PAPER_CHIPS[tint[x.code]] || "bg-slate-100"}`}>{x.code}</span>
                     {x.students} students
                     {x.reprint && <span className="rounded-full bg-red-100 px-2 py-0.5 font-bold text-red-700">Changed – print again</span>}

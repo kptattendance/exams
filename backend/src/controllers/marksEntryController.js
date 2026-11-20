@@ -1,9 +1,10 @@
 // src/controllers/marksEntryController.js
 //
 // The exam clerk types valuers' award lists, one packet at a time.
-// Only ATS numbers are ever shown here – never register numbers.
-// When a packet is complete, the 3rd valuation packets are made and the paper
-// is decoded automatically (valuationController: autoThird, autoDecode).
+// Only the packet number and the last 2 digits of each ATS are shown here (as on
+// the scripts the valuer marked) – never the full ATS, never register numbers.
+// Within a packet (one room diary) the 2 digits are unique. When the last packet
+// of a paper is complete the paper is decoded automatically (autoDecode).
 //
 // With double entry (default):
 //   1st typing → FIRST_DONE
@@ -19,7 +20,10 @@ import ValuationPaper from "../models/ValuationPaper.js";
 import AnswerScript from "../models/AnswerScript.js";
 import AuditLog from "../models/AuditLog.js";
 import { parseMark, compareEntries } from "../services/exams/valuation.js";
-import { autoCodeExam, autoDecode, autoThird } from "./valuationController.js";
+import { autoCodeExam, autoDecode } from "./valuationController.js";
+
+// "48271507" -> "07"; the packet's own serial <-> ATS
+const serialOf = (ats) => String(ats).slice(-2);
 
 const isId = (id) => mongoose.Types.ObjectId.isValid(id);
 const fail = (res, status, error, extra = {}) => res.status(status).json({ error, ...extra });
@@ -92,15 +96,15 @@ export const getEntryPacket = async (req, res) => {
     ValuationPaper.findOne({ exam: p.exam, code: p.code }).select("name decoded").lean(),
   ]);
   const view = packetView(p, exam, paper);
-  view.dummies = p.dummies;
+  view.dummies = p.dummies.map(serialOf);
   view.doubleEntry = exam?.valuation?.doubleEntry !== false;
   view.locked = Boolean(paper?.decoded);
   if (p.status === "MISMATCH") {
     const a = plain(p.first.marks);
     const b = plain(p.second.marks);
-    view.mismatches = p.mismatches.map((d) => ({ dummy: d, first: a[d], second: b[d] }));
+    view.mismatches = p.mismatches.map((d) => ({ dummy: serialOf(d), first: a[d], second: b[d] }));
   }
-  if (p.status === "VERIFIED") view.final = plain(p.final);
+  if (p.status === "VERIFIED") view.final = Object.fromEntries(Object.entries(plain(p.final)).map(([k, v]) => [serialOf(k), v]));
   res.json({ data: view });
 };
 
@@ -116,13 +120,14 @@ export const submitEntry = async (req, res) => {
   if (paper?.decoded) return fail(res, 409, "This paper is already decoded. Marks are locked.");
   if (p.status === "VERIFIED") return fail(res, 409, "This packet is already complete.");
 
+  // marks are typed against the 2-digit serials; stored against the full ATS
   const input = req.body?.marks && typeof req.body.marks === "object" ? req.body.marks : {};
   const expect = p.status === "MISMATCH" ? p.mismatches : p.dummies;
   const values = {};
   const errors = [];
   for (const d of expect) {
-    const r = parseMark(input[d], p.rawMax);
-    if (!r.ok) errors.push({ dummy: d, error: r.error });
+    const r = parseMark(input[serialOf(d)], p.rawMax);
+    if (!r.ok) errors.push({ dummy: serialOf(d), error: r.error });
     else values[d] = r.value;
   }
   if (errors.length) return fail(res, 400, `${errors.length} mark${errors.length > 1 ? "s are" : " is"} missing or wrong.`, { errors });
@@ -189,13 +194,11 @@ export const submitEntry = async (req, res) => {
     actorRole: req.user?.role || "",
     details: { packet: p.number, status: p.status },
   }).catch(() => {});
-  // complete: 3rd valuation packets (if 1st and 2nd differ too much), then decoding
+  // the last packet of the paper complete: decoding
   if (p.status === "VERIFIED") {
     try {
       const [ex, paperDoc] = await Promise.all([Exam.findById(p.exam).lean(), ValuationPaper.findOne({ exam: p.exam, code: p.code })]);
-      const third = await autoThird(ex, paperDoc);
-      if (third) message += ` ${third} script${third === 1 ? " needs" : "s need"} a 3rd valuation – packet made.`;
-      else if (await autoDecode(ex, paperDoc)) message += ` ${p.code} is complete and has been decoded.`;
+      if (await autoDecode(ex, paperDoc)) message += ` ${p.code} is complete and has been decoded.`;
     } catch (e) {
       console.error("after marks entry:", e.message); // the marks are saved; the paper page retries
     }

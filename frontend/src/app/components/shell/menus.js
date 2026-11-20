@@ -234,7 +234,7 @@ export const MENUS = {
         title: "After the exam",
         items: [
           { label: "Absentees & packets", href: "/office/valuation", icon: "valuation" },
-          { label: "Packet tracker & ATS lookup", href: "/office/valuation/packets", icon: "list" },
+          { label: "Packet tracker", href: "/office/valuation/packets", icon: "list" },
           { label: "Revaluation applications", href: "/office/revaluation", icon: "results" },
           { label: "CIE make-up (check)", href: "/office/cie-makeup", icon: "marks" },
         ],

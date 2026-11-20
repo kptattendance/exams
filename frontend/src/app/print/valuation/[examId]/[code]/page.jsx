@@ -2,8 +2,9 @@
 
 // Valuation printouts for one paper (new tab, Print → Save as PDF):
 //   ?sheet=coding            COE's confidential ATS sheet (ATS ↔ register number)
-//   ?sheet=award&round=1     award lists, one packet per page (ATS numbers only;
-//                            absent / malpractice printed AB / MP, not valued)
+//   ?sheet=award             award lists, one packet per page: the packet number and
+//                            the last 2 digits of each ATS only (as on the scripts);
+//                            absent / malpractice printed AB / MP, not valued
 // (The room diary is printed from the exam session.)
 
 import { Suspense, useEffect, useState } from "react";
@@ -13,7 +14,6 @@ import { useAuth } from "@clerk/nextjs";
 import { errMsg, useApi } from "../../../../components/exams/shared";
 import { popup } from "../../../../components/ui/Feedback";
 
-const ROUND = { 1: "FIRST VALUATION", 2: "SECOND VALUATION", 3: "THIRD VALUATION" };
 const th = "border border-slate-700 px-2 py-1 text-left";
 const td = "border border-slate-700 px-2 py-1";
 
@@ -114,31 +114,30 @@ function AwardLists({ d }) {
     <div>
       {d.packets.map((p) => (
         <section key={p._id} className="page pb-6">
-          <Head
-            exam={d.exam.name}
-            title={`AWARD LIST – ${ROUND[p.round]}`}
-            sub={`${d.paper.code} – ${d.paper.name}${p.date ? ` · ${new Date(`${p.date}T00:00:00`).toLocaleDateString("en-IN")} ${p.session}` : ""}`}
-          />
+          <Head exam={d.exam.name} title="AWARD LIST" sub={`${d.paper.code} – ${d.paper.name}`} />
           <div className="mt-3 flex items-end justify-between">
             <p className="text-[11px]">
               Valuer: <span className="inline-block min-w-[60mm] border-b border-slate-700">{p.valuer || ""}</span>
             </p>
-            <p className="border-2 border-slate-900 px-3 py-1 text-[15px] font-bold tracking-wide">{p.number}</p>
+            <div className="rounded-md border-[3px] border-slate-900 px-4 py-1 text-center">
+              <p className="text-[9px] font-semibold uppercase tracking-widest">Packet</p>
+              <p className="text-[22px] font-black leading-tight tracking-wide">{p.number}</p>
+            </div>
           </div>
           <table className="mt-3 w-full border-collapse">
             <thead>
               <tr className="bg-slate-100">
                 <th className={`${th} w-8`}>#</th>
-                <th className={`${th} w-28`}>ATS No.</th>
+                <th className={`${th} w-32`}>Script No. (last 2 digits)</th>
                 <th className={`${th} w-32`}>Marks (out of {d.paper.rawMax})</th>
                 <th className={th}>Marks in words</th>
               </tr>
             </thead>
             <tbody>
               {p.rows.map((r, i) => (
-                <tr key={r.ats} className="h-[6mm]">
+                <tr key={r.serial} className="h-[6mm]">
                   <td className={td}>{i + 1}</td>
-                  <td className={`${td} font-bold tracking-wider`}>{r.ats}</td>
+                  <td className={`${td} text-[13px] font-bold tracking-wider`}>{r.serial}</td>
                   <td className={`${td} ${r.mark ? "text-center font-bold" : ""}`}>{r.mark}</td>
                   <td className={td}>{r.mark === "AB" ? "Absent" : r.mark === "MP" ? "Malpractice" : ""}</td>
                 </tr>
@@ -155,7 +154,7 @@ function AwardLists({ d }) {
           </div>
         </section>
       ))}
-      {d.packets.length === 0 && <p className="text-sm text-slate-500">No packets for this round.</p>}
+      {d.packets.length === 0 && <p className="text-sm text-slate-500">No packets yet.</p>}
     </div>
   );
 }
