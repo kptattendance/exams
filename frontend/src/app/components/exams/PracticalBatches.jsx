@@ -14,6 +14,10 @@ import { useConfirm, useToast } from "../ui/Feedback";
 import { errMsg, useApi } from "./shared";
 import { ExamSelect, NoExam, PracticalSteps, SLOTS, batchState, branches, dept, examinersOf, usePracticalExams, useWorkspace, when } from "./practicalShared";
 
+// an examiner set's name: evening sets carry their branch ("ME set 1"), as any
+// evening set may conduct any evening batch
+const setName = (p) => (p?.shift === "EVENING" ? `${String(p.department || "").toUpperCase()} set ${p.number}` : `Set ${p.number}`);
+
 export default function PracticalBatches() {
   const api = useApi();
   const toast = useToast();
@@ -90,7 +94,7 @@ export default function PracticalBatches() {
               <ul className="mt-1 space-y-1">
                 {panels.map((p) => (
                   <li key={p._id}>
-                    <b className="text-slate-900">Set {p.number}</b> · Internal: {p.internal.name}
+                    <b className="text-slate-900">{setName(p)}</b> · Internal: {p.internal.name}
                     {p.internal.phone && ` (${p.internal.phone})`} · External: {p.external.name}
                     {p.external.college && `, ${p.external.college}`}
                     {(p.external.phone || p.external.email) && ` (${[p.external.phone, p.external.email].filter(Boolean).join(", ")})`}
@@ -415,7 +419,7 @@ function SubjectBatches({ examId, code, onClose }) {
                         <option value="">Choose the examiner set</option>
                         {panels.map((p) => (
                           <option key={p._id} value={p._id}>
-                            Set {p.number}
+                            {setName(p)}
                           </option>
                         ))}
                       </select>

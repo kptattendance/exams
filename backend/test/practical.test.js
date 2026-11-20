@@ -171,3 +171,21 @@ test("practical time table slots S1–S4: overlapping slots clash, written paper
   assert.equal(findClashes([b("ENG-B1", { students: st, session: "S2" })], changed, written, times).length, 1);
   assert.equal(findClashes([b("ENG-B1", { students: st, session: "S3" })], changed, written, times).length, 0);
 });
+
+test("evening: one examiner set may conduct EE and ME batches of the same subject together", () => {
+  const base = { code: "25EG010P", name: "English", date: "2026-11-25", session: "S1", lab: "Lab 1", set: "SET-ME-1", internal: "u1", external: "x@y", shift: "EVENING" };
+  const ee = { ...base, label: "25EG010P-EV-EE1", number: 1, students: [{ id: "a", registerNumber: "186EE26001" }] };
+  const me = { ...base, label: "25EG010P-EV-ME1", number: 1, students: [{ id: "b", registerNumber: "186ME26001" }] };
+  // the same subject, same time, same set and lab: one combined sitting – no clash
+  assert.deepEqual(findClashes([ee, me], new Set([ee.label])), []);
+  // another subject at the same time with the same set: still a clash
+  const cad = { ...me, code: "25ME010P", name: "CAD", label: "25ME010P-EV-ME1" };
+  assert.ok(findClashes([ee, cad], new Set([ee.label])).some((m) => m.includes("same examiner")));
+  // day batches are not combined
+  const d1 = { ...ee, shift: "DAY", label: "25EG010P-B1" };
+  const d2 = { ...me, shift: "DAY", label: "25EG010P-B2", number: 2 };
+  assert.ok(findClashes([d1, d2], new Set([d1.label])).some((m) => m.includes("same examiner")));
+  // a student still cannot be in both
+  const both = { ...me, students: [{ id: "a", registerNumber: "186EE26001" }] };
+  assert.ok(findClashes([ee, both], new Set([ee.label])).length > 0);
+});

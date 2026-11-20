@@ -17,6 +17,10 @@ import { useConfirm, useToast } from "../ui/Feedback";
 import { errMsg, useApi } from "./shared";
 import { ExamSelect, NoExam, SLOTS, dept, sessionLabel, usePracticalExams, useWorkspace } from "./practicalShared";
 
+// an examiner set's name: evening sets carry their branch ("ME set 1"), as any
+// evening set may conduct any evening batch
+const setName = (p) => (p?.shift === "EVENING" ? `${String(p.department || "").toUpperCase()} set ${p.number}` : `Set ${p.number}`);
+
 const BATCH_SIZE = 30; // usual size of a batch (a lab); not a hard rule
 
 const iso = (d) => d.toISOString().slice(0, 10);
@@ -316,7 +320,7 @@ function BatchCard({ b, panels, onClick }) {
       </span>
       <span className="block tabular-nums text-slate-500">{range(regs)}</span>
       <span className="block text-slate-600">{b.lab ? `Lab: ${b.lab}` : <span className="text-orange-700">Lab not set</span>}</span>
-      <span className="block text-slate-600">{panel ? `Set ${panel.number}: ${panel.internal.name} / ${panel.external.name}` : done ? "" : <span className="text-orange-700">Examiners not chosen</span>}</span>
+      <span className="block text-slate-600">{panel ? `${setName(panel)}: ${panel.internal.name} / ${panel.external.name}` : done ? "" : <span className="text-orange-700">Examiners not chosen</span>}</span>
       {done && <span className="block font-semibold text-emerald-700">Marks submitted</span>}
     </button>
   );
@@ -360,7 +364,9 @@ function BatchEditor({ examId, subjects, start, onClose, onSaved }) {
         const mine = start.number ? d.batches.find((b) => b.number === start.number) : null;
         setPicked(new Set((mine?.students || []).map((s) => String(s.registration))));
         setLab(mine?.lab || "");
-        setPanel(mine?.panel ? String(mine.panel) : d.panels.length === 1 ? String(d.panels[0]._id) : "");
+        // a single set of this department / branch is chosen by itself
+        const ownSets = d.panels.filter((p) => !d.department || p.department === d.department);
+        setPanel(mine?.panel ? String(mine.panel) : ownSets.length === 1 ? String(ownSets[0]._id) : "");
       })
       .catch((e) => {
         toast.error(errMsg(e, "Could not load the subject."));
@@ -514,7 +520,7 @@ function BatchEditor({ examId, subjects, start, onClose, onSaved }) {
                   <option value="">Choose the examiner set</option>
                   {detail.panels.map((p) => (
                     <option key={p._id} value={p._id}>
-                      Set {p.number}: {p.internal.name} / {p.external.name}
+                      {setName(p)}: {p.internal.name} / {p.external.name}
                     </option>
                   ))}
                 </select>

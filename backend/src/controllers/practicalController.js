@@ -92,14 +92,15 @@ const exactly = (v) => new RegExp(`^${String(v).replace(/[^a-z0-9]/gi, "")}$`, "
 
 // What one department's practical work covers (query parts)
 //   day     – day students of every branch, batches / sets of the department
-//   evening – evening students of that branch, its evening batches / sets
+//   evening – evening students of that branch, its evening batches; ANY evening
+//             examiner set (EE or ME) may conduct them (e.g. English of both together)
 function scopeOf(evening, department) {
   return {
     evening,
     department,
     regs: evening ? { department: exactly(department), registerNumber: EVENING_RX } : { registerNumber: { $not: EVENING_RX } },
     batches: evening ? { department, shift: "EVENING" } : shiftFilter(false),
-    panels: { department, ...shiftFilter(evening) },
+    panels: evening ? { shift: "EVENING" } : { department, ...shiftFilter(false) },
   };
 }
 
@@ -782,12 +783,13 @@ async function subjectContext(req, res) {
 export const getSubject = async (req, res) => {
   const ctx = await subjectContext(req, res);
   if (!ctx) return;
-  const { exam, info, candidates, batches, panels } = ctx;
+  const { exam, info, candidates, batches, panels, scope } = ctx;
   const pm = new Map(panels.map((p) => [String(p._id), p]));
   res.json({
     data: {
       exam: examView(exam),
       subject: info,
+      department: scope.department, // evening: the branch – its own set is chosen first
       candidates,
       panels: panels.map(panelView),
       batches: batches.map((b) => batchView(b, pm.get(String(b.panel)), { marks: b.status === "SUBMITTED" && seesMarks(req) })),
@@ -832,6 +834,7 @@ async function arrange(req, ctx, after) {
   if (!check.ok) return { status: 400, body: { error: check.errors[0], errors: check.errors } };
 
   const own = new Map(panels.map((p) => [String(p._id), p]));
+  const mineOnly = panels.filter((p) => p.department === scope.department);
   const next = after
     .filter((a) => !locked.has(Number(a.number)))
     .map((a) => ({
@@ -840,15 +843,15 @@ async function arrange(req, ctx, after) {
       date: /^\d{4}-\d{2}-\d{2}$/.test(a.date || "") ? a.date : "",
       session: SESSION_CODES.includes(a.session) ? a.session : "",
       lab: String(a.lab || "").trim().slice(0, 60),
-      // with a single set there is nothing to choose
-      panel: own.has(String(a.panel)) ? String(a.panel) : panels.length === 1 ? String(panels[0]._id) : null,
+      // with a single set (of this branch / department) there is nothing to choose
+      panel: own.has(String(a.panel)) ? String(a.panel) : mineOnly.length === 1 ? String(mineOnly[0]._id) : null,
       students: (a.students || []).map(String),
     }));
 
   // ---- clashes with every other practical batch of the exam and with the written time table
   const [others, allPanels] = await Promise.all([
     // every batch outside this subject's day / evening batches (both shifts share labs and examiners)
-    PracticalBatch.find({ exam: exam._id, _id: { $nin: batches.map((b) => b._id) } }).select("code name number label date session lab panel students.registration students.registerNumber").lean(),
+    PracticalBatch.find({ exam: exam._id, _id: { $nin: batches.map((b) => b._id) } }).select("code name number label shift date session lab panel students.registration students.registerNumber").lean(),
     PracticalPanel.find({ exam: exam._id }).select("internal.clerkId internal.name external.email external.name").lean(),
   ]);
   const pm = new Map(allPanels.map((p) => [String(p._id), p]));
@@ -862,6 +865,7 @@ async function arrange(req, ctx, after) {
       date: x.date,
       session: x.session,
       lab: x.lab,
+      shift: x.shift === "EVENING" ? "EVENING" : "DAY",
       set: String(x.panel || ""),
       internal: p?.internal?.clerkId || "",
       external: p?.external?.email || p?.external?.name || "",
@@ -873,7 +877,7 @@ async function arrange(req, ctx, after) {
   const all = [
     ...others.map(fromDoc),
     ...batches.filter((b) => b.status === "SUBMITTED").map(fromDoc),
-    ...next.filter((a) => a.students.length).map((a) => slot({ ...a, code, name: info.name }, a.students.map((id) => ({ id, registerNumber: byId.get(id).registerNumber })))),
+    ...next.filter((a) => a.students.length).map((a) => slot({ ...a, code, name: info.name, shift: scope.evening ? "EVENING" : "DAY" }, a.students.map((id) => ({ id, registerNumber: byId.get(id).registerNumber })))),
   ];
   const paperSlot = new Map((exam.timetable?.entries || []).map((e) => [e.code, `${e.date}|${e.session}`]));
   const written = new Map(
@@ -1171,6 +1175,8 @@ export const saveSchedule = async (req, res) => {
   const byId = new Map(batches.map((b) => [String(b._id), b]));
   const pm = new Map(allPanels.map((p) => [String(p._id), p]));
   const own = allPanels.filter((p) => p.department === department && sameShift(p, evening));
+  // evening: any evening examiner set (EE or ME) may conduct the batch
+  const usable = (p) => Boolean(p) && (evening ? p.shift === "EVENING" : p.department === department && sameShift(p, false));
 
   const changes = new Map();
   for (const x of items) {
@@ -1182,7 +1188,7 @@ export const saveSchedule = async (req, res) => {
       date: /^\d{4}-\d{2}-\d{2}$/.test(x.date || "") ? x.date : "",
       session: SESSION_CODES.includes(x.session) ? x.session : "",
       lab: String(x.lab || "").trim().slice(0, 60),
-      panel: panel && panel.department === department && sameShift(panel, evening) ? String(panel._id) : own.length === 1 ? String(own[0]._id) : null,
+      panel: usable(panel) ? String(panel._id) : own.length === 1 ? String(own[0]._id) : null,
     });
   }
   if (!changes.size) return fail(res, 400, "Nothing to save.");
@@ -1199,6 +1205,7 @@ export const saveSchedule = async (req, res) => {
       date: x.date,
       session: x.session,
       lab: x.lab,
+      shift: x.shift === "EVENING" ? "EVENING" : "DAY",
       set: String(x.panel || ""),
       internal: p?.internal?.clerkId || "",
       external: p?.external?.email || p?.external?.name || "",

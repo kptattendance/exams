@@ -220,6 +220,7 @@ const numbers = (list) => list.map((s) => s.registerNumber).join(", ");
 //             [{ label, code, name, number, date, session, lab, set, internal, external, examiners, students: [{ id, registerNumber }] }]
 //             (code / name / number / examiners only make the messages clearer)
 //             set = id of the examiner set; internal / external identify the persons
+//             shift = "EVENING" for evening batches (combined sittings, see below)
 //   changed : labels of the batches being saved (only these are checked)
 //   written : Map(studentId -> Map("date|session" -> paper code)) from the written timetable
 //   paperTimes : { FN: { start, end }, AN: { start, end } } of the written exam
@@ -269,6 +270,9 @@ export function findClashes(batches, changed, written = new Map(), paperTimes = 
         );
       // examiners and the lab: only a clash when the times overlap
       if (!sameTime) continue;
+      // evening batches of the same subject, same time, same examiner set: ONE combined
+      // sitting (e.g. English of EE and ME evening together) – same examiners and lab are fine
+      if (a.shift === "EVENING" && b.shift === "EVENING" && a.code === b.code && a.session === b.session && same(a.set, b.set)) continue;
       if (same(a.set, b.set) || same(a.internal, b.internal) || same(a.external, b.external))
         out.push(
           `The same examiner${a.examiners ? ` (${a.examiners})` : ""} is already conducting ${batchName(b)} on ${at}. Choose another examiner set or another date / time for ${batchName(a)}.`
