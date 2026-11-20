@@ -473,6 +473,9 @@ const downloadStudentsExcel = () => {
         semester:
           data.semester || "",
 
+        admissionType:
+          data.admissionType || "regular",
+
         status:
           data.status || "active",
       });
@@ -554,6 +557,9 @@ const downloadStudentsExcel = () => {
 
         semester:
           Number(editForm.semester),
+
+        admissionType:
+          editForm.admissionType,
 
         status:
           editForm.status,
@@ -1690,6 +1696,25 @@ const downloadStudentsExcel = () => {
                       label: `Semester ${value}`,
                     })
                   )}
+                />
+
+                {/* changing it refreshes the student's exam registration (bridge courses …) */}
+                <Select
+                  label="Admission Type"
+                  name="admissionType"
+                  value={
+                    editForm.admissionType
+                  }
+                  onChange={
+                    handleEditChange
+                  }
+                  options={[
+                    { value: "regular", label: "Regular" },
+                    { value: "lateral-puc", label: "Lateral – PUC" },
+                    { value: "lateral-iti", label: "Lateral – ITI" },
+                    { value: "lateral-iti-cross", label: "Lateral – ITI (other trade)" },
+                    { value: "branch-change", label: "Branch change" },
+                  ]}
                 />
 
                 <Select

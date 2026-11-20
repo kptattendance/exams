@@ -1824,7 +1824,12 @@ export const updateStudent = async (req, res) => {
       "batchNumber",
       "semester",
       "status",
+      "admissionType", // regular / lateral-puc / lateral-iti / lateral-iti-cross / branch-change
     ];
+
+    const ADMISSION_TYPES = ["regular", "lateral-puc", "lateral-iti", "lateral-iti-cross", "branch-change"];
+    if (req.body.admissionType !== undefined && !ADMISSION_TYPES.includes(String(req.body.admissionType)))
+      return res.status(400).json({ success: false, message: "Choose a valid admission type." });
 
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) {
