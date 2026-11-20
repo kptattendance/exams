@@ -258,12 +258,12 @@ export default function PaperSettingPage() {
     });
   };
 
-  // Final PDF (saved from Word) → page setting (2 pages per side) → check → freeze for good
+  // Final PDF (made from the final Word file, or the COE's own) → check → freeze for good
   const freeze = (p) => setFreezing(p);
-  const freezeNow = async (p, file, layout, trim) => {
+  const freezeNow = async (p, file) => {
     const ok = await confirmDialog({
       title: "Freeze this question paper?",
-      message: `${p.subject?.code} – Set ${p.setNo}: "${file.name}"${layout === "TWO_UP" ? " – 2 pages per side" : " – as it is"}\n\nAfter this NOBODY, including you, can open or download the paper. Only the Chief Examiner can open and print it on the exam date, from 1 hour before the session.\n\nCheck the preview carefully before you continue.`,
+      message: `${p.subject?.code} – Set ${p.setNo}: "${file.name}"\n\nAfter this NOBODY, including you, can open or download the paper. Only the Chief Examiner can open and print it on the exam date, from 1 hour before the session.\n\nCheck the preview carefully before you continue.`,
       confirmText: "Freeze paper",
       tone: "danger",
       requireText: "FREEZE",
@@ -271,8 +271,6 @@ export default function PaperSettingPage() {
     if (!ok) return false;
     const body = new FormData();
     body.append("file", file);
-    body.append("layout", layout);
-    body.append("trim", String(trim));
     setFreezing(null);
     await act(p._id, () => api("post", `/paper-setting/${p._id}/final-pdf`, body), "Paper frozen.");
     return true;
@@ -762,22 +760,18 @@ function Modal({ title, onClose, children, wide, full }) {
   );
 }
 
-// Page setting before freezing: the PDF the COE saved from Word (File → Save As → PDF)
-// is laid out 2 pages per side on A4 landscape by the server; both are shown side by
-// side to check. Only whole pages are placed and shrunk – nothing inside is changed.
-const TRIMS = [0, 6, 12, 18, 24];
+// Freezing: the website makes the PDF from the final (scrutinised) Word file with
+// Google Docs, exactly as the Word file is laid out (the college format is already
+// 2 columns on A4 landscape); the COE checks it and freezes. "Use my own PDF instead"
+// is there if something does not look right.
 function FreezeModal({ api, paper, onClose, onFreeze }) {
   const [file, setFile] = useState(null);
   const [source, setSource] = useState("WEBSITE"); // WEBSITE (from the final Word file) | OWN (chosen by the COE)
   const [making, setMaking] = useState(true);
-  const [layout, setLayout] = useState("TWO_UP");
-  const [trim, setTrim] = useState(12);
-  const [original, setOriginal] = useState("");
-  const [preview, setPreview] = useState(null); // { url, pages, sheets, scale }
-  const [busy, setBusy] = useState(false);
+  const [url, setUrl] = useState("");
   const [error, setError] = useState("");
 
-  // first: the website makes the PDF from the final (scrutinised) Word file, by Google Docs
+  // the website makes the PDF from the final (scrutinised) Word file
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -803,63 +797,24 @@ function FreezeModal({ api, paper, onClose, onFreeze }) {
     };
   }, [api, paper._id, paper.subject?.code, paper.setNo]);
 
-  // the PDF as made / chosen
   useEffect(() => {
     if (!file) return;
-    const url = URL.createObjectURL(file);
-    setOriginal(url);
-    return () => URL.revokeObjectURL(url);
+    const u = URL.createObjectURL(file);
+    setUrl(u);
+    return () => URL.revokeObjectURL(u);
   }, [file]);
 
-  // the 2-pages-per-side version, made by the server (nothing stored)
-  useEffect(() => {
-    if (!file || layout !== "TWO_UP") return;
-    let alive = true;
-    let made = "";
-    (async () => {
-      setBusy(true);
-      setError("");
-      try {
-        const body = new FormData();
-        body.append("file", file);
-        body.append("trim", String(trim));
-        const r = await api("post", `/paper-setting/${paper._id}/final-pdf/preview`, body, { responseType: "blob" });
-        if (!alive) return;
-        made = URL.createObjectURL(r.data);
-        setPreview({ url: made, pages: r.headers["x-pages"], sheets: r.headers["x-sheets"], scale: r.headers["x-scale"] });
-      } catch (e) {
-        let msg = "Could not make the 2-pages-per-side version.";
-        try {
-          msg = JSON.parse(await e.response.data.text()).error || msg;
-        } catch {
-          // not a JSON error
-        }
-        if (alive) setError(msg);
-      } finally {
-        if (alive) setBusy(false);
-      }
-    })();
-    return () => {
-      alive = false;
-      if (made) URL.revokeObjectURL(made);
-    };
-  }, [api, file, layout, trim, paper._id]);
-
   return (
-    <Modal title={`Page setting and freeze – ${paper.subject?.code} · Set ${paper.setNo}`} onClose={onClose} full>
-      <ol className="list-decimal space-y-1 pl-5 text-sm text-slate-600">
-        <li>
-          The website makes the PDF from the final (scrutinised) Word file, with Google Docs – the program the paper was scrutinised in.
-        </li>
-        <li>It places the pages 2 per side on A4 landscape – nothing inside a page is changed.</li>
-        <li>
-          Check equations, figures and symbols carefully, choose how much white margin to trim, then freeze. If something does not look right, open the
-          Word file, use <b>File → Save As → PDF</b> and press <b>Use my own PDF instead</b>.
-        </li>
-      </ol>
+    <Modal title={`Freeze – ${paper.subject?.code} · Set ${paper.setNo}`} onClose={onClose} full>
+      <p className="text-sm text-slate-600">
+        The website makes the PDF from the final (scrutinised) Word file, exactly in its own layout. Check every page – equations, figures and
+        symbols – then freeze. If something does not look right, open the Word file, use <b>File → Save As → PDF</b> and press{" "}
+        <b>Use my own PDF instead</b>.
+      </p>
       {making && <p className="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-800">Making the PDF from the final Word file… please wait (about 10–20 seconds).</p>}
+      {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
-      <div className="mt-4 flex flex-wrap items-center gap-3">
+      <div className="mt-3 flex flex-wrap items-center gap-3">
         <label className="cursor-pointer rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50">
           {source === "OWN" && file ? `Your PDF: ${file.name} – choose another` : "Use my own PDF instead"}
           <input
@@ -871,78 +826,26 @@ function FreezeModal({ api, paper, onClose, onFreeze }) {
               e.target.value = "";
               if (!f) return;
               if (!/\.pdf$/i.test(f.name)) return setError("Choose a PDF file.");
-              setPreview(null);
               setError("");
               setSource("OWN");
               setFile(f);
             }}
           />
         </label>
-        <span className="flex items-center gap-3 text-sm">
-          {[
-            ["TWO_UP", "2 pages per side (A4 landscape)"],
-            ["AS_IS", "As it is (one page per side)"],
-          ].map(([v, l]) => (
-            <label key={v} className="flex items-center gap-1.5">
-              <input type="radio" checked={layout === v} onChange={() => setLayout(v)} />
-              {l}
-            </label>
-          ))}
-        </span>
-        {layout === "TWO_UP" && (
-          <span className="flex items-center gap-1.5 text-sm">
-            Trim white margin:
-            {TRIMS.map((t) => (
-              <button
-                key={t}
-                onClick={() => setTrim(t)}
-                className={`rounded-lg border px-2 py-1 text-xs font-semibold ${trim === t ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 bg-white text-slate-700"}`}
-              >
-                {t} mm
-              </button>
-            ))}
+        {file && (
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            {source === "OWN" ? "Showing: your PDF" : "Showing: PDF made from the final Word file"}
           </span>
         )}
       </div>
 
-      {layout === "TWO_UP" && preview && (
-        <p className="mt-2 text-xs text-slate-600">
-          {preview.pages} page{preview.pages === "1" ? "" : "s"} → {preview.sheets} sheet{preview.sheets === "1" ? "" : "s"} (print double-sided, “flip on short edge”) ·
-          pages printed at about <b>{preview.scale}%</b> of their size. Check that no text at the page edges is cut – if it is, choose a smaller trim.
-        </p>
-      )}
-      {error && <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-
-      {file && (
-        <div className={`mt-3 grid gap-3 ${layout === "TWO_UP" ? "lg:grid-cols-2" : ""}`}>
-          <div>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              {source === "OWN" ? "Your PDF (saved from Word)" : "PDF made from the final Word file"}
-            </p>
-            {original && <iframe title="original" src={original} className="h-[65vh] w-full rounded-xl border border-slate-200" />}
-          </div>
-          {layout === "TWO_UP" && (
-            <div>
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">To be printed – 2 pages per side</p>
-              {busy || !preview ? (
-                <div className="flex h-[65vh] items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-500">Making the preview…</div>
-              ) : (
-                <iframe title="two per side" src={preview.url} className="h-[65vh] w-full rounded-xl border border-slate-200" />
-              )}
-            </div>
-          )}
-        </div>
-      )}
+      {url && <iframe title="question paper" src={url} className="mt-3 h-[68vh] w-full rounded-xl border border-slate-200" />}
 
       <div className="mt-4 flex justify-end gap-2">
         <button onClick={onClose} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">
           Cancel
         </button>
-        <button
-          disabled={!file || busy || Boolean(error) || (layout === "TWO_UP" && !preview)}
-          onClick={() => onFreeze(paper, file, layout, trim)}
-          className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
-        >
+        <button disabled={!file || making} onClick={() => onFreeze(paper, file)} className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
           Freeze paper
         </button>
       </div>

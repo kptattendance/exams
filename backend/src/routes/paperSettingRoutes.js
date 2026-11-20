@@ -23,7 +23,6 @@ import {
   requestScheme,
   submitMyScheme,
   uploadFinalPdf,
-  previewFinalPdf,
   pdfFromWord,
   examDayList,
   examDayPrint,
@@ -84,7 +83,6 @@ router.delete("/:id", adminOnly, requireStepUp("delete"), deleteAssignment);
 router.get("/:id/download", requireRole(...CONTENT_READERS), requireStepUp("qp"), downloadPaper);
 // COE: final PDF after page setting – freezes the paper for good
 router.get("/:id/final-pdf/from-word", requireRole(...CONTENT_READERS), requireStepUp("qp"), pdfFromWord); // made by Google Docs, not stored
-router.post("/:id/final-pdf/preview", requireRole(...CONTENT_READERS), requireStepUp("qp"), uploadPdf, previewFinalPdf); // 2 pages per side, not stored
 router.post("/:id/final-pdf", requireRole(...CONTENT_READERS), requireStepUp("qp"), uploadPdf, uploadFinalPdf);
 // COE: which frozen set is THE exam paper (before the exam day)
 router.post("/:id/choose-for-exam", requireRole(...CONTENT_READERS), requireStepUp("qp"), chooseForExam);
