@@ -18,6 +18,7 @@ import {
 } from "../controllers/studentController.js";
 
 import { authenticateUser } from "../middlewares/authMiddleware.js";
+import { mySeats } from "../controllers/examSessionController.js";
 import { requestPurge, confirmPurge, purgeLog } from "../controllers/studentPurgeController.js";
 import { uploadSingleImage } from "../middlewares/uploadImage.js";
 import { asHodScope } from "../services/evening.js";
@@ -105,6 +106,8 @@ router.get(
 // =====================================================
 
 router.get("/me", authenticateUser, getMyStudentProfile);
+// his room and seat for each written paper to come (before "/:id")
+router.get("/me/seats", authenticateUser, mySeats);
 
 // =====================================================
 // GET ONE

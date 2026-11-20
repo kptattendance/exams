@@ -218,6 +218,7 @@ export const MENUS = {
           { label: "Final attendance", href: "/office/final-attendance", icon: "attendance" },
           { label: "Examinations", href: "/office/examinations", icon: "paper" },
           { label: "Hall tickets", href: "/office/hall-tickets", icon: "ticket", pinned: true },
+          { label: "Rooms & seating", href: "/office/exam-sessions", icon: "list" },
           { label: "Paper setter orders", href: "/office/paper-orders", icon: "report" },
         ],
       },

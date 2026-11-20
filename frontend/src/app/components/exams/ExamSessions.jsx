@@ -16,6 +16,7 @@ import Icon from "../shell/Icon";
 import { btn, field } from "../ui/Modal";
 import { useConfirm, useToast } from "../ui/Feedback";
 import { errMsg, useApi } from "./shared";
+import StudentSeats from "./StudentSeats";
 
 const SESSION = { FN: "Morning (FN)", AN: "Afternoon (AN)" };
 const time = (d) => new Date(d).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
@@ -259,6 +260,20 @@ function Rooms({ d, path, tint, onSaved }) {
     for (const r of rooms) for (const n of r.students) m.set(n, r.name);
     return m;
   }, [rooms]);
+  // seat (desk) numbers run on from room to room: Room 1 seats 1–25, Room 2 seats 26–50 …
+  const { seatOf, rangeOf } = useMemo(() => {
+    const seat = new Map();
+    const range = new Map();
+    let n = 0;
+    for (const r of rooms) {
+      const list = [...r.students].sort();
+      if (!list.length) continue;
+      const from = n + 1;
+      for (const reg of list) seat.set(reg, ++n);
+      range.set(r.name, `${from}–${n}`);
+    }
+    return { seatOf: seat, rangeOf: range };
+  }, [rooms]);
   const free = d.candidates.filter((c) => !roomOf.has(c.registerNumber));
   const list = d.candidates.filter(
     (c) =>
@@ -341,6 +356,9 @@ function Rooms({ d, path, tint, onSaved }) {
                 {r.name}
               </button>
               <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">{r.students.length}</span>
+            </div>
+            <div className="mt-0.5 text-[11px] font-semibold text-slate-500">
+              {rangeOf.get(r.name) ? `Seats ${rangeOf.get(r.name)}` : "No seats yet"}
             </div>
             <input
               value={r.invigilator}
@@ -458,37 +476,54 @@ function Rooms({ d, path, tint, onSaved }) {
         setPicked={setPicked}
         extra={(c) =>
           roomOf.get(c.registerNumber) ? (
-            <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[11px] font-semibold text-white">{roomOf.get(c.registerNumber)}</span>
+            <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[11px] font-semibold text-white">
+              {roomOf.get(c.registerNumber)} · Seat {seatOf.get(c.registerNumber)}
+            </span>
           ) : (
             <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-semibold text-orange-800">Not allotted</span>
           )
         }
-        extraHead="Room"
+        extraHead="Room & seat"
         rowClass={(c) => (roomOf.has(c.registerNumber) ? "" : "!bg-orange-50/70")}
       />
 
       {/* printing – at the end of the page */}
-      {rooms.some((r) => r.students.length) && d.seesAts && (
+      {rooms.some((r) => r.students.length) && (
         <div className="mt-4 flex flex-wrap items-center justify-end gap-3 rounded-2xl border border-slate-200 bg-white p-4">
           <p className="mr-auto text-sm text-slate-600">
             {dirty
               ? "Save the rooms first, then print."
-              : `${rooms.filter((r) => r.students.length).length} rooms · ${d.diaries.length} room diaries (packets) · ${d.candidates.length - free.length} students`}
+              : `${rooms.filter((r) => r.students.length).length} rooms · seats 1–${d.candidates.length - free.length}${d.seesAts ? ` · ${d.diaries.length} room diaries (packets)` : ""}`}
             {free.length > 0 && !dirty && <span className="font-semibold text-orange-700"> · {free.length} not allotted yet</span>}
           </p>
+          {/* seating plan: notice-board list + door sheets (no ATS) – the exam section office */}
           {dirty ? (
-            <span className={`${btn.primary} pointer-events-none opacity-40`}>
+            <span className={`${btn.secondary} pointer-events-none opacity-40`}>
               <Icon name="download" className="h-4 w-4" />
-              Print all room diaries
+              Seating plan
             </span>
           ) : (
-            <a href={print("")} target="_blank" rel="noreferrer" className={btn.primary}>
+            <a href={`/print/seating/${examId}?date=${date}&session=${session}`} target="_blank" rel="noreferrer" className={btn.secondary}>
               <Icon name="download" className="h-4 w-4" />
-              Print all room diaries
+              Seating plan
             </a>
           )}
+          {d.seesAts &&
+            (dirty ? (
+              <span className={`${btn.primary} pointer-events-none opacity-40`}>
+                <Icon name="download" className="h-4 w-4" />
+                Print all room diaries
+              </span>
+            ) : (
+              <a href={print("")} target="_blank" rel="noreferrer" className={btn.primary}>
+                <Icon name="download" className="h-4 w-4" />
+                Print all room diaries
+              </a>
+            ))}
         </div>
       )}
+
+      <SeatLookup />
 
       {dirty && (
         <div className="fixed inset-x-0 bottom-20 z-40 px-4 lg:bottom-6 lg:left-[268px]">
@@ -498,6 +533,48 @@ function Rooms({ d, path, tint, onSaved }) {
               {busy ? "Saving…" : "Save rooms"}
             </button>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ------------------------------------------------------------------ a student's rooms and seats
+
+// What a student sees on his own page: type his register number
+function SeatLookup() {
+  const api = useApi();
+  const toast = useToast();
+  const [rn, setRn] = useState("");
+  const [found, setFound] = useState(null);
+  const look = async (e) => {
+    e.preventDefault();
+    try {
+      const r = await api("get", `/exam-sessions/student/${encodeURIComponent(rn.trim().toUpperCase())}`);
+      setFound(r.data);
+    } catch (err) {
+      setFound(null);
+      toast.error(errMsg(err, "Could not find the student."));
+    }
+  };
+  return (
+    <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+      <form onSubmit={look} className="flex flex-wrap items-end gap-2">
+        <label className="text-sm">
+          <span className="font-semibold text-slate-800">A student&apos;s rooms and seats</span>
+          <span className="block text-xs text-slate-500">The same as the student sees after signing in.</span>
+          <input value={rn} onChange={(e) => setRn(e.target.value)} placeholder="Register number" className="mt-1 block h-9 w-52 rounded-lg border border-slate-300 px-3 text-sm uppercase" />
+        </label>
+        <button disabled={rn.trim().length < 6} className={btn.secondary}>
+          Show
+        </button>
+      </form>
+      {found && (
+        <div className="mt-3">
+          <p className="text-sm font-semibold text-slate-900">
+            {found.student.registerNumber} {found.student.name}
+          </p>
+          <StudentSeats rows={found.data} />
         </div>
       )}
     </div>

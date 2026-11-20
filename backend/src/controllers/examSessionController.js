@@ -26,6 +26,9 @@ import RoomDiary from "../models/RoomDiary.js";
 import Counter from "../models/Counter.js";
 import { attendanceBlocked, autoCode, getPaper, syncCandidates, syncPackets } from "./valuationController.js";
 import { planDiaries } from "../services/exams/valuation.js";
+import { seatsOf } from "../services/exams/seating.js";
+import Student from "../models/Student.js";
+import ExamRegistration from "../models/ExamRegistration.js";
 import { ABSENT_AFTER_MINUTES, printWindow, todayIST, windowState } from "../services/examDay.js";
 
 const isId = (id) => mongoose.Types.ObjectId.isValid(id);
@@ -134,6 +137,8 @@ export const getSession = async (req, res) => {
   }
   const roomOf = new Map();
   for (const r of rooms) for (const n of r.students) roomOf.set(n, r.name);
+  // seat (desk) numbers: Room 1 seats 1–25, Room 2 seats 26–50 …
+  const seats = seatsOf(rooms);
   for (const p of papers) {
     const mine = scripts.filter((x) => x.code === p.code);
     p.candidates = mine.length;
@@ -145,8 +150,8 @@ export const getSession = async (req, res) => {
     session,
     times,
     papers,
-    candidates: scripts.map((x) => ({ ...x, room: roomOf.get(x.registerNumber) || "" })),
-    rooms: rooms.map((r) => ({ _id: r._id, name: r.name, invigilator: r.invigilator, students: r.students })),
+    candidates: scripts.map((x) => ({ ...x, room: roomOf.get(x.registerNumber) || "", seat: seats.seatOf.get(x.registerNumber)?.seat || null })),
+    rooms: rooms.map((r) => ({ _id: r._id, name: r.name, invigilator: r.invigilator, students: r.students, seats: seats.ranges.get(r.name) || null })),
     // one room diary per paper per room = one packet
     diaries: diaries.map((d) => ({
       _id: d._id,
@@ -334,4 +339,53 @@ export const saveAbsentees = async (req, res) => {
   for (const p of await ValuationPaper.find({ exam: exam._id, code: { $in: codes }, coded: true })) await syncPackets(exam, p);
   await log(req, "EXAM_ABSENTEES_SAVED", exam._id, { date, session, absent });
   res.json({ message: `Saved: ${absent.length} absent, ${scripts.length - absent.length} present.` });
+};
+
+// ------------------------------------------------------------------ a student's seats
+
+// The written papers still to come for one register number, with room and seat
+// once the rooms of that session are saved. No ATS here.
+async function seatsForStudent(registerNumber) {
+  const today = todayIST();
+  const exams = await Exam.find({ status: { $ne: "COMPLETED" }, "timetable.published": true }).select("name timetable").lean();
+  const out = [];
+  for (const e of exams) {
+    const reg = await ExamRegistration.findOne({ exam: e._id, registerNumber }).select("subjects.code subjects.name subjects.hasTheory subjects.kind").lean();
+    if (!reg) continue;
+    const mine = new Map((reg.subjects || []).filter((x) => x.hasTheory && x.kind !== "AUDIT").map((x) => [x.code, x.name]));
+    const entries = (e.timetable?.entries || []).filter((x) => mine.has(x.code) && x.date >= today);
+    const bySlot = new Map();
+    for (const x of entries) {
+      const k = `${x.date}|${x.session}`;
+      if (!bySlot.has(k)) bySlot.set(k, []);
+      bySlot.get(k).push(x);
+    }
+    for (const [k, list] of bySlot) {
+      const [date, session] = k.split("|");
+      const rooms = await ExamRoom.find({ exam: e._id, date, session }).select("name order students").lean();
+      const seat = seatsOf(rooms).seatOf.get(registerNumber) || null;
+      const all = (e.timetable?.entries || []).filter((x) => x.date === date && x.session === session);
+      const t = timesOf(all, e.timetable.sessions);
+      for (const x of list)
+        out.push({ exam: e.name, date, session, startsAt: t.startsAt, endsAt: t.endsAt, code: x.code, name: mine.get(x.code) || "", room: seat?.room || "", seat: seat?.seat || null });
+    }
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date) || a.session.localeCompare(b.session) || a.code.localeCompare(b.code));
+}
+
+// GET /api/students/me/seats – the signed-in student's room and seat for each paper to come
+export const mySeats = async (req, res) => {
+  if (req.user?.role !== "student") return fail(res, 403, "Only for students.");
+  const s = await Student.findOne({ clerkId: req.user.id }).select("registerNumber").lean();
+  if (!s) return fail(res, 404, "Your student record was not found. Please contact the college office.");
+  res.json({ data: await seatsForStudent(s.registerNumber) });
+};
+
+// GET /api/exam-sessions/student/:registerNumber – the same, for the office / COE
+// (to answer a student, or to see what the student sees)
+export const studentSeats = async (req, res) => {
+  const rn = String(req.params.registerNumber || "").trim().toUpperCase();
+  if (!/^[A-Z0-9]{6,15}$/.test(rn)) return fail(res, 400, "Type a register number.");
+  const s = await Student.findOne({ registerNumber: rn }).select("registerNumber name").lean();
+  res.json({ student: s ? { registerNumber: s.registerNumber, name: s.name } : { registerNumber: rn, name: "" }, data: await seatsForStudent(rn) });
 };

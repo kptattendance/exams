@@ -3,18 +3,20 @@ import { lockedExamGuard } from "../services/examLock.js";
 
 import { authenticateUser } from "../middlewares/authMiddleware.js";
 import { requireRole } from "../middlewares/requireRole.js";
-import { getSession, listSessions, markPrinted, saveAbsentees, saveRooms, trialEndSession } from "../controllers/examSessionController.js";
+import { getSession, listSessions, markPrinted, saveAbsentees, saveRooms, studentSeats, trialEndSession } from "../controllers/examSessionController.js";
 
 const router = express.Router();
 
 // Written exam sessions: the Chief Examiner runs them (rooms, absentees);
-// the COE office can see and help.
-const RUN = requireRole("chief_examiner", "coe", "acoe", "admin");
+// the COE office can see and help; the exam section office allots rooms and seats
+// (it does not see ATS numbers – see seesAts in the controller).
+const RUN = requireRole("chief_examiner", "coe", "acoe", "admin", "office");
 
 router.use(authenticateUser);
 // Results published: no change to this examination (Admin: reason + code)
 router.use("/:examId", lockedExamGuard((req) => req.params.examId));
 router.get("/", RUN, listSessions);
+router.get("/student/:registerNumber", RUN, studentSeats); // a student's rooms and seats
 router.get("/:examId/:date/:session", RUN, getSession);
 router.put("/:examId/:date/:session/rooms", RUN, saveRooms);
 router.post("/:examId/:date/:session/absent", RUN, saveAbsentees);

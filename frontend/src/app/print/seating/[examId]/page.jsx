@@ -1,0 +1,152 @@
+"use client";
+
+// Seating plan of a written-exam session (Print → Save as PDF), for the exam
+// section office – no ATS numbers:
+//   ?date=2026-11-16&session=FN
+// 1. Notice board: every candidate in register-number order – room and seat
+// 2. Door sheets: one per room – "Room 2 · Seats 26 to 50", seat by seat
+// Seats run on from room to room (Room 1: 1–25, Room 2: 26–50 …).
+
+import { Suspense, useEffect, useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
+
+import { errMsg, useApi } from "../../../components/exams/shared";
+import { popup } from "../../../components/ui/Feedback";
+
+const th = "border border-slate-700 px-2 py-1 text-left";
+const td = "border border-slate-700 px-2 py-1";
+const SESSION = { FN: "Morning (FN)", AN: "Afternoon (AN)" };
+const day = (iso) => new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric", weekday: "long" });
+const time = (d) => new Date(d).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
+
+function Head({ d, title, sub }) {
+  return (
+    <div className="text-center">
+      <p className="text-[14px] font-bold uppercase">Karnataka (Govt.) Polytechnic, Mangaluru</p>
+      <p className="text-[11px]">{d.exam.name}</p>
+      <p className="mt-1 text-[13px] font-bold tracking-[0.15em]">{title}</p>
+      <p className="text-[11px]">
+        {day(d.date)} · {SESSION[d.session]} · {time(d.times.startsAt)} – {time(d.times.endsAt)}
+      </p>
+      {sub && <p className="mt-1 text-[18px] font-black">{sub}</p>}
+    </div>
+  );
+}
+
+function Seating() {
+  const { examId } = useParams();
+  const search = useSearchParams();
+  const { isLoaded, isSignedIn } = useAuth();
+  const api = useApi();
+  const [d, setD] = useState(null);
+  const [failed, setFailed] = useState(false);
+  const date = search.get("date") || "";
+  const session = search.get("session") || "";
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    api("get", `/exam-sessions/${examId}/${date}/${session}`)
+      .then((r) => setD(r.data))
+      .catch((e) => {
+        setFailed(true);
+        popup("error", errMsg(e, "Could not load the session."));
+      });
+  }, [api, examId, date, session, isLoaded, isSignedIn]);
+
+  if (failed) return <p className="p-8 text-sm text-slate-500">Nothing to print.</p>;
+  if (!d) return <p className="p-8 text-sm text-slate-500">Loading… please wait</p>;
+
+  const paperName = new Map(d.papers.map((p) => [p.code, p.name]));
+  const seated = d.candidates.filter((c) => c.seat);
+  const byReg = [...seated].sort((a, b) => a.registerNumber.localeCompare(b.registerNumber, undefined, { numeric: true }));
+  const rooms = d.rooms.filter((r) => r.seats);
+
+  return (
+    <div className="mx-auto max-w-[210mm] bg-white px-6 py-6 text-[11.5px] text-slate-900 print:max-w-none print:p-0">
+      <style>{`@page{size:A4;margin:10mm} @media print{body{background:#fff}} *{-webkit-print-color-adjust:exact;print-color-adjust:exact}`}</style>
+      <div className="mb-5 flex items-center gap-3 rounded-xl bg-slate-100 p-3 print:hidden">
+        <p className="flex-1 text-sm text-slate-600">
+          Notice-board list ({seated.length} candidates) and {rooms.length} door sheet{rooms.length === 1 ? "" : "s"} · use Print → Save as PDF for a PDF.
+        </p>
+        <button onClick={() => window.print()} className="h-10 rounded-xl bg-slate-950 px-5 text-sm font-semibold text-white">
+          Print
+        </button>
+      </div>
+      {seated.length === 0 && <p className="text-sm text-slate-500">No room is allotted yet.</p>}
+
+      {seated.length > 0 && (
+        <>
+          {/* ---------------- 1. notice board ---------------- */}
+          <section>
+            <Head d={d} title="SEATING ARRANGEMENT" />
+            <table className="mt-3 w-full border-collapse">
+              <thead>
+                <tr className="bg-slate-100">
+                  <th className={`${th} w-8`}>#</th>
+                  <th className={`${th} w-28`}>Register No.</th>
+                  <th className={th}>Name</th>
+                  <th className={`${th} w-24`}>Paper</th>
+                  <th className={`${th} w-24`}>Room</th>
+                  <th className={`${th} w-14 text-center`}>Seat</th>
+                </tr>
+              </thead>
+              <tbody>
+                {byReg.map((c, i) => (
+                  <tr key={`${c.registerNumber}|${c.code}`}>
+                    <td className={td}>{i + 1}</td>
+                    <td className={`${td} font-semibold`}>{c.registerNumber}</td>
+                    <td className={td}>{c.name}</td>
+                    <td className={td}>{c.code}</td>
+                    <td className={`${td} font-semibold`}>{c.room}</td>
+                    <td className={`${td} text-center text-[13px] font-bold`}>{c.seat}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+
+          {/* ---------------- 2. one sheet per room door ---------------- */}
+          {rooms.map((r) => {
+            const list = seated.filter((c) => c.room === r.name).sort((a, b) => a.seat - b.seat);
+            return (
+              <section key={r.name} className="break-before-page">
+                <Head d={d} title="SEATING – ROOM" sub={`${r.name} · Seats ${r.seats.from} to ${r.seats.to}`} />
+                <table className="mt-3 w-full border-collapse">
+                  <thead>
+                    <tr className="bg-slate-100">
+                      <th className={`${th} w-14 text-center`}>Seat</th>
+                      <th className={`${th} w-28`}>Register No.</th>
+                      <th className={th}>Name</th>
+                      <th className={th}>Paper</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {list.map((c) => (
+                      <tr key={`${c.registerNumber}|${c.code}`}>
+                        <td className={`${td} text-center text-[13px] font-bold`}>{c.seat}</td>
+                        <td className={`${td} font-semibold`}>{c.registerNumber}</td>
+                        <td className={td}>{c.name}</td>
+                        <td className={td}>
+                          {c.code} – {paperName.get(c.code) || ""}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
+            );
+          })}
+        </>
+      )}
+    </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={<p className="p-8 text-sm text-slate-500">Loading…</p>}>
+      <Seating />
+    </Suspense>
+  );
+}
