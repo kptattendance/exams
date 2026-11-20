@@ -10,6 +10,8 @@ import User, { DESIGNATIONS, normalizeDesignation, collegeOf } from "../models/U
 import Student from "../models/Student.js";
 import Subject from "../models/Subject.js";
 import { ROLES } from "../config/roles.js";
+import { EMAIL_RX, loginEmailFree, replaceLoginEmail } from "../services/studentEmail.js";
+import { audit } from "../models/AuditLog.js";
 // import Attendance from "../models/Attendance.js";
 // import IAMarks from "../models/IAMarks.js";
 
@@ -1447,6 +1449,30 @@ export const updateUser = async (
           message:
             "You do not have permission to assign this role.",
         });
+      }
+    }
+
+    /*
+     * A new email (COE / ACOE / Admin): the login account (Clerk) first, then the record.
+     * The same email again is simply ignored.
+     */
+    if (updateData.email !== undefined) {
+      const newEmail = String(updateData.email || "").replace(/\s+/g, "").toLowerCase();
+      if (!newEmail || newEmail === String(targetUser.email || "").toLowerCase()) {
+        delete updateData.email;
+      } else {
+        if (!["coe", "acoe", "admin"].includes(requesterRole))
+          return res.status(403).json({ success: false, message: "Only the COE or the Admin can change an email." });
+        if (!EMAIL_RX.test(newEmail)) return res.status(400).json({ success: false, message: "Type a valid email address." });
+        const user2 = await User.findOne({ email: newEmail, _id: { $ne: targetUser._id } }).select("name").lean();
+        const stud2 = await Student.findOne({ email: newEmail }).select("registerNumber name").lean();
+        if (user2 || stud2)
+          return res.status(409).json({ success: false, message: `${newEmail} is already the email of ${user2 ? user2.name : `${stud2.registerNumber} ${stud2.name}`}.` });
+        if (!(await loginEmailFree(newEmail, targetUser.clerkId)))
+          return res.status(409).json({ success: false, message: `${newEmail} is already used by another login account.` });
+        if (targetUser.clerkId) await replaceLoginEmail(targetUser.clerkId, newEmail);
+        await audit(req, "USER_EMAIL_CHANGED", targetUser._id, { name: targetUser.name, from: targetUser.email, to: newEmail });
+        updateData.email = newEmail;
       }
     }
 

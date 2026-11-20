@@ -17,6 +17,7 @@ import { binStudents } from "../services/recycleBin.js";
 import { changeStudentEmail, EmailChangeError } from "../services/studentEmail.js";
 import { clerkBusy } from "../middlewares/authMiddleware.js";
 import { Readable } from "stream";
+import { requireStepUp } from "../services/stepUp.js";
 
 // =====================================================
 // GOOGLE DRIVE FILE ID
@@ -1762,7 +1763,8 @@ export const getStudentById = async (req, res) => {
 // UPDATE STUDENT
 // PUT /api/students/:id
 //
-// registerNumber and email CANNOT be changed.
+// registerNumber cannot be changed; the email only by the COE / ACOE / Admin
+// (login account and record together).
 // =====================================================
 export const updateStudent = async (req, res) => {
   try {
@@ -1780,6 +1782,25 @@ export const updateStudent = async (req, res) => {
 
     // its class before the change (automatic registration refresh)
     const before = { department: student.department, semester: student.semester };
+
+    // A new email (COE / ACOE / Admin): the login account (Clerk) and the record together
+    const askedEmail = req.body?.email !== undefined ? String(req.body.email).replace(/\s+/g, "").toLowerCase() : "";
+    if (askedEmail && askedEmail !== String(student.email || "").toLowerCase()) {
+      if (!["coe", "acoe", "admin"].includes(String(req.user?.role || "").toLowerCase()))
+        return res.status(403).json({ success: false, message: "Only the COE or the Admin can change a student's email." });
+      let passed = false;
+      await requireStepUp("users")(req, res, () => (passed = true)); // the verification code (answers 428 itself)
+      if (!passed) return;
+      try {
+        const r = await changeStudentEmail(student._id, askedEmail);
+        await audit(req, "STUDENT_EMAIL_CHANGED", student._id, { registerNumber: student.registerNumber, from: r.oldEmail, to: r.newEmail });
+        student.email = r.newEmail;
+      } catch (e) {
+        if (e instanceof EmailChangeError) return res.status(e.status).json({ success: false, message: e.message });
+        const clerkMsg = e?.errors?.[0]?.longMessage || e?.errors?.[0]?.message;
+        return res.status(500).json({ success: false, message: clerkMsg ? `Could not change the email: ${clerkMsg}` : "Could not change the email. Please try again." });
+      }
+    }
 
     // -----------------------------------------
     // ONLY THESE FIELDS CAN BE EDITED

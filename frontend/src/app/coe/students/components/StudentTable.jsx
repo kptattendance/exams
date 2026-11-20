@@ -503,11 +503,13 @@ const downloadStudentsExcel = () => {
 
       const token = await getToken();
 
-      // IMPORTANT:
-      // registerNumber and email are intentionally
-      // NOT sent because they cannot be edited.
+      // registerNumber is never sent (it cannot be edited); the email only
+      // when it was changed – the server then changes the sign-in email too
 
       const payload = {
+        ...(editForm.email.trim().toLowerCase() !== String(editingStudent.email || "").toLowerCase()
+          ? { email: editForm.email.trim().toLowerCase() }
+          : {}),
         name: editForm.name.trim(),
 
         fatherName:
@@ -1463,7 +1465,7 @@ const downloadStudentsExcel = () => {
                 </h2>
 
                 <p className="mt-0.5 text-xs text-slate-400">
-                  Register number and email cannot be changed.
+                  Register number cannot be changed. A new email also becomes the student&apos;s sign-in email.
                 </p>
               </div>
 
@@ -1495,9 +1497,15 @@ const downloadStudentsExcel = () => {
                   }
                 />
 
-                <ReadOnlyField
-                  label="Email"
+                <Input
+                  label="Email (sign-in)"
+                  name="email"
+                  type="email"
                   value={editForm.email}
+                  onChange={
+                    handleEditChange
+                  }
+                  required
                 />
 
               </div>

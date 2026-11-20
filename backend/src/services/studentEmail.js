@@ -21,7 +21,34 @@ export class EmailChangeError extends Error {
   }
 }
 
+// The SAME Clerk login keeps its user ID; only its email address is replaced:
+// the new address is added (verified, primary) and the old one(s) removed.
+// -> removed addresses
+export async function replaceLoginEmail(clerkId, newEmail) {
+  const user = await clerkClient.users.getUser(clerkId); // also checks the account still exists
+  let added = user.emailAddresses.find((e) => String(e.emailAddress).toLowerCase() === newEmail);
+  if (!added) {
+    added = await clerkClient.emailAddresses.createEmailAddress({ userId: user.id, emailAddress: newEmail, verified: true, primary: true });
+  } else if (user.primaryEmailAddressId !== added.id) {
+    await clerkClient.emailAddresses.updateEmailAddress(added.id, { verified: true, primary: true });
+  }
+  const removed = [];
+  for (const e of user.emailAddresses) {
+    if (e.id === added.id) continue;
+    await clerkClient.emailAddresses.deleteEmailAddress(e.id);
+    removed.push(e.emailAddress);
+  }
+  return removed;
+}
+
+// the new address must not be used by another login account
+export async function loginEmailFree(newEmail, ownClerkId) {
+  const others = await clerkClient.users.getUserList({ emailAddress: [newEmail] });
+  return !(others.data || []).some((u) => u.id !== ownClerkId);
+}
+
 // studentId, newEmail -> { student, oldEmail, newEmail, removed: [addresses] }
+// A student without a login account yet: only the record changes.
 export async function changeStudentEmail(studentId, newEmailRaw) {
   const newEmail = String(newEmailRaw || "").replace(/\s+/g, "").toLowerCase();
   if (!EMAIL_RX.test(newEmail)) throw new EmailChangeError(400, "Type a valid email address.");
@@ -30,30 +57,12 @@ export async function changeStudentEmail(studentId, newEmailRaw) {
   if (!student) throw new EmailChangeError(404, "Student not found.");
   const oldEmail = String(student.email || "").toLowerCase();
   if (newEmail === oldEmail) throw new EmailChangeError(409, "This is already the student's email.");
-  if (!student.clerkId) throw new EmailChangeError(409, "This student has no login account.");
 
   // the new address must not belong to anybody else
   const other = await Student.findOne({ email: newEmail, _id: { $ne: student._id } }).select("registerNumber name").lean();
   if (other) throw new EmailChangeError(409, `${newEmail} is already the email of ${other.registerNumber} ${other.name}.`);
-  const clerkOthers = await clerkClient.users.getUserList({ emailAddress: [newEmail] });
-  const taken = (clerkOthers.data || []).find((u) => u.id !== student.clerkId);
-  if (taken) throw new EmailChangeError(409, `${newEmail} is already used by another login account.`);
-
-  const user = await clerkClient.users.getUser(student.clerkId); // also checks the account still exists
-  let added = user.emailAddresses.find((e) => String(e.emailAddress).toLowerCase() === newEmail);
-  if (!added) {
-    added = await clerkClient.emailAddresses.createEmailAddress({ userId: user.id, emailAddress: newEmail, verified: true, primary: true });
-  } else if (user.primaryEmailAddressId !== added.id) {
-    await clerkClient.emailAddresses.updateEmailAddress(added.id, { verified: true, primary: true });
-  }
-
-  // the old address(es) are removed from the login account
-  const removed = [];
-  for (const e of user.emailAddresses) {
-    if (e.id === added.id) continue;
-    await clerkClient.emailAddresses.deleteEmailAddress(e.id);
-    removed.push(e.emailAddress);
-  }
+  if (!(await loginEmailFree(newEmail, student.clerkId))) throw new EmailChangeError(409, `${newEmail} is already used by another login account.`);
+  const removed = student.clerkId ? await replaceLoginEmail(student.clerkId, newEmail) : [];
 
   student.email = newEmail;
   await student.save();
