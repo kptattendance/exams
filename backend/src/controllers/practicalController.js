@@ -221,8 +221,9 @@ function batchView(b, panel, { students = true, marks = false } = {}) {
       mlAt: b.printed?.mlAt || null,
       mlBy: b.printed?.mlBy || "",
     },
+    // always in register-number order (a batch keeps the order the students were picked in)
     students: students
-      ? b.students.map((s) => ({
+      ? [...b.students].sort((x, y) => String(x.registerNumber).localeCompare(String(y.registerNumber), undefined, { numeric: true })).map((s) => ({
           registration: s.registration,
           registerNumber: s.registerNumber,
           name: s.name,
