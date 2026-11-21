@@ -27,6 +27,7 @@ import { scanNumber, scanReceipt } from "./receiptScan";
 import CameraCapture from "./CameraCapture";
 import CollegeSelect, { EveningTag, classesFor, keepClass } from "../ui/CollegeFilter";
 import { useIsAdmin } from "../useRole";
+import { deptTint } from "../ui/deptTint";
 
 const FEE = {
   PAID: { label: "Paid", dot: "bg-emerald-500", text: "text-emerald-700" },
@@ -814,11 +815,13 @@ const thumb = (url = "") => (/res\.cloudinary\.com\/.+\/image\/upload\//.test(ur
 
 function FeeRow({ sl, reg, canEdit, delMode = false, picked, onPick, onQuickPaid, onPay, saving = "" }) {
   const st = FEE[reg.feeStatus] || FEE.UNPAID;
+  // the department's colour (left bar, label) and a light shade on every other row
+  const tint = deptTint(reg.department);
   const unpaid = reg.items.filter((i) => !i.paid).length;
   const [busy, setBusy] = useState(false);
   const payments = reg.payments || [];
   return (
-    <tr className={`${T.row} ${picked ? (delMode ? "bg-red-50/60" : "bg-blue-50/50") : ""}`}>
+    <tr className={`${T.row} border-l-4 ${tint.edge} ${picked ? (delMode ? "bg-red-50/60" : "bg-blue-50/50") : sl % 2 ? "bg-white" : tint.row}`}>
       {canEdit && (
         <td className={T.td}>
           {(delMode ? hasFeeEntered(reg) : unpaid > 0) && (
@@ -847,7 +850,7 @@ function FeeRow({ sl, reg, canEdit, delMode = false, picked, onPick, onQuickPaid
         </div>
       </td>
       <td className={`${T.td} whitespace-nowrap text-xs text-slate-600`}>
-        {reg.department.toUpperCase()} · Sem {reg.semester}
+        <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold ${tint.chip}`}>{reg.department.toUpperCase()}</span> · Sem {reg.semester}
         <p className="text-[11px] text-slate-400">{ADMISSION_SHORT[reg.admissionType] || reg.admissionType}</p>
       </td>
       <td className={`${T.td} min-w-[220px] max-w-[320px]`}>
