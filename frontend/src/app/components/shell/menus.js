@@ -19,18 +19,17 @@ export const HOME_BY_ROLE = {
   qp_scrutinizer: "/scrutiny",
   chief_examiner: "/chief-examiner",
   hod: "/hod",
-  evening_principal: "/evening",
+  evening_principal: "/evening/students", // straight to the students
   student: "/student", // only his own details
-  staff: "/faculty",
+  staff: "/faculty/practical", // most staff come to enter practical marks
 };
 
 export const MENUS = {
   // Evening Principal: HOD work for all evening students (register numbers 186…)
   evening: {
     role: "Evening Principal",
-    home: "/evening",
+    home: "/evening/students",
     sections: [
-      { title: "Overview", items: [{ label: "Start", href: "/evening", icon: "dashboard", pinned: true }] },
       { title: "Students", items: [{ label: "Students", href: "/evening/students", icon: "students", pinned: true }] },
       {
         title: "Academic records",
@@ -327,13 +326,13 @@ export const MENUS = {
 
   faculty: {
     role: "Faculty",
-    home: "/faculty",
+    home: "/faculty/practical",
     sections: [
       {
         title: "My work",
         items: [
-          { label: "Paper setting", href: "/faculty", icon: "lock", pinned: true },
           { label: "Practical marks entry", href: "/faculty/practical", icon: "marks", pinned: true },
+          { label: "Paper setting", href: "/faculty", icon: "lock", pinned: true },
         ],
       },
     ],
