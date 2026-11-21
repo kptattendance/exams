@@ -10,7 +10,7 @@ import { batchFor, useAcademicYear } from "../../components/academicYear";
 import { useToast, usePopupMessage, confirmBox } from "../../components/ui/Feedback";
 import { matchesCollege } from "../../components/ui/CollegeFilter";
 import { BranchShiftFields, useEveningBranch, useEveningMode } from "../../components/evening/EveningSheetFilters";
-import { BridgeBadge, BridgeLegend, ChooseElectiveCell, ElectiveHeader, LateralTag, NotRequiredCell, electiveOf, sheetColumns, takesSubject } from "../../components/bridge";
+import { BridgeBadge, BridgeLegend, ChooseElectiveCell, ElectiveHeader, LateralTag, NotRequiredCell, electiveOf, isBridge, sheetColumns, takesSubject } from "../../components/bridge";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -1252,7 +1252,7 @@ export default function FinalIAPage() {
       batch,
       status,
       department: students[0]?.department || "",
-      subjects: subjects.map((s) => ({ subjectId: String(s.subjectId), code: s.code, name: s.name, iaMin: s.iaMin, iaMax: s.iaMax })),
+      subjects: subjects.map((s) => ({ subjectId: String(s.subjectId), code: s.code, name: s.name, iaMin: s.iaMin, iaMax: s.iaMax, bridge: isBridge(s) })),
       students: sortedStudents.map((st) => ({
         registerNumber: st.registerNumber,
         studentName: st.studentName,

@@ -10,7 +10,7 @@ import { batchFor, useAcademicYear } from "../../components/academicYear";
 import { useToast, usePopupMessage, confirmBox } from "../../components/ui/Feedback";
 import { matchesCollege } from "../../components/ui/CollegeFilter";
 import { BranchShiftFields, useEveningBranch, useEveningMode } from "../../components/evening/EveningSheetFilters";
-import { ChooseElectiveCell, ElectiveHeader, LateralTag, electiveOf, sheetColumns, takesSubject } from "../../components/bridge";
+import { ChooseElectiveCell, ElectiveHeader, LateralTag, electiveOf, isBridge, sheetColumns, takesSubject } from "../../components/bridge";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -1420,7 +1420,7 @@ export default function AttendancePage() {
       batch,
       status,
       department: department || students[0]?.department || subjects[0]?.department || "",
-      subjects: subjects.map((s) => ({ subjectId: String(s.subjectId), code: s.code, name: s.name })),
+      subjects: subjects.map((s) => ({ subjectId: String(s.subjectId), code: s.code, name: s.name, bridge: isBridge(s) })),
       students: students.map((st) => ({
         registerNumber: st.registerNumber,
         studentName: st.studentName,

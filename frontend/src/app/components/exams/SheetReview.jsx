@@ -268,7 +268,8 @@ function printCopy(type, sheet, copy) {
     batch: sheet.batch,
     status: sheet.status,
     department: sheet.department,
-    subjects: sheet.subjects.map((s) => ({ subjectId: String(s.subjectId), code: s.code, name: s.name, iaMin: s.iaMin, iaMax: s.max ?? s.iaMax })),
+    // bridge course: from its category when the sheet has it (else the print decides)
+    subjects: sheet.subjects.map((s) => ({ subjectId: String(s.subjectId), code: s.code, name: s.name, iaMin: s.iaMin, iaMax: s.max ?? s.iaMax, bridge: s.subjectCategory ? String(s.subjectCategory).toUpperCase() === "BRIDGE" : undefined })),
     students: sheet.students.map((st) => ({
       registerNumber: st.registerNumber,
       studentName: st.name,

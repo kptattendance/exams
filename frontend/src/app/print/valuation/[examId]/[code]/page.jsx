@@ -58,7 +58,7 @@ function PrintValuation() {
 
   return (
     <div className="mx-auto max-w-[210mm] bg-white px-6 py-6 text-[11.5px] text-slate-900 print:max-w-none print:p-0">
-      <style>{`@page{size:A4;margin:12mm} @media print{body{background:#fff}} .page{break-after:page;page-break-after:always} .page:last-child{break-after:auto}`}</style>
+      <style>{`@page{size:A4;margin:12mm 12mm 12mm 25mm} @media print{body{background:#fff}} .page{break-after:page;page-break-after:always} .page:last-child{break-after:auto}`}</style>
       <div className="mb-5 flex items-center gap-3 rounded-xl bg-slate-100 p-3 print:hidden">
         <p className="flex-1 text-sm text-slate-600">
           {sheet === "coding" && "Confidential – keep with the COE. "}

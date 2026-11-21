@@ -46,7 +46,7 @@ function PrintDiploma() {
   return (
     <div className="mx-auto max-w-[210mm] bg-white text-slate-900 print:max-w-none">
       <style>{`
-        @page { size: A4 portrait; margin: 10mm; }
+        @page { size: A4 portrait; margin: ${mode === "certificates" ? "10mm" : "10mm 10mm 10mm 25mm"}; } /* lists: 25 mm left to file; certificates as they are */
         @media print { body { background: #fff; } }
         * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .cert { min-height: 277mm; break-after: page; page-break-after: always; }

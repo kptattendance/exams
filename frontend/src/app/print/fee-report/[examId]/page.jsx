@@ -104,7 +104,7 @@ function Report() {
 
   return (
     <div className="mx-auto max-w-[210mm] bg-white px-6 py-6 text-[10px] text-slate-900 print:max-w-none print:p-0">
-      <style>{`@page{size:A4 portrait;margin:9mm} @media print{body{background:#fff}} *{-webkit-print-color-adjust:exact;print-color-adjust:exact} thead{display:table-header-group} tr{break-inside:avoid}`}</style>
+      <style>{`@page{size:A4 portrait;margin:9mm 9mm 9mm 25mm} @media print{body{background:#fff}} *{-webkit-print-color-adjust:exact;print-color-adjust:exact} thead{display:table-header-group} tr{break-inside:avoid}`}</style>
       <div className="mb-5 flex items-center gap-3 rounded-xl bg-slate-100 p-3 print:hidden">
         <p className="flex-1 text-sm text-slate-600">Use Print → Save as PDF for a PDF.</p>
         <button onClick={() => window.print()} className="h-10 rounded-xl bg-slate-950 px-5 text-sm font-semibold text-white">

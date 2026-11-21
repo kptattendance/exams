@@ -67,7 +67,7 @@ function PrintMakeup() {
   return (
     <div className="mx-auto max-w-[210mm] bg-white text-slate-900 print:max-w-none">
       <style>{`
-        @page { size: A4 portrait; margin: 10mm; }
+        @page { size: A4 portrait; margin: 10mm 10mm 10mm 25mm; } /* 25 mm left: to punch and file */
         @media print { body { background: #fff; } }
         * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .dept { break-after: page; page-break-after: always; }

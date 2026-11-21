@@ -146,7 +146,7 @@ function PrintPractical() {
         @bottom-center { content: "${stamp}"; font-size: 8pt; color: #475569; font-family: sans-serif; }
       }`}</style>
       {/* time tables (HOD and students): landscape, so the register numbers get room */}
-      <style>{grid ? `@page{size:A4 landscape;margin:8mm} @media print{body{background:#fff}}` : `@page{size:A4;margin:12mm} @media print{body{background:#fff}}`}</style>
+      <style>{grid ? `@page{size:A4 landscape;margin:8mm 8mm 8mm 25mm} @media print{body{background:#fff}}` : `@page{size:A4;margin:12mm 12mm 12mm 25mm} @media print{body{background:#fff}}`}</style>
       <div className="mb-5 flex items-center gap-3 rounded-xl bg-slate-100 p-3 print:hidden">
         <p className="flex-1 text-sm text-slate-600">Use Print → Save as PDF for a PDF.</p>
         <button onClick={doPrint} className="h-10 rounded-xl bg-slate-950 px-5 text-sm font-semibold text-white">

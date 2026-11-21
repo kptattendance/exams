@@ -437,7 +437,7 @@ function PrintExaminerDocuments() {
       {/* eslint-disable-next-line @next/next/no-page-custom-font */}
       <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Kannada:wght@400;600;700&family=Noto+Serif:wght@400;600;700&display=swap" />
       <style>{`
-        @page { size: A4; margin: 12mm 16mm;
+        @page { size: A4; margin: 12mm 16mm 12mm 25mm;
           @top-left { content: "${blank}"; } @top-center { content: "${blank}"; } @top-right { content: "${blank}"; }
           @bottom-left { content: "${blank}"; } @bottom-center { content: "${blank}"; } @bottom-right { content: "${blank}"; } }
         @media print { body { background: #fff; } }

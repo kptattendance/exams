@@ -84,7 +84,7 @@ export default function PrintTimetable() {
   return (
     <div className="mx-auto max-w-4xl bg-white px-6 py-8 text-slate-900 print:max-w-none print:px-0 print:py-0">
       <style>{`
-        @page { size: A4; margin: 10mm; }
+        @page { size: A4; margin: 10mm 10mm 10mm 25mm; } /* 25 mm left: to punch and file */
         @media print { body { background: #fff; } thead { display: table-header-group; } }
         * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       `}</style>

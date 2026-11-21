@@ -90,16 +90,21 @@ function Sheet() {
 
   const ia = sheet.kind === "ia";
   const verify = sheet.copy === "verification";
-  const landscape = ia && [3, 4].includes(Number(sheet.semester));
   const subjects = sheet.subjects || [];
   const students = sheet.students || [];
+  // bridge courses (only the lateral-entry students take them) go into a table of
+  // their own with only those students – otherwise "NA" fills the whole sheet.
+  // Older sheets without the flag: a course that fewer than half the students take.
+  const takes = (st, s) => st.values?.[s.subjectId] !== "NA";
+  const isBridge = (s) => (s.bridge !== undefined ? Boolean(s.bridge) : students.filter((st) => takes(st, s)).length < students.length / 2);
+  const regular = subjects.filter((s) => !isBridge(s));
+  const bridge = subjects.filter(isBridge);
+  const bridgeStudents = students.filter((st) => bridge.some((s) => takes(st, s)));
   const dept = DEPT[String(sheet.department || "").toLowerCase()] || String(sheet.department || "").toUpperCase();
-  const show = (v) => (v === "" || v === null || v === undefined ? "–" : v);
-
   return (
-    <div className={`mx-auto ${landscape ? "max-w-[297mm]" : "max-w-[210mm]"} bg-white px-6 py-6 text-[10px] text-slate-900 print:max-w-none print:p-0`}>
-      {/* 2nd-year IA (semester 3 / 4: bridge courses too – many columns) on landscape; the rest portrait */}
-      <style>{`@page{size:A4 ${landscape ? "landscape" : "portrait"};margin:10mm 10mm 14mm 10mm} @media print{body{background:#fff}} thead{display:table-header-group} tr{break-inside:avoid} *{-webkit-print-color-adjust:exact;print-color-adjust:exact}`}</style>
+    <div className="mx-auto max-w-[210mm] bg-white px-6 py-6 text-[10px] text-slate-900 print:max-w-none print:p-0">
+      {/* portrait; 25 mm on the left to punch and file */}
+      <style>{`@page{size:A4 portrait;margin:10mm 10mm 14mm 25mm} @media print{body{background:#fff}} thead{display:table-header-group} tr{break-inside:avoid} *{-webkit-print-color-adjust:exact;print-color-adjust:exact}`}</style>
       {/* The page margins are filled by us, so the browser prints no header / footer of its own
           (date, address). The verification copy: the verifying officer signs at the foot of EVERY page. */}
       <style>{pageMargins(verify)}</style>
@@ -130,61 +135,16 @@ function Sheet() {
         </p>
       </div>
 
-      <table className="mt-3 w-full border-collapse">
-        <thead>
-          <tr>
-            <th className={`${th} w-7`}>Sl.</th>
-            <th className={`${th} w-[22mm]`}>Register No.</th>
-            <th className={`${th} text-left`}>Name of the student</th>
-            {subjects.map((s) => (
-              <th key={s.subjectId} className={`${th} w-[12mm]`}>
-                <div className="font-bold">{s.code}</div>
-                {ia && (
-                  <div className="text-[8.5px] font-normal opacity-90">
-                    Max {s.iaMax ?? "–"}
-                    {s.iaMin !== null && s.iaMin !== undefined ? ` · Min ${s.iaMin}` : ""}
-                  </div>
-                )}
-              </th>
-            ))}
-            <th className={`${th} ${verify ? "w-[24mm]" : "w-[30mm]"}`}>{verify ? "Remarks" : "Student signature"}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {students.map((st, i) => (
-            <tr key={st.registerNumber || i} className={i % 2 ? "bg-slate-50" : "bg-white"}>
-              <td className={`${td} text-center`}>{i + 1}</td>
-              <td className={`${td} whitespace-nowrap tabular-nums`}>{st.registerNumber || "—"}</td>
-              <td className={td}>{st.studentName}</td>
-              {subjects.map((s) => {
-                const v = st.values?.[s.subjectId];
-                const flag = flagOf(ia, s, v);
-                return (
-                  <td key={s.subjectId} className={`${td} text-center tabular-nums ${flag ? "bg-red-100 font-bold text-red-800" : ""}`}>
-                    {show(ia ? v : pct(v))}
-                    {flag && <span className="block text-[7.5px] font-bold leading-none">{flag === "NE" ? "NE" : "SHORTAGE"}</span>}
-                  </td>
-                );
-              })}
-              <td className={`${td} h-8`} />
-            </tr>
-          ))}
-        </tbody>
-        {/* how many NE / shortage in each subject */}
-        <tfoot>
-          <tr className="bg-red-50 font-semibold text-red-900">
-            <td className={`${td} text-right`} colSpan={3}>
-              {ia ? "Not eligible (NE) – below the IA minimum" : `Shortage – below ${SHORTAGE_BELOW}%`}
-            </td>
-            {subjects.map((s) => (
-              <td key={s.subjectId} className={`${td} text-center tabular-nums`}>
-                {students.filter((st) => flagOf(ia, s, st.values?.[s.subjectId])).length}
-              </td>
-            ))}
-            <td className={td} />
-          </tr>
-        </tfoot>
-      </table>
+      <MarksTable ia={ia} verify={verify} subjects={regular} students={students} />
+
+      {bridge.length > 0 && bridgeStudents.length > 0 && (
+        <>
+          <p className="mt-4 text-[11.5px] font-bold text-[#1D1842]">
+            Bridge courses <span className="font-normal text-slate-600">– only the {bridgeStudents.length} students who take them</span>
+          </p>
+          <MarksTable ia={ia} verify={verify} subjects={bridge} students={bridgeStudents} />
+        </>
+      )}
 
       <div className="mt-2 text-[10px] text-slate-600">
         <p className="flex flex-wrap items-center gap-2">
@@ -208,7 +168,10 @@ function Sheet() {
             <tr key={s.subjectId} className={i % 2 ? "bg-slate-50" : "bg-white"}>
               <td className={`${td} text-center`}>{i + 1}</td>
               <td className={`${td} text-center font-semibold`}>{s.code}</td>
-              <td className={td}>{s.name}</td>
+              <td className={td}>
+                {s.name}
+                {isBridge(s) && <span className="ml-1 text-[9px] font-semibold text-violet-700">(bridge course)</span>}
+              </td>
               {ia && (
                 <td className={`${td} text-center tabular-nums`}>
                   {s.iaMax ?? "–"} / {s.iaMin ?? "–"}
@@ -228,6 +191,70 @@ function Sheet() {
         </div>
       )}
     </div>
+  );
+}
+
+// One table of marks / attendance: the given courses for the given students, with
+// NE / shortage in red, a count row and the signature (or remarks) column
+function MarksTable({ ia, verify, subjects, students }) {
+  const show = (v) => (v === "" || v === null || v === undefined ? "–" : v);
+  return (
+    <table className="mt-3 w-full table-fixed border-collapse">
+      <thead>
+        <tr>
+          <th className={`${th} w-7`}>Sl.</th>
+          <th className={`${th} w-[21mm]`}>Register No.</th>
+          {/* a fixed, narrow name column: long names wrap, the marks get the room */}
+          <th className={`${th} w-[38mm] text-left`}>Name of the student</th>
+          {subjects.map((s) => (
+            <th key={s.subjectId} className={th}>
+              <div className="font-bold">{s.code}</div>
+              {ia && (
+                <div className="text-[8px] font-normal opacity-90">
+                  Max {s.iaMax ?? "–"}
+                  {s.iaMin !== null && s.iaMin !== undefined ? ` · Min ${s.iaMin}` : ""}
+                </div>
+              )}
+            </th>
+          ))}
+          <th className={`${th} ${verify ? "w-[20mm]" : "w-[26mm]"}`}>{verify ? "Remarks" : "Student signature"}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {students.map((st, i) => (
+          <tr key={st.registerNumber || i} className={i % 2 ? "bg-slate-50" : "bg-white"}>
+            <td className={`${td} text-center`}>{i + 1}</td>
+            <td className={`${td} whitespace-nowrap text-[9px] tabular-nums`}>{st.registerNumber || "—"}</td>
+            <td className={`${td} break-words text-[9px] leading-tight`}>{st.studentName}</td>
+            {subjects.map((s) => {
+              const v = st.values?.[s.subjectId];
+              const flag = flagOf(ia, s, v);
+              return (
+                <td key={s.subjectId} className={`${td} text-center tabular-nums ${flag ? "bg-red-100 font-bold text-red-800" : ""}`}>
+                  {show(ia ? v : pct(v))}
+                  {flag && <span className="block text-[7.5px] font-bold leading-none">{flag === "NE" ? "NE" : "SHORTAGE"}</span>}
+                </td>
+              );
+            })}
+            <td className={`${td} h-8`} />
+          </tr>
+        ))}
+      </tbody>
+      {/* how many NE / shortage in each course */}
+      <tfoot>
+        <tr className="bg-red-50 font-semibold text-red-900">
+          <td className={`${td} text-right text-[9px]`} colSpan={3}>
+            {ia ? "Not eligible (NE) – below the IA minimum" : `Shortage – below ${SHORTAGE_BELOW}%`}
+          </td>
+          {subjects.map((s) => (
+            <td key={s.subjectId} className={`${td} text-center tabular-nums`}>
+              {students.filter((st) => flagOf(ia, s, st.values?.[s.subjectId])).length}
+            </td>
+          ))}
+          <td className={td} />
+        </tr>
+      </tfoot>
+    </table>
   );
 }
 

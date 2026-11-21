@@ -540,6 +540,13 @@ function Rooms({ d, path, tint, onSaved }) {
                 Print all room diaries
               </a>
             ))}
+          {/* after the absentees: consolidated report, absentee list and bundle covers */}
+          {d.seesAts && !dirty && (
+            <a href={`/print/session-report/${examId}?date=${date}&session=${session}`} target="_blank" rel="noreferrer" className={btn.secondary}>
+              <Icon name="report" className="h-4 w-4" />
+              Session report
+            </a>
+          )}
         </div>
       )}
 
@@ -803,6 +810,24 @@ function Absentees({ d, path, tint, onSaved }) {
         )}
         showRoom
       />
+
+      {/* after marking the absentees: the session report for the bundles */}
+      {d.seesAts && (
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+          <p className="flex-1 text-sm text-slate-600">
+            After saving the absentees: the <b>session report</b> – consolidated report of the packets in bundles, the absentee / malpractice list and the
+            bundle covers (with a left margin to punch and file).
+          </p>
+          {dirty ? (
+            <span className={`${btn.primary} pointer-events-none opacity-40`}>Save the absentees first</span>
+          ) : (
+            <a href={`/print/session-report/${d.exam._id}?date=${d.date}&session=${d.session}`} target="_blank" rel="noreferrer" className={btn.primary}>
+              <Icon name="report" className="h-4 w-4" />
+              Session report
+            </a>
+          )}
+        </div>
+      )}
 
       {dirty && open && (
         <div className="fixed inset-x-0 bottom-20 z-40 px-4 lg:bottom-6 lg:left-[268px]">
