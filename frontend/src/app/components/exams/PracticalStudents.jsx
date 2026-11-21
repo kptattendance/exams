@@ -1,6 +1,6 @@
 "use client";
 
-// HOD / Evening Principal → Practical students
+// HOD / Evening Principal → Candidate list (practical)
 // Every practical subject the department conducts, with all its students:
 // eligible (and in which batch, or not yet in one) or not permitted (and why).
 // Read only – so the HOD can plan the batches early, before printing anything.
@@ -77,15 +77,15 @@ export default function PracticalStudents() {
     const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [{ Note: "No students for this selection." }]);
     ws["!cols"] = [12, 34, 14, 28, 8, 11, 14, 40, 16, 12, 20].map((wch) => ({ wch }));
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Practical students");
-    XLSX.writeFile(wb, `Practical_students_${code || "all"}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, "Candidate list");
+    XLSX.writeFile(wb, `Candidate_list_${code || "all"}.xlsx`);
   };
 
   return (
     <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-7">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0">
-          <h2 className="text-2xl font-bold tracking-tight text-slate-950">Practical students</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-950">Candidate list</h2>
           <ExamSelect exams={exams} examId={examId} setExamId={setExamId} />
           <p className="mt-1 max-w-3xl text-sm text-slate-500">
             Every practical subject your department conducts, with all its students – who is eligible, who is already in a batch, and who is not

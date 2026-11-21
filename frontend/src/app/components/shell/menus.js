@@ -45,7 +45,7 @@ export const MENUS = {
         title: "Practical exams",
         items: [
           { label: "Practical batches & time table", href: "/evening/practical", icon: "calendar" },
-          { label: "Practical students", href: "/evening/practical-students", icon: "list" },
+          { label: "Candidate list", href: "/evening/practical-students", icon: "list" },
           { label: "Track practical marks", href: "/evening/practical-marks", icon: "marks" },
         ],
       },
@@ -185,7 +185,7 @@ export const MENUS = {
         title: "Practical exams",
         items: [
           { label: "Practical batches & time table", href: "/hod/practical", icon: "calendar" },
-          { label: "Practical students", href: "/hod/practical-students", icon: "list" },
+          { label: "Candidate list", href: "/hod/practical-students", icon: "list" },
           { label: "Track practical marks", href: "/hod/practical-marks", icon: "marks" },
         ],
       },
