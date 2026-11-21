@@ -81,13 +81,14 @@ function Sheet() {
 
   const ia = sheet.kind === "ia";
   const verify = sheet.copy === "verification";
+  const landscape = ia && [3, 4].includes(Number(sheet.semester));
   const subjects = sheet.subjects || [];
   const students = sheet.students || [];
   const dept = DEPT[String(sheet.department || "").toLowerCase()] || String(sheet.department || "").toUpperCase();
   const show = (v) => (v === "" || v === null || v === undefined ? "–" : v);
 
   return (
-    <div className="mx-auto max-w-[210mm] bg-white px-6 py-6 text-[10px] text-slate-900 print:max-w-none print:p-0">
+    <div className={`mx-auto ${landscape ? "max-w-[297mm]" : "max-w-[210mm]"} bg-white px-6 py-6 text-[10px] text-slate-900 print:max-w-none print:p-0`}>
       {/* 2nd-year IA (semester 3 / 4: bridge courses too – many columns) on landscape; the rest portrait */}
       <style>{`@page{size:A4 ${landscape ? "landscape" : "portrait"};margin:10mm 10mm 14mm 10mm} @media print{body{background:#fff}} thead{display:table-header-group} tr{break-inside:avoid} *{-webkit-print-color-adjust:exact;print-color-adjust:exact}`}</style>
       {/* The page margins are filled by us, so the browser prints no header / footer of its own
