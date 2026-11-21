@@ -1,5 +1,6 @@
 // Navigation for every role.
 //
+//  tone: "theory" | "practical" | "fees" | "records" -> the section's colour in the sidebar
 //  pinned: true  -> also shown in the phone's bottom tab bar (max 4)
 //  soon:   true  -> page not built yet; NOT shown in the sidebar
 //                   (remove `soon` when you create the page)
@@ -207,38 +208,48 @@ export const MENUS = {
   office: {
     role: "Exam section (office)",
     home: "/office/fees",
+    // grouped by kind of work, each group in its own colour
     sections: [
       {
-        title: "Before the exam",
+        title: "Students & fees",
+        tone: "fees",
         items: [
           { label: "Students", href: "/office/students", icon: "students" },
           { label: "Fee verification", href: "/office/fees", icon: "money", pinned: true },
           { label: "Fee transactions", href: "/office/fees/transactions", icon: "report" },
           { label: "Scan with phone", href: "/office/fees/phone", icon: "ticket" },
+        ],
+      },
+      {
+        title: "IA & attendance",
+        tone: "records",
+        items: [
           { label: "Final IA", href: "/office/final-ia", icon: "marks" },
           { label: "Final attendance", href: "/office/final-attendance", icon: "attendance" },
+          { label: "CIE make-up (check)", href: "/office/cie-makeup", icon: "marks" },
+        ],
+      },
+      {
+        title: "Theory exam",
+        tone: "theory",
+        items: [
           { label: "Examinations", href: "/office/examinations", icon: "paper" },
           { label: "Hall tickets", href: "/office/hall-tickets", icon: "ticket", pinned: true },
-          { label: "Rooms & seating", href: "/office/exam-sessions", icon: "list" },
           { label: "Paper setter orders", href: "/office/paper-orders", icon: "report" },
+          { label: "Rooms & seating", href: "/office/exam-sessions", icon: "list" },
+          { label: "Absentees & packets", href: "/office/valuation", icon: "valuation" },
+          { label: "Packet tracker", href: "/office/valuation/packets", icon: "list" },
+          { label: "Revaluation applications", href: "/office/revaluation", icon: "results" },
         ],
       },
       {
         title: "Practical exam",
+        tone: "practical",
         items: [
           { label: "Room diary & ML sheets", href: "/office/practical/sheets", icon: "list" },
-          { label: "Marks status report", href: "/office/practical/report", icon: "chart" },
           { label: "Examiner orders", href: "/office/practical/orders", icon: "report" },
           { label: "Examiner certificates", href: "/office/practical/certificates", icon: "paper" },
-        ],
-      },
-      {
-        title: "After the exam",
-        items: [
-          { label: "Absentees & packets", href: "/office/valuation", icon: "valuation" },
-          { label: "Packet tracker", href: "/office/valuation/packets", icon: "list" },
-          { label: "Revaluation applications", href: "/office/revaluation", icon: "results" },
-          { label: "CIE make-up (check)", href: "/office/cie-makeup", icon: "marks" },
+          { label: "Marks status report", href: "/office/practical/report", icon: "chart" },
         ],
       },
       {

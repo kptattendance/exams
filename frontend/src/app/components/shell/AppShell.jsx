@@ -18,6 +18,15 @@ import { FeedbackProvider } from "../ui/Feedback";
 import { useRole } from "../useRole";
 import { preloadXlsx } from "../xlsx";
 
+// Sidebar colours per kind of work (menus.js: section "tone")
+const TONES = {
+  default: { title: "", dot: "", rail: "", activeBg: "bg-blue-50", activeText: "text-blue-800", bar: "bg-blue-600", iconOn: "text-blue-600", icon: "text-slate-400 group-hover:text-slate-600" },
+  theory: { title: "text-blue-700", dot: "bg-blue-500", rail: "border-blue-200", activeBg: "bg-blue-50", activeText: "text-blue-800", bar: "bg-blue-600", iconOn: "text-blue-600", icon: "text-blue-400 group-hover:text-blue-600" },
+  practical: { title: "text-emerald-700", dot: "bg-emerald-500", rail: "border-emerald-200", activeBg: "bg-emerald-50", activeText: "text-emerald-800", bar: "bg-emerald-600", iconOn: "text-emerald-600", icon: "text-emerald-400 group-hover:text-emerald-600" },
+  fees: { title: "text-amber-700", dot: "bg-amber-500", rail: "border-amber-200", activeBg: "bg-amber-50", activeText: "text-amber-900", bar: "bg-amber-600", iconOn: "text-amber-600", icon: "text-amber-400 group-hover:text-amber-600" },
+  records: { title: "text-violet-700", dot: "bg-violet-500", rail: "border-violet-200", activeBg: "bg-violet-50", activeText: "text-violet-800", bar: "bg-violet-600", iconOn: "text-violet-600", icon: "text-violet-400 group-hover:text-violet-600" },
+};
+
 function findActive(sections, pathname) {
   let best = null;
   for (const section of sections) {
@@ -292,10 +301,20 @@ function SidebarContent({ menu, activeHref, onClose }) {
         {menu.sections
           .map((section) => ({ ...section, items: section.items.filter((item) => !item.soon) }))
           .filter((section) => section.items.length > 0)
-          .map((section) => (
+          .map((section) => {
+          // a section's colour (menus.js "tone"); without one: the usual blue
+          const tone = TONES[section.tone] || TONES.default;
+          return (
           <div key={section.title} className="mb-5 last:mb-0">
-            <p className="mb-1.5 px-3 text-xs font-semibold text-slate-400">{section.title}</p>
-            <ul className="space-y-0.5">
+            {section.tone ? (
+              <p className={`mb-1.5 flex items-center gap-2 px-3 text-[11px] font-bold uppercase tracking-wider ${tone.title}`}>
+                <span className={`h-2 w-2 rounded-full ${tone.dot}`} />
+                {section.title}
+              </p>
+            ) : (
+              <p className="mb-1.5 px-3 text-xs font-semibold text-slate-400">{section.title}</p>
+            )}
+            <ul className={`space-y-0.5 ${section.tone ? `ml-3 border-l-2 pl-1 ${tone.rail}` : ""}`}>
               {section.items.map((item) => {
                 const on = activeHref === item.href;
                 if (item.soon) {
@@ -321,17 +340,13 @@ function SidebarContent({ menu, activeHref, onClose }) {
                       onClick={onClose}
                       aria-current={on ? "page" : undefined}
                       className={`group relative flex h-10 items-center gap-3 rounded-lg px-3 text-sm transition-colors ${
-                        on
-                          ? "bg-blue-50 font-semibold text-blue-800"
-                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-950"
+                        on ? `${tone.activeBg} font-semibold ${tone.activeText}` : "text-slate-600 hover:bg-slate-50 hover:text-slate-950"
                       }`}
                     >
-                      {on && <span className="absolute -left-3 top-2 bottom-2 w-[3px] rounded-r-full bg-blue-600" />}
+                      {on && !section.tone && <span className={`absolute -left-3 top-2 bottom-2 w-[3px] rounded-r-full ${tone.bar}`} />}
                       <Icon
                         name={item.icon}
-                        className={`h-[18px] w-[18px] shrink-0 ${
-                          on ? "text-blue-600" : "text-slate-400 group-hover:text-slate-600"
-                        }`}
+                        className={`h-[18px] w-[18px] shrink-0 ${on ? tone.iconOn : tone.icon}`}
                         strokeWidth={on ? 2 : 1.75}
                       />
                       <span className="truncate">{item.label}</span>
@@ -341,7 +356,8 @@ function SidebarContent({ menu, activeHref, onClose }) {
               })}
             </ul>
           </div>
-        ))}
+          );
+          })}
       </nav>
 
       {/* Signed-in user */}
