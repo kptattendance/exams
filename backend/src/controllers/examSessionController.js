@@ -26,7 +26,7 @@ import RoomDiary from "../models/RoomDiary.js";
 import Counter from "../models/Counter.js";
 import { attendanceBlocked, autoCode, getPaper, syncCandidates, syncPackets } from "./valuationController.js";
 import { planDiaries } from "../services/exams/valuation.js";
-import { arrangeSeats, roomSeats, sameBenches, seatsOf } from "../services/exams/seating.js";
+import { DEFAULT_ROOMS, arrangeSeats, roomSeats, sameBenches, seatsOf } from "../services/exams/seating.js";
 import Student from "../models/Student.js";
 import ExamRegistration from "../models/ExamRegistration.js";
 import { ABSENT_AFTER_MINUTES, printWindow, todayIST, windowState } from "../services/examDay.js";
@@ -209,7 +209,8 @@ export const saveRooms = async (req, res) => {
     names.add(name.toLowerCase());
     const students = [...new Set((Array.isArray(r.students) ? r.students : []).map((x) => String(x).trim().toUpperCase()).filter(Boolean))];
     const capacity = Math.min(200, Math.max(2, Math.round(Number(r.capacity) || 50)));
-    if (students.length > capacity) return fail(res, 400, `"${name}" holds ${capacity} students – ${students.length} are put in it.`);
+    // 2 a bench; 3 a bench only when the rooms are not enough
+    if (students.length > Math.floor(capacity * 1.5)) return fail(res, 400, `"${name}" holds at most ${Math.floor(capacity * 1.5)} students (3 a bench) – ${students.length} are put in it.`);
     for (const n of students) {
       if (!known.has(n)) return fail(res, 400, `${n} does not write a paper in this session.`);
       if (seen.has(n)) return fail(res, 400, `${n} is in "${seen.get(n)}" and also in "${name}".`);
@@ -314,17 +315,18 @@ export const trialEndSession = async (req, res) => {
   res.json({ date: past, message: "Trial: this session is now over. The packets are made – see Valuation." });
 };
 
-// POST /api/exam-sessions/:examId/:date/:session/arrange  { rooms: [{ name, invigilator, capacity }] }
+// POST /api/exam-sessions/:examId/:date/:session/arrange
 // Makes the seating automatically (NOT saved – the screen shows it, then "Save rooms"):
-// bench partners write different papers; for a common paper, different departments.
+// the rooms in the college's preference order (220, 117, 114 …), as many as needed;
+// one paper on the left desks, another on the right; for a common paper, other
+// branches; a 3rd student on a bench only when the rooms are not enough.
 export const arrangeRooms = async (req, res) => {
   const s = await loadSession(req, res);
   if (!s) return;
   const { exam, entries } = s;
-  const list = (Array.isArray(req.body?.rooms) ? req.body.rooms : [])
-    .map((r) => ({ name: String(r?.name || "").trim().slice(0, 40), invigilator: String(r?.invigilator || "").trim().slice(0, 80), capacity: Math.min(200, Math.max(2, Math.round(Number(r?.capacity) || 50))) }))
-    .filter((r) => r.name);
-  if (!list.length) return fail(res, 400, "Add the rooms first (name and how many students each holds).");
+  // the invigilators already typed are kept
+  const typed = new Map((Array.isArray(req.body?.rooms) ? req.body.rooms : []).map((r) => [String(r?.name || ""), String(r?.invigilator || "").trim().slice(0, 80)]));
+  const list = DEFAULT_ROOMS.map((r) => ({ ...r, invigilator: typed.get(r.name) || "" }));
   const scripts = await AnswerScript.find({ exam: exam._id, code: { $in: entries.map((e) => e.code) } }).select("registerNumber code department").lean();
   const one = new Map(); // a student writing two papers in a session gets one seat
   for (const x of scripts) if (!one.has(x.registerNumber)) one.set(x.registerNumber, x);
@@ -334,11 +336,12 @@ export const arrangeRooms = async (req, res) => {
     rooms: r.rooms.map((x) => ({ ...x, invigilator: inv.get(x.name) || "" })),
     notAllotted: r.notAllotted,
     message:
-      `${one.size - r.notAllotted.length} of ${one.size} students seated in ${list.length} room${list.length === 1 ? "" : "s"}: ${r.benches.differentPaper} benches with different papers` +
-      (r.benches.differentDept ? `, ${r.benches.differentDept} with the same paper but different departments` : "") +
-      (r.benches.same ? `, ${r.benches.same} with the same paper and department (no other choice – shown in orange)` : "") +
+      `${one.size - r.notAllotted.length} of ${one.size} students seated in ${r.rooms.length} room${r.rooms.length === 1 ? "" : "s"}` +
+      (r.benches.differentDept ? `; ${r.benches.differentDept} benches with a common paper have students of different branches` : "") +
+      (r.third ? `; the rooms were not enough, so ${r.third} benches have a 3rd student (desks 51–75)` : "") +
+      (r.benches.same ? `; ${r.benches.same} benches have the same paper and branch side by side (no other choice – shown in orange)` : "") +
       "." +
-      (r.notAllotted.length ? ` ${r.notAllotted.length} students do not fit – add a room.` : "") +
+      (r.notAllotted.length ? ` ${r.notAllotted.length} students could not be seated.` : "") +
       " Check it and press Save rooms.",
   });
 };

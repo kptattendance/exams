@@ -2,95 +2,149 @@
 //
 // Seating of a written-exam session (unit-tested in test/seating.test.js).
 //
-// A room has benches of 2 (capacity 50 = 25 benches). Desk numbers start at 1 in
-// every room: bench k has seat k on the left and seat k + benches on the right
-// (Room of 50: bench 1 = seats 1 and 26 … bench 25 = seats 25 and 50).
-//
-// Automatic arrangement – bench partners, best first:
-//   1. different papers
-//   2. the same (common) paper, different departments
-//   3. the same paper and department – only when nothing else is left (flagged)
+// A room has 25 benches in 3 rows (9, 7, 9 benches). Desk numbers start at 1 in
+// every room:
+//   left desks    1–25 : row 1 = 1–9 (front to back), row 2 = 10–16, row 3 = 17–25
+//   right desks  26–50 : the bench partners – desk k + 25 sits beside desk k
+//   middle desks 51–75 : only when the rooms are not enough – a third student on
+//                        the bench (desk k + 50), so nobody is left without a seat
+// Automatic arrangement, room after room in the preference order:
+//   – one paper fills the left desks, ANOTHER paper the right desks (and a third
+//     paper the middle ones), so students on a bench never write the same paper;
+//     students of the same paper sit one behind another
+//   – when only a common paper is left, bench partners are of different branches;
+//     the same paper and branch only when nothing else is left (flagged)
+
+// The rooms in the order they are filled
+export const DEFAULT_ROOMS = [
+  "220 (CS class room)",
+  "117 (ME 1st year class room)",
+  "114 (ME 2nd year class room)",
+  "113 (Civil 1st year class room)",
+  "105 (AT 2nd year class room)",
+  "101 (EC 2nd year class room)",
+  "AT Lab",
+  "Chemical Lab (Chemical Block)",
+  "EE1 (Electrical Block class room 1)",
+  "EE2 (Electrical Block class room 2)",
+  "Civil MT Lab",
+].map((name) => ({ name, capacity: 50 }));
 
 const deptOf = (c) => String(c.department || String(c.registerNumber || "").slice(3, 5)).toLowerCase();
 
-// rooms: [{ name, capacity }], candidates: [{ registerNumber, code, department }]
-// -> { rooms: [{ name, capacity, students: [reg], seats: { reg: seat } }], notAllotted: [reg],
-//      benches: { differentPaper, differentDept, same } }
+// The benches of a room in 3 rows: 25 -> [9, 7, 9]
+export function benchRows(capacity = 50) {
+  const benches = Math.floor((Number(capacity) || 50) / 2);
+  if (benches === 25) return [9, 7, 9];
+  if (benches < 3) return [benches];
+  const side = Math.ceil(benches / 3);
+  const middle = benches - 2 * side;
+  return middle > 0 ? [side, middle, side] : [Math.ceil(benches / 2), Math.floor(benches / 2)];
+}
+
+// rooms: [{ name, capacity }] in preference order (capacity = 2 per bench, e.g. 50),
+// candidates: [{ registerNumber, code, department }]
+// -> { rooms: [{ name, capacity, perBench, students, seats: { reg: desk } }] (the rooms used),
+//      notAllotted: [reg] (only when even 3 a bench is not enough),
+//      benches: { differentPaper, differentDept, same }, third: students on a middle desk }
 export function arrangeSeats(rooms, candidates) {
-  // one queue per paper, in register-number order (so departments come in blocks)
-  const queues = new Map();
+  const queues = new Map(); // paper -> students in register-number order (branches in blocks)
   for (const c of [...candidates].sort((a, b) => String(a.registerNumber).localeCompare(String(b.registerNumber)))) {
     if (!queues.has(c.code)) queues.set(c.code, []);
     queues.get(c.code).push(c);
   }
   const left = () => [...queues.values()].reduce((n, q) => n + q.length, 0);
-  const biggest = (except) =>
-    [...queues.entries()].filter(([code, q]) => q.length && code !== except).sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))[0];
+  const biggest = (except = []) =>
+    [...queues.entries()].filter(([code, q]) => q.length && !except.includes(code)).sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))[0]?.[0];
+  // a student of one of these papers but of another branch than those on the bench
+  const otherBranch = (bench) => {
+    const depts = bench.map(deptOf);
+    for (const code of [...new Set(bench.map((c) => c.code))]) {
+      const q = queues.get(code) || [];
+      for (let x = q.length - 1; x >= 0; x--) if (!depts.includes(deptOf(q[x]))) return q.splice(x, 1)[0];
+    }
+    return null;
+  };
 
-  // benches in the order they are filled: [a, b] (b may be null)
-  const benches = [];
+  // a 3rd student on a bench only for those who do not fit 2 a bench – first rooms first
+  let extra = Math.max(0, left() - rooms.reduce((n, r) => n + 2 * Math.floor((Number(r.capacity) || 50) / 2), 0));
   const count = { differentPaper: 0, differentDept: 0, same: 0 };
-  while (left()) {
-    const [codeA, qa] = biggest();
-    const a = qa.shift();
-    const other = biggest(codeA);
-    let b = null;
-    if (other) {
-      b = other[1].shift();
-      count.differentPaper++;
-    } else if (qa.length) {
-      // only this paper is left: a partner from another department (from the far end)
-      let i = -1;
-      for (let k = qa.length - 1; k >= 0; k--) if (deptOf(qa[k]) !== deptOf(a)) {
-        i = k;
-        break;
-      }
-      if (i >= 0) {
-        b = qa.splice(i, 1)[0];
-        count.differentDept++;
-      } else {
-        b = qa.pop();
-        count.same++;
-      }
-    }
-    benches.push([a, b]);
-  }
+  let third = 0;
+  const plan = rooms.map((r) => {
+    const benches = Math.floor((Number(r.capacity) || 50) / 2);
+    const middle = Math.min(benches, extra);
+    extra -= middle;
+    return { name: r.name, benches, sides: middle ? 3 : 2, middle, onBench: Array.from({ length: benches + 1 }, () => []), seats: {} };
+  });
+  const sit = (p, k, s, c) => {
+    p.onBench[k].push(c);
+    p.seats[c.registerNumber] = k + s * p.benches;
+    if (s === 2) third++;
+  };
 
-  // benches into the rooms, in the rooms' order
-  const out = rooms.map((r) => ({ name: r.name, capacity: Number(r.capacity) || 50, students: [], seats: {} }));
-  let bi = 0;
-  for (const r of out) {
-    const n = Math.floor(r.capacity / 2);
-    for (let k = 1; k <= n && bi < benches.length; k++, bi++) {
-      const [a, b] = benches[bi];
-      r.students.push(a.registerNumber);
-      r.seats[a.registerNumber] = k;
-      if (b) {
-        r.students.push(b.registerNumber);
-        r.seats[b.registerNumber] = k + n;
+  // ---- 1. clean: a bench partner writes another paper, or at least is of another branch
+  for (const p of plan) {
+    if (!left()) break;
+    for (let s = 0; s < p.sides; s++) {
+      const limit = s === 2 ? p.middle : p.benches;
+      let stream = null;
+      for (let k = 1; k <= limit && left(); k++) {
+        const here = p.onBench[k];
+        if (s > 0 && !here.length) continue; // fill the left desks first
+        const codes = here.map((c) => c.code);
+        if (!stream || !queues.get(stream)?.length || codes.includes(stream)) stream = biggest(codes) || null;
+        if (stream) {
+          sit(p, k, s, queues.get(stream).shift());
+          if (here.length > 1) count.differentPaper++;
+          continue;
+        }
+        const c = here.length ? otherBranch(here) : null;
+        if (c) {
+          sit(p, k, s, c);
+          count.differentDept++;
+        }
       }
     }
-    r.students.sort();
   }
-  const notAllotted = benches.slice(bi).flatMap(([a, b]) => [a, b].filter(Boolean).map((x) => x.registerNumber));
-  return { rooms: out, notAllotted, benches: count };
+  // ---- 2. still students left (every room used): the empty desks, then a middle desk
+  for (const p of plan) {
+    for (let s = 0; s < 3 && left(); s++) {
+      for (let k = 1; k <= p.benches && left(); k++) {
+        const desk = k + s * p.benches;
+        if (Object.values(p.seats).includes(desk)) continue;
+        if (s === 2 && p.sides < 3) p.sides = 3;
+        const c = queues.get(biggest()).shift();
+        if (p.onBench[k].length) count.same++;
+        sit(p, k, s, c);
+      }
+    }
+  }
+  const out = plan
+    .filter((p) => Object.keys(p.seats).length)
+    .map((p) => ({
+      name: p.name,
+      capacity: p.benches * 2,
+      perBench: Object.values(p.seats).some((d) => d > p.benches * 2) ? 3 : 2,
+      students: Object.keys(p.seats).sort(),
+      seats: p.seats,
+    }));
+  const notAllotted = [...queues.values()].flat().map((c) => c.registerNumber);
+  return { rooms: out, notAllotted, benches: count, third };
 }
 
-// The seats of one room: the saved ones, and the lowest free desk for anyone
-// put in by hand. -> { reg: seat }
+// The desks of one room: the saved ones, and the lowest free desk for anyone put
+// in by hand. -> { reg: desk }
 export function roomSeats(room) {
-  const cap = Number(room.capacity) || 50;
   const given = room.seats instanceof Map ? Object.fromEntries(room.seats) : { ...(room.seats || {}) };
   const out = {};
   const used = new Set();
   for (const reg of [...(room.students || [])].sort()) {
     const s = Number(given[reg]);
-    if (s >= 1 && s <= Math.max(cap, s) && !used.has(s)) {
+    if (s >= 1 && !used.has(s)) {
       out[reg] = s;
       used.add(s);
     }
   }
-  // the left side first, then the right side
   let next = 1;
   for (const reg of [...(room.students || [])].sort()) {
     if (out[reg]) continue;
@@ -101,31 +155,28 @@ export function roomSeats(room) {
   return out;
 }
 
-// rooms: [{ name, order, capacity, students, seats }]
-// -> { seatOf: Map(reg -> { room, seat }), ranges: Map(room -> { from, to }) }
+// rooms: [{ name, capacity, students, seats }] -> { seatOf: Map(reg -> { room, seat }) }
 export function seatsOf(rooms = []) {
   const seatOf = new Map();
   const ranges = new Map();
   for (const r of rooms) {
     const seats = roomSeats(r);
-    const nums = Object.values(seats);
-    if (!nums.length) continue;
+    if (!Object.keys(seats).length) continue;
     for (const [reg, seat] of Object.entries(seats)) seatOf.set(reg, { room: r.name, seat });
-    ranges.set(r.name, { from: 1, to: Number(r.capacity) || 50 });
+    ranges.set(r.name, { from: 1, to: Math.max(...Object.values(seats)) });
   }
   return { seatOf, ranges };
 }
 
-// bench partners writing the same paper AND from the same department (to flag)
-// room: { capacity, students }, seats: { reg: seat }, info: Map(reg -> { code, department })
+// benches where two students write the same paper AND are of the same branch (to flag)
 export function sameBenches(room, seats, info) {
   const n = Math.floor((Number(room.capacity) || 50) / 2);
   const at = new Map(Object.entries(seats).map(([reg, s]) => [s, reg]));
   const out = [];
   for (let k = 1; k <= n; k++) {
-    const a = info.get(at.get(k));
-    const b = info.get(at.get(k + n));
-    if (a && b && a.code === b.code && deptOf(a) === deptOf(b)) out.push(k);
+    const list = [at.get(k), at.get(k + n), at.get(k + 2 * n)].map((reg) => info.get(reg)).filter(Boolean);
+    const clash = list.some((a, i) => list.some((b, j) => j > i && a.code === b.code && deptOf(a) === deptOf(b)));
+    if (clash) out.push(k);
   }
   return out;
 }

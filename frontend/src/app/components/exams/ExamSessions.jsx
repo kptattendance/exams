@@ -326,8 +326,8 @@ function Rooms({ d, path, tint, onSaved }) {
   const put = (numbers, room) => {
     const t = rooms.find((r) => r.name === room);
     const stay = t ? t.students.filter((n) => !numbers.includes(n)).length : 0;
-    const cap = t?.capacity || 50;
-    if (t && stay + numbers.length > cap) return toast.error(`${room} holds ${cap} students – only ${cap - stay} more fit.`);
+    const cap = Math.floor((t?.capacity || 50) * 1.5); // 3 a bench at most
+    if (t && stay + numbers.length > cap) return toast.error(`${room} holds at most ${cap} students – only ${cap - stay} more fit.`);
     change((rs) => {
       for (const r of rs) {
         r.students = r.students.filter((n) => !numbers.includes(n));
@@ -342,17 +342,19 @@ function Rooms({ d, path, tint, onSaved }) {
   // automatic seating: bench partners write different papers; for a common paper,
   // different departments (not saved until "Save rooms")
   const arrange = async () => {
-    if (!rooms.length) return toast.error("Add the rooms first (name and how many students each holds).");
-    const ok = await confirm({
-      title: "Arrange the seating automatically?",
-      message: "All students of this session are put into these rooms again, bench by bench. You can still move a student by hand, then Save rooms.",
-      confirmText: "Arrange",
-    });
-    if (!ok) return;
+    if (rooms.some((r) => r.students.length)) {
+      const ok = await confirm({
+        title: "Arrange the seating again?",
+        message: "Every student of this session is seated again from the start. Changes made by hand are lost.",
+        confirmText: "Arrange again",
+      });
+      if (!ok) return;
+    }
     setBusy(true);
     try {
       const r = await api("post", `${path}/arrange`, { rooms: rooms.map((x) => ({ name: x.name, invigilator: x.invigilator, capacity: x.capacity })) });
       setRooms(r.data.rooms.map((x) => ({ name: x.name, invigilator: x.invigilator, capacity: x.capacity, students: x.students, seats: x.seats })));
+      setTarget(r.data.rooms[0]?.name || "");
       setDirty(true);
       toast.success(r.data.message, 9000);
     } catch (e) {
@@ -393,110 +395,58 @@ function Rooms({ d, path, tint, onSaved }) {
   const [examId, date, session] = path.split("/").slice(2);
   const print = (room) => `/print/exam-room/${examId}?date=${date}&session=${session}${room ? `&room=${encodeURIComponent(room)}` : ""}`;
 
+  // which papers sit on the left, right (and middle) desks of a room
+  const sidesOf = (r) => {
+    const half = Math.floor((r.capacity || 50) / 2);
+    const out = [
+      ["Left desks", 1, half],
+      ["Right desks", half + 1, 2 * half],
+      ["Middle desks (3rd student)", 2 * half + 1, 3 * half],
+    ].map(([label, from, to]) => {
+      const papers = {};
+      for (const [reg, desk] of Object.entries(deskMaps.get(r.name) || {}))
+        if (desk >= from && desk <= to) {
+          const code = info.get(reg)?.code || "?";
+          papers[code] = (papers[code] || 0) + 1;
+        }
+      return { label: `${label} ${from}–${to}`, papers: Object.entries(papers) };
+    });
+    return out.filter((x) => x.papers.length);
+  };
+  const used = rooms.filter((r) => r.students.length);
+
   return (
     <div className="pb-24">
-      {closed ? (
+      {closed && (
         <p className="mt-4 rounded-xl bg-slate-100 px-4 py-2.5 text-sm text-slate-700">
-          The session has started – rooms and ATS numbers are locked. They can only be viewed and printed (any change: the Admin).
-        </p>
-      ) : (
-        <p className="mt-4 rounded-xl bg-blue-50 px-4 py-2.5 text-sm text-blue-900">
-          Saving the rooms gives every student an <b>ATS number</b> (one room diary per paper per room = one packet). The ATS is printed in the room diary
-          against the register number. Rooms can be changed until {time(d.times.startsAt)}.
+          The session has started – the seating (and the ATS numbers) is locked. It can only be viewed and printed (any change: the Admin).
         </p>
       )}
 
-      {/* rooms */}
-      <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        {rooms.map((r) => (
-          <div key={r.name} className={`rounded-xl border p-3 ${target === r.name ? "border-slate-900 ring-2 ring-slate-200" : "border-slate-200"} bg-white`}>
-            <div className="flex items-center gap-2">
-              <button onClick={() => setTarget(r.name)} className="flex-1 text-left text-sm font-bold text-slate-950">
-                {r.name}
-              </button>
-              <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${r.students.length >= (r.capacity || 50) ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-700"}`}>
-                {r.students.length} / {r.capacity || 50}
-              </span>
-            </div>
-            <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-slate-500">
-              <span>
-                Desks 1–{r.capacity || 50} ({Math.floor((r.capacity || 50) / 2)} benches of 2)
-              </span>
-              {!closed && (
-                <label className="flex items-center gap-1 font-normal">
-                  holds
-                  <input
-                    type="number"
-                    min="2"
-                    value={r.capacity || 50}
-                    onChange={(e) => change((rs) => rs.map((x) => (x.name === r.name ? { ...x, capacity: Math.max(2, Number(e.target.value) || 50), seats: {} } : x)))}
-                    className="h-6 w-14 rounded border border-slate-200 px-1 text-[11px]"
-                  />
-                </label>
-              )}
-            </div>
-            {sameOf.get(r.name) > 0 && (
-              <p className="mt-1 rounded-md bg-orange-50 px-2 py-0.5 text-[11px] font-semibold text-orange-800">
-                {sameOf.get(r.name)} bench{sameOf.get(r.name) === 1 ? "" : "es"}: same paper and same department side by side
+      {/* ---------------- one button ---------------- */}
+      {!closed && (
+        <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="min-w-0 flex-1 text-sm text-emerald-950">
+              <p className="font-bold">Seating – one button</p>
+              <p className="mt-1">
+                Rooms are filled in order – 220, 117, 114, 113, 105, 101, AT Lab, Chemical Lab, EE1, EE2, Civil MT Lab – only as many as needed, 50 a room
+                (25 benches). One paper sits on the left desks (1–25), another paper on the right desks (26–50). For a common paper the bench partner is from
+                another branch. If the rooms are not enough, a 3rd student (another paper) sits in the middle (desks 51–75).
               </p>
-            )}
-            <input
-              value={r.invigilator}
-              disabled={closed}
-              onChange={(e) => change((rs) => rs.map((x) => (x.name === r.name ? { ...x, invigilator: e.target.value } : x)))}
-              placeholder="Invigilator (optional)"
-              className="mt-2 h-8 w-full rounded-lg border border-slate-200 px-2 text-xs"
-            />
-            {/* its room diaries (one per paper) = its packets */}
-            {!dirty &&
-              d.diaries
-                .filter((x) => x.room === r.name)
-                .map((x) => (
-                  <p key={x._id} className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-600">
-                    {x.base && <b className="tabular-nums text-slate-900">ATS {x.base}</b>}
-                    {x.number && <span className="tabular-nums text-slate-500">({x.number})</span>}
-                    <span className={`rounded-md px-1.5 py-0.5 font-bold ${PAPER_CHIPS[tint[x.code]] || "bg-slate-100"}`}>{x.code}</span>
-                    {x.students} students
-                    {x.reprint && <span className="rounded-full bg-red-100 px-2 py-0.5 font-bold text-red-700">Changed – print again</span>}
-                  </p>
-                ))}
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              <button onClick={() => setShow(r.name)} className={btn.small}>
-                Show
-              </button>
-              {!dirty && r.students.length > 0 && d.seesAts && (
-                <a href={print(r.name)} target="_blank" rel="noreferrer" className={btn.small}>
-                  <Icon name="download" className="h-3.5 w-3.5" />
-                  Room diary
-                </a>
-              )}
-              {!closed && (
-                <button onClick={() => removeRoom(r.name)} className={`${btn.small} !text-red-700`}>
-                  Remove
-                </button>
-              )}
             </div>
+            <button onClick={arrange} disabled={busy} className={btn.primary}>
+              {used.length ? "Arrange again" : "Arrange seating"}
+            </button>
           </div>
-        ))}
-        {!closed && (
-          <div className="rounded-xl border border-dashed border-slate-300 p-3">
-            <p className="text-xs font-semibold text-slate-500">Add a room</p>
-            <div className="mt-2 flex gap-1.5">
-              <input value={newRoom} onChange={(e) => setNewRoom(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addRoom()} placeholder="e.g. Room 12" className="h-8 min-w-0 flex-1 rounded-lg border border-slate-200 px-2 text-xs" />
-              <input type="number" min="2" value={newCap} onChange={(e) => setNewCap(e.target.value)} title="Students it holds" aria-label="Students it holds" className="h-8 w-14 rounded-lg border border-slate-200 px-1 text-xs" />
-              <button onClick={addRoom} className={btn.small}>
-                Add
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
         <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${free.length ? "bg-orange-100 text-orange-800" : "bg-emerald-100 text-emerald-800"}`}>
-          {free.length ? `${free.length} of ${d.candidates.length} not allotted` : `All ${d.candidates.length} allotted ✓`}
+          {free.length ? `${free.length} of ${d.candidates.length} not seated` : `All ${d.candidates.length} seated ✓`}
         </span>
-        {dirty && <span className="text-xs text-orange-700">Save the rooms to make the ATS numbers and print the room diaries.</span>}
+        {dirty && <span className="text-xs font-semibold text-orange-700">Not saved yet – press Save rooms below.</span>}
         {!dirty && d.diaries.some((x) => x.reprint) && (
           <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">
             {d.diaries.filter((x) => x.reprint).length} room diar{d.diaries.filter((x) => x.reprint).length === 1 ? "y has" : "ies have"} changed – print again
@@ -504,93 +454,69 @@ function Rooms({ d, path, tint, onSaved }) {
         )}
       </div>
 
-      {/* automatic seating */}
-      {!closed && rooms.length > 0 && (
-        <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-          <p className="flex-1 text-sm text-emerald-900">
-            <b>Arrange automatically:</b> every student of this session is seated, 2 to a bench – bench partners write <b>different papers</b>; for a common paper
-            (e.g. Maths) they are from <b>different departments</b>.
-          </p>
-          <button onClick={arrange} disabled={busy} className={btn.primary}>
-            Arrange seating automatically
-          </button>
+      {/* ---------------- the rooms used ---------------- */}
+      {used.length > 0 && (
+        <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {used.map((r) => (
+            <div key={r.name} className="rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="flex items-start gap-2">
+                <p className="flex-1 font-bold text-slate-950">{r.name}</p>
+                <span className="rounded-full bg-slate-900 px-2.5 py-0.5 text-xs font-bold text-white">{r.students.length} students</span>
+              </div>
+              <ul className="mt-2 space-y-1 text-xs">
+                {sidesOf(r).map((x) => (
+                  <li key={x.label} className="flex flex-wrap items-center gap-1.5">
+                    <span className="w-44 shrink-0 text-slate-500">{x.label}</span>
+                    {x.papers.map(([code, n]) => (
+                      <span key={code} className={`rounded-md px-1.5 py-0.5 font-bold ${PAPER_CHIPS[tint[code]] || "bg-slate-100"}`}>
+                        {code} ({n})
+                      </span>
+                    ))}
+                  </li>
+                ))}
+              </ul>
+              {sameOf.get(r.name) > 0 && (
+                <p className="mt-2 rounded-md bg-orange-50 px-2 py-1 text-[11px] font-semibold text-orange-800">
+                  {sameOf.get(r.name)} bench{sameOf.get(r.name) === 1 ? "" : "es"}: same paper and same branch side by side (no other choice)
+                </p>
+              )}
+              <input
+                value={r.invigilator}
+                disabled={closed}
+                onChange={(e) => change((rs) => rs.map((x) => (x.name === r.name ? { ...x, invigilator: e.target.value } : x)))}
+                placeholder="Invigilator (optional)"
+                className="mt-3 h-8 w-full rounded-lg border border-slate-200 px-2 text-xs"
+              />
+              {/* its room diaries (one per paper) = its packets */}
+              {!dirty &&
+                d.diaries
+                  .filter((x) => x.room === r.name)
+                  .map((x) => (
+                    <p key={x._id} className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-600">
+                      {x.base && <b className="tabular-nums text-slate-900">ATS {x.base}</b>}
+                      {x.number && <span className="tabular-nums text-slate-500">({x.number})</span>}
+                      <span className={`rounded-md px-1.5 py-0.5 font-bold ${PAPER_CHIPS[tint[x.code]] || "bg-slate-100"}`}>{x.code}</span>
+                      {x.students} students
+                      {x.reprint && <span className="rounded-full bg-red-100 px-2 py-0.5 font-bold text-red-700">Changed – print again</span>}
+                    </p>
+                  ))}
+              {!dirty && d.seesAts && (
+                <a href={print(r.name)} target="_blank" rel="noreferrer" className={`${btn.small} mt-2`}>
+                  <Icon name="download" className="h-3.5 w-3.5" />
+                  Room diary
+                </a>
+              )}
+            </div>
+          ))}
         </div>
       )}
 
-      {/* allotting by hand */}
-      {!closed && rooms.length > 0 && (
-        <div className="mt-3 flex flex-wrap items-end gap-2 rounded-xl border border-slate-200 bg-white p-3">
-          <label className="text-xs text-slate-600">
-            Room
-            <select value={target} onChange={(e) => setTarget(e.target.value)} className="mt-1 block h-9 rounded-lg border border-slate-300 px-2 text-sm">
-              {rooms.map((r) => (
-                <option key={r.name}>{r.name}</option>
-              ))}
-            </select>
-          </label>
-          <label className="text-xs text-slate-600">
-            How many
-            <input type="number" min="1" value={size} onChange={(e) => setSize(e.target.value)} className="mt-1 block h-9 w-20 rounded-lg border border-slate-300 px-2 text-sm" />
-          </label>
-          <button onClick={fillNext} className={btn.primary}>
-            Put the next {Math.max(1, Number(size) || 50)} not-allotted in {target || "the room"}
-          </button>
-          <button onClick={putPicked} disabled={!picked.size} className={btn.secondary}>
-            Put {picked.size || ""} ticked in {target || "the room"}
-          </button>
-        </div>
-      )}
-
-      {/* filters */}
-      <div className="mt-3 flex flex-wrap gap-2">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Register no. or name" className="h-9 w-56 rounded-lg border border-slate-300 px-3 text-sm" />
-        <select value={paper} onChange={(e) => setPaper(e.target.value)} className="h-9 rounded-lg border border-slate-300 px-2 text-sm">
-          <option value="">All papers</option>
-          {d.papers.map((p) => (
-            <option key={p.code} value={p.code}>
-              {p.code}
-            </option>
-          ))}
-        </select>
-        <select value={show} onChange={(e) => setShow(e.target.value)} className="h-9 rounded-lg border border-slate-300 px-2 text-sm">
-          <option value="ALL">Everybody</option>
-          <option value="FREE">Not allotted only</option>
-          {rooms.map((r) => (
-            <option key={r.name} value={r.name}>
-              In {r.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <CandidateTable
-        rows={list}
-        tint={tint}
-        picked={closed ? null : picked}
-        setPicked={setPicked}
-        extra={(c) =>
-          roomOf.get(c.registerNumber) ? (
-            <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[11px] font-semibold text-white">
-              {roomOf.get(c.registerNumber)} · Desk {seatOf.get(c.registerNumber)}
-            </span>
-          ) : (
-            <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-semibold text-orange-800">Not allotted</span>
-          )
-        }
-        extraHead="Room & seat"
-        rowClass={(c) => (roomOf.has(c.registerNumber) ? "" : "!bg-orange-50/70")}
-      />
-
-      {/* printing – at the end of the page */}
-      {rooms.some((r) => r.students.length) && (
+      {/* ---------------- printing ---------------- */}
+      {used.length > 0 && (
         <div className="mt-4 flex flex-wrap items-center justify-end gap-3 rounded-2xl border border-slate-200 bg-white p-4">
           <p className="mr-auto text-sm text-slate-600">
-            {dirty
-              ? "Save the rooms first, then print."
-              : `${rooms.filter((r) => r.students.length).length} rooms · ${d.candidates.length - free.length} students seated${d.seesAts ? ` · ${d.diaries.length} room diaries (packets)` : ""}`}
-            {free.length > 0 && !dirty && <span className="font-semibold text-orange-700"> · {free.length} not allotted yet</span>}
+            {dirty ? "Save the rooms first, then print." : `${used.length} rooms · ${d.candidates.length - free.length} students seated${d.seesAts ? ` · ${d.diaries.length} room diaries (packets)` : ""}`}
           </p>
-          {/* seating plan: notice-board list + door sheets (no ATS) – the exam section office */}
           {dirty ? (
             <span className={`${btn.secondary} pointer-events-none opacity-40`}>
               <Icon name="download" className="h-4 w-4" />
@@ -617,12 +543,92 @@ function Rooms({ d, path, tint, onSaved }) {
         </div>
       )}
 
+      {/* ---------------- by hand (rarely needed) ---------------- */}
+      <details className="mt-4 rounded-2xl border border-slate-200 bg-white">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-700">Every student · change by hand</summary>
+        <div className="border-t border-slate-100 px-4 py-3">
+          {!closed && (
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="text-xs text-slate-600">
+                Room
+                <select value={target} onChange={(e) => setTarget(e.target.value)} className="mt-1 block h-9 rounded-lg border border-slate-300 px-2 text-sm">
+                  <option value="">Choose</option>
+                  {rooms.map((r) => (
+                    <option key={r.name}>{r.name}</option>
+                  ))}
+                </select>
+              </label>
+              <button onClick={putPicked} disabled={!picked.size || !target} className={btn.secondary}>
+                Move {picked.size || ""} ticked to {target || "the room"}
+              </button>
+              <label className="text-xs text-slate-600">
+                How many
+                <input type="number" min="1" value={size} onChange={(e) => setSize(e.target.value)} className="mt-1 block h-9 w-20 rounded-lg border border-slate-300 px-2 text-sm" />
+              </label>
+              <button onClick={fillNext} disabled={!target} className={btn.secondary}>
+                Put the next {Math.max(1, Number(size) || 50)} not seated in {target || "the room"}
+              </button>
+              <span className="mx-2 h-8 w-px bg-slate-200" />
+              <input value={newRoom} onChange={(e) => setNewRoom(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addRoom()} placeholder="Another room" className="h-9 w-36 rounded-lg border border-slate-300 px-2 text-sm" />
+              <input type="number" min="2" value={newCap} onChange={(e) => setNewCap(e.target.value)} title="Students it holds" aria-label="Students it holds" className="h-9 w-16 rounded-lg border border-slate-300 px-2 text-sm" />
+              <button onClick={addRoom} className={btn.secondary}>
+                Add room
+              </button>
+              {target && rooms.some((r) => r.name === target) && (
+                <button onClick={() => removeRoom(target)} className={`${btn.secondary} !text-red-700`}>
+                  Remove {target}
+                </button>
+              )}
+            </div>
+          )}
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Register no. or name" className="h-9 w-56 rounded-lg border border-slate-300 px-3 text-sm" />
+            <select value={paper} onChange={(e) => setPaper(e.target.value)} className="h-9 rounded-lg border border-slate-300 px-2 text-sm">
+              <option value="">All papers</option>
+              {d.papers.map((x) => (
+                <option key={x.code} value={x.code}>
+                  {x.code}
+                </option>
+              ))}
+            </select>
+            <select value={show} onChange={(e) => setShow(e.target.value)} className="h-9 rounded-lg border border-slate-300 px-2 text-sm">
+              <option value="ALL">Everybody</option>
+              <option value="FREE">Not seated only</option>
+              {used.map((r) => (
+                <option key={r.name} value={r.name}>
+                  In {r.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <CandidateTable
+            rows={list}
+            tint={tint}
+            picked={closed ? null : picked}
+            setPicked={setPicked}
+            extra={(c) =>
+              roomOf.get(c.registerNumber) ? (
+                <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[11px] font-semibold text-white">
+                  {roomOf.get(c.registerNumber)} · Desk {seatOf.get(c.registerNumber)}
+                </span>
+              ) : (
+                <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-semibold text-orange-800">Not seated</span>
+              )
+            }
+            extraHead="Room & desk"
+            rowClass={(c) => (roomOf.has(c.registerNumber) ? "" : "!bg-orange-50/70")}
+          />
+        </div>
+      </details>
+
       <SeatLookup />
 
       {dirty && (
         <div className="fixed inset-x-0 bottom-20 z-40 px-4 lg:bottom-6 lg:left-[268px]">
           <div className="mx-auto flex max-w-xl items-center gap-3 rounded-2xl bg-slate-950 px-4 py-3 text-white shadow-2xl">
-            <p className="flex-1 text-sm">Rooms changed – not saved yet.</p>
+            <p className="flex-1 text-sm">Seating changed – not saved yet.</p>
             <button onClick={save} disabled={busy} className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-50">
               {busy ? "Saving…" : "Save rooms"}
             </button>

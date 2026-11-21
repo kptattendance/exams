@@ -4,8 +4,8 @@
 // section office – no ATS numbers:
 //   ?date=2026-11-16&session=FN
 // 1. Notice board: every candidate in register-number order – room and seat
-// 2. Door sheets: one per room – bench by bench (bench k = desk k left, desk k + 25 right)
-// Desk numbers start at 1 in every room.
+// 2. Door sheets: one per room, drawn like the room – 3 rows of benches (9, 7, 9);
+//    bench k = desk k (left) and desk k + 25 (right), desk k + 50 in the middle when used
 
 import { Suspense, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
@@ -13,6 +13,16 @@ import { useAuth } from "@clerk/nextjs";
 
 import { errMsg, useApi } from "../../../components/exams/shared";
 import { popup } from "../../../components/ui/Feedback";
+
+// 25 benches in 3 rows: 9, 7, 9 (as in services/exams/seating.js)
+const benchRows = (capacity) => {
+  const benches = Math.floor((Number(capacity) || 50) / 2);
+  if (benches === 25) return [9, 7, 9];
+  if (benches < 3) return [benches];
+  const side = Math.ceil(benches / 3);
+  const middle = benches - 2 * side;
+  return middle > 0 ? [side, middle, side] : [Math.ceil(benches / 2), Math.floor(benches / 2)];
+};
 
 const th = "border border-slate-700 px-2 py-1 text-left";
 const td = "border border-slate-700 px-2 py-1";
@@ -106,40 +116,48 @@ function Seating() {
             </table>
           </section>
 
-          {/* ---------------- 2. one sheet per room door: bench by bench ---------------- */}
+          {/* ---------------- 2. one sheet per room door: drawn like the room ---------------- */}
           {rooms.map((r) => {
             const half = Math.floor((r.capacity || 50) / 2);
-            const at = new Map(Object.entries(r.seats || {}).map(([reg, desk]) => [desk, byRegCode.get(reg)]));
-            const cell = (c, desk) =>
+            const rows = benchRows(r.capacity || 50);
+            const at = new Map(Object.entries(r.seats || {}).map(([reg, desk]) => [Number(desk), byRegCode.get(reg)]));
+            const third = [...at.keys()].some((k) => k > 2 * half);
+            const desk = (c, n) =>
               c ? (
-                <>
-                  <span className="font-bold">{desk}.</span> <b>{c.registerNumber}</b> {c.name}
-                  <span className="block text-[9.5px] text-slate-600">{c.code}</span>
-                </>
+                <div className="leading-tight">
+                  <span className="font-bold">{n}</span> <b className="tabular-nums">{c.registerNumber}</b>
+                  <span className="block truncate text-[8.5px]">{c.name}</span>
+                  <span className="block text-[8.5px] font-semibold text-slate-600">{c.code}</span>
+                </div>
               ) : (
-                <span className="text-slate-400">{desk}. –</span>
+                <span className="text-slate-400">{n} –</span>
               );
+            let first = 1;
+            const columns = rows.map((count) => {
+              const list = Array.from({ length: count }, (_, i) => first + i);
+              first += count;
+              return list;
+            });
             return (
               <section key={r.name} className="break-before-page">
                 <Head d={d} title="SEATING – ROOM" sub={`${r.name} · ${r.students.length} students`} />
-                <table className="mt-3 w-full border-collapse text-[10.5px]">
-                  <thead>
-                    <tr className="bg-slate-100">
-                      <th className={`${th} w-12 text-center`}>Bench</th>
-                      <th className={th}>Left desk (1–{half})</th>
-                      <th className={th}>Right desk ({half + 1}–{half * 2})</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Array.from({ length: half }, (_, i) => i + 1).map((k) => (
-                      <tr key={k}>
-                        <td className={`${td} text-center font-bold`}>{k}</td>
-                        <td className={td}>{cell(at.get(k), k)}</td>
-                        <td className={td}>{cell(at.get(k + half), k + half)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <p className="mt-1 text-center text-[10px] text-slate-600">
+                  Front of the room (board) at the top. Each bench: left desk · {third ? "middle desk · " : ""}right desk.
+                </p>
+                <div className="mt-3 grid gap-3" style={{ gridTemplateColumns: `repeat(${rows.length}, minmax(0, 1fr))` }}>
+                  {columns.map((benches, ci) => (
+                    <div key={ci}>
+                      <p className="mb-1 text-center text-[10px] font-bold uppercase tracking-wide">Row {ci + 1}</p>
+                      {benches.map((k) => (
+                        <div key={k} className={`mb-1 grid gap-0 border border-slate-700 ${third ? "grid-cols-3" : "grid-cols-2"}`}>
+                          <div className="border-r border-slate-400 p-1 text-[9.5px]">{desk(at.get(k), k)}</div>
+                          {third && <div className="border-r border-slate-400 p-1 text-[9.5px]">{desk(at.get(k + 2 * half), k + 2 * half)}</div>}
+                          <div className="p-1 text-[9.5px]">{desk(at.get(k + half), k + half)}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
               </section>
             );
           })}
