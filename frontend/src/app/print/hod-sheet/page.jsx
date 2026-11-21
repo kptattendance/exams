@@ -17,8 +17,17 @@ import { readSignatureSheetRaw } from "../../components/HodSheetPanel";
 import { isEveningNo } from "../../components/ui/CollegeFilter";
 
 const SHORTAGE_BELOW = 75;
-const th = "border border-slate-700 px-1 py-1 text-center";
+const th = "border border-slate-700 bg-[#1D1842] px-1 py-1 text-center text-white";
 const td = "border border-slate-700 px-1 py-1";
+const isNum = (v) => v !== "" && v !== null && v !== undefined && !Number.isNaN(Number(v));
+// attendance always with 2 decimals (82.5 -> 82.50)
+const pct = (v) => (isNum(v) ? Number(v).toFixed(2) : v);
+// NE: IA below the subject's minimum; shortage: attendance below 75 %
+const flagOf = (ia, s, v) => {
+  if (!isNum(v)) return "";
+  if (ia) return s.iaMin !== null && s.iaMin !== undefined && Number(v) < Number(s.iaMin) ? "NE" : "";
+  return Number(v) < SHORTAGE_BELOW ? "SHORT" : "";
+};
 
 const DEPT = {
   at: "Automobile Engineering",
@@ -63,7 +72,7 @@ function Sheet() {
 
   return (
     <div className="mx-auto max-w-[210mm] bg-white px-6 py-6 text-[10px] text-slate-900 print:max-w-none print:p-0">
-      <style>{`@page{size:A4 portrait;margin:10mm} @media print{body{background:#fff}} thead{display:table-header-group} tr{break-inside:avoid}`}</style>
+      <style>{`@page{size:A4 portrait;margin:10mm} @media print{body{background:#fff}} thead{display:table-header-group} tr{break-inside:avoid} *{-webkit-print-color-adjust:exact;print-color-adjust:exact}`}</style>
       <div className="mb-5 flex items-center gap-3 rounded-xl bg-slate-100 p-3 print:hidden">
         <p className="flex-1 text-sm text-slate-600">Use Print → Save as PDF for a PDF.</p>
         <button onClick={() => window.print()} className="h-10 rounded-xl bg-slate-950 px-5 text-sm font-semibold text-white">
@@ -72,8 +81,10 @@ function Sheet() {
       </div>
 
       <Letterhead compact evening={students.length > 0 && students.every((st) => isEveningNo(st.registerNumber))} />
-      <p className="mt-2 text-center text-[13px] font-bold tracking-[0.12em]">{ia ? "FINAL INTERNAL ASSESSMENT (IA) MARKS" : "FINAL ATTENDANCE (%)"}</p>
-      {verify && <p className="text-center text-[11px] font-semibold tracking-[0.2em]">VERIFICATION COPY</p>}
+      <p className="mt-2 text-center text-[13px] font-bold tracking-[0.12em] text-[#1D1842]">{ia ? "FINAL INTERNAL ASSESSMENT (IA) MARKS" : "FINAL ATTENDANCE (%)"}</p>
+      {verify && (
+        <p className="mx-auto mt-1 w-fit rounded bg-[#8E0D3C] px-3 py-0.5 text-center text-[10.5px] font-semibold tracking-[0.2em] text-white">VERIFICATION COPY</p>
+      )}
       <p className="mt-1 text-center text-[11.5px]">
         Department: <b>{dept || "—"}</b> &nbsp;·&nbsp; Semester: <b>{sheet.semester}</b> &nbsp;·&nbsp; Batch: <b>{sheet.batch}</b> &nbsp;·&nbsp; Academic year:{" "}
         <b>{sheet.academicYear}</b>
@@ -81,14 +92,19 @@ function Sheet() {
 
       <table className="mt-3 w-full border-collapse">
         <thead>
-          <tr className="bg-slate-100">
+          <tr>
             <th className={`${th} w-7`}>Sl.</th>
             <th className={`${th} w-[22mm]`}>Register No.</th>
             <th className={`${th} text-left`}>Name of the student</th>
             {subjects.map((s) => (
               <th key={s.subjectId} className={`${th} w-[12mm]`}>
                 <div className="font-bold">{s.code}</div>
-                {ia && <div className="text-[9px] font-normal">Max {s.iaMax ?? "–"}</div>}
+                {ia && (
+                  <div className="text-[8.5px] font-normal opacity-90">
+                    Max {s.iaMax ?? "–"}
+                    {s.iaMin !== null && s.iaMin !== undefined ? ` · Min ${s.iaMin}` : ""}
+                  </div>
+                )}
               </th>
             ))}
             <th className={`${th} ${verify ? "w-[24mm]" : "w-[30mm]"}`}>{verify ? "Remarks" : "Student signature"}</th>
@@ -96,17 +112,17 @@ function Sheet() {
         </thead>
         <tbody>
           {students.map((st, i) => (
-            <tr key={st.registerNumber || i}>
+            <tr key={st.registerNumber || i} className={i % 2 ? "bg-slate-50" : "bg-white"}>
               <td className={`${td} text-center`}>{i + 1}</td>
               <td className={`${td} whitespace-nowrap tabular-nums`}>{st.registerNumber || "—"}</td>
               <td className={td}>{st.studentName}</td>
               {subjects.map((s) => {
                 const v = st.values?.[s.subjectId];
-                const low = !ia && v !== "" && v !== null && v !== undefined && Number(v) < SHORTAGE_BELOW;
+                const flag = flagOf(ia, s, v);
                 return (
-                  <td key={s.subjectId} className={`${td} text-center tabular-nums ${low ? "font-bold" : ""}`}>
-                    {show(v)}
-                    {low ? "*" : ""}
+                  <td key={s.subjectId} className={`${td} text-center tabular-nums ${flag ? "bg-red-100 font-bold text-red-800" : ""}`}>
+                    {show(ia ? v : pct(v))}
+                    {flag && <span className="block text-[7.5px] font-bold leading-none">{flag === "NE" ? "NE" : "SHORTAGE"}</span>}
                   </td>
                 );
               })}
@@ -114,11 +130,28 @@ function Sheet() {
             </tr>
           ))}
         </tbody>
+        {/* how many NE / shortage in each subject */}
+        <tfoot>
+          <tr className="bg-red-50 font-semibold text-red-900">
+            <td className={`${td} text-right`} colSpan={3}>
+              {ia ? "Not eligible (NE) – below the IA minimum" : `Shortage – below ${SHORTAGE_BELOW}%`}
+            </td>
+            {subjects.map((s) => (
+              <td key={s.subjectId} className={`${td} text-center tabular-nums`}>
+                {students.filter((st) => flagOf(ia, s, st.values?.[s.subjectId])).length}
+              </td>
+            ))}
+            <td className={td} />
+          </tr>
+        </tfoot>
       </table>
 
       <div className="mt-2 text-[10px] text-slate-600">
-        {subjects.map((s) => `${s.code} – ${s.name}`).join(" · ")}
-        {!ia && <p className="mt-1">* below {SHORTAGE_BELOW}% – shortage of attendance.</p>}
+        <p className="flex flex-wrap items-center gap-2">
+          <span className="inline-block h-3 w-5 rounded-sm border border-red-300 bg-red-100" />
+          {ia ? "NE – Not eligible: IA marks below the subject's minimum." : `Shortage of attendance: below ${SHORTAGE_BELOW}% (attendance shown to 2 decimals).`}
+        </p>
+        <p className="mt-1">{subjects.map((s) => `${s.code} – ${s.name}`).join(" · ")}</p>
       </div>
 
       {verify ? (
