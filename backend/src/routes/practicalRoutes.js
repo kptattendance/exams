@@ -25,6 +25,7 @@ import {
   officeOverview,
   examinerDocuments,
   markSheetsPrinted,
+  markCertificatesPrinted,
   getSchedule,
   saveSchedule,
   listOrders,
@@ -87,6 +88,7 @@ router.put("/:id/subjects/:code/batches", BATCHES, saveBatches);
 router.get("/:id/batches", VIEW, listBatches);
 router.get("/:id/office", VIEW, officeOverview); // room diary, mark-entry sheets, marks status
 router.post("/:id/printed", requireRole("coe", "acoe", "admin", "office"), markSheetsPrinted); // room diary / ML sheet printed or not
+router.post("/:id/examiner-documents/printed", requireRole("coe", "acoe", "admin", "office", "office_typist"), markCertificatesPrinted); // certificates printed or not
 router.get("/:id/schedule", BATCHES, getSchedule); // HOD time table grid
 router.put("/:id/schedule", BATCHES, saveSchedule);
 

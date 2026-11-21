@@ -550,7 +550,14 @@ export const examinerDocuments = async (req, res) => {
       .sort((a, c) => a.date.localeCompare(c.date) || a.code.localeCompare(c.code) || a.cls.localeCompare(c.cls));
     const u = users.get(String(p.internal?.user || ""));
     data.push({
-      panel: { _id: p._id, department: p.department, number: p.number, shift: p.shift || "DAY" },
+      panel: {
+        _id: p._id,
+        department: p.department,
+        number: p.number,
+        shift: p.shift || "DAY",
+        // when each document was printed (exam section)
+        printed: Object.fromEntries(CERT_DOCS.map((k) => [k, p.printed?.[`${k}At`] ? { at: p.printed[`${k}At`], by: p.printed[`${k}By`] || "" } : null])),
+      },
       internal: { name: p.internal?.name || "", designation: u?.designation || "", department: u?.department || p.department, college: HOME_COLLEGE.name },
       external: { name: p.external?.name || "", designation: p.external?.designation || "", department: p.external?.department || "", college: p.external?.college || "" },
       from: list[0].date,
@@ -1266,6 +1273,26 @@ export const saveSchedule = async (req, res) => {
 // marks entry has gone. Marks appear only after the examiners submit.
 // POST /api/practicals/:id/printed  { ids: [batchId…], sheet: "diary" | "ml", printed: true | false }
 // Recorded by the print page when a room diary / ML sheet is printed; also ticked by hand.
+// POST /api/practicals/:id/examiner-documents/printed  { doc, panels: [id], printed }
+// The exam section printed (or not) the intimation / conducting / attendance
+// certificate of these examiner sets.
+const CERT_DOCS = ["intimation", "conducting", "attendance"];
+export const markCertificatesPrinted = async (req, res) => {
+  const exam = await loadExam(req, res);
+  if (!exam) return;
+  const doc = String(req.body?.doc || "");
+  if (!CERT_DOCS.includes(doc)) return fail(res, 400, "Say which document: intimation, conducting or attendance.");
+  const ids = [...new Set((Array.isArray(req.body?.panels) ? req.body.panels : []).map(String))].filter(isId).slice(0, 500);
+  if (!ids.length) return fail(res, 400, "No examiner set chosen.");
+  const printed = req.body?.printed !== false;
+  const r = await PracticalPanel.updateMany(
+    { _id: { $in: ids }, exam: exam._id },
+    { $set: printed ? { [`printed.${doc}At`]: new Date(), [`printed.${doc}By`]: who(req) } : { [`printed.${doc}At`]: null, [`printed.${doc}By`]: "" } }
+  );
+  await log(req, printed ? "PRACTICAL_CERTIFICATES_PRINTED" : "PRACTICAL_CERTIFICATES_NOT_PRINTED", exam._id, { doc, sets: r.modifiedCount });
+  res.json({ message: printed ? "Marked as printed." : "Marked as not printed." });
+};
+
 export const markSheetsPrinted = async (req, res) => {
   const exam = await loadExam(req, res);
   if (!exam) return;

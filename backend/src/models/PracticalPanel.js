@@ -45,6 +45,15 @@ const practicalPanelSchema = new mongoose.Schema(
     },
 
     orderSentAt: { type: Date, default: null }, // office order emailed to the external examiner
+    // the exam section printed the examiners' documents (shown on "Examiner certificates")
+    printed: {
+      intimationAt: { type: Date, default: null },
+      intimationBy: { type: String, default: "" },
+      conductingAt: { type: Date, default: null },
+      conductingBy: { type: String, default: "" },
+      attendanceAt: { type: Date, default: null },
+      attendanceBy: { type: String, default: "" },
+    },
     allottedAt: { type: Date, default: null },
     allottedBy: { type: String, default: "" },
   },

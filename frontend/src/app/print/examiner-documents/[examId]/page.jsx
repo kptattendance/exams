@@ -407,6 +407,13 @@ function PrintExaminerDocuments() {
   if (error) return <p className="p-8 text-sm text-red-700">{error}</p>;
   if (!data) return <p className="p-8 text-sm text-slate-500">Loading…</p>;
 
+  // the exam section prints: recorded per examiner set ("Examiner certificates" shows it)
+  const printNow = async () => {
+    if (["intimation", "conducting", "attendance"].includes(doc) && data.data.length)
+      await api("post", `/practicals/${examId}/examiner-documents/printed`, { doc, panels: data.data.map((d) => d.panel._id), printed: true }).catch(() => {});
+    window.print();
+  };
+
   const pages = [];
   for (const d of data.data) {
     if (doc === "intimation") pages.push(<Intimation key={`${d.panel._id}-i`} exam={data.exam} d={d} />);
@@ -450,7 +457,7 @@ function PrintExaminerDocuments() {
           <b>{title}</b> · {pages.length} page{pages.length === 1 ? "" : "s"}.
           {canEdit && " Dates and numbers with a dotted outline can be corrected – click and type – before printing."}
         </p>
-        <button onClick={() => window.print()} disabled={!pages.length} className="h-10 rounded-xl bg-slate-950 px-5 text-sm font-semibold text-white disabled:opacity-40">
+        <button onClick={printNow} disabled={!pages.length} className="h-10 rounded-xl bg-slate-950 px-5 text-sm font-semibold text-white disabled:opacity-40">
           Print / Save as PDF
         </button>
       </div>
