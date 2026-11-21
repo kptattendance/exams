@@ -42,6 +42,22 @@ const DEPT = {
 
 const noSubscribe = () => () => {};
 
+// The page margins carry our own text, so the browser prints no header / footer of
+// its own (date, address). Verification copy: the verifying officer signs at the
+// foot of EVERY page (and the HOD initials it).
+function pageMargins(verify) {
+  const blank = '"\\00a0"';
+  const font = "font-size: 8.5pt; color: #1e293b; font-family: sans-serif;";
+  const left = verify ? '"Signature of the verifying officer: ______________________"' : blank;
+  const right = `"${verify ? "HOD initials: ________    " : ""}Page " counter(page)`;
+  return `@page {
+    @top-left { content: ${blank}; } @top-center { content: ${blank}; } @top-right { content: ${blank}; }
+    @bottom-left { content: ${left}; ${font} }
+    @bottom-center { content: ${blank}; }
+    @bottom-right { content: ${right}; ${font} }
+  }`;
+}
+
 function Sheet() {
   const auto = useSearchParams().get("auto") === "1";
   // undefined while the page is drawn on the server, then the stored sheet
@@ -72,7 +88,11 @@ function Sheet() {
 
   return (
     <div className="mx-auto max-w-[210mm] bg-white px-6 py-6 text-[10px] text-slate-900 print:max-w-none print:p-0">
-      <style>{`@page{size:A4 portrait;margin:10mm} @media print{body{background:#fff}} thead{display:table-header-group} tr{break-inside:avoid} *{-webkit-print-color-adjust:exact;print-color-adjust:exact}`}</style>
+      {/* 2nd-year IA (semester 3 / 4: bridge courses too – many columns) on landscape; the rest portrait */}
+      <style>{`@page{size:A4 ${landscape ? "landscape" : "portrait"};margin:10mm 10mm 14mm 10mm} @media print{body{background:#fff}} thead{display:table-header-group} tr{break-inside:avoid} *{-webkit-print-color-adjust:exact;print-color-adjust:exact}`}</style>
+      {/* The page margins are filled by us, so the browser prints no header / footer of its own
+          (date, address). The verification copy: the verifying officer signs at the foot of EVERY page. */}
+      <style>{pageMargins(verify)}</style>
       <div className="mb-5 flex items-center gap-3 rounded-xl bg-slate-100 p-3 print:hidden">
         <p className="flex-1 text-sm text-slate-600">Use Print → Save as PDF for a PDF.</p>
         <button onClick={() => window.print()} className="h-10 rounded-xl bg-slate-950 px-5 text-sm font-semibold text-white">
@@ -85,10 +105,20 @@ function Sheet() {
       {verify && (
         <p className="mx-auto mt-1 w-fit rounded bg-[#8E0D3C] px-3 py-0.5 text-center text-[10.5px] font-semibold tracking-[0.2em] text-white">VERIFICATION COPY</p>
       )}
-      <p className="mt-1 text-center text-[11.5px]">
-        Department: <b>{dept || "—"}</b> &nbsp;·&nbsp; Semester: <b>{sheet.semester}</b> &nbsp;·&nbsp; Batch: <b>{sheet.batch}</b> &nbsp;·&nbsp; Academic year:{" "}
-        <b>{sheet.academicYear}</b>
-      </p>
+      <div className="mt-2 grid grid-cols-2 gap-y-0.5 text-[11.5px]">
+        <p>
+          Department: <b>{dept || "—"}</b>
+        </p>
+        <p className="text-right">
+          Semester: <b>{sheet.semester}</b>
+        </p>
+        <p>
+          Batch: <b>{sheet.batch}</b>
+        </p>
+        <p className="text-right">
+          Academic year: <b>{sheet.academicYear}</b>
+        </p>
+      </div>
 
       <table className="mt-3 w-full border-collapse">
         <thead>
@@ -151,8 +181,33 @@ function Sheet() {
           <span className="inline-block h-3 w-5 rounded-sm border border-red-300 bg-red-100" />
           {ia ? "NE – Not eligible: IA marks below the subject's minimum." : `Shortage of attendance: below ${SHORTAGE_BELOW}% (attendance shown to 2 decimals).`}
         </p>
-        <p className="mt-1">{subjects.map((s) => `${s.code} – ${s.name}`).join(" · ")}</p>
       </div>
+
+      {/* the subjects of the sheet */}
+      <table className="mt-2 w-full border-collapse text-[10px] break-inside-avoid">
+        <thead>
+          <tr>
+            <th className={`${th} w-8`}>Sl.</th>
+            <th className={`${th} w-24`}>Course code</th>
+            <th className={`${th} text-left`}>Course name</th>
+            {ia && <th className={`${th} w-20`}>IA max / min</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {subjects.map((s, i) => (
+            <tr key={s.subjectId} className={i % 2 ? "bg-slate-50" : "bg-white"}>
+              <td className={`${td} text-center`}>{i + 1}</td>
+              <td className={`${td} text-center font-semibold`}>{s.code}</td>
+              <td className={td}>{s.name}</td>
+              {ia && (
+                <td className={`${td} text-center tabular-nums`}>
+                  {s.iaMax ?? "–"} / {s.iaMin ?? "–"}
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
       {verify ? (
         <Verification ia={ia} count={students.length} dept={dept} sheet={sheet} />
