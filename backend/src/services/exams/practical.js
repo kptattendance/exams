@@ -9,8 +9,12 @@ import { effectiveOf, subjectFeePaid } from "./rules.js";
 export const ATTENDANCE = ["PRESENT", "ABSENT", "MALPRACTICE"];
 export const MAX_CODE_TRIES = 5;
 
-// Evening college batches carry the branch: 25EE31P-EV-EE1
-export const batchLabel = (code, number, evening = "") => (evening ? `${code}-EV-${String(evening).toUpperCase()}${number}` : `${code}-B${number}`);
+// Day batch: "25CS31P-B2". Evening college batch (EE and ME evening students
+// together): "25EG010P-EV1"
+export const batchLabel = (code, number, evening = "") => (evening ? `${code}-EV${number}` : `${code}-B${number}`);
+// The evening college's practical batches all belong to "ev": one college, the
+// batch of a subject may hold EE and ME evening students together
+export const EVENING_COLLEGE = "ev";
 
 // The HOD of a subject's BOARD conducts its practical exam, for the students
 // of every branch. Most boards are a department; these are the exceptions.

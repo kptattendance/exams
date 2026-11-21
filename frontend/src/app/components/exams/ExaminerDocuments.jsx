@@ -43,13 +43,19 @@ export default function ExaminerDocuments() {
     };
   }, [api, examId, toast]);
 
-  const departments = useMemo(() => [...new Set((data || []).map((d) => d.panel.department))].sort(), [data]);
-  const shown = (data || []).filter((d) => !department || d.panel.department === department);
+  // "DAY|ee" and "EVENING|ee" are different: the evening college's sets stand apart
+  const keyOf = (p) => `${p.shift === "EVENING" ? "EVENING" : "DAY"}|${p.department}`;
+  const departments = useMemo(() => [...new Set((data || []).map((d) => keyOf(d.panel)))].sort(), [data]);
+  const shown = (data || []).filter((d) => !department || keyOf(d.panel) === department);
 
   const open = (doc, panel = "") => {
     const q = new URLSearchParams({ doc });
     if (panel) q.set("panel", panel);
-    else if (department) q.set("department", department);
+    else if (department) {
+      const [shift, d] = department.split("|");
+      q.set("department", d);
+      q.set("shift", shift);
+    }
     window.open(`/print/examiner-documents/${examId}?${q}`, "_blank");
   };
 
@@ -85,7 +91,7 @@ export default function ExaminerDocuments() {
               <option value="">All departments</option>
               {departments.map((d) => (
                 <option key={d} value={d}>
-                  {deptShift(d)}
+                  {deptShift(d.split("|")[1], d.split("|")[0])}
                 </option>
               ))}
             </select>

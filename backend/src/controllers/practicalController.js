@@ -29,6 +29,7 @@ import { effectiveOf, subjectFeePaid } from "../services/exams/rules.js";
 import { EVENING_DEPARTMENTS, EVENING_ROLE, EVENING_RX } from "../services/evening.js";
 import {
   batchLabel,
+  EVENING_COLLEGE,
   boardDepartment,
   boardsOf,
   CONDUCTING_DEPARTMENTS,
@@ -71,17 +72,22 @@ const log = (req, action, entityId, details = {}) =>
     details,
   }).catch(() => {});
 
-// HODs only ever work on their own department
+// HODs only ever work on their own department. The evening college is ONE
+// conducting "department" (ev) for its practical batches – whatever branch
+// (EE / ME) the Evening Principal has chosen on his other pages.
 function departmentFor(req, requested) {
+  if (eveningOf(req)) return EVENING_COLLEGE;
   if (req.user?.role === "hod") return lower(req.user.department);
   return lower(requested);
 }
 
-// Evening college (register numbers 186…): its practical exams are run by the
-// Evening Principal, for each branch (EE / ME) on its own – its own examiner
-// sets (allotted by the COE) and its own batches. A HOD runs the day students
-// of his board's subjects. Other roles ask for the evening with ?shift=EVENING
-// (or shift in the body).
+// Evening college (register numbers 186… and the working professionals): its
+// practical exams are run by the Evening Principal as one college – a batch of a
+// subject may hold EE and ME evening students together (English of both
+// branches, CAD for EE students …). Its examiner sets are EE-staff or ME-staff
+// sets (allotted by the COE); any evening set may conduct any evening batch.
+// A HOD runs the day students of his board's subjects. Other roles ask for the
+// evening with ?shift=EVENING (or shift in the body).
 function eveningOf(req) {
   if (req.user?.role === "hod") return Boolean(req.user.evening);
   return String(req.query?.shift || req.body?.shift || "").toUpperCase() === "EVENING";
@@ -92,14 +98,14 @@ const exactly = (v) => new RegExp(`^${String(v).replace(/[^a-z0-9]/gi, "")}$`, "
 
 // What one department's practical work covers (query parts)
 //   day     – day students of every branch, batches / sets of the department
-//   evening – evening students of that branch, its evening batches; ANY evening
-//             examiner set (EE or ME) may conduct them (e.g. English of both together)
+//   evening – every evening student (EE and ME), the evening college's batches;
+//             ANY evening examiner set (EE or ME staff) may conduct them
 function scopeOf(evening, department) {
   return {
     evening,
-    department,
-    regs: evening ? { department: exactly(department), registerNumber: EVENING_RX } : { registerNumber: { $not: EVENING_RX } },
-    batches: evening ? { department, shift: "EVENING" } : shiftFilter(false),
+    department: evening ? EVENING_COLLEGE : department,
+    regs: evening ? { registerNumber: EVENING_RX } : { registerNumber: { $not: EVENING_RX } },
+    batches: evening ? { department: EVENING_COLLEGE, shift: "EVENING" } : shiftFilter(false),
     panels: evening ? { shift: "EVENING" } : { department, ...shiftFilter(false) },
   };
 }
@@ -279,7 +285,8 @@ async function syncOpen(req, filter) {
 export const practicalExams = async (req, res) => {
   const exams = await Exam.find({ status: { $ne: "COMPLETED" } }).select("name academicYear status").sort({ createdAt: -1 }).lean();
   const hod = req.user?.role === "hod";
-  res.json({ data: exams, department: hod ? lower(req.user.department) : "", evening: hod && Boolean(req.user.evening) });
+  // the Evening Principal's practical work is the whole evening college ("ev")
+  res.json({ data: exams, department: hod ? (req.user.evening ? EVENING_COLLEGE : lower(req.user.department)) : "", evening: hod && Boolean(req.user.evening) });
 };
 
 // GET /api/practicals/examiners – staff who can be an internal examiner, and
@@ -314,10 +321,16 @@ export const listPanels = async (req, res) => {
     PracticalPanel.find({ exam: exam._id, ...(only ? { department: only, ...shiftFilter(onlyEvening) } : {}) }).sort({ department: 1, number: 1 }).lean(),
     PracticalBatch.aggregate([
       { $match: { exam: exam._id } },
-      { $group: { _id: { department: "$department", evening: { $eq: ["$shift", "EVENING"] }, status: "$status" }, n: { $sum: 1 } } },
+      { $group: { _id: { department: "$department", code: "$code", evening: { $eq: ["$shift", "EVENING"] }, status: "$status" }, n: { $sum: 1 } } },
     ]),
   ]);
-  const info = await subjectInfo([...new Set(counts.map((c) => c._id.code))]);
+  const info = await subjectInfo([...new Set([...counts.map((c) => c._id.code), ...batches.map((b) => b._id.code)])]);
+  // evening work under the EE / ME evening row by the subject's board (EE board ->
+  // EE, ME board -> ME, a common subject such as English -> EE)
+  const eveningRow = (code) => {
+    const d = info.get(code)?.department;
+    return EVENING_DEPARTMENTS.includes(d) ? d : EVENING_DEPARTMENTS[0];
+  };
   // one row per department, and one per evening branch (EE / ME evening)
   const rows = new Map();
   const row = (d, evening) => {
@@ -330,13 +343,13 @@ export const listPanels = async (req, res) => {
   for (const c of counts) {
     const s = info.get(c._id.code);
     if (!s) continue;
-    // day: the subject's board conducts it; evening: by the student's branch
-    const r = c._id.evening ? row(lower(c._id.branch), true) : row(s.department, false);
+    // day: the subject's board conducts it; evening: the board's evening row
+    const r = c._id.evening ? row(eveningRow(c._id.code), true) : row(s.department, false);
     r.codes.add(c._id.code);
     r.students += c.students;
   }
   for (const b of batches) {
-    const r = row(b._id.department, b._id.evening);
+    const r = b._id.evening ? row(eveningRow(b._id.code), true) : row(b._id.department, false);
     r.batches += b.n;
     if (b._id.status === "SUBMITTED") r.submitted += b.n;
   }
@@ -479,9 +492,10 @@ export const examinerDocuments = async (req, res) => {
     filter._id = req.query.panel;
   }
   if (req.user?.role === "hod") {
-    // a HOD (or the Evening Principal): only his own department's examiner sets
-    filter.department = lower(req.user.department);
-    Object.assign(filter, shiftFilter(eveningOf(req)));
+    // a HOD: only his own department's examiner sets; the Evening Principal: every
+    // evening set (EE and ME staff) – the evening college is one
+    if (req.user.evening) Object.assign(filter, shiftFilter(true));
+    else Object.assign(filter, { department: lower(req.user.department) }, shiftFilter(false));
   } else {
     if (req.query.department) filter.department = lower(req.query.department);
     if (req.query.shift) Object.assign(filter, shiftFilter(String(req.query.shift).toUpperCase() === "EVENING"));
@@ -657,7 +671,8 @@ export const addPanel = async (req, res) => {
   });
   const { code, mail } = await issueCode(req, panel, exam);
   // The department's first set takes the batches the HOD has already made
-  if (panel.number === 1) {
+  // (evening: the Evening Principal chooses the set of each batch himself)
+  if (panel.number === 1 && !evening) {
     const taken = await PracticalBatch.updateMany({ exam: exam._id, department, panel: null, status: "OPEN", ...shiftFilter(evening) }, { $set: { panel: panel._id } });
     if (taken.modifiedCount) await sendSchedules(exam, [String(panel._id)]);
   }
@@ -834,7 +849,8 @@ async function arrange(req, ctx, after) {
   if (!check.ok) return { status: 400, body: { error: check.errors[0], errors: check.errors } };
 
   const own = new Map(panels.map((p) => [String(p._id), p]));
-  const mineOnly = panels.filter((p) => p.department === scope.department);
+  // a single set of the department: nothing to choose (evening: a single evening set)
+  const mineOnly = scope.evening ? panels : panels.filter((p) => p.department === scope.department);
   const next = after
     .filter((a) => !locked.has(Number(a.number)))
     .map((a) => ({
@@ -1367,7 +1383,9 @@ export const getBatch = async (req, res) => {
   const { batch, panel } = await loadBatch(req);
   const role = req.user?.role;
   const mine = Boolean(batch) && isInternal(req, panel);
-  const allowed = batch && (role === "admin" || role === "coe" || role === "acoe" || (role === "hod" && lower(req.user.department) === batch.department && sameShift(batch, req.user.evening)) || mine);
+  const ownBatch =
+    role === "hod" && (req.user.evening ? batch?.shift === "EVENING" : lower(req.user.department) === batch?.department && sameShift(batch, false));
+  const allowed = batch && (role === "admin" || role === "coe" || role === "acoe" || ownBatch || mine);
   if (!allowed) return fail(res, 404, "Batch not found.");
   const exam = await Exam.findById(batch.exam).select("name academicYear").lean();
   const unlocked = mine && batch.status === "OPEN" && isUnlocked(batch);

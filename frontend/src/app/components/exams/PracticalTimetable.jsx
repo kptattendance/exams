@@ -102,7 +102,7 @@ export default function PracticalTimetable() {
       <ExamSelect exams={exams} examId={examId} setExamId={setExamId} />
       {department && (
         <p className="mt-1 text-sm text-slate-500">
-          {evening ? `Evening college – practical exams of the ${dept(department)} evening students (every subject they take)` : `Practical exams conducted by the ${dept(department)} department`}
+          {evening ? "Evening college – practical exams of all the evening students, EE and ME together (a subject's batch may hold both branches)" : `Practical exams conducted by the ${dept(department)} department`}
         </p>
       )}
       {evening && (

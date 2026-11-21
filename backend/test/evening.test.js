@@ -59,8 +59,8 @@ test("a day HOD sees only day students and the day sheet; COE is not limited", (
   assert.deepEqual(shiftQuery(run({ role: "coe" }, { query: { shift: "EVENING" } })), { shift: "EVENING" });
 });
 
-test("evening practical batches carry the branch in their label", () => {
+test("evening practical batches: one evening college, labelled EV", () => {
   assert.equal(batchLabel("25EE31P", 2), "25EE31P-B2");
-  assert.equal(batchLabel("25EE31P", 1, "ee"), "25EE31P-EV-EE1");
-  assert.equal(batchLabel("25ME31P", 3, "me"), "25ME31P-EV-ME3");
+  assert.equal(batchLabel("25EG010P", 1, "ev"), "25EG010P-EV1");
+  assert.equal(batchLabel("25ME010P", 3, "ev"), "25ME010P-EV3");
 });

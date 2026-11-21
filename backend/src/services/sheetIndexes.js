@@ -18,6 +18,8 @@ const OLD = [
   [FinalAttendance, "academicYear_1_department_1_semester_1_batch_1"],
   [PracticalPanel, "exam_1_department_1_number_1"],
   [PracticalBatch, "exam_1_code_1_number_1"],
+  // before the shift: an evening batch "number 1" clashed with the day batch 1
+  [PracticalBatch, "exam_1_code_1_department_1_number_1"],
 ];
 let done = false;
 

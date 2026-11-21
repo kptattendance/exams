@@ -24,11 +24,17 @@ export const sessionLabel = (s) => (s === "FN" ? "Morning" : s === "AN" ? "After
 export const when = (b) => [fmtDay(b.date), sessionLabel(b.session), b.lab].filter(Boolean).join(" · ");
 
 // The department that conducts a practical exam (includes Science & English)
-export const dept = (d) => (String(d).toLowerCase() === "sc" ? "Science & English" : deptLabel(d));
+// "ev": the evening college's practical batches (EE and ME evening students together)
+export const dept = (d) => {
+  const x = String(d).toLowerCase();
+  if (x === "sc") return "Science & English";
+  if (x === "ev") return "Evening college (EE + ME)";
+  return deptLabel(d);
+};
 // "Electrical and Electronics Engineering – Evening" for the evening college's sets / batches
-export const deptShift = (d, shift) => `${dept(d)}${shift === "EVENING" ? " – Evening" : ""}`;
+export const deptShift = (d, shift) => (String(d).toLowerCase() === "ev" ? dept(d) : `${dept(d)}${shift === "EVENING" ? " – Evening" : ""}`);
 // Evening college batches: who conducts them
-export const conductedBy = (b) => (b.shift === "EVENING" ? `Evening college (${String(b.department || "").toUpperCase()})` : dept(b.department));
+export const conductedBy = (b) => (b.shift === "EVENING" ? "Evening college" : dept(b.department));
 
 // The HOD pages live at /hod, the Evening Principal's (same screens) at /evening
 export function useWorkspace() {
