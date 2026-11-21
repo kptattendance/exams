@@ -43,6 +43,19 @@ const app = express();
 // Correct client IPs behind Vercel / Nginx (used by audit log + rate limit)
 app.set("trust proxy", 1);
 
+// Security headers on every answer (the browser's safety rules):
+//   HTTPS only for a year (never plain http), no guessing of file types, never shown
+//   inside another website's frame, no address sent to other sites, and the server
+//   does not announce which software it runs.
+app.disable("x-powered-by");
+app.use((req, res, next) => {
+  if (req.secure) res.setHeader("Strict-Transport-Security", "max-age=31536000");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  next();
+});
+
 const allowedOrigins = [
   "http://localhost:3000",
   "https://local.exams.kptmangaluru.in",
