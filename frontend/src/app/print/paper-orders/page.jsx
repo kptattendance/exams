@@ -5,6 +5,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { errMsg, useApi } from "../../components/exams/shared";
+import usePrintTitle, { deptCode, dmyOf } from "../../components/print/usePrintTitle";
 
 const REF_PREFIX = "ಕೆಪಿಎಂ/35/ಸ್ವಾಯತ್ತತೆ (ಪರೀಕ್ಷೆ)";
 const SCHEME = "C-25";
@@ -81,6 +82,7 @@ const academicYear = (d) => {
 };
 
 function PrintOrders() {
+  usePrintTitle("Paper setter orders");
   const search = useSearchParams();
   const { isLoaded, isSignedIn } = useAuth();
   const api = useApi();

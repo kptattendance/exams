@@ -25,6 +25,7 @@ import { STATUS, filterOffice, roomsOf } from "../../../components/exams/OfficeP
 import Letterhead from "../../../components/print/Letterhead";
 import { useRole } from "../../../components/useRole";
 import { isEveningNo } from "../../../components/ui/CollegeFilter";
+import usePrintTitle, { deptCode, dmyOf } from "../../../components/print/usePrintTitle";
 
 const OFFICE_SHEETS = ["room-diary", "ml", "status"];
 const TT_SHEETS = ["tt-students", "tt-examiners"];
@@ -123,6 +124,12 @@ function PrintPractical() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auto, data]);
 
+  usePrintTitle(
+    deptCode(department || branch),
+    batchId
+      ? `Practical mark list ${data?.data?.label || ""}`
+      : { timetable: "Practical time table", "room-diary": "Practical room diaries", ml: "Practical ML sheets", status: "Practical marks status", "tt-students": "Practical time table (students)", "tt-examiners": "Practical time table (examiners)" }[sheet] || "Practical"
+  );
   if (examinerOnly) return <p className="p-8 text-sm text-slate-700">Mark lists and room diaries are printed by the exam section.</p>;
   if (error) return <p className="p-8 text-sm text-red-700">{error}</p>;
   if (!data) return <p className="p-8 text-sm text-slate-500">Loading…</p>;

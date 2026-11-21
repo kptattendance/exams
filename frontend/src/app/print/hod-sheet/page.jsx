@@ -15,6 +15,7 @@ import { useSearchParams } from "next/navigation";
 import Letterhead from "../../components/print/Letterhead";
 import { readSignatureSheetRaw } from "../../components/HodSheetPanel";
 import { isEveningNo } from "../../components/ui/CollegeFilter";
+import usePrintTitle, { deptCode, dmyOf } from "../../components/print/usePrintTitle";
 
 const SHORTAGE_BELOW = 75;
 const th = "border border-slate-700 bg-[#1D1842] px-1 py-1 text-center text-white";
@@ -76,6 +77,14 @@ function Sheet() {
     return () => clearTimeout(t);
   }, [auto, sheet]);
 
+  // the PDF's file name, e.g. "EC Sem 1 IA 2026-27"
+  usePrintTitle(
+    deptCode(sheet?.department),
+    sheet?.semester ? `Sem ${sheet.semester}` : "",
+    sheet ? (sheet.kind === "ia" ? "IA" : "Attendance") : "",
+    sheet?.copy === "verification" ? "verification copy" : "",
+    sheet?.academicYear
+  );
   if (raw === undefined) return <p className="p-8 text-sm text-slate-500">Loading…</p>;
   if (!sheet) return <p className="p-8 text-sm text-slate-600">Nothing to print. Open this from the Final IA or Final attendance page (PDF for student signatures).</p>;
 

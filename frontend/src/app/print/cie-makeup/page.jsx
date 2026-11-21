@@ -13,6 +13,7 @@ import { useAuth } from "@clerk/nextjs";
 import { errMsg, programmeName, useApi } from "../../components/exams/shared";
 import { matchesCollege } from "../../components/ui/CollegeFilter";
 import Letterhead from "../../components/print/Letterhead";
+import usePrintTitle, { deptCode, dmyOf } from "../../components/print/usePrintTitle";
 
 const cell = "border border-slate-400 px-1.5 py-[3px]";
 
@@ -29,6 +30,7 @@ function PrintMakeup() {
   const college = search.get("college") || "";
   const branch = search.get("branch") || "";
 
+  usePrintTitle(deptCode(department || branch), semester ? `Sem ${semester}` : "", "CIE make-up list");
   useEffect(() => {
     if (!isLoaded) return;
     if (!isSignedIn) return setError("Please sign in to print.");

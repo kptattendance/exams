@@ -13,6 +13,7 @@ import { useAuth } from "@clerk/nextjs";
 import { errMsg, programmeName, useApi } from "../../components/exams/shared";
 import Letterhead from "../../components/print/Letterhead";
 import { isEveningNo } from "../../components/ui/CollegeFilter";
+import usePrintTitle, { deptCode, dmyOf } from "../../components/print/usePrintTitle";
 
 const fmt = (d) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" }) : "");
 const MEDAL = { 1: "Gold Medal", 2: "Silver Medal", 3: "Bronze Medal" };
@@ -35,6 +36,7 @@ function PrintDiploma() {
       .catch((e) => setError(errMsg(e, "Could not load the awards.")));
   }, [api, isLoaded, isSignedIn, search]);
 
+  usePrintTitle(deptCode(search.get("department")), search.get("startYear"), mode === "ranks" ? "Diploma rank list" : mode === "certificates" ? "Provisional diploma certificates" : "Diploma successful candidates");
   if (error) return <p className="p-8 text-sm text-red-700">{error}</p>;
   if (!list) return <p className="p-8 text-sm text-slate-500">Loading… please wait</p>;
   const rows = mode === "ranks" ? list.filter((a) => a.rank).sort((a, b) => a.rank - b.rank) : list;

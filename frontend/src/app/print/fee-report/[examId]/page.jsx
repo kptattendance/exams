@@ -15,6 +15,7 @@ import { useAuth } from "@clerk/nextjs";
 
 import Letterhead from "../../../components/print/Letterhead";
 import { deptLabel, errMsg, useApi } from "../../../components/exams/shared";
+import usePrintTitle, { deptCode, dmyOf } from "../../../components/print/usePrintTitle";
 
 const rs = (n) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
 const dmy = (d) => (d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-") : "");
@@ -36,6 +37,7 @@ function Report() {
   const [d, setD] = useState(null);
   const [error, setError] = useState("");
 
+  usePrintTitle("Fee report", department === "backlog" ? "Back papers" : deptCode(department), semester ? `Sem ${semester}` : "");
   useEffect(() => {
     if (!isLoaded) return;
     if (!isSignedIn) return setError("Please sign in.");

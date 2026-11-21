@@ -15,6 +15,7 @@ import { useAuth } from "@clerk/nextjs";
 import { KIND, errMsg, programmeName, useApi } from "../../../components/exams/shared";
 import Letterhead from "../../../components/print/Letterhead";
 import { isEveningNo } from "../../../components/ui/CollegeFilter";
+import usePrintTitle, { deptCode, dmyOf } from "../../../components/print/usePrintTitle";
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }) : "");
 const two = (n) => (n === null || n === undefined ? "—" : Number(n).toFixed(2));
@@ -72,6 +73,7 @@ function PrintGradeCards() {
       .catch((e) => setError(errMsg(e, "Could not load the grade cards.")));
   }, [api, examId, isLoaded, isSignedIn, search]);
 
+  usePrintTitle(deptCode(search.get("department")), search.get("semester") ? `Sem ${search.get("semester")}` : "", "Grade cards", data?.exam?.name);
   if (error) return <p className="p-8 text-sm text-red-700">{error}</p>;
   if (!data) return <p className="p-8 text-sm text-slate-500">Loading… please wait</p>;
 

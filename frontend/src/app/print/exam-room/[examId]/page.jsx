@@ -18,6 +18,7 @@ import { useAuth } from "@clerk/nextjs";
 import { errMsg, useApi } from "../../../components/exams/shared";
 import { popup } from "../../../components/ui/Feedback";
 import Letterhead from "../../../components/print/Letterhead";
+import usePrintTitle, { deptCode, dmyOf } from "../../../components/print/usePrintTitle";
 
 const th = "border border-slate-700 px-2 py-1 text-left";
 const td = "border border-slate-700 px-2 py-1";
@@ -37,6 +38,7 @@ function PrintRoomDiary() {
   const session = search.get("session") || "";
   const only = search.get("room") || "";
 
+  usePrintTitle("Room diaries", only, dmyOf(date), session);
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
     const path = `/exam-sessions/${examId}/${date}/${session}`;

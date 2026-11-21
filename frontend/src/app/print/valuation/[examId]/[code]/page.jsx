@@ -13,6 +13,7 @@ import { useAuth } from "@clerk/nextjs";
 
 import { errMsg, useApi } from "../../../../components/exams/shared";
 import { popup } from "../../../../components/ui/Feedback";
+import usePrintTitle, { deptCode, dmyOf } from "../../../../components/print/usePrintTitle";
 
 const th = "border border-slate-700 px-2 py-1 text-left";
 const td = "border border-slate-700 px-2 py-1";
@@ -39,6 +40,7 @@ function PrintValuation() {
   const [data, setData] = useState(null);
   const [failed, setFailed] = useState(false);
 
+  usePrintTitle(decodeURIComponent(String(code || "")), sheet === "coding" ? "ATS sheet (confidential)" : "Award lists");
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
     const c = encodeURIComponent(decodeURIComponent(code));

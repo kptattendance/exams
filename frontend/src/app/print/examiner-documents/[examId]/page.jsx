@@ -17,6 +17,7 @@ import { errMsg, useApi } from "../../../components/exams/shared";
 import { dept } from "../../../components/exams/practicalShared";
 import Letterhead from "../../../components/print/Letterhead";
 import { useRole } from "../../../components/useRole";
+import usePrintTitle, { deptCode, dmyOf } from "../../../components/print/usePrintTitle";
 
 const FILE_NO = "ಕೆಪಿಎಂ/35/ ಸ್ವಾಯತ್ತತೆ (ಪರೀಕ್ಷೆ) /2026-27";
 const CENTRE = "Karnataka (Govt.) Polytechnic (Autonomous), Mangaluru";
@@ -388,6 +389,11 @@ function PrintExaminerDocuments() {
   const [error, setError] = useState("");
   const canEdit = EDITORS.includes(useRole());
 
+  usePrintTitle(
+    deptCode(search.get("department")),
+    search.get("shift") === "EVENING" ? "Evening" : "",
+    { intimation: "Practical examiners intimation", conducting: "Practical conducting certificates", attendance: "Practical attendance certificates", statement: "Statement of examiners" }[doc] || "Practical examiners documents"
+  );
   useEffect(() => {
     if (!isLoaded) return;
     if (!isSignedIn) return setError("Please sign in.");

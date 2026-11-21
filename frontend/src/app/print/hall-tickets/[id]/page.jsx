@@ -13,6 +13,7 @@ import { errMsg, programmeName, useApi } from "../../../components/exams/shared"
 import Letterhead from "../../../components/print/Letterhead";
 import { useSignatures } from "../../../components/print/useSignatures";
 import { isEveningNo } from "../../../components/ui/CollegeFilter";
+import usePrintTitle, { deptCode, dmyOf } from "../../../components/print/usePrintTitle";
 
 const fmtDate = (iso) =>
   iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }) : "";
@@ -53,6 +54,7 @@ function PrintHallTickets() {
     if (over.length) setFull((f) => new Set([...f, ...over]));
   }, [data, skipPrinted, full, sig]);
 
+  usePrintTitle(deptCode(search.get("department")), search.get("semester") ? `Sem ${search.get("semester")}` : "", "Hall tickets", data?.exam?.name);
   if (error) return <p className="p-8 text-sm text-red-700">{error}</p>;
   if (!data) return <p className="p-8 text-sm text-slate-500">Loading…</p>;
 

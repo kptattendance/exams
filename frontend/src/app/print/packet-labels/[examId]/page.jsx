@@ -13,6 +13,7 @@ import { useAuth } from "@clerk/nextjs";
 
 import { errMsg, useApi } from "../../../components/exams/shared";
 import { popup } from "../../../components/ui/Feedback";
+import usePrintTitle, { deptCode, dmyOf } from "../../../components/print/usePrintTitle";
 
 const th = "border border-slate-700 px-2 py-1 text-left";
 const td = "border border-slate-700 px-2 py-1";
@@ -30,6 +31,7 @@ function PacketLabels() {
   const date = search.get("date") || "";
   const session = search.get("session") || "";
 
+  usePrintTitle("Packet labels", code, dmyOf(date), session);
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
     api("get", `/exams/${examId}/packet-labels`, undefined, { params: { code, date, session } })

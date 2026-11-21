@@ -13,6 +13,7 @@ import { useAuth } from "@clerk/nextjs";
 
 import { errMsg, useApi } from "../../../components/exams/shared";
 import { popup } from "../../../components/ui/Feedback";
+import usePrintTitle, { deptCode, dmyOf } from "../../../components/print/usePrintTitle";
 
 // 25 benches in 3 rows: 9, 7, 9 (as in services/exams/seating.js)
 const benchRows = (capacity) => {
@@ -54,6 +55,7 @@ function Seating() {
   const date = search.get("date") || "";
   const session = search.get("session") || "";
 
+  usePrintTitle("Seating plan", dmyOf(date), session);
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
     api("get", `/exam-sessions/${examId}/${date}/${session}`)

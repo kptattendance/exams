@@ -10,6 +10,7 @@ import { useSearchParams } from "next/navigation";
 
 import Letterhead from "../../components/print/Letterhead";
 import { isEveningNo } from "../../components/ui/CollegeFilter";
+import usePrintTitle, { deptCode, dmyOf } from "../../components/print/usePrintTitle";
 
 const FEE_STORE = "kpt-exam-fees"; // written by components/exams/HodExamFees.jsx
 const noSubscribe = () => () => {};
@@ -54,6 +55,7 @@ function Sheet() {
     return () => clearTimeout(t);
   }, [auto, d]);
 
+  usePrintTitle(deptCode(d?.department), d?.semester ? `Sem ${d.semester}` : "", "Exam fee list");
   if (raw === undefined) return <p className="p-8 text-sm text-slate-500">Loading…</p>;
   if (!d) return <p className="p-8 text-sm text-slate-600">Nothing to print. Open this from the HOD&apos;s Exam fee list (Download PDF).</p>;
 

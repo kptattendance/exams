@@ -11,6 +11,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 
 import { useApi } from "../../../components/exams/shared";
+import usePrintTitle, { deptCode, dmyOf } from "../../../components/print/usePrintTitle";
 
 // A failed blob request carries the JSON error as a Blob
 async function blobError(e, fallback) {
@@ -44,6 +45,7 @@ function PrintOrders() {
     return () => made && URL.revokeObjectURL(made);
   }, [api, examId, isLoaded, isSignedIn, search]);
 
+  usePrintTitle("Practical examiner orders");
   if (error) return <p className="p-8 text-sm text-red-700">{error}</p>;
   if (!url) return <p className="p-8 text-sm text-slate-500">Making the office order PDF…</p>;
 

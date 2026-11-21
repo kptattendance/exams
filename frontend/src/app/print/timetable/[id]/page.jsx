@@ -10,6 +10,7 @@ import { useAuth } from "@clerk/nextjs";
 
 import { errMsg, useApi } from "../../../components/exams/shared";
 import Letterhead from "../../../components/print/Letterhead";
+import usePrintTitle, { deptCode, dmyOf } from "../../../components/print/usePrintTitle";
 
 const DEPTS = ["at", "ch", "ce", "cs", "ec", "ee", "me", "ps"];
 // "09:00" -> "09.00" (09.00-12.00 Hrs)
@@ -69,6 +70,7 @@ export default function PrintTimetable() {
     return out;
   }, [data, dept, sem]);
 
+  usePrintTitle("Exam time table", data?.exam?.name, data?.exam?.academicYear);
   if (error) return <p className="p-8 text-sm text-red-700">{error}</p>;
   if (!data) return <p className="p-8 text-sm text-slate-500">Loading…</p>;
 
