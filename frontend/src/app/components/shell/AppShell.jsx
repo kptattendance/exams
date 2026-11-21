@@ -18,13 +18,31 @@ import { FeedbackProvider } from "../ui/Feedback";
 import { useRole } from "../useRole";
 import { preloadXlsx } from "../xlsx";
 
-// Sidebar colours per kind of work (menus.js: section "tone")
+// Sidebar colours per kind of work. The site's theme turns Tailwind's blue and
+// amber into the college red, so the groups use colours the theme leaves alone.
 const TONES = {
-  default: { title: "", dot: "", rail: "", activeBg: "bg-blue-50", activeText: "text-blue-800", bar: "bg-blue-600", iconOn: "text-blue-600", icon: "text-slate-400 group-hover:text-slate-600" },
-  theory: { title: "text-blue-700", dot: "bg-blue-500", rail: "border-blue-200", activeBg: "bg-blue-50", activeText: "text-blue-800", bar: "bg-blue-600", iconOn: "text-blue-600", icon: "text-blue-400 group-hover:text-blue-600" },
-  practical: { title: "text-emerald-700", dot: "bg-emerald-500", rail: "border-emerald-200", activeBg: "bg-emerald-50", activeText: "text-emerald-800", bar: "bg-emerald-600", iconOn: "text-emerald-600", icon: "text-emerald-400 group-hover:text-emerald-600" },
-  fees: { title: "text-amber-700", dot: "bg-amber-500", rail: "border-amber-200", activeBg: "bg-amber-50", activeText: "text-amber-900", bar: "bg-amber-600", iconOn: "text-amber-600", icon: "text-amber-400 group-hover:text-amber-600" },
-  records: { title: "text-violet-700", dot: "bg-violet-500", rail: "border-violet-200", activeBg: "bg-violet-50", activeText: "text-violet-800", bar: "bg-violet-600", iconOn: "text-violet-600", icon: "text-violet-400 group-hover:text-violet-600" },
+  default: { title: "", dot: "", rail: "", activeBg: "bg-blue-50", activeText: "text-blue-800", bar: "bg-blue-600", iconOn: "text-blue-600", icon: "text-slate-400 group-hover:text-slate-600", ring: "focus-visible:ring-slate-300" },
+  theory: { title: "text-indigo-700", dot: "bg-indigo-500", rail: "border-indigo-200", activeBg: "bg-indigo-50", activeText: "text-indigo-800", bar: "bg-indigo-600", iconOn: "text-indigo-600", icon: "text-indigo-400 group-hover:text-indigo-600", ring: "focus-visible:ring-indigo-300" },
+  practical: { title: "text-emerald-700", dot: "bg-emerald-500", rail: "border-emerald-200", activeBg: "bg-emerald-50", activeText: "text-emerald-800", bar: "bg-emerald-600", iconOn: "text-emerald-600", icon: "text-emerald-400 group-hover:text-emerald-600", ring: "focus-visible:ring-emerald-300" },
+  people: { title: "text-teal-700", dot: "bg-teal-500", rail: "border-teal-200", activeBg: "bg-teal-50", activeText: "text-teal-800", bar: "bg-teal-600", iconOn: "text-teal-600", icon: "text-teal-400 group-hover:text-teal-600", ring: "focus-visible:ring-teal-300" },
+  records: { title: "text-violet-700", dot: "bg-violet-500", rail: "border-violet-200", activeBg: "bg-violet-50", activeText: "text-violet-800", bar: "bg-violet-600", iconOn: "text-violet-600", icon: "text-violet-400 group-hover:text-violet-600", ring: "focus-visible:ring-violet-300" },
+  results: { title: "text-fuchsia-700", dot: "bg-fuchsia-500", rail: "border-fuchsia-200", activeBg: "bg-fuchsia-50", activeText: "text-fuchsia-800", bar: "bg-fuchsia-600", iconOn: "text-fuchsia-600", icon: "text-fuchsia-400 group-hover:text-fuchsia-600", ring: "focus-visible:ring-fuchsia-300" },
+  admin: { title: "text-slate-600", dot: "bg-slate-400", rail: "border-slate-200", activeBg: "bg-slate-100", activeText: "text-slate-900", bar: "bg-slate-600", iconOn: "text-slate-700", icon: "text-slate-400 group-hover:text-slate-600", ring: "focus-visible:ring-slate-300" },
+};
+TONES.fees = TONES.people;
+
+// A section's colour: menus.js "tone", else from its title
+const toneOf = (section) => {
+  if (section.tone) return section.tone;
+  const t = String(section.title || "").toLowerCase();
+  if (t === "overview") return "";
+  if (/practical/.test(t)) return "practical";
+  if (/theory|examination|exam day|question paper|valuation|scrutin/.test(t)) return "theory";
+  if (/result/.test(t)) return "results";
+  if (/academic|records|\bia\b|attendance/.test(t)) return "records";
+  if (/student|people|department|master|admission|fee|my work/.test(t)) return "people";
+  if (/admin|report|setting/.test(t)) return "admin";
+  return "";
 };
 
 function findActive(sections, pathname) {
@@ -266,8 +284,8 @@ function SidebarContent({ menu, activeHref, onClose }) {
 
   return (
     <div className="relative flex h-full flex-col bg-white">
-      {/* Answer-sheet margin line along the sidebar edge */}
-      <span className="margin-rule pointer-events-none absolute inset-y-0 right-0 w-[5.5px] opacity-80" />
+      {/* a light divider along the sidebar edge */}
+      <span className="pointer-events-none absolute inset-y-0 right-0 w-px bg-slate-200" />
 
       {/* Brand */}
       <div className="flex h-16 shrink-0 items-center gap-3 border-b border-slate-100 px-5 pr-6">
@@ -302,11 +320,12 @@ function SidebarContent({ menu, activeHref, onClose }) {
           .map((section) => ({ ...section, items: section.items.filter((item) => !item.soon) }))
           .filter((section) => section.items.length > 0)
           .map((section) => {
-          // a section's colour (menus.js "tone"); without one: the usual blue
-          const tone = TONES[section.tone] || TONES.default;
+          // a section's colour (menus.js "tone", else from its title); none: the usual accent
+          const toneName = toneOf(section);
+          const tone = TONES[toneName] || TONES.default;
           return (
           <div key={section.title} className="mb-5 last:mb-0">
-            {section.tone ? (
+            {toneName ? (
               <p className={`mb-1.5 flex items-center gap-2 px-3 text-[11px] font-bold uppercase tracking-wider ${tone.title}`}>
                 <span className={`h-2 w-2 rounded-full ${tone.dot}`} />
                 {section.title}
@@ -314,7 +333,7 @@ function SidebarContent({ menu, activeHref, onClose }) {
             ) : (
               <p className="mb-1.5 px-3 text-xs font-semibold text-slate-400">{section.title}</p>
             )}
-            <ul className={`space-y-0.5 ${section.tone ? `ml-3 border-l-2 pl-1 ${tone.rail}` : ""}`}>
+            <ul className={`space-y-0.5 ${toneName ? `ml-3 border-l-2 pl-1 ${tone.rail}` : ""}`}>
               {section.items.map((item) => {
                 const on = activeHref === item.href;
                 if (item.soon) {
@@ -339,11 +358,11 @@ function SidebarContent({ menu, activeHref, onClose }) {
                       href={item.href}
                       onClick={onClose}
                       aria-current={on ? "page" : undefined}
-                      className={`group relative flex h-10 items-center gap-3 rounded-lg px-3 text-sm transition-colors ${
+                      className={`group relative flex h-10 items-center gap-3 rounded-lg px-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset ${tone.ring} ${
                         on ? `${tone.activeBg} font-semibold ${tone.activeText}` : "text-slate-600 hover:bg-slate-50 hover:text-slate-950"
                       }`}
                     >
-                      {on && !section.tone && <span className={`absolute -left-3 top-2 bottom-2 w-[3px] rounded-r-full ${tone.bar}`} />}
+                      {on && !toneName && <span className={`absolute -left-3 top-2 bottom-2 w-[3px] rounded-r-full ${tone.bar}`} />}
                       <Icon
                         name={item.icon}
                         className={`h-[18px] w-[18px] shrink-0 ${on ? tone.iconOn : tone.icon}`}

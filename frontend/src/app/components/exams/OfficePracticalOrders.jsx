@@ -42,7 +42,7 @@ export default function OfficePracticalOrders() {
   const scope = department ? { department: department.split("|")[1], shift: department.split("|")[0] } : {};
 
   return (
-    <div>
+    <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-7">
       <h2 className="text-2xl font-bold tracking-tight text-slate-950">Practical examiner orders</h2>
       <p className="mt-1 max-w-2xl text-sm text-slate-500">
         The office orders of the internal and external practical examiners allotted by the COE – print them and keep them on file.
