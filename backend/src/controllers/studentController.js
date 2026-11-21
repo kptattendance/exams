@@ -1786,8 +1786,8 @@ export const updateStudent = async (req, res) => {
     // A new email (COE / ACOE / Admin): the login account (Clerk) and the record together
     const askedEmail = req.body?.email !== undefined ? String(req.body.email).replace(/\s+/g, "").toLowerCase() : "";
     if (askedEmail && askedEmail !== String(student.email || "").toLowerCase()) {
-      if (!["coe", "acoe", "admin", "office"].includes(String(req.user?.role || "").toLowerCase()))
-        return res.status(403).json({ success: false, message: "Only the COE, the exam section office or the Admin can change a student's email." });
+      if (!["coe", "acoe", "admin", "office", "office_admission"].includes(String(req.user?.role || "").toLowerCase()))
+        return res.status(403).json({ success: false, message: "Only the COE, the office, the admission section or the Admin can change a student's email." });
       let passed = false;
       await requireStepUp("users")(req, res, () => (passed = true)); // the verification code (answers 428 itself)
       if (!passed) return;

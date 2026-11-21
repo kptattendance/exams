@@ -12,6 +12,9 @@
 //   exam_clerk     – types the valuers' award lists (sees ATS numbers only)
 //   office_typist  – prints the practical examiners' certificates (intimation,
 //                    setting / conducting, attendance) – nothing else
+//   office_admission – admission section: edits every detail of students and of
+//                    faculty (photo, email, name, caste …); does not add or delete
+//                    login accounts
 //   qp_scrutinizer – scrutinises the submitted question papers
 //   chief_examiner – on the exam date only, opens and prints the frozen question paper
 //   hod            – department: IA, attendance, electives, practical batches
@@ -30,6 +33,7 @@ export const ROLE_LABELS = {
   office: "Exam section (office)",
   exam_clerk: "Exam clerk",
   office_typist: "Office typist",
+  office_admission: "Office – admission section",
   qp_scrutinizer: "QP scrutiniser",
   chief_examiner: "Chief Examiner",
   hod: "Head of Department",

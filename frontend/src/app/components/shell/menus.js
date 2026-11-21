@@ -14,6 +14,7 @@ export const HOME_BY_ROLE = {
   exam_officer: "/office/fees", // old name of office
   exam_clerk: "/clerk",
   office_typist: "/typist",
+  office_admission: "/admission",
   qp_scrutinizer: "/scrutiny",
   chief_examiner: "/chief-examiner",
   hod: "/hod",
@@ -270,6 +271,21 @@ export const MENUS = {
         items: [
           { label: "Question papers today", href: "/chief-examiner", icon: "lock", pinned: true },
           { label: "Rooms & absentees", href: "/chief-examiner/sessions", icon: "list", pinned: true },
+        ],
+      },
+    ],
+  },
+
+  // Office – admission section: edits students and faculty, nothing else
+  admission: {
+    role: "Office – admission section",
+    home: "/admission",
+    sections: [
+      {
+        title: "Admission section",
+        items: [
+          { label: "Students", href: "/admission", icon: "students", pinned: true },
+          { label: "Faculty", href: "/admission/faculty", icon: "users", pinned: true },
         ],
       },
     ],

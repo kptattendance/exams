@@ -549,6 +549,8 @@ export default function FacultyPage() {
 
         <div className="flex flex-wrap items-center gap-2">
 
+        {/* the admission section edits faculty but does not add accounts */}
+        {role !== "office_admission" && (
         <Link
   href="/coe/faculty/bulk-upload-faculty"
   className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
@@ -558,8 +560,10 @@ export default function FacultyPage() {
   </span>
   Bulk Upload
 </Link>
+        )}
 
           {/* ADD FACULTY */}
+          {role !== "office_admission" && (
           <button
             type="button"
             onClick={openAddModal}
@@ -571,6 +575,7 @@ export default function FacultyPage() {
 
             Add Faculty
           </button>
+          )}
 
         </div>
       </div>

@@ -66,7 +66,7 @@ const uploadExcel = multer({
 });
 
 // The same roles that may add students may edit them
-const STUDENT_EDITORS = requireRole("principal", "coe", "acoe", "office", "hod");
+const STUDENT_EDITORS = requireRole("principal", "coe", "acoe", "office", "office_admission", "hod");
 
 // =====================================================
 // CREATE SINGLE STUDENT

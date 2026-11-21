@@ -97,11 +97,14 @@ const ADMIN_ROLES = ["admin", "principal", "coe", "acoe"];
 // Which roles each role may create, edit and delete
 const rolePermissions = {
   admin: [...ROLES],
-  principal: ["acoe", "office", "exam_clerk", "office_typist", "qp_scrutinizer", "hod", "evening_principal", "staff"],
-  coe: ["acoe", "office", "exam_clerk", "office_typist", "qp_scrutinizer", "hod", "evening_principal", "staff"],
-  acoe: ["office", "exam_clerk", "office_typist", "hod", "staff"],
+  principal: ["acoe", "office", "exam_clerk", "office_typist", "office_admission", "qp_scrutinizer", "hod", "evening_principal", "staff"],
+  coe: ["acoe", "office", "exam_clerk", "office_typist", "office_admission", "qp_scrutinizer", "hod", "evening_principal", "staff"],
+  acoe: ["office", "exam_clerk", "office_typist", "office_admission", "hod", "staff"],
   hod: ["staff"],
+  // admission section: edits faculty details (not their role); cannot add or delete accounts
+  office_admission: ["staff"],
 };
+const EDIT_ONLY = ["office_admission"];
 
 
 /*
@@ -982,6 +985,9 @@ export const createUser = async (
       req.user?.role || ""
     ).toLowerCase();
 
+    if (EDIT_ONLY.includes(requesterRole))
+      return res.status(403).json({ success: false, message: "The admission section can edit accounts but not add them. Ask the COE or the Admin." });
+
     const {
       name,
       email,
@@ -1461,8 +1467,8 @@ export const updateUser = async (
       if (!newEmail || newEmail === String(targetUser.email || "").toLowerCase()) {
         delete updateData.email;
       } else {
-        if (!["coe", "acoe", "admin"].includes(requesterRole))
-          return res.status(403).json({ success: false, message: "Only the COE or the Admin can change an email." });
+        if (!["coe", "acoe", "admin", "office_admission"].includes(requesterRole))
+          return res.status(403).json({ success: false, message: "Only the COE, the admission section or the Admin can change an email." });
         if (!EMAIL_RX.test(newEmail)) return res.status(400).json({ success: false, message: "Type a valid email address." });
         const user2 = await User.findOne({ email: newEmail, _id: { $ne: targetUser._id } }).select("name").lean();
         const stud2 = await Student.findOne({ email: newEmail }).select("registerNumber name").lean();
@@ -1570,6 +1576,9 @@ export const deleteUser = async (
     const requesterRole = (
       req.user?.role || ""
     ).toLowerCase();
+
+    if (EDIT_ONLY.includes(requesterRole))
+      return res.status(403).json({ success: false, message: "The admission section can edit accounts but not delete them. Ask the COE or the Admin." });
 
     const requesterId =
       req.user?.id;
