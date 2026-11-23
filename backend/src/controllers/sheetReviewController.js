@@ -9,7 +9,7 @@
 //   POST /api/sheet-review/:type/:id/freeze
 //   POST /api/sheet-review/:type/:id/return     { reason }
 //   DELETE /api/sheet-review/:type/:id          { reason }  Admin only, running year only
-// Verification (COE only), after the freeze:
+// Verification (COE and Admin), after the freeze:
 //   POST /api/sheet-review/:type/:id/corrections { changes: [{ studentId, subjectId, value }] }
 //   POST /api/sheet-review/:type/:id/verify      the FINAL freeze: nobody can change it after this
 
@@ -189,7 +189,7 @@ export const getSheet = async (req, res) => {
   });
 };
 
-// POST /api/sheet-review/:type/:id/corrections  (COE only)
+// POST /api/sheet-review/:type/:id/corrections  (COE and Admin)
 // The changes the verifier marked on the "before verification" copy
 export const correctSheet = async (req, res) => {
   const Model = pickModel(req, res);
@@ -225,7 +225,7 @@ export const correctSheet = async (req, res) => {
   res.json({ message: `${r.changed} correction${r.changed === 1 ? "" : "s"} saved.${refreshNote(auto)}${crossing}`, data: { changed: r.changed, crossed: r.crossed } });
 };
 
-// POST /api/sheet-review/:type/:id/verify  (COE only) – the FINAL freeze
+// POST /api/sheet-review/:type/:id/verify  (COE and Admin) – the FINAL freeze
 export const verifySheet = async (req, res) => {
   const Model = pickModel(req, res);
   if (!Model) return;

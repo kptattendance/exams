@@ -79,6 +79,7 @@ export const MENUS = {
           { label: "Practical marks corrections", href: "/admin/practical-marks", icon: "marks" },
           { label: "Final IA sheets", href: "/admin/final-ia", icon: "marks" },
           { label: "Final attendance sheets", href: "/admin/final-attendance", icon: "attendance" },
+          { label: "IA & attendance verification", href: "/admin/verification", icon: "marks" },
           { label: "Exam fees – mark paid", href: "/admin/fees", icon: "money" },
           { label: "Exam fees – delete", href: "/admin/fees/delete", icon: "trash" },
         ],

@@ -11,17 +11,16 @@ const router = express.Router();
 const VIEW = requireRole("office", "coe", "acoe", "admin", "principal");
 const DECIDE = requireRole("office", "coe", "acoe");
 
-// Corrections after verification and the final freeze: the COE ONLY (not even the Admin)
-const COE_ONLY = (req, res, next) =>
-  req.user?.role === "coe" ? next() : res.status(403).json({ error: "Only the COE can correct a sheet after verification." });
+// Corrections after verification and the final freeze: the COE and the Admin
+const COE_ADMIN = requireRole("coe"); // + admin
 
 router.use(authenticateUser);
 router.get("/", VIEW, listSheets);
 router.get("/:type/:id", VIEW, getSheet);
 router.post("/:type/:id/freeze", DECIDE, requireStepUp("ia"), freezeSheet);
 router.post("/:type/:id/return", DECIDE, requireStepUp("ia"), returnSheet);
-router.post("/:type/:id/corrections", COE_ONLY, requireStepUp("ia"), correctSheet);
-router.post("/:type/:id/verify", COE_ONLY, requireStepUp("ia"), verifySheet);
+router.post("/:type/:id/corrections", COE_ADMIN, requireStepUp("ia"), correctSheet);
+router.post("/:type/:id/verify", COE_ADMIN, requireStepUp("ia"), verifySheet);
 router.delete("/:type/:id", adminOnly, requireStepUp("delete"), deleteSheet); // running year only
 
 export default router;

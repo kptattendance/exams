@@ -2,7 +2,7 @@
 
 // COE: verification of the frozen Final IA / Final attendance sheets.
 //   1. HOD prints the BEFORE verification copy; the verifier marks changes on it
-//   2. The COE (only) types those changes here – each one is recorded, old -> new
+//   2. The COE or the Admin types those changes here – each one is recorded, old -> new
 //   3. The COE gives the FINAL freeze: nobody can change the sheet after that
 //   4. The HOD prints the AFTER verification copy
 
@@ -25,7 +25,8 @@ const fmt = (d) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric"
 export default function SheetVerification() {
   const api = useApi();
   const toast = useToast();
-  const canEdit = useRole() === "coe";
+  const role = useRole();
+  const canEdit = role === "coe" || role === "admin";
   const [type, setType] = useState("ia");
   const [list, setList] = useState(null);
   const [open, setOpen] = useState(null);
