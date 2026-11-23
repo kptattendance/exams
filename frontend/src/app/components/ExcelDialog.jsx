@@ -20,13 +20,13 @@ export default function ExcelDialog({ open, onClose, kind, subjects = [], semest
   const columns = [...BASE_COLUMNS, ...subjects.map((s) => s.code)];
   const steps = ia
     ? [
-        "Download the template – your students, subject columns and maximum marks are already filled in.",
-        "Type the IA marks under each subject code. Do not change row 1, row 2 or the register numbers.",
+        "Download the template – your students, course columns and maximum marks are already filled in.",
+        "Type the IA marks under each course code. Do not change row 1, row 2 or the register numbers.",
         "Upload the file, check the table and click Save.",
       ]
     : [
-        "Download the template – your students and subject columns are already filled in.",
-        "Type the attendance percentage (0–100) under each subject code. Do not change row 1 or the register numbers.",
+        "Download the template – your students and course columns are already filled in.",
+        "Type the attendance percentage (0–100) under each course code. Do not change row 1 or the register numbers.",
         "Upload the file, check the table and click Save.",
       ];
 
@@ -58,15 +58,15 @@ export default function ExcelDialog({ open, onClose, kind, subjects = [], semest
           </label>
 
           {!semester ? (
-            <p className="mt-4 rounded-xl bg-slate-50 px-3 py-3 text-sm text-slate-600">Choose the semester – the template is made with its subjects and students.</p>
+            <p className="mt-4 rounded-xl bg-slate-50 px-3 py-3 text-sm text-slate-600">Choose the semester – the template is made with its courses and students.</p>
           ) : loading ? (
-            <p className="mt-4 rounded-xl bg-slate-50 px-3 py-3 text-sm font-semibold text-slate-500">Loading students and subjects… please wait</p>
+            <p className="mt-4 rounded-xl bg-slate-50 px-3 py-3 text-sm font-semibold text-slate-500">Loading students and courses… please wait</p>
           ) : !ready ? (
-            <p className="mt-4 rounded-xl bg-orange-50 px-3 py-3 text-sm text-orange-800">No students or subjects found for this semester and batch. Check the batch on the page.</p>
+            <p className="mt-4 rounded-xl bg-orange-50 px-3 py-3 text-sm text-orange-800">No students or courses found for this semester and batch. Check the batch on the page.</p>
           ) : (
             <>
               <p className="mt-4 text-sm font-semibold text-slate-800">
-                Format · {studentCount} students · {subjects.length} subjects
+                Format · {studentCount} students · {subjects.length} courses
               </p>
               <div className="mt-2 overflow-x-auto rounded-xl border border-slate-200">
                 <table className="min-w-full border-collapse text-[11px]">

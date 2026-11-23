@@ -16,9 +16,9 @@ import { useToast } from "../ui/Feedback";
 import { errMsg, useApi } from "./shared";
 
 const DECISIONS = [
-  ["PSC", "PSC – Performance in Subject Cancelled", "Only the chosen subject(s) are cancelled (fail). They come back as back papers."],
-  ["PEC", "PEC – Performance in Examination Cancelled", "Every subject of that semester in this exam is cancelled. Not promoted: he becomes Detained when the results are published."],
-  ["PEC_PLUS", "PEC+ – All Semesters' Performance Cancelled", "Every subject he wrote in this exam is cancelled. Not promoted (Detained). The debarment is noted only."],
+  ["PSC", "PSC – Performance in Course Cancelled", "Only the chosen course(s) are cancelled (fail). They come back as back papers."],
+  ["PEC", "PEC – Performance in Examination Cancelled", "Every course of that semester in this exam is cancelled. Not promoted: he becomes Detained when the results are published."],
+  ["PEC_PLUS", "PEC+ – All Semesters' Performance Cancelled", "Every course he wrote in this exam is cancelled. Not promoted (Detained). The debarment is noted only."],
 ];
 const LABEL = { PSC: "PSC", PEC: "PEC", PEC_PLUS: "PEC+" };
 
@@ -176,7 +176,7 @@ function DecisionModal({ examId, item, published, onClose, onSaved }) {
 
       {decision === "PSC" && (
         <div className="mt-4">
-          <p className="text-sm font-semibold text-slate-800">Subject(s) cancelled</p>
+          <p className="text-sm font-semibold text-slate-800">Course(s) cancelled</p>
           <div className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
             {item.subjects.map((s) => (
               <label key={s.code} className="flex items-center gap-2 text-sm">

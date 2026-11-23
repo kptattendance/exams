@@ -40,7 +40,7 @@ export default function PracticalBatches() {
         .catch(() => setElsewhere([]));
     } catch (e) {
       setData({ data: [], panels: [] });
-      toast.error(errMsg(e, "Could not load the practical subjects."));
+      toast.error(errMsg(e, "Could not load the practical courses."));
     }
   }, [api, examId, toast]);
 
@@ -111,7 +111,7 @@ export default function PracticalBatches() {
           {list.length > 0 && (
             <>
               <h3 className="mt-7 text-lg font-bold tracking-tight text-slate-950">Practical exams you conduct</h3>
-              <p className="mt-1 text-sm text-slate-500">Click a subject to make its batches.</p>
+              <p className="mt-1 text-sm text-slate-500">Click a course to make its batches.</p>
             </>
           )}
           <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
@@ -222,7 +222,7 @@ function SubjectBatches({ examId, code, onClose }) {
       setDirty(false);
       setClashes([]);
     } catch (e) {
-      toast.error(errMsg(e, "Could not load the subject."));
+      toast.error(errMsg(e, "Could not load the course."));
       onClose();
     }
   }, [api, path, toast, onClose]);
@@ -305,7 +305,7 @@ function SubjectBatches({ examId, code, onClose }) {
     <div className="mx-auto max-w-5xl px-4 py-6 pb-28 sm:px-6 lg:px-7">
       <button onClick={onClose} className="inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-900">
         <Icon name="chevronLeft" className="h-4 w-4" />
-        All practical subjects
+        All practical courses
       </button>
       <h2 className="mt-3 text-2xl font-bold tracking-tight text-slate-950">
         {subject.code} <span className="font-semibold text-slate-600">{subject.name}</span>

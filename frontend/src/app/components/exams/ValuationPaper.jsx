@@ -328,7 +328,7 @@ function PaperMax({ paper, busy, onSave }) {
       <button disabled={busy || Number(rawMax) === paper.rawMax} onClick={() => onSave({ rawMax: Number(rawMax) })} className={btn.secondary}>
         Save
       </button>
-      <span className="text-xs text-slate-500">Marks are reduced to the subject&apos;s maximum ({paper.seeMax || paper.rawMax}) when decoded.</span>
+      <span className="text-xs text-slate-500">Marks are reduced to the course&apos;s maximum ({paper.seeMax || paper.rawMax}) when decoded.</span>
     </div>
   );
 }

@@ -122,7 +122,7 @@ export default function BridgeCourses({ canManage = true }) {
       {subjects === null && <div className="mt-6 h-64 animate-pulse rounded-2xl bg-white" />}
       {subjects && subjects.length === 0 && (
         <p className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center text-sm text-slate-500">
-          No bridge courses yet. Add subjects with category BRIDGE on the Subjects page.
+          No bridge courses yet. Add courses with category BRIDGE on the Courses page.
         </p>
       )}
 
@@ -130,7 +130,7 @@ export default function BridgeCourses({ canManage = true }) {
         <>
           {/* filters */}
           <div className="mt-5 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-3">
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Code or subject name" className={`${sel} w-56 px-3`} />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Code or course name" className={`${sel} w-56 px-3`} />
             <select value={dept} onChange={(e) => setDept(e.target.value)} className={sel} aria-label="Department">
               <option value="">All departments</option>
               {departments.map((d) => (
@@ -186,7 +186,7 @@ export default function BridgeCourses({ canManage = true }) {
                   <th className="w-20 px-3 py-2.5">Dept</th>
                   <th className="w-16 px-3 py-2.5">Sem</th>
                   <th className="w-24 px-3 py-2.5">Seq.</th>
-                  <th className="px-3 py-2.5">Subject</th>
+                  <th className="px-3 py-2.5">Course</th>
                   <th className="w-28 px-3 py-2.5">Exam</th>
                   {TYPES.map(([t, label]) => {
                     const all = shown.length > 0 && shown.every((s) => typesOf(s).includes(t));
@@ -194,7 +194,7 @@ export default function BridgeCourses({ canManage = true }) {
                       <th key={t} className="w-28 px-3 py-2.5 text-center">
                         <span className="block">{label}</span>
                         {canManage && shown.length > 0 && (
-                          <label className="mt-1 inline-flex items-center gap-1 text-[10px] font-medium normal-case text-slate-500" title={`Tick ${label} for every subject shown`}>
+                          <label className="mt-1 inline-flex items-center gap-1 text-[10px] font-medium normal-case text-slate-500" title={`Tick ${label} for every course shown`}>
                             <input type="checkbox" checked={all} onChange={() => setAll(t, !all)} className="h-3.5 w-3.5" />
                             all shown
                           </label>

@@ -283,7 +283,7 @@ export default function PaperSettingPage() {
       title: chosen ? `Give Set ${p.setNo} of ${p.subject?.code} for the examination?` : `Unchoose Set ${p.setNo} of ${p.subject?.code}?`,
       message: chosen
         ? `Only this set will reach the Chief Examiner on the exam day; the other sets stay locked.${others.length ? `\n\nSet ${others.map((x) => x.setNo).join(", ")} is chosen now – it will be unchosen.` : ""}\n\nThe choice can be made or changed only before the exam day.`
-        : "Then no set of this subject reaches the Chief Examiner until you choose one again (before the exam day).",
+        : "Then no set of this course reaches the Chief Examiner until you choose one again (before the exam day).",
       confirmText: chosen ? "Choose this set" : "Unchoose",
       tone: chosen ? undefined : "danger",
     });
@@ -561,7 +561,7 @@ ${
                       className="h-4 w-4 accent-blue-600"
                     />
                   </th>
-                  {["Sl.", "Subject", "Set", "Examiner", "Deadline", "Status", "Email", "Actions"].map((h) => (
+                  {["Sl.", "Course", "Set", "Examiner", "Deadline", "Status", "Email", "Actions"].map((h) => (
                     <th key={h} className="px-3 py-3 text-left text-xs font-semibold text-slate-500">
                       {h}
                     </th>
@@ -693,7 +693,7 @@ ${
           onClose={() => setShowCreate(false)}
           onCreated={(emailSent, syllabusAttached) => {
             if (!emailSent) flash("Assigned. Email was NOT sent – use “Send email”.");
-            else flash(syllabusAttached ? "Assigned and email sent with the syllabus." : "Assigned and email sent. No syllabus is uploaded for this subject.");
+            else flash(syllabusAttached ? "Assigned and email sent with the syllabus." : "Assigned and email sent. No syllabus is uploaded for this course.");
             load();
           }}
         />
@@ -997,7 +997,7 @@ function CreateModal({ api, defaultSessionValue, onClose, onCreated }) {
 
   const submit = async (keepOpen) => {
     setErr("");
-    if (!form.subjectId || !form.examinerId) return setErr("Select subject and examiner.");
+    if (!form.subjectId || !form.examinerId) return setErr("Select course and examiner.");
     setSaving(true);
     try {
       const res = await api("post", "/paper-setting", {
@@ -1022,7 +1022,7 @@ function CreateModal({ api, defaultSessionValue, onClose, onCreated }) {
   return (
     <Modal title="Appoint question paper setter" onClose={onClose} wide>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Subject department">
+        <Field label="Course department">
           <select className={inputCls} value={dept} onChange={(e) => { setDept(e.target.value); set("subjectId", ""); }}>
             <option value="">Select</option>
             {departments.filter((d) => d.value !== "ot").map((d) => (
@@ -1039,9 +1039,9 @@ function CreateModal({ api, defaultSessionValue, onClose, onCreated }) {
           </select>
         </Field>
         <div className="sm:col-span-2">
-          <Field label="Subject">
+          <Field label="Course">
             <select className={inputCls} value={form.subjectId} onChange={(e) => set("subjectId", e.target.value)}>
-              <option value="">{dept ? "Select subject" : "Choose department first"}</option>
+              <option value="">{dept ? "Select course" : "Choose department first"}</option>
               {subjects.map((s) => (
                 <option key={s._id} value={s._id}>
                   {s.code} – {s.name} (Sem {s.semester}{s.subjectCategory !== "REGULAR" ? `, ${s.subjectCategory}` : ""})
@@ -1202,7 +1202,7 @@ function SyllabusModal({ api, onClose }) {
   return (
     <Modal title="Syllabus files" onClose={onClose} wide>
       <p className="text-sm text-slate-600">
-        These PDFs are attached to the email of the subject. Name each file with the subject code first, e.g.{" "}
+        These PDFs are attached to the email of the course. Name each file with the course code first, e.g.{" "}
         <b>25CS31T0.pdf</b> or <b>25CS31T0 scheme.pdf</b>. You can choose many files at once.
       </p>
       <label className="mt-4 flex cursor-pointer flex-col items-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 px-6 py-6 text-center hover:border-slate-300">

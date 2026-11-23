@@ -330,7 +330,7 @@ export default function Timetable({ examId: fixedExamId, canManage = false, back
           <div className="mt-6 inline-flex overflow-hidden rounded-xl border border-slate-200 bg-white text-sm font-semibold">
             {[
               ["sheet", "Sheet (by date)"],
-              ["list", "List (by subject)"],
+              ["list", "List (by course)"],
             ].map(([k, l]) => (
               <button key={k} onClick={() => setView(k)} className={`px-4 py-2 ${view === k ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-50"}`}>
                 {l}
@@ -365,7 +365,7 @@ export default function Timetable({ examId: fixedExamId, canManage = false, back
           <div className="mt-6 flex flex-wrap items-center gap-2">
             <div className="relative">
               <Icon name="search" className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Subject code or name" className={`${T.field} w-52 pl-8`} />
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Course code or name" className={`${T.field} w-52 pl-8`} />
             </div>
             <select value={dept} onChange={(e) => setDept(e.target.value)} className={T.field}>
               <option value="">All departments</option>
@@ -408,7 +408,7 @@ export default function Timetable({ examId: fixedExamId, canManage = false, back
                     <thead>
                       <tr className={T.headRow}>
                         <th className={T.thNum}>Sl.</th>
-                        <th className={T.th}>Subject</th>
+                        <th className={T.th}>Course</th>
                         <th className={T.th}>Departments</th>
                         <th className={`${T.th} text-right`}>Students</th>
                         <th className={T.th}>Date</th>

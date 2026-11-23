@@ -42,7 +42,7 @@ export default function ExamList({ basePath, canManage = false }) {
           <h2 className="text-2xl font-bold tracking-tight text-slate-950">Examinations</h2>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
             {canManage
-              ? "Create an exam and the software registers every student for his subjects and back papers, and checks IA and attendance for each subject."
+              ? "Create an exam and the software registers every student for his courses and back papers, and checks IA and attendance for each course."
               : "Registered students and their eligibility for each exam."}
           </p>
         </div>
@@ -227,7 +227,7 @@ export function ExamForm({ value, onChange }) {
 
       <label className="block">
         <span className="text-sm font-semibold text-slate-800">Minimum attendance (%)</span>
-        <span className="block text-xs text-slate-500">Below this a subject is marked ANS (not permitted).</span>
+        <span className="block text-xs text-slate-500">Below this a course is marked ANS (not permitted).</span>
         <input
           type="number"
           min={0}

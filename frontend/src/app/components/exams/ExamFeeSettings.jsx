@@ -74,11 +74,11 @@ export default function ExamFeeSettings({ exam, onClose, onSaved }) {
         <p className="text-xs text-slate-500">Charged for each semester exam a student writes (his current semester, each back-paper semester, and the bridge courses separately).</p>
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="block">
-            <span className="text-sm font-semibold text-slate-800">1 or 2 subjects</span>
+            <span className="text-sm font-semibold text-slate-800">1 or 2 courses</span>
             <input type="number" min="0" value={upTo2} onChange={(e) => setUpTo2(e.target.value)} className={`${field} mt-1.5`} />
           </label>
           <label className="block">
-            <span className="text-sm font-semibold text-slate-800">3+ subjects / full sem</span>
+            <span className="text-sm font-semibold text-slate-800">3+ courses / full sem</span>
             <input type="number" min="0" value={threePlus} onChange={(e) => setThreePlus(e.target.value)} className={`${field} mt-1.5`} />
           </label>
           <label className="block">
@@ -121,7 +121,7 @@ export default function ExamFeeSettings({ exam, onClose, onSaved }) {
               from {day(s.from)}: + Rs {n(s.amount)} for each semester exam = Rs {full + small + 2 * n(s.amount)}
             </span>
           ))}
-          <span className="block text-slate-500">Every registered subject is counted, also ANS / NE – the fee is collected before eligibility is announced and is not refunded.</span>
+          <span className="block text-slate-500">Every registered course is counted, also ANS / NE – the fee is collected before eligibility is announced and is not refunded.</span>
         </div>
       </div>
     </Modal>

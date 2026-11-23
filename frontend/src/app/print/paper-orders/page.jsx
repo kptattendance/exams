@@ -259,7 +259,7 @@ function Order({ o }) {
     ["DESIGNATION", designation],
     ["INST CODE and NAME", collegeLine],
     ["QP CODE", `${o.subject?.code || ""}`],
-    ["SUBJECT NAME", `${o.subject?.name || ""}${o.paperType === "PRACTICAL" ? " (Practical)" : ""}`],
+    ["COURSE NAME", `${o.subject?.name || ""}${o.paperType === "PRACTICAL" ? " (Practical)" : ""}`],
     ["LAST DATE TO UPLOAD", lastDate(o.deadline)],
   ];
 

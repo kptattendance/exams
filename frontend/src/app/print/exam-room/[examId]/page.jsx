@@ -181,7 +181,7 @@ function PrintRoomDiary() {
                   <table className="mt-4 w-full border-collapse">
                     <tbody>
                       <tr>
-                        <td className={`${td} w-36 font-semibold`}>Subject code</td>
+                        <td className={`${td} w-36 font-semibold`}>Course code</td>
                         <td className={`${td} text-[15px] font-bold`}>
                           {x.code} <span className="text-[11px] font-semibold">– {paperName.get(x.code) || ""}</span>
                         </td>

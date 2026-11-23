@@ -344,7 +344,7 @@ function ExaminerTable({ examId, depts, onAllot, onOrder, onCode, onRemove }) {
                       "—"
                     ) : (
                       <>
-                        {d.subjects} subject{d.subjects > 1 ? "s" : ""}
+                        {d.subjects} course{d.subjects > 1 ? "s" : ""}
                         <br />
                         {d.students} student entries
                         <br />

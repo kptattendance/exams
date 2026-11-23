@@ -154,7 +154,7 @@ async function restoreSubject(entry) {
   const clash = await Subject.findOne({
     $or: [{ _id: s._id }, { department: s.department, code: s.code, semester: s.semester, schemeYear: s.schemeYear }],
   }).lean();
-  if (clash) throw Object.assign(new Error(`${s.code} (${s.department}, semester ${s.semester}) exists again. Delete that subject first.`), { status: 409 });
+  if (clash) throw Object.assign(new Error(`${s.code} (${s.department}, semester ${s.semester}) exists again. Delete that course first.`), { status: 409 });
   await Subject.collection.insertOne(s);
   return { counts: { subjects: 1 }, classes: [{ department: s.department, semester: s.semester }] };
 }

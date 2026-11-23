@@ -9,7 +9,7 @@ export const ROLE_OPTIONS = [
   {
     value: "office",
     label: "Exam section (office)",
-    does: "Fees, freezing IA and attendance, hall-ticket subjects and printing, absentees, paper-setter orders",
+    does: "Fees, freezing IA and attendance, hall-ticket courses and printing, absentees, paper-setter orders",
   },
   { value: "exam_clerk", label: "Exam clerk", does: "Types the valuers' award lists" },
   { value: "office_typist", label: "Office typist", does: "Prints the practical examiners' certificates (intimation, conducting, attendance)" },

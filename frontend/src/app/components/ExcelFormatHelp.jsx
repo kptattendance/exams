@@ -26,13 +26,13 @@ export const BASE_COLUMNS = ["Sl No", "Register Number", "Student Name"];
 function rules(kind) {
   const k = KINDS[kind];
   return [
-    "Always start from \"Download Template\". It already has your students, subject columns and saved entries.",
+    "Always start from \"Download Template\". It already has your students, course columns and saved entries.",
     "Do not rename, delete or reorder the header row (row 1). Column names must stay exactly as given.",
     kind === "ia"
-      ? `Row 2 is the MAX row (${k.maxLabel}) – already filled in. You may change a subject's maximum here.`
+      ? `Row 2 is the MAX row (${k.maxLabel}) – already filled in. You may change a course's maximum here.`
       : "There is no maximum row – attendance is entered directly as a percentage.",
-    `From row ${kind === "ia" ? 3 : 2}, enter the ${k.fill} under each subject code column.`,
-    "Only the \"Register Number\" and subject code columns are read. Sl No and Name are for reference only.",
+    `From row ${kind === "ia" ? 3 : 2}, enter the ${k.fill} under each course code column.`,
+    "Only the \"Register Number\" and course code columns are read. Sl No and Name are for reference only.",
     "Do not change register numbers. Rows with an unknown register number are skipped.",
     "A blank cell leaves that entry unchanged. Enter numbers only (no text such as AB or -).",
     "Keep the data on the first sheet. After uploading, check the table and click Save.",
@@ -50,7 +50,7 @@ export function excelInstructionsSheet(kind, subjects = []) {
     ["Sl No", "Serial number (not read)"],
     ["Register Number", "Student register number – used to match the student (required)"],
     ["Student Name", "Reference only (not read)"],
-    ...subjects.map((s) => [s.code, `${s.name || "Subject"} – ${k.fill}`]),
+    ...subjects.map((s) => [s.code, `${s.name || "Course"} – ${k.fill}`]),
   ];
   const sheet = XLSX.utils.aoa_to_sheet(rows);
   sheet["!cols"] = [{ wch: 22 }, { wch: 70 }];

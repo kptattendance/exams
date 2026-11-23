@@ -112,8 +112,8 @@ function readExamBody(body, { partial = false } = {}) {
     const small = Number(f.upTo2);
     const full = Number(f.threePlus);
     const card = Number(f.marksCard);
-    if (!(small >= 0 && small <= 10000)) errors.push("Fee for 1 or 2 subjects must be between 0 and 10000.");
-    if (!(full >= 0 && full <= 10000)) errors.push("Fee for 3 or more subjects must be between 0 and 10000.");
+    if (!(small >= 0 && small <= 10000)) errors.push("Fee for 1 or 2 courses must be between 0 and 10000.");
+    if (!(full >= 0 && full <= 10000)) errors.push("Fee for 3 or more courses must be between 0 and 10000.");
     if (!(card >= 0 && card <= 10000)) errors.push("Marks card fee must be between 0 and 10000.");
     const slabs = (Array.isArray(f.lateFees) ? f.lateFees : [])
       .filter((s) => s && (s.from || s.amount))
@@ -699,7 +699,7 @@ async function generateClassGroup(exam, department, semester) {
       );
       return regSubject(subject, kind, el);
     });
-    if (!subjects.length) warnings.push(`No subjects found for ${department.toUpperCase()} semester ${semester}.`);
+    if (!subjects.length) warnings.push(`No courses found for ${department.toUpperCase()} semester ${semester}.`);
 
     const codes = new Set(current.map((s) => s.code));
     const backs = backlogSubjects(backlogs.get(sid) || [], codes);
@@ -844,7 +844,7 @@ export const overrideSubject = async (req, res) => {
   if (!reg) return;
   const { subjectId, status, reason } = req.body || {};
   const s = reg.subjects.find((x) => String(x.subject) === String(subjectId));
-  if (!s) return fail(res, 404, "This subject is not in the student's registration.");
+  if (!s) return fail(res, 404, "This course is not in the student's registration.");
 
   if (status) {
     if (!["ELIGIBLE", "ANS", "NE"].includes(status)) return fail(res, 400, "Status must be ELIGIBLE, ANS or NE.");
@@ -878,7 +878,7 @@ export const addBackPapers = async (req, res) => {
   const regNo = String(req.body?.registerNumber || "").trim().toUpperCase();
   const codes = [...new Set((req.body?.codes || []).map((c) => String(c).trim().toUpperCase()).filter(Boolean))];
   if (!regNo) return fail(res, 400, "Enter the register number.");
-  if (!codes.length) return fail(res, 400, "Enter at least one subject code.");
+  if (!codes.length) return fail(res, 400, "Enter at least one course code.");
 
   const student = await Student.findOne({ registerNumber: regNo }).select(STUDENT_FIELDS).lean();
   if (!student) return fail(res, 404, `No student with register number ${regNo}.`);
@@ -892,7 +892,7 @@ export const addBackPapers = async (req, res) => {
     if (!byCode.has(s.code) || own) byCode.set(s.code, s);
   }
   const missing = codes.filter((c) => !byCode.has(c));
-  if (missing.length) return fail(res, 404, `Subject code not found: ${missing.join(", ")}.`);
+  if (missing.length) return fail(res, 404, `Course code not found: ${missing.join(", ")}.`);
 
   let reg = await ExamRegistration.findOne({ exam: exam._id, student: student._id });
   if (!reg) {
@@ -912,7 +912,7 @@ export const addBackPapers = async (req, res) => {
     );
     added.push(code);
   }
-  if (!added.length) return fail(res, 409, "These subjects are already in the student's registration.");
+  if (!added.length) return fail(res, 409, "These courses are already in the student's registration.");
   recount(reg);
   await reg.save();
   await logAction(req, "EXAM_BACK_PAPER_ADDED", exam._id, { registerNumber: regNo, codes: added });
@@ -924,14 +924,14 @@ export const removeManualSubject = async (req, res) => {
   const reg = await loadReg(req, res);
   if (!reg) return;
   const s = reg.subjects.find((x) => String(x.subject) === String(req.params.subjectId));
-  if (!s) return fail(res, 404, "Subject not found in this registration.");
-  if (s.source !== "MANUAL") return fail(res, 400, "Only subjects added by hand can be removed. Use “Change decision” instead.");
-  if (s.fee?.paid) return fail(res, 409, "The fee for this subject is already recorded.");
+  if (!s) return fail(res, 404, "Course not found in this registration.");
+  if (s.source !== "MANUAL") return fail(res, 400, "Only courses added by hand can be removed. Use “Change decision” instead.");
+  if (s.fee?.paid) return fail(res, 409, "The fee for this course is already recorded.");
   reg.subjects = reg.subjects.filter((x) => x !== s);
   if (!reg.subjects.length && reg.group === "manual") {
     await reg.deleteOne();
     await logAction(req, "EXAM_BACK_PAPER_REMOVED", reg.exam, { registerNumber: reg.registerNumber, code: s.code });
-    return res.json({ data: null, message: "Removed. The student had no other subjects, so his registration was removed." });
+    return res.json({ data: null, message: "Removed. The student had no other courses, so his registration was removed." });
   }
   recount(reg);
   await reg.save();
@@ -1018,7 +1018,7 @@ export const saveBridgeCourses = async (req, res) => {
   if (!updates.length) return fail(res, 400, "Nothing to save.");
   const ops = [];
   for (const u of updates) {
-    if (!isId(u.id)) return fail(res, 400, "Invalid subject id.");
+    if (!isId(u.id)) return fail(res, 400, "Invalid course id.");
     let types;
     try {
       types = normalizeAdmissionTypes(u.forAdmissionTypes);

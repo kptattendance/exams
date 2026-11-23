@@ -86,11 +86,11 @@ function Sheet() {
       {/* how the fee is made up */}
       <div className="mt-2 grid grid-cols-3 gap-2 text-center">
         <div className="rounded-lg border border-sky-200 bg-sky-50 px-2 py-1.5">
-          <p className="text-[9.5px] font-semibold uppercase text-sky-700">1 or 2 subjects of a semester</p>
+          <p className="text-[9.5px] font-semibold uppercase text-sky-700">1 or 2 courses of a semester</p>
           <p className="text-[13px] font-bold text-sky-900">{rs(rules.upTo2)}</p>
         </div>
         <div className="rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1.5">
-          <p className="text-[9.5px] font-semibold uppercase text-indigo-700">3+ subjects / full semester</p>
+          <p className="text-[9.5px] font-semibold uppercase text-indigo-700">3+ courses / full semester</p>
           <p className="text-[13px] font-bold text-indigo-900">{rs(rules.threePlus)}</p>
         </div>
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5">
@@ -99,7 +99,7 @@ function Sheet() {
         </div>
       </div>
       <p className="mt-1.5 text-[9.5px] leading-4 text-slate-600">
-        The fee is for each semester exam (current semester, each back-paper semester, bridge courses separately). Every registered subject is counted; the fee is not refundable.
+        The fee is for each semester exam (current semester, each back-paper semester, bridge courses separately). Every registered course is counted; the fee is not refundable.
         {slabs.length > 0 && (
           <>
             {" "}
@@ -113,7 +113,7 @@ function Sheet() {
           <tr className="bg-indigo-700 text-white">
             <th className="border border-indigo-800 px-1.5 py-1 text-center">Sl.</th>
             <th className="border border-indigo-800 px-1.5 py-1 text-left">Student</th>
-            <th className="border border-indigo-800 px-1.5 py-1 text-left">Subjects</th>
+            <th className="border border-indigo-800 px-1.5 py-1 text-left">Courses</th>
             <th className="border border-indigo-800 px-1.5 py-1 text-left">How it is made up</th>
             <th className="border border-indigo-800 px-1.5 py-1 text-right">Amount</th>
           </tr>
@@ -153,7 +153,7 @@ function Sheet() {
                     </p>
                   ))
                 ) : (
-                  <span className="text-slate-400">No subject to pay for</span>
+                  <span className="text-slate-400">No course to pay for</span>
                 )}
               </td>
               <td className="border border-slate-300 px-1.5 py-1 text-right align-top">

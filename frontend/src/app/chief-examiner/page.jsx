@@ -109,7 +109,7 @@ export default function ChiefExaminerPage() {
             <thead>
               <tr className={T.headRow}>
                 <th className={T.thNum}>Sl.</th>
-                <th className={T.th}>Subject</th>
+                <th className={T.th}>Course</th>
                 <th className={T.th}>Set</th>
                 <th className={T.th}>Session</th>
                 <th className={T.th}>Opens</th>

@@ -80,7 +80,7 @@ async function analyse(buffer) {
       errors++;
       problem(row, "error", m);
     };
-    if (!row.regNo || !row.subId) return err("Register number or subject code is missing.");
+    if (!row.regNo || !row.subId) return err("Register number or course code is missing.");
     const when = examDate(row.examCode);
     if (!when) return err(`Exam code "${row.examCode}" is not understood (expected e.g. 25S or 26A).`);
 
@@ -119,7 +119,7 @@ async function analyse(buffer) {
     const key = `${student._id}|${subject._id}|${row.examCode}`;
     const item = { student, subject, examCode: row.examCode, declaredAt: when, result: out.result };
     if (keyed.has(key)) {
-      problem(row, "warning", "The same subject and exam appears twice for this student – the later row is used.");
+      problem(row, "warning", "The same course and exam appears twice for this student – the later row is used.");
       ready[keyed.get(key)] = item;
     } else {
       keyed.set(key, ready.length);

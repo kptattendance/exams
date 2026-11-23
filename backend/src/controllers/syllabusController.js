@@ -69,7 +69,7 @@ export const addSyllabus = async (req, res) => {
   if (req.file.buffer.subarray(0, 5).toString("latin1") !== "%PDF-") return fail(res, 400, "This is not a PDF file.");
   const name = req.file.originalname.trim();
   const code = codeFromName(name, await Subject.distinct("code"));
-  if (!code) return fail(res, 400, "The file name must start with the subject code, e.g. 25CS31T0.pdf");
+  if (!code) return fail(res, 400, "The file name must start with the course code, e.g. 25CS31T0.pdf");
 
   const old = await SyllabusFile.findOne({ code, name });
   const driveFileId = await uploadSyllabus(req.file.buffer, name);

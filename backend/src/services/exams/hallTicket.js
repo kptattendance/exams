@@ -97,7 +97,7 @@ export function ticketFor(reg, { entries = [], sessions = {}, published = false 
   const permitted = subjects.filter((s) => s.permitted);
   if (!permitted.length && !waiting) {
     const feeOnly = subjects.some((s) => s.note === NOT_PERMITTED.FEE);
-    reasons.push(feeOnly ? "Fee not paid." : "No subject permitted.");
+    reasons.push(feeOnly ? "Fee not paid." : "No course permitted.");
   }
   const missingDate = permitted.filter((s) => !s.practicalOnly && !s.date).map((s) => s.code);
   if (published && missingDate.length) reasons.push(`No exam date for ${missingDate.join(", ")}.`);

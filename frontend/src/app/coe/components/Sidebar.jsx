@@ -28,7 +28,7 @@ const menuSections = [
         icon: "staff",
       },
       {
-        label: "Subjects",
+        label: "Courses",
         href: "/coe/subjects",
         icon: "subjects",
       },

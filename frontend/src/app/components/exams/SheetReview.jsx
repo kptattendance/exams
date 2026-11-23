@@ -174,7 +174,7 @@ export default function SheetReview({ type, admin = false }) {
                 <th className={T.th}>Batch</th>
                 <th className={T.th}>Year</th>
                 <th className={`${T.th} text-right`}>Students</th>
-                <th className={`${T.th} text-right`}>Subjects</th>
+                <th className={`${T.th} text-right`}>Courses</th>
                 <th className={T.th}>Status</th>
                 <th className={`${T.th} text-right`}>Action</th>
               </tr>
@@ -508,7 +508,7 @@ function ReviewModal({ type, id, onClose, onFreeze, onChanged, canDelete = false
             </table>
           </div>
           <p className="mt-2 text-xs text-slate-500">
-            Red = {type === "ia" ? "below the subject’s IA minimum" : `below ${sheet.minAttendance}% (ANS)`} · Orange = empty · Purple = more than the maximum
+            Red = {type === "ia" ? "below the course’s IA minimum" : `below ${sheet.minAttendance}% (ANS)`} · Orange = empty · Purple = more than the maximum
           </p>
         </>
       )}

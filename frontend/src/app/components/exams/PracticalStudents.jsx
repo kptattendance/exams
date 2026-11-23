@@ -61,8 +61,8 @@ export default function PracticalStudents() {
     for (const x of shown)
       x.students.filter(pick).forEach((s) =>
         rows.push({
-          "Subject code": x.code,
-          Subject: x.name,
+          "Course code": x.code,
+          Course: x.name,
           "Register Number": s.registerNumber,
           Name: s.name,
           Branch: String(s.branch || "").toUpperCase(),
@@ -88,7 +88,7 @@ export default function PracticalStudents() {
           <h2 className="text-2xl font-bold tracking-tight text-slate-950">Candidate list</h2>
           <ExamSelect exams={exams} examId={examId} setExamId={setExamId} />
           <p className="mt-1 max-w-3xl text-sm text-slate-500">
-            Every practical subject your department conducts, with all its students – who is eligible, who is already in a batch, and who is not
+            Every practical course your department conducts, with all its students – who is eligible, who is already in a batch, and who is not
             permitted and why. Plan the batches from here; nothing can be changed on this page.
           </p>
         </div>
@@ -105,8 +105,8 @@ export default function PracticalStudents() {
       {examId && (
         <>
           <div className="mt-5 flex flex-wrap items-center gap-2">
-            <select value={code} onChange={(e) => setCode(e.target.value)} className={`${T.field} max-w-[24rem]`} aria-label="Subject">
-              <option value="">All subjects</option>
+            <select value={code} onChange={(e) => setCode(e.target.value)} className={`${T.field} max-w-[24rem]`} aria-label="Course">
+              <option value="">All courses</option>
               {subjects.map((x) => (
                 <option key={x.code} value={x.code}>
                   {x.code} – {x.name}

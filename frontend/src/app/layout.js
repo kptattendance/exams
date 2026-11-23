@@ -19,7 +19,7 @@ export const metadata = {
   },
 
   description:
-    "KPT Mangaluru Examination Management System for managing students, departments, subjects, examinations, internal assessment marks, examination records and results.",
+    "KPT Mangaluru Examination Management System for managing students, departments, courses, examinations, internal assessment marks, examination records and results.",
 
   applicationName: "KPT Examination Management System",
 

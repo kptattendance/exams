@@ -100,7 +100,7 @@ function PrintHallTickets() {
         .ticket.full { height: auto; max-height: 281mm; }
         .sheet { break-after: page; page-break-after: always; }
         .sheet:last-child { break-after: auto; page-break-after: auto; }
-        /* Long subject lists shrink so the ticket still fits its half page */
+        /* Long course lists shrink so the ticket still fits its half page */
         .ticket.dense .subj td, .ticket.dense .subj th { padding-top: 1px; padding-bottom: 1px; font-size: 9.5px; }
       `}</style>
 

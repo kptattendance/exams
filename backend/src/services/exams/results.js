@@ -231,7 +231,7 @@ export function studentResult(reg, subjectOf, past = new Map(), { moderation = 0
     const add = marks.get(key);
     const r = subject
       ? courseResult(subject, { ...input, moderation: add })
-      : { cie: null, theory: null, practical: null, total: null, max: 0, status: "INCOMPLETE", grade: "", points: 0, note: "Subject not found." };
+      : { cie: null, theory: null, practical: null, total: null, max: 0, status: "INCOMPLETE", grade: "", points: 0, note: "Course not found." };
     return {
       subject: s.subject,
       code: s.code,

@@ -112,7 +112,7 @@ export default function Results() {
     const ok = await confirm({
       title: "Publish the results?",
       message:
-        "The results become final and the exam is marked completed. Students who did not pass get the subject as a back paper in the next exam.\n\nStudents are also promoted to the next semester or detained (KPT 9.3: semester 1 to 2 automatic; from semester 2 on, half the year's credits and CGPA 4.0).\n\nThis cannot be undone here.",
+        "The results become final and the exam is marked completed. Students who did not pass get the course as a back paper in the next exam.\n\nStudents are also promoted to the next semester or detained (KPT 9.3: semester 1 to 2 automatic; from semester 2 on, half the year's credits and CGPA 4.0).\n\nThis cannot be undone here.",
       confirmText: "Publish results",
       requireText: "PUBLISH",
     });
@@ -336,7 +336,7 @@ function Courses({ courses }) {
     <table className="w-full text-xs">
       <thead className="text-left font-semibold text-slate-500">
         <tr>
-          <th className="py-1 pr-3">Subject</th>
+          <th className="py-1 pr-3">Course</th>
           <th className="py-1 pr-3 text-right">CIE</th>
           <th className="py-1 pr-3 text-right">Theory</th>
           <th className="py-1 pr-3 text-right">Practical</th>

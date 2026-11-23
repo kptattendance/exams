@@ -24,7 +24,7 @@ const menuSections = [
         icon: "faculty",
       },
       {
-        label: "Subjects",
+        label: "Courses",
         href: "/hod/subjects",
         icon: "subjects",
       },
@@ -61,7 +61,7 @@ const menuSections = [
         icon: "facultyReport",
       },
       {
-        label: "Subject Report",
+        label: "Course Report",
         href: "/hod/reports/subjects",
         icon: "subjectReport",
       },

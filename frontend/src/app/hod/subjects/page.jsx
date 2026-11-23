@@ -107,7 +107,7 @@ const fetchSubjects = async () => {
 
     setError(
       err.response?.data?.message ||
-        "Unable to load subject details."
+        "Unable to load course details."
     );
   } finally {
     setLoading(false);
@@ -229,9 +229,9 @@ const fetchSubjects = async () => {
       (subject, index) => ({
         "Sl. No.": index + 1,
         "Sequence Number": subject.sequence || "",
-        "Subject Code":
+        "Course Code":
           subject.code || "",
-        "Subject Name":
+        "Course Name":
           subject.name || "",
         "Semester":
           subject.semester || "",
@@ -257,7 +257,7 @@ const fetchSubjects = async () => {
     XLSX.utils.book_append_sheet(
       workbook,
       worksheet,
-      "Subjects"
+      "Courses"
     );
 
     XLSX.writeFile(
@@ -293,11 +293,11 @@ const fetchSubjects = async () => {
 
             <div>
               <h1 className="text-2xl font-bold text-slate-900">
-                Subjects
+                Courses
               </h1>
 
               <p className="text-sm text-slate-500">
-                Subjects belonging to the department
+                Courses belonging to the department
               </p>
             </div>
           </div>
@@ -345,7 +345,7 @@ const fetchSubjects = async () => {
                 onChange={(e) =>
                   setSearch(e.target.value)
                 }
-                placeholder="Search code or subject name..."
+                placeholder="Search code or course name..."
                 className="w-full rounded-xl border border-amber-200 bg-amber-50 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-amber-500 focus:bg-white focus:ring-2 focus:ring-amber-100"
               />
             </div>
@@ -387,11 +387,11 @@ const fetchSubjects = async () => {
               </option>
 
               <option value="code">
-                Sort: Subject Code
+                Sort: Course Code
               </option>
 
               <option value="name">
-                Sort: Subject Name
+                Sort: Course Name
               </option>
             </select>
           </div>
@@ -412,12 +412,12 @@ const fetchSubjects = async () => {
 
           <div className="border-b border-amber-100 px-5 py-4">
             <h2 className="font-semibold text-slate-900">
-              Subject List
+              Course List
             </h2>
 
             <p className="mt-1 text-xs text-slate-500">
               Showing {filteredSubjects.length} of{" "}
-              {subjects.length} subjects
+              {subjects.length} courses
             </p>
           </div>
 
@@ -436,7 +436,7 @@ const fetchSubjects = async () => {
               />
 
               <p className="font-medium text-slate-700">
-                No subjects found
+                No courses found
               </p>
 
               <p className="mt-1 text-sm text-slate-400">
@@ -459,11 +459,11 @@ const fetchSubjects = async () => {
                       </th>
 
                       <th className="px-5 py-3">
-                        Subject Code
+                        Course Code
                       </th>
 
                       <th className="px-5 py-3">
-                        Subject Name
+                        Course Name
                       </th>
 
                       <th className="px-5 py-3">

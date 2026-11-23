@@ -103,7 +103,7 @@ export const saveElectives = async (req, res) => {
       continue;
     }
     if (subjectGroup.get(String(c.subjectId)) !== group) {
-      return fail(res, 400, `That subject is not an elective of group ${group} in semester ${semester}.`);
+      return fail(res, 400, `That course is not an elective of group ${group} in semester ${semester}.`);
     }
     ops.push({
       updateOne: {

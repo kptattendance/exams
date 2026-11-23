@@ -102,7 +102,7 @@ export default function PracticalTimetable() {
       <ExamSelect exams={exams} examId={examId} setExamId={setExamId} />
       {department && (
         <p className="mt-1 text-sm text-slate-500">
-          {evening ? "Evening college – practical exams of all the evening students, EE and ME together (a subject's batch may hold both branches)" : `Practical exams conducted by the ${dept(department)} department`}
+          {evening ? "Evening college – practical exams of all the evening students, EE and ME together (a course's batch may hold both branches)" : `Practical exams conducted by the ${dept(department)} department`}
         </p>
       )}
       {evening && (
@@ -119,7 +119,7 @@ export default function PracticalTimetable() {
           <ol className="mt-4 grid gap-2 text-sm sm:grid-cols-3">
             {[
               ["1", "Click + Add batch in a date and time.", false],
-              ["2", "Choose the subject, tick the register numbers (30 at a time), lab and examiners → Save.", false],
+              ["2", "Choose the course, tick the register numbers (30 at a time), lab and examiners → Save.", false],
               ["3", "When every student is placed, download the PDFs.", ready],
             ].map(([n, text, done]) => (
               <li key={n} className={`flex gap-2.5 rounded-xl border p-3 ${done ? "border-emerald-200 bg-emerald-50/60" : "border-slate-200 bg-white"}`}>
@@ -132,7 +132,7 @@ export default function PracticalTimetable() {
           {/* every subject: how many students are still to be placed */}
           <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="flex-1 text-sm font-semibold text-slate-900">Subjects and students left to place</p>
+              <p className="flex-1 text-sm font-semibold text-slate-900">Courses and students left to place</p>
               <a href={pdf("tt-students")} target="_blank" rel="noreferrer" className={btn.small}>
                 <Icon name="download" className="h-4 w-4" />
                 PDF for students
@@ -276,9 +276,9 @@ export default function PracticalTimetable() {
           </div>
 
           <p className="mt-3 text-xs text-slate-500">
-            Need the subject-wise list or your students in other boards&apos; exams?{" "}
+            Need the course-wise list or your students in other boards&apos; exams?{" "}
             <a href={`${base}/practical/subjects`} className="font-semibold text-blue-700 underline">
-              Open the subject-wise view
+              Open the course-wise view
             </a>
           </p>
         </>
@@ -369,7 +369,7 @@ function BatchEditor({ examId, subjects, start, onClose, onSaved }) {
         setPanel(mine?.panel ? String(mine.panel) : ownSets.length === 1 ? String(ownSets[0]._id) : "");
       })
       .catch((e) => {
-        toast.error(errMsg(e, "Could not load the subject."));
+        toast.error(errMsg(e, "Could not load the course."));
         closeRef.current();
       });
     return () => {
@@ -471,9 +471,9 @@ function BatchEditor({ examId, subjects, start, onClose, onSaved }) {
     >
       {/* subject */}
       <label className="block">
-        <span className="text-sm font-medium text-slate-700">Subject</span>
+        <span className="text-sm font-medium text-slate-700">Course</span>
         <select value={code} disabled={Boolean(start.number)} onChange={(e) => setCode(e.target.value)} className={`${field} mt-1`}>
-          <option value="">Choose the subject</option>
+          <option value="">Choose the course</option>
           {subjects.map((s) => (
             <option key={s.code} value={s.code}>
               {s.code} – {s.name} (Sem {s.semester ?? "–"}) · {Math.max(s.candidates - s.assigned, 0)} left

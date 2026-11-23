@@ -244,7 +244,7 @@ export default function FinalIAPage() {
         return;
       }
       if (max > 0 && n > max) {
-        toast.error(`${subject?.code || "This subject"}: IA marks cannot be more than ${max}.`, 3500);
+        toast.error(`${subject?.code || "This course"}: IA marks cannot be more than ${max}.`, 3500);
         return;
       }
     }
@@ -330,7 +330,7 @@ export default function FinalIAPage() {
       if (
         subjects.length === 0
       ) {
-        return "No subjects found.";
+        return "No courses found.";
       }
 
       if (
@@ -647,7 +647,7 @@ export default function FinalIAPage() {
         subjects.length === 0
       ) {
         setError(
-          "Load students and subjects before downloading the Excel template."
+          "Load students and courses before downloading the Excel template."
         );
         return;
       }
@@ -791,7 +791,7 @@ export default function FinalIAPage() {
         subjects.length === 0
       ) {
         setError(
-          "Load students and subjects before uploading Excel."
+          "Load students and courses before uploading Excel."
         );
 
         event.target.value = "";
@@ -903,7 +903,7 @@ export default function FinalIAPage() {
           missingSubjects.length > 0
         ) {
           throw new Error(
-            `These subject columns are missing: ${missingSubjects
+            `These course columns are missing: ${missingSubjects
               .map(
                 (subject) =>
                   subject.code
@@ -1468,7 +1468,7 @@ export default function FinalIAPage() {
             >
               {loading
                 ? "Loading..."
-                : "Load Students & Subjects"}
+                : "Load Students & Courses"}
             </button>
 
           </div>
@@ -1515,7 +1515,7 @@ export default function FinalIAPage() {
 
                 <div className="rounded-lg bg-gray-50 px-3 py-1.5">
                   <span className="text-[11px] text-gray-500">
-                    Subjects
+                    Courses
                   </span>
 
                   <span className="ml-1.5 text-sm font-bold text-gray-800">

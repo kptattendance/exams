@@ -20,8 +20,8 @@ const dashboardItems = [
   },
   {
     key: "subjects",
-    title: "Subjects",
-    description: "Manage subjects, departments, semesters and credits.",
+    title: "Courses",
+    description: "Manage courses, departments, semesters and credits.",
     href: "/admin/subjects",
     icon: "📚",
   },
@@ -35,7 +35,7 @@ const dashboardItems = [
   {
     key: "attendance",
     title: "Attendance",
-    description: "Monitor monthly attendance across subjects.",
+    description: "Monitor monthly attendance across courses.",
     href: "/admin/attendance",
     icon: "📅",
   },
@@ -134,7 +134,7 @@ export default function AdminDashboard() {
             </h1>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              Manage faculty, subjects, students, attendance
+              Manage faculty, courses, students, attendance
               and internal assessment from one place.
             </p>
           </div>

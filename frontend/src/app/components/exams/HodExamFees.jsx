@@ -19,7 +19,7 @@ const day = (iso) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("en-I
 const today = () => new Date().toISOString().slice(0, 10);
 const TYPE = { regular: "Regular", "lateral-puc": "Lateral (PUC)", "lateral-iti": "Lateral (ITI)", "lateral-iti-cross": "Lateral (ITI cross)", "branch-change": "Branch change" };
 // "Sem 3 (4 subjects): 300 + 50 + 100 late = 450"
-const examLine = (e) => `${e.label} (${e.count} subject${e.count === 1 ? "" : "s"}): ${e.fee}${e.marksCard ? ` + ${e.marksCard}` : ""}${e.late ? ` + ${e.late} late` : ""} = ${e.total}`;
+const examLine = (e) => `${e.label} (${e.count} course${e.count === 1 ? "" : "s"}): ${e.fee}${e.marksCard ? ` + ${e.marksCard}` : ""}${e.late ? ` + ${e.late} late` : ""} = ${e.total}`;
 
 export default function HodExamFees() {
   const api = useApi();
@@ -71,7 +71,7 @@ export default function HodExamFees() {
   return (
     <div className="mx-auto max-w-6xl p-3 md:p-5">
       <h1 className="text-xl font-bold text-gray-800 md:text-2xl">Exam fee list</h1>
-      <p className="text-sm text-gray-500">Each student&apos;s subjects for the exam and the fee to pay – download the PDF and share it with the students.</p>
+      <p className="text-sm text-gray-500">Each student&apos;s courses for the exam and the fee to pay – download the PDF and share it with the students.</p>
 
       <div className="mt-4 flex flex-wrap items-end gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
         <label className="block">
@@ -108,7 +108,7 @@ export default function HodExamFees() {
 
       {rules && (
         <p className="mt-3 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-900">
-          For each semester exam: 1–2 subjects <b>{rs(rules.upTo2)}</b>, 3+ / full semester <b>{rs(rules.threePlus)}</b>, + marks card <b>{rs(rules.marksCard)}</b>
+          For each semester exam: 1–2 courses <b>{rs(rules.upTo2)}</b>, 3+ / full semester <b>{rs(rules.threePlus)}</b>, + marks card <b>{rs(rules.marksCard)}</b>
           {slabs.length > 0 && <> · late fee {slabs.map((s) => `from ${day(s.from)} ${rs(s.amount)}`).join(", ")}</>} (set by the COE) · {rows.length} students · total {rs(total)}
         </p>
       )}
@@ -125,7 +125,7 @@ export default function HodExamFees() {
               <tr>
                 <th className="px-2 py-2">#</th>
                 <th className="px-2 py-2">Student</th>
-                <th className="px-2 py-2">Subjects</th>
+                <th className="px-2 py-2">Courses</th>
                 <th className="px-2 py-2">Back papers / bridge</th>
                 <th className="px-2 py-2">Not permitted / awaited</th>
                 <th className="px-2 py-2 text-right">Fee</th>
@@ -168,7 +168,7 @@ export default function HodExamFees() {
         </div>
       )}
       <p className="mt-2 text-[11px] text-gray-500">
-        Every registered subject is counted, including back papers – the fee is collected before eligibility (ANS / NE) is announced and is not refunded. ANS / NE and &quot;Awaited&quot; are shown for information only.
+        Every registered course is counted, including back papers – the fee is collected before eligibility (ANS / NE) is announced and is not refunded. ANS / NE and &quot;Awaited&quot; are shown for information only.
       </p>
     </div>
   );

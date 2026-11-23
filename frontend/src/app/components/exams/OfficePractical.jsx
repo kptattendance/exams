@@ -36,7 +36,7 @@ const VIEWS = {
   },
   report: {
     title: "Practical marks status",
-    help: "For every subject: how many students' marks have been entered (submitted by the examiners) and how many are pending.",
+    help: "For every course: how many students' marks have been entered (submitted by the examiners) and how many are pending.",
     sheet: "status",
   },
 };
@@ -168,8 +168,8 @@ export default function OfficePractical({ view }) {
               Session: sessionLabel(r.session),
               Lab: r.lab || "",
               Batch: b.label,
-              "Subject code": b.code,
-              Subject: b.name,
+              "Course code": b.code,
+              Course: b.name,
               "Sl No": i + 1,
               "Register Number": s.registerNumber,
               Name: s.name,
@@ -207,8 +207,8 @@ export default function OfficePractical({ view }) {
     if (view === "report") {
       const rows = subjects.map((s, i) => ({
         "Sl No": i + 1,
-        "Subject code": s.code,
-        Subject: s.name,
+        "Course code": s.code,
+        Course: s.name,
         Department: dept(s.department),
         Semester: s.semester ?? "",
         Registered: s.registered,
@@ -219,7 +219,7 @@ export default function OfficePractical({ view }) {
         "Not in any batch": s.notInBatch,
         Status: STATUS[s.status]?.label || s.status,
       }));
-      XLSX.utils.book_append_sheet(wb, sheet(rows, "No practical subjects."), "Status");
+      XLSX.utils.book_append_sheet(wb, sheet(rows, "No practical courses."), "Status");
     }
     XLSX.writeFile(wb, `Practical_${V.sheet}_${fileTag}.xlsx`);
   };
@@ -281,8 +281,8 @@ export default function OfficePractical({ view }) {
                 </option>
               ))}
             </select>
-            <select value={code} onChange={(e) => setCode(e.target.value)} className={`${sel} max-w-[22rem]`} aria-label="Subject">
-              <option value="">All subjects</option>
+            <select value={code} onChange={(e) => setCode(e.target.value)} className={`${sel} max-w-[22rem]`} aria-label="Course">
+              <option value="">All courses</option>
               {codes.map(([c, n]) => (
                 <option key={c} value={c}>
                   {c} – {n}
@@ -417,7 +417,7 @@ function SheetsTable({ batches, rooms, onPdf, onMark }) {
         <tr className={T.headRow}>
           <th className={T.thNum}>Sl.</th>
           <th className={T.th}>Batch</th>
-          <th className={T.th}>Subject</th>
+          <th className={T.th}>Course</th>
           <th className={T.th}>Date / lab</th>
           <th className={`${T.th} text-right`}>Students</th>
           <th className={T.th}>Room diary</th>
@@ -488,7 +488,7 @@ function BatchTable({ batches, onPdf }) {
         <tr className={T.headRow}>
           <th className={T.thNum}>Sl.</th>
           <th className={T.th}>Batch</th>
-          <th className={T.th}>Subject</th>
+          <th className={T.th}>Course</th>
           <th className={T.th}>Date / lab</th>
           <th className={`${T.th} text-right`}>Students</th>
           <th className={T.th}>Status</th>
@@ -530,15 +530,21 @@ function BatchTable({ batches, onPdf }) {
 }
 
 function StatusTable({ subjects }) {
-  if (!subjects.length) return <Empty>No practical subjects for this selection.</Empty>;
+  if (!subjects.length) return <Empty>No practical courses for this selection.</Empty>;
   const sum = (k) => subjects.reduce((n, s) => n + (s[k] || 0), 0);
+  // department by department, then semester and course code
+  const ordered = [...subjects].sort(
+    (a, b) => String(a.department).localeCompare(String(b.department)) || (a.semester || 0) - (b.semester || 0) || String(a.code).localeCompare(String(b.code))
+  );
   return (
     <table className={T.table}>
       <thead>
         <tr className={T.headRow}>
           <th className={T.thNum}>Sl.</th>
-          <th className={T.th}>Subject</th>
           <th className={T.th}>Department</th>
+          <th className={T.th}>Sem</th>
+          <th className={T.th}>Course code</th>
+          <th className={T.th}>Course name</th>
           <th className={`${T.th} text-right`}>Registered</th>
           <th className={`${T.th} text-right`}>Batches (done)</th>
           <th className={`${T.th} text-right`}>Entered</th>
@@ -547,16 +553,15 @@ function StatusTable({ subjects }) {
         </tr>
       </thead>
       <tbody className={T.body}>
-        {subjects.map((s, i) => (
-          <tr key={s.code} className={T.row}>
+        {ordered.map((s, i) => (
+          <tr key={s.code} className={`${T.row} ${tintRow(s.department, i)}`}>
             <td className={T.tdNum}>{i + 1}</td>
-            <td className={T.td}>
-              <b>{s.code}</b> {s.name}
+            <td className={`${T.td} whitespace-nowrap`} title={dept(s.department)}>
+              <span className={`rounded-md px-1.5 py-0.5 text-xs font-bold ${deptTint(s.department).chip}`}>{String(s.department || "").toUpperCase()}</span>
             </td>
-            <td className={`${T.td} text-xs`}>
-              {dept(s.department)}
-              {s.semester ? ` · Sem ${s.semester}` : ""}
-            </td>
+            <td className={`${T.td} text-xs font-semibold`}>{s.semester || "–"}</td>
+            <td className={`${T.td} whitespace-nowrap font-semibold`}>{s.code}</td>
+            <td className={T.td}>{s.name}</td>
             <td className={`${T.td} text-right tabular-nums`}>{s.registered}</td>
             <td className={`${T.td} text-right tabular-nums`}>
               {s.batches} ({s.submittedBatches})
@@ -569,7 +574,7 @@ function StatusTable({ subjects }) {
           </tr>
         ))}
         <tr className="bg-slate-50 font-semibold">
-          <td className={T.td} colSpan={3}>
+          <td className={T.td} colSpan={5}>
             Total
           </td>
           <td className={`${T.td} text-right tabular-nums`}>{sum("registered")}</td>

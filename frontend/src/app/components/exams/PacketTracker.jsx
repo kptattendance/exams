@@ -147,7 +147,7 @@ export default function PacketTracker({ backHref, canLookup = false }) {
                 </button>
               );
             })}
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Packet, subject, room or date" className={`${T.field} ml-auto w-60`} />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Packet, course, room or date" className={`${T.field} ml-auto w-60`} />
           </div>
 
           <div className="mt-3 overflow-x-auto rounded-2xl border border-slate-200 bg-white">

@@ -145,7 +145,7 @@ export default function OldResultImport() {
           )}
 
           {errors.length > 0 && (
-            <Problems title={`Errors – fix these in the Excel (or add the subject) and upload again. Nothing can be imported until then.`} list={errors} tone="red" />
+            <Problems title={`Errors – fix these in the Excel (or add the course) and upload again. Nothing can be imported until then.`} list={errors} tone="red" />
           )}
           {warnings.length > 0 && <Problems title="Warnings – will be imported, but please check" list={warnings} tone="yellow" />}
           {preview.moreProblems > 0 && <p className="mt-1 text-xs text-slate-500">…and {preview.moreProblems} more not shown.</p>}

@@ -141,7 +141,7 @@ const validateSubjectCategory = (
     return {
       valid: false,
       message:
-        "Elective subject must have an electiveGroup.",
+        "Elective course must have an electiveGroup.",
     };
   }
 
@@ -154,7 +154,7 @@ const validateSubjectCategory = (
     return {
       valid: false,
       message:
-        "electiveGroup should only be used for ELECTIVE subjects.",
+        "electiveGroup should only be used for ELECTIVE courses.",
     };
   }
 
@@ -241,19 +241,19 @@ export const createSubject = async (req, res) => {
 
     if (!normalizedCode) {
       return res.status(400).json({
-        message: "Subject code is required.",
+        message: "Course code is required.",
       });
     }
 
     if (!normalizedSubjectId) {
       return res.status(400).json({
-        message: "Subject ID is required.",
+        message: "Course ID is required.",
       });
     }
 
     if (!normalizedName) {
       return res.status(400).json({
-        message: "Subject name is required.",
+        message: "Course name is required.",
       });
     }
 
@@ -391,7 +391,7 @@ export const createSubject = async (req, res) => {
 
     const auto = await refreshAfterChange([subject], "subject added");
     return res.status(201).json({
-      message: `Subject created successfully.${refreshNote(auto)}`,
+      message: `Course created successfully.${refreshNote(auto)}`,
       subject,
     });
   } catch (error) {
@@ -403,12 +403,12 @@ export const createSubject = async (req, res) => {
   if (error.code === 11000) {
   return res.status(400).json({
     message:
-      "Duplicate subject. The same code, department, subject ID, semester and subject category already exists, or the sequence is already used.",
+      "Duplicate course. The same code, department, course ID, semester and course category already exists, or the sequence is already used.",
   });
 }
 
     return res.status(500).json({
-      message: "Failed to create subject.",
+      message: "Failed to create course.",
       error: error.message,
     });
   }
@@ -502,7 +502,7 @@ export const getSubjects = async (req, res) => {
     );
 
     return res.status(500).json({
-      message: "Failed to fetch subjects.",
+      message: "Failed to fetch courses.",
       error: error.message,
     });
   }
@@ -523,7 +523,7 @@ export const getSubjectById = async (
 
     if (!subject) {
       return res.status(404).json({
-        message: "Subject not found.",
+        message: "Course not found.",
       });
     }
 
@@ -537,7 +537,7 @@ export const getSubjectById = async (
     );
 
     return res.status(500).json({
-      message: "Failed to fetch subject.",
+      message: "Failed to fetch course.",
       error: error.message,
     });
   }
@@ -559,7 +559,7 @@ export const updateSubject = async (
 
     if (!existingSubject) {
       return res.status(404).json({
-        message: "Subject not found.",
+        message: "Course not found.",
       });
     }
 
@@ -776,7 +776,7 @@ export const updateSubject = async (
 
     const auto = await refreshAfterChange([existingSubject, subject], "subject changed");
     return res.status(200).json({
-      message: `Subject updated successfully.${refreshNote(auto)}`,
+      message: `Course updated successfully.${refreshNote(auto)}`,
       subject,
     });
   } catch (error) {
@@ -787,12 +787,12 @@ export const updateSubject = async (
 if (error.code === 11000) {
   return res.status(400).json({
     message:
-      "Duplicate subject. The same code, department, subject ID, semester and subject category already exists, or the sequence is already used.",
+      "Duplicate course. The same code, department, course ID, semester and course category already exists, or the sequence is already used.",
   });
 }
 
     return res.status(500).json({
-      message: "Failed to update subject.",
+      message: "Failed to update course.",
       error: error.message,
     });
   }
@@ -814,16 +814,16 @@ export const deleteSubject = async (
 
     if (!subject) {
       return res.status(404).json({
-        message: "Subject not found.",
+        message: "Course not found.",
       });
     }
 
     // to the Recycle bin (restorable for 30 days)
-    await binSubject(subject, { by: req.user?.email || "", reason: "Deleted on the Subjects page" });
+    await binSubject(subject, { by: req.user?.email || "", reason: "Deleted on the Courses page" });
 
     const auto = await refreshAfterChange([subject], "subject deleted");
     return res.status(200).json({
-      message: `Subject moved to the Recycle bin (restorable for 30 days).${refreshNote(auto)}`,
+      message: `Course moved to the Recycle bin (restorable for 30 days).${refreshNote(auto)}`,
     });
   } catch (error) {
     console.error(
@@ -832,7 +832,7 @@ export const deleteSubject = async (
     );
 
     return res.status(500).json({
-      message: "Failed to delete subject.",
+      message: "Failed to delete course.",
       error: error.message,
     });
   }
@@ -930,13 +930,13 @@ export const bulkUploadSubjects = async (
 
         if (!subjectId) {
           throw new Error(
-            "Subject ID is required."
+            "Course ID is required."
           );
         }
 
         if (!name) {
           throw new Error(
-            "Subject name is required."
+            "Course name is required."
           );
         }
 
@@ -1015,7 +1015,7 @@ export const bulkUploadSubjects = async (
   `${department}|${code}|${subjectId}|${semester}|${subjectCategory}`;
 if (uniqueSubjectKeys.has(subjectKey)) {
   throw new Error(
-    `Duplicate subject in file: ${department} / ${code} / ${subjectId} / Semester ${semester} / ${subjectCategory}.`
+    `Duplicate course in file: ${department} / ${code} / ${subjectId} / Semester ${semester} / ${subjectCategory}.`
   );
 }
 
@@ -1152,7 +1152,7 @@ uniqueSubjectKeys.add(subjectKey);
   if (existingSubjects.length > 0) {
   return res.status(400).json({
     message:
-      "Some subjects already exist in the database.",
+      "Some courses already exist in the database.",
     duplicates:
       existingSubjects.map(
         (subject) => ({
@@ -1211,7 +1211,7 @@ uniqueSubjectKeys.add(subjectKey);
       );
 
     return res.status(201).json({
-      message: `${insertedSubjects.length} subjects uploaded successfully.`,
+      message: `${insertedSubjects.length} courses uploaded successfully.`,
       count: insertedSubjects.length,
       subjects: insertedSubjects,
     });
@@ -1224,14 +1224,14 @@ uniqueSubjectKeys.add(subjectKey);
     if (error.code === 11000) {
       return res.status(400).json({
         message:
-          "Duplicate subject or sequence detected.",
+          "Duplicate course or sequence detected.",
         error: error.message,
       });
     }
 
     return res.status(500).json({
       message:
-        "Failed to upload subjects.",
+        "Failed to upload courses.",
       error: error.message,
     });
   }

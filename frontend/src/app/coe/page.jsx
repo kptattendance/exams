@@ -84,7 +84,7 @@ export default function COEDashboard() {
       {/* the institution */}
       <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <Stat label="Students" value={d?.students?.active} sub={d?.students ? `${d.students.total} in all (incl. not active)` : ""} href="/coe/students" loading={loading} />
-        <Stat label="Subjects" value={d?.subjects} sub="all departments" href="/coe/subjects" loading={loading} />
+        <Stat label="Courses" value={d?.subjects} sub="all departments" href="/coe/subjects" loading={loading} />
         <Stat label="Registered for the exam" value={s?.students} sub={d?.exam ? d.exam.name : "no running exam"} href="/coe/exams" loading={loading} />
         <Stat
           label="Hall tickets ready"
@@ -103,7 +103,7 @@ export default function COEDashboard() {
           <Bar
             total={s.students || 0}
             parts={[
-              ["All subjects eligible", s.ALL_CLEAR || 0, "bg-emerald-500"],
+              ["All courses eligible", s.ALL_CLEAR || 0, "bg-emerald-500"],
               ["Partly eligible", s.PARTIAL || 0, "bg-yellow-400"],
               ["Not eligible", s.BLOCKED || 0, "bg-red-500"],
               ["Not decided yet", s.PENDING || 0, "bg-slate-300"],
@@ -158,11 +158,11 @@ export default function COEDashboard() {
           ) : !d.practical ? (
             <p className="mt-3 text-sm text-slate-400">{d.exam ? "–" : "No running examination."}</p>
           ) : d.practical.subjects === 0 ? (
-            <p className="mt-3 text-sm text-slate-500">No practical subjects in this examination.</p>
+            <p className="mt-3 text-sm text-slate-500">No practical courses in this examination.</p>
           ) : (
             <>
               <p className="mt-2 text-2xl font-bold text-slate-950">
-                {d.practical.entered} <span className="text-sm font-semibold text-slate-500">of {d.practical.subjects} subjects fully entered · {d.practical.batches} batches</span>
+                {d.practical.entered} <span className="text-sm font-semibold text-slate-500">of {d.practical.subjects} courses fully entered · {d.practical.batches} batches</span>
               </p>
               <Bar
                 total={d.practical.subjects}

@@ -45,7 +45,7 @@ const fail = (res, status, error) => res.status(status).json({ error });
 const handleError = (res, err, where) => {
   if (err instanceof DocxError) return fail(res, 400, err.message);
   if (err?.code === 11000) {
-    return fail(res, 409, "This set is already assigned for this subject and session.");
+    return fail(res, 409, "This set is already assigned for this course and session.");
   }
   console.error(`[paperSetting] ${where}:`, err);
   return fail(res, 500, "Something went wrong. Please try again.");
@@ -94,7 +94,7 @@ export const createAssignment = async (req, res) => {
       sendEmail = true,
     } = req.body;
 
-    if (!isId(subjectId) || !isId(examinerId)) return fail(res, 400, "Subject and examiner are required.");
+    if (!isId(subjectId) || !isId(examinerId)) return fail(res, 400, "Course and examiner are required.");
     if (!examSession?.trim()) return fail(res, 400, "Exam session is required (e.g. NOV-2026).");
 
     const due = new Date(deadline);
@@ -106,7 +106,7 @@ export const createAssignment = async (req, res) => {
       Subject.findById(subjectId).lean(),
       User.findById(examinerId).lean(),
     ]);
-    if (!subject) return fail(res, 404, "Subject not found.");
+    if (!subject) return fail(res, 404, "Course not found.");
     if (!examiner) return fail(res, 404, "Examiner not found.");
 
     // A cancelled assignment must not block the same set from being given again

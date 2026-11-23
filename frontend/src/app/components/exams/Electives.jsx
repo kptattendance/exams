@@ -131,7 +131,7 @@ export default function Electives({ fixedDepartment = false }) {
       {overview === null && <div className="mt-6 h-48 animate-pulse rounded-2xl bg-white" />}
       {overview && overview.semesters.length === 0 && (
         <p className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center text-sm text-slate-500">
-          This department has no elective subjects. Electives are subjects with category ELECTIVE and an elective group.
+          This department has no elective courses. Electives are courses with category ELECTIVE and an elective group.
         </p>
       )}
 
@@ -163,7 +163,7 @@ export default function Electives({ fixedDepartment = false }) {
             </p>
           )}
           <p className="mt-3 text-xs text-slate-500">
-            Tick the elective each student studies. “All” gives one subject to every student – then change the few who study the other one, and Save.
+            Tick the elective each student studies. “All” gives one course to every student – then change the few who study the other one, and Save.
           </p>
 
           {/* one row per student, one column per elective subject (grouped) */}

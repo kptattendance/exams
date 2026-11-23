@@ -178,7 +178,7 @@ export const processResults = async (req, res) => {
   const moderated = computed.filter(({ result }) => result.courses.some((c) => c.moderation > 0)).length;
   const passed = computed.filter(({ result }) => result.outcome === "PASS").length;
   await log(req, "RESULTS_PROCESSED", exam._id, { students: computed.length, passed, moderation, moderated });
-  res.json({ message: `Results processed for ${computed.length} students: ${passed} passed in every subject.`, moderated });
+  res.json({ message: `Results processed for ${computed.length} students: ${passed} passed in every course.`, moderated });
 };
 
 // GET /api/exams/:id/results?department=&semester=&q=
@@ -327,7 +327,7 @@ export const saveMalpractice = async (req, res) => {
     if (decision === "PSC") {
       subjects = [...new Set((Array.isArray(req.body?.subjects) ? req.body.subjects : []).map(String))].filter((c) => codes.has(c));
       if (!subjects.length) subjects = caught.map((s) => s.code);
-      if (!subjects.length) return fail(res, 400, "Tick the subject(s) whose performance is cancelled.");
+      if (!subjects.length) return fail(res, 400, "Tick the course(s) whose performance is cancelled.");
     }
     if (decision === "PEC") {
       semesters = [...new Set((caught.length ? caught : reg.subjects).map((s) => Number(s.semester)).filter(Boolean))];

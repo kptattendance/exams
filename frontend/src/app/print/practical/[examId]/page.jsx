@@ -239,7 +239,7 @@ function TimeTable({ exam, batches, department, branch }) {
           <tr className="bg-slate-100">
             <th className={`${th} w-8`}>#</th>
             <th className={`${th} w-24`}>Date / session</th>
-            <th className={th}>Subject</th>
+            <th className={th}>Course</th>
             <th className={`${th} w-12`}>Batch</th>
             <th className={`${th} ${branch ? "w-40" : "w-24"}`}>Students</th>
             <th className={`${th} w-24`}>Lab</th>
@@ -360,7 +360,7 @@ function GridSheet({ sheet, data }) {
                 <tr className="bg-slate-100">
                   <th className={`${th} w-[21mm]`}>Date / day</th>
                   <th className={`${th} w-[19mm]`}>Time</th>
-                  <th className={`${th} ${forStudents ? "w-[48mm]" : "w-[40mm]"}`}>Subject</th>
+                  <th className={`${th} ${forStudents ? "w-[48mm]" : "w-[40mm]"}`}>Course</th>
                   <th className={`${th} w-[11mm]`}>Batch</th>
                   <th className={`${th} w-[22mm]`}>Lab</th>
                   {forStudents ? (
@@ -467,13 +467,13 @@ function MissingCheck({ check }) {
     <div className="mt-4">
       <p className="text-[12px] font-bold">Register number check</p>
       {check.length > 0 && gaps.length === 0 && (
-        <p className="mt-1 text-[11px]">All registered students of every subject are in the time table – nobody is missing.</p>
+        <p className="mt-1 text-[11px]">All registered students of every course are in the time table – nobody is missing.</p>
       )}
       {gaps.length > 0 && (
         <table className="mt-1 w-full table-fixed border-collapse">
           <thead>
             <tr className="bg-slate-100">
-              <th className={`${th} w-[38mm]`}>Subject</th>
+              <th className={`${th} w-[38mm]`}>Course</th>
               <th className={`${th} w-[20mm]`}>Registered / permitted</th>
               <th className={`${th} w-[45mm]`}>Permitted but NOT in any batch (add them)</th>
               <th className={th}>Not eligible</th>
@@ -632,7 +632,7 @@ function RoomDiary({ exam, room }) {
         <thead>
           <tr className="bg-slate-100">
             <th className={th}>Batch</th>
-            <th className={th}>Subject</th>
+            <th className={th}>Course</th>
             <th className={`${th} w-16`}>Students</th>
             <th className={th}>Internal examiner</th>
             <th className={th}>External examiner</th>
@@ -798,7 +798,7 @@ function StatusSheet({ exam, subjects, department }) {
         <thead>
           <tr className="bg-slate-100">
             <th className={`${th} w-8`}>#</th>
-            <th className={th}>Subject</th>
+            <th className={th}>Course</th>
             <th className={`${th} w-28`}>Department</th>
             <th className={`${th} w-16`}>Regd.</th>
             <th className={`${th} w-20`}>Batches (done)</th>
@@ -829,7 +829,7 @@ function StatusSheet({ exam, subjects, department }) {
           ))}
           <tr className="bg-slate-100 font-semibold">
             <td className={td} colSpan={3}>
-              Total ({subjects.length} subjects)
+              Total ({subjects.length} courses)
             </td>
             <td className={`${td} text-right`}>{sum("registered")}</td>
             <td className={`${td} text-right`}>
@@ -841,7 +841,7 @@ function StatusSheet({ exam, subjects, department }) {
           </tr>
         </tbody>
       </table>
-      {subjects.length === 0 && <p className="mt-4 text-sm text-slate-500">No practical subjects for this selection.</p>}
+      {subjects.length === 0 && <p className="mt-4 text-sm text-slate-500">No practical courses for this selection.</p>}
       <Signatures who={["Exam Section", "COE"]} />
     </div>
   );

@@ -325,7 +325,7 @@ export const getPaperDetail = async (req, res) => {
   if (!exam) return;
   const code = codeOf(req);
   const paper = await getPaper(exam, code);
-  if (!paper) return fail(res, 404, `Subject ${code} not found.`);
+  if (!paper) return fail(res, 404, `Course ${code} not found.`);
   let waiting = "";
   if (!paper.coded) {
     await syncCandidates(exam, paper); // list follows eligibility / fee until the packets are made

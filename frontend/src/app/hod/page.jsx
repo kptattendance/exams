@@ -77,7 +77,7 @@ export default function HODDashboard() {
       {/* counts */}
       <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-4">
         <Stat label="Students" hint="in your department" value={stats?.students} href="/hod/students" />
-        <Stat label="Subjects" hint="of your department" value={stats?.subjects} />
+        <Stat label="Courses" hint="of your department" value={stats?.subjects} />
       </div>
     </div>
   );

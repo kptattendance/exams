@@ -241,7 +241,7 @@ export function eligibilityFor(subject, ia, attendance, minAttendance = 75) {
     reasons.push(notReady("Attendance", attendance?.state));
   } else if (!(attendance.maxClasses > 0)) {
     pending = true;
-    reasons.push("Total classes not entered for this subject.");
+    reasons.push("Total classes not entered for this course.");
   } else if (attendance.attended === null || attendance.attended === undefined) {
     pending = true;
     reasons.push("Attendance not entered for this student.");

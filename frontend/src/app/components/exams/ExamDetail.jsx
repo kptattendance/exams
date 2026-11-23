@@ -94,7 +94,7 @@ export default function ExamDetail({ id, basePath, canManage = false, canEditSub
       const ok = await confirm({
         title: "Refresh registration?",
         message:
-          "Subjects and eligibility are worked out again from the latest IA, attendance, electives and bridge-course settings.\n\nThis normally happens by itself for the class concerned whenever something changes – use this only to update every class at once.\n\nYour changed decisions, back papers added by hand and fee entries are kept.",
+          "Courses and eligibility are worked out again from the latest IA, attendance, electives and bridge-course settings.\n\nThis normally happens by itself for the class concerned whenever something changes – use this only to update every class at once.\n\nYour changed decisions, back papers added by hand and fee entries are kept.",
         confirmText: "Refresh",
       });
       if (!ok) return;
@@ -234,7 +234,7 @@ export default function ExamDetail({ id, basePath, canManage = false, canEditSub
                 <Icon name="edit" className="h-4 w-4" />
                 <span className="sm:hidden lg:inline">Edit</span>
               </button>
-              <button onClick={() => setFeeOpen(true)} className={btn.secondary} title="Exam fee per subject, per back paper and late fees">
+              <button onClick={() => setFeeOpen(true)} className={btn.secondary} title="Exam fee per course, per back paper and late fees">
                 <Icon name="money" className="h-4 w-4" />
                 <span className="sm:hidden lg:inline">Exam fee</span>
               </button>
@@ -311,10 +311,10 @@ export default function ExamDetail({ id, basePath, canManage = false, canEditSub
           <p className="text-lg font-bold text-slate-950">Register students for this exam</p>
           <ol className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
             {[
-              "Every active student of the chosen semesters is registered for his semester’s subjects.",
+              "Every active student of the chosen semesters is registered for his semester’s courses.",
               "Lateral students get the bridge courses of their type (PUC / ITI / ITI cross) and department.",
               "Electives come from the HOD’s Electives page. Back papers come from earlier results.",
-              `Each subject is checked: attendance below ${exam.minAttendance}% → ANS, IA below minimum → NE.`,
+              `Each course is checked: attendance below ${exam.minAttendance}% → ANS, IA below minimum → NE.`,
             ].map((t, i) => (
               <li key={i} className="flex gap-3">
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-bold text-blue-700">
@@ -355,7 +355,7 @@ export default function ExamDetail({ id, basePath, canManage = false, canEditSub
 
           <div className="mt-3 grid gap-3 lg:grid-cols-2">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm">
-              <span className="font-semibold text-slate-800">Subjects</span>
+              <span className="font-semibold text-slate-800">Courses</span>
               <span>
                 <b className="tabular-nums text-emerald-700">{exam.subjectCounts.ELIGIBLE}</b> <span className="text-slate-500">eligible</span>
               </span>
@@ -730,7 +730,7 @@ function ClassModal({ cls, examId, classes, canManage, canEditSubjects, onChange
       xl
       onClose={onClose}
       title={title}
-      subtitle={`${cls.key === "backlog" ? "Students writing only back papers" : deptLabel(cls.department)} · ${cls.students} students · ${cls.ALL_CLEAR} all clear · ${cls.PARTIAL + cls.BLOCKED} not permitted in some subject · ${cls.PENDING} waiting`}
+      subtitle={`${cls.key === "backlog" ? "Students writing only back papers" : deptLabel(cls.department)} · ${cls.students} students · ${cls.ALL_CLEAR} all clear · ${cls.PARTIAL + cls.BLOCKED} not permitted in some course · ${cls.PENDING} waiting`}
       footer={
         <>
           {cls.key !== "backlog" && (
@@ -770,7 +770,7 @@ function ProgressModal({ gen }) {
           <span className="h-9 w-9 animate-spin rounded-full border-[3px] border-blue-100 border-t-blue-600" />
           <div>
             <p className="text-lg font-bold tracking-tight text-slate-950">Registering students…</p>
-            <p className="text-sm text-slate-500">Working out subjects and eligibility class by class</p>
+            <p className="text-sm text-slate-500">Working out courses and eligibility class by class</p>
           </div>
         </div>
         <div className="mb-2 mt-6 flex justify-between text-sm">
@@ -894,10 +894,10 @@ function StudentList({ examId, classes, filters, setFilters, fixedClass = false,
             ))}
           </select>
           <select value={filters.issue} onChange={(e) => setFilters((f) => ({ ...f, issue: e.target.value }))} className={sel}>
-            <option value="">Any subject</option>
+            <option value="">Any course</option>
             <option value="ANS">Has ANS</option>
             <option value="NE">Has NE</option>
-            <option value="PENDING">Has waiting subject</option>
+            <option value="PENDING">Has waiting course</option>
             <option value="BACKLOG">Has back paper</option>
             <option value="OVERRIDDEN">Decision changed by COE</option>
             <option value="WARNING">Has a warning</option>
@@ -927,7 +927,7 @@ function StudentList({ examId, classes, filters, setFilters, fixedClass = false,
               <th className={T.thNum}>Sl.</th>
               <th className={T.th}>Student</th>
               <th className={T.th}>Class</th>
-              <th className={T.th}>Subjects</th>
+              <th className={T.th}>Courses</th>
               <th className={T.th}>Eligibility</th>
               <th className="w-8" />
             </tr>
@@ -1272,7 +1272,7 @@ function AddBackPaper({ open, examId, onClose, onAdded }) {
         />
       </label>
       <label className="mt-4 block">
-        <span className="text-sm font-semibold text-slate-800">Subject codes</span>
+        <span className="text-sm font-semibold text-slate-800">Course codes</span>
         <span className="block text-xs text-slate-500">Separate with commas, e.g. 25SC11T0, 25CS11T0</span>
         <input
           value={codes}
@@ -1282,7 +1282,7 @@ function AddBackPaper({ open, examId, onClose, onAdded }) {
         />
       </label>
       <p className="mt-4 rounded-xl bg-slate-50 px-3 py-2.5 text-xs leading-5 text-slate-600">
-        The subject is marked eligible (IA carried forward). Refreshing the registration keeps it. You can remove it from the
+        The course is marked eligible (IA carried forward). Refreshing the registration keeps it. You can remove it from the
         student’s row if added by mistake.
       </p>
     </Modal>

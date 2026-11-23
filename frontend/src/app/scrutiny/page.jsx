@@ -321,7 +321,7 @@ export default function ScrutinyPage() {
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <div className="relative">
           <Icon name="search" className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Subject code or name" className={`${field} w-52 pl-8`} />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Course code or name" className={`${field} w-52 pl-8`} />
         </div>
         <select value={department} onChange={(e) => setDepartment(e.target.value)} className={field}>
           <option value="">All departments</option>
@@ -389,7 +389,7 @@ export default function ScrutinyPage() {
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/80 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                   <th className="w-12 px-4 py-3 text-right">Sl.</th>
-                  <th className="px-3 py-3">Subject</th>
+                  <th className="px-3 py-3">Course</th>
                   <th className="px-3 py-3">Dept · Sem</th>
                   <th className="px-3 py-3">Set</th>
                   <th className="px-3 py-3">Submitted</th>

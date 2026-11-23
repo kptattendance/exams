@@ -282,7 +282,7 @@ const emptyForm = {
       alert(
         error.response?.data?.message ||
           error.response?.data?.error ||
-          "Failed to load subjects."
+          "Failed to load courses."
       );
     } finally {
       setLoading(false);
@@ -591,7 +591,7 @@ const openEditModal = (subject) => {
       alert(
         error.response?.data?.message ||
           error.response?.data?.error ||
-          "Failed to save subject."
+          "Failed to save course."
       );
     } finally {
       setSaving(false);
@@ -642,7 +642,7 @@ const openEditModal = (subject) => {
       alert(
         error.response?.data?.message ||
           error.response?.data?.error ||
-          "Failed to delete subject."
+          "Failed to delete course."
       );
     }
   };
@@ -659,7 +659,7 @@ const openEditModal = (subject) => {
     );
 
     const confirmed = await confirmBox(
-      `Are you sure you want to delete ${selected.length} selected subject${
+      `Are you sure you want to delete ${selected.length} selected course${
         selected.length !== 1 ? "s" : ""
       }?`
     );
@@ -694,7 +694,7 @@ const openEditModal = (subject) => {
       alert(
         error.response?.data?.message ||
           error.response?.data?.error ||
-          "Failed to delete selected subjects."
+          "Failed to delete selected courses."
       );
     } finally {
       setDeletingSelected(false);
@@ -907,7 +907,7 @@ const openEditModal = (subject) => {
     );
 
     if (exportData.length === 0) {
-      alert("There are no subjects to download.");
+      alert("There are no courses to download.");
       return;
     }
 
@@ -962,19 +962,19 @@ const openEditModal = (subject) => {
     <div className="min-h-screen bg-amber-50/30 px-3 py-4 sm:px-5 lg:px-7">
 
       <style jsx global>{`
-        .subjects-table-drag {
+        .courses-table-drag {
           scrollbar-width: none;
           -ms-overflow-style: none;
           cursor: grab;
         }
 
-        .subjects-table-drag::-webkit-scrollbar {
+        .courses-table-drag::-webkit-scrollbar {
           display: none;
           width: 0;
           height: 0;
         }
 
-        .subjects-table-drag:active {
+        .courses-table-drag:active {
           cursor: grabbing;
         }
       `}</style>
@@ -1004,11 +1004,11 @@ const openEditModal = (subject) => {
 
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-slate-950">
-                Subjects
+                Courses
               </h1>
 
               <p className="mt-0.5 text-sm text-slate-500">
-                Manage syllabus subjects, marks,
+                Manage syllabus courses, marks,
                 credits and sequence
               </p>
             </div>
@@ -1048,7 +1048,7 @@ const openEditModal = (subject) => {
               +
             </span>
 
-            Add Subject
+            Add Course
           </button>
         </div>
       </div>
@@ -1107,7 +1107,7 @@ const openEditModal = (subject) => {
               onChange={(e) =>
                 setSearch(e.target.value)
               }
-              placeholder="Search subject, code, ID or sequence..."
+              placeholder="Search course, code, ID or sequence..."
               className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm outline-none transition focus:border-amber-400 focus:bg-white focus:ring-4 focus:ring-amber-50"
             />
           </div>
@@ -1239,7 +1239,7 @@ const openEditModal = (subject) => {
             <span className="font-semibold text-slate-700">
               {subjects.length}
             </span>{" "}
-            subjects
+            courses
           </p>
 
           {selectedSubjects.length > 0 && (
@@ -1329,12 +1329,12 @@ const openEditModal = (subject) => {
             </div>
 
             <h3 className="mt-3 text-sm font-bold text-slate-900">
-              No subjects found
+              No courses found
             </h3>
 
             <p className="mt-1 text-xs text-slate-400">
               Try changing the filters or add a new
-              subject.
+              course.
             </p>
 
             {hasActiveFilters && (
@@ -1394,7 +1394,7 @@ const openEditModal = (subject) => {
                   {/* SUBJECT ID */}
 
                   <th className="px-3 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-amber-700">
-                    Subject ID
+                    Course ID
                   </th>
 
                   {/* CODE */}
@@ -1406,7 +1406,7 @@ const openEditModal = (subject) => {
                   {/* NAME */}
 
                   <th className="min-w-[320px] px-3 py-3 text-left text-[10px] font-bold uppercase tracking-wide text-amber-700">
-                    Subject Name
+                    Course Name
                   </th>
 
                   {/* SEM */}
@@ -1841,12 +1841,12 @@ const openEditModal = (subject) => {
               <div>
                 <h2 className="text-lg font-bold text-slate-950">
                   {editingSubject
-                    ? "Edit Subject"
-                    : "Add Subject"}
+                    ? "Edit Course"
+                    : "Add Course"}
                 </h2>
 
                 <p className="mt-0.5 text-xs text-slate-500">
-                  Enter complete syllabus subject
+                  Enter complete syllabus course
                   details.
                 </p>
               </div>
@@ -1881,7 +1881,7 @@ const openEditModal = (subject) => {
 
                   <div>
                     <label className="mb-1.5 block text-xs font-semibold text-slate-600">
-                      Subject ID
+                      Course ID
                     </label>
 
                     <input
@@ -1897,7 +1897,7 @@ const openEditModal = (subject) => {
 
                   <div>
                     <label className="mb-1.5 block text-xs font-semibold text-slate-600">
-                      Subject Code
+                      Course Code
                     </label>
 
                     <input
@@ -1943,7 +1943,7 @@ const openEditModal = (subject) => {
 
                   <div className="sm:col-span-2 lg:col-span-4">
                     <label className="mb-1.5 block text-xs font-semibold text-slate-600">
-                      Subject Name
+                      Course Name
                     </label>
 
                     <input
@@ -2024,7 +2024,7 @@ const openEditModal = (subject) => {
 
 <div>
   <label className="mb-1.5 block text-xs font-semibold text-slate-600">
-    Subject Category
+    Course Category
   </label>
 
   <select
@@ -2052,7 +2052,7 @@ const openEditModal = (subject) => {
   </select>
 
   <p className="mt-1 text-[10px] text-slate-400">
-    Regular for normal subjects, Elective when students choose one of two (e.g. 340PA / 340PB), Bridge for bridge courses, Audit course when there is only an internal test (not on the hall ticket, no exam fee; the student must pass the internal test).
+    Regular for normal courses, Elective when students choose one of two (e.g. 340PA / 340PB), Bridge for bridge courses, Audit course when there is only an internal test (not on the hall ticket, no exam fee; the student must pass the internal test).
   </p>
 
   {form.subjectCategory === "ELECTIVE" && (
@@ -2079,7 +2079,7 @@ const openEditModal = (subject) => {
 
                   <div>
                     <label className="mb-1.5 block text-xs font-semibold text-slate-600">
-                      Subject Type
+                      Course Type
                     </label>
 
                     <select
@@ -2391,7 +2391,7 @@ const openEditModal = (subject) => {
                     ? "Saving..."
                     : editingSubject
                     ? "Save Changes"
-                    : "Add Subject"}
+                    : "Add Course"}
                 </button>
               </div>
             </form>
@@ -2432,7 +2432,7 @@ const openEditModal = (subject) => {
                   </div>
 
                   <p className="mt-1 text-xs text-slate-500">
-                    Complete subject details
+                    Complete course details
                   </p>
                 </div>
 
@@ -2467,14 +2467,14 @@ const openEditModal = (subject) => {
                     />
 
                     <DetailBox
-                      label="Subject ID"
+                      label="Course ID"
                       value={
                         viewingSubject.subjectId
                       }
                     />
 
                     <DetailBox
-                      label="Subject Code"
+                      label="Course Code"
                       value={
                         viewingSubject.code
                       }
@@ -2495,7 +2495,7 @@ const openEditModal = (subject) => {
                     />
 
                     <DetailBox
-                      label="Subject Type"
+                      label="Course Type"
                       value={
                         viewingSubject.subjectType
                       }
@@ -2582,7 +2582,7 @@ const openEditModal = (subject) => {
                       </p>
 
                       <p className="mt-1 text-xs text-yellow-700/70">
-                        Subject credit value
+                        Course credit value
                       </p>
                     </div>
 
@@ -2630,11 +2630,11 @@ const openEditModal = (subject) => {
 
               <div>
                 <h2 className="text-lg font-bold text-slate-950">
-                  Bulk Upload Subjects
+                  Bulk Upload Courses
                 </h2>
 
                 <p className="mt-0.5 text-xs text-slate-500">
-                  Import complete syllabus subject
+                  Import complete syllabus course
                   details using CSV.
                 </p>
               </div>
@@ -2667,7 +2667,7 @@ const openEditModal = (subject) => {
   </p>
 
   <p className="mt-2 text-[11px] font-semibold text-amber-700">
-    Subject Category must be either REGULAR or BRIDGE.
+    Course Category must be either REGULAR or BRIDGE.
   </p>
 
   <p className="mt-2 text-[11px] text-amber-600">
@@ -2746,7 +2746,7 @@ const openEditModal = (subject) => {
                   </p>
 
                   <p className="mt-0.5 text-xs text-slate-400">
-                    Download the complete subject
+                    Download the complete course
                     template.
                   </p>
                 </div>
@@ -2890,7 +2890,7 @@ const openEditModal = (subject) => {
                         Uploading...
                       </>
                     ) : (
-                      "Upload Subjects"
+                      "Upload Courses"
                     )}
                   </button>
                 )}

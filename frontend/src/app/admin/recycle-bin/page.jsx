@@ -15,11 +15,11 @@ import { T } from "../../components/ui/table";
 const KINDS = [
   ["", "Everything"],
   ["STUDENT", "Students"],
-  ["SUBJECT", "Subjects"],
+  ["SUBJECT", "Courses"],
   ["IA_SHEET", "IA sheets"],
   ["ATTENDANCE_SHEET", "Attendance sheets"],
 ];
-const KIND_LABEL = { STUDENT: "Student", SUBJECT: "Subject", IA_SHEET: "IA sheet", ATTENDANCE_SHEET: "Attendance sheet" };
+const KIND_LABEL = { STUDENT: "Student", SUBJECT: "Course", IA_SHEET: "IA sheet", ATTENDANCE_SHEET: "Attendance sheet" };
 const KIND_CHIP = {
   STUDENT: "bg-blue-50 text-blue-700",
   SUBJECT: "bg-violet-50 text-violet-700",
@@ -35,7 +35,7 @@ function what(e) {
     return [r.registrations && `${r.registrations} exam registration${r.registrations > 1 ? "s" : ""}`, r.results && `${r.results} old results`, r.electives && "elective choice", r.sheetRows && `${r.sheetRows} IA / attendance rows`]
       .filter(Boolean)
       .join(", ") || "student record";
-  if (e.kind === "SUBJECT") return "subject";
+  if (e.kind === "SUBJECT") return "course";
   return `${r.students || 0} students${r.status ? ` · was ${r.status === "confirmed" ? "frozen" : r.status}` : ""}`;
 }
 
@@ -109,7 +109,7 @@ export default function RecycleBinPage() {
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-7">
       <h2 className="text-2xl font-bold tracking-tight text-slate-950">Recycle bin</h2>
       <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">
-        Deleted students (with all their records), subjects and IA / attendance sheets stay here for <b>30 days</b>. Restore puts them back exactly as they were. After 30
+        Deleted students (with all their records), courses and IA / attendance sheets stay here for <b>30 days</b>. Restore puts them back exactly as they were. After 30
         days they are deleted for good by themselves.
       </p>
 

@@ -63,7 +63,7 @@ const menuItems = [
     ),
   },
   {
-    name: "Subjects",
+    name: "Courses",
     href: "/admin/subjects",
     icon: (
       <svg

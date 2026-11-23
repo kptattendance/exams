@@ -114,7 +114,7 @@ export default function PracticalMarkStatus() {
                 <thead className="bg-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
                   <tr>
                     <th className="px-3 py-2.5">Sl. No</th>
-                    <th className="px-3 py-2.5">Subject / batch</th>
+                    <th className="px-3 py-2.5">Course / batch</th>
                     <th className="px-3 py-2.5">Date / time</th>
                     <th className="px-3 py-2.5">Lab</th>
                     <th className="px-3 py-2.5 text-right">Students</th>

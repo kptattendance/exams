@@ -236,7 +236,7 @@ export default function HallTickets({ timetableHref }) {
                     <th className={T.th}>Register no.</th>
                     <th className={T.th}>Name</th>
                     <th className={T.th}>Class</th>
-                    <th className={T.th}>Subjects</th>
+                    <th className={T.th}>Courses</th>
                     <th className={T.th}>Status</th>
                     <th className={T.th}>Printed</th>
                     <th className={`${T.th} text-right`}>Hall ticket</th>

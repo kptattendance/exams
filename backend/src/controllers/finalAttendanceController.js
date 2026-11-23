@@ -430,7 +430,7 @@ export const saveAttendance = async (
       return res.status(400).json({
         success: false,
         message:
-          "Subjects must be an array.",
+          "Courses must be an array.",
       });
     }
 
@@ -551,7 +551,7 @@ export const saveAttendance = async (
       return res.status(400).json({
         success: false,
         message:
-          "One or more subjects are invalid for this HOD department or semester.",
+          "One or more courses are invalid for this HOD department or semester.",
       });
     }
 
@@ -580,7 +580,7 @@ export const saveAttendance = async (
         return res.status(400).json({
           success: false,
           message:
-            "Invalid subject found.",
+            "Invalid course found.",
         });
       }
 

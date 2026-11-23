@@ -74,7 +74,7 @@ export const MENUS = {
       {
         title: "Academics",
         items: [
-          { label: "Subjects", href: "/admin/subjects", icon: "subjects", pinned: true },
+          { label: "Courses", href: "/admin/subjects", icon: "subjects", pinned: true },
           { label: "Bridge courses", href: "/admin/bridge-courses", icon: "bridge" },
           { label: "Practical marks corrections", href: "/admin/practical-marks", icon: "marks" },
           { label: "Final IA sheets", href: "/admin/final-ia", icon: "marks" },
@@ -108,7 +108,7 @@ export const MENUS = {
           { label: "Students", href: "/coe/students", icon: "students", pinned: true },
           { label: "Import 1st-year students", href: "/coe/students/import", icon: "userPlus" },
           { label: "Staff / Faculty", href: "/coe/faculty", icon: "faculty" },
-          { label: "Subjects", href: "/coe/subjects", icon: "subjects" },
+          { label: "Courses", href: "/coe/subjects", icon: "subjects" },
         ],
       },
       {
@@ -198,7 +198,7 @@ export const MENUS = {
         title: "Reports",
         items: [
           { label: "Faculty report", href: "/hod/reports/faculty", icon: "report", soon: true },
-          { label: "Subject report", href: "/hod/reports/subjects", icon: "report", soon: true },
+          { label: "Course report", href: "/hod/reports/subjects", icon: "report", soon: true },
           { label: "Student report", href: "/hod/reports/students", icon: "report", soon: true },
           { label: "IA marks Excel", href: "/hod/reports/ia-marks", icon: "chart", soon: true },
           { label: "Attendance Excel", href: "/hod/reports/attendance", icon: "chart", soon: true },

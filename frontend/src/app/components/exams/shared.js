@@ -69,9 +69,9 @@ export const DECISION = {
 
 // Whole student
 export const OVERALL = {
-  ALL_CLEAR: { label: "All subjects allowed", short: "All clear", dot: "bg-emerald-500", text: "text-emerald-700" },
-  PARTIAL: { label: "Some subjects not permitted", short: "Partly blocked", dot: "bg-orange-500", text: "text-orange-700" },
-  BLOCKED: { label: "No subject permitted", short: "Blocked", dot: "bg-red-500", text: "text-red-700" },
+  ALL_CLEAR: { label: "All courses allowed", short: "All clear", dot: "bg-emerald-500", text: "text-emerald-700" },
+  PARTIAL: { label: "Some courses not permitted", short: "Partly blocked", dot: "bg-orange-500", text: "text-orange-700" },
+  BLOCKED: { label: "No course permitted", short: "Blocked", dot: "bg-red-500", text: "text-red-700" },
   PENDING: { label: "Waiting for IA / attendance / elective", short: "Waiting", dot: "bg-slate-400", text: "text-slate-600" },
 };
 

@@ -132,7 +132,7 @@ function Intimation({ exam, d }) {
             <th className={th}>Class</th>
             <th className={`${th} w-24`}>Date</th>
             <th className={`${th} w-28`}>Time</th>
-            <th className={th}>Subject</th>
+            <th className={th}>Course</th>
           </tr>
         </thead>
         <tbody>
@@ -175,7 +175,7 @@ function Conducting({ d, p, internal }) {
       <Head date={d.to} />
       <p className="mt-6 text-center text-[15px] font-bold tracking-wide text-[#1f4e79] underline underline-offset-4">PRACTICAL SETTING / CONDUCTING CERTIFICATE</p>
       <p className="mt-5 text-justify indent-12 text-[13px] leading-[1.9]">
-        Certified that <b>{who}</b>, has attended to set the Question Papers and conducted the Practical examinations in the following subjects at {CENTRE}{" "}
+        Certified that <b>{who}</b>, has attended to set the Question Papers and conducted the Practical examinations in the following courses at {CENTRE}{" "}
         from <Edit className="font-bold">{dmy(d.from)}</Edit> to <Edit className="font-bold">{dmy(d.to)}</Edit>.
       </p>
       <table className="mt-5 w-full border-collapse text-[12px]">
@@ -183,7 +183,7 @@ function Conducting({ d, p, internal }) {
           <tr>
             <th rowSpan={2} className={`${th} w-10`}>Sl. No.</th>
             <th rowSpan={2} className={`${th} w-24`}>Code No.</th>
-            <th rowSpan={2} className={th}>Name of the Subject</th>
+            <th rowSpan={2} className={th}>Name of the Course</th>
             <th rowSpan={2} className={`${th} w-20`}>Date</th>
             <th colSpan={4} className={th}>Practical set and conducted</th>
           </tr>
@@ -306,7 +306,7 @@ function Statement({ exam, d }) {
             <th className={`${th} w-9`}>Sl. No.</th>
             <th className={`${th} w-[22mm]`}>Code No.</th>
             <th className={`${th} w-[14mm]`}>No. of students</th>
-            <th className={th}>Name of the subject</th>
+            <th className={th}>Name of the course</th>
             <th className={`${th} w-[18mm]`}>Class</th>
             <th className={`${th} w-[18mm]`}>Date</th>
             <th className={`${th} w-[22mm]`}>Time</th>
