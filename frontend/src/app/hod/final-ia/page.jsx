@@ -1539,19 +1539,20 @@ export default function FinalIAPage() {
                   className="hidden"
                 />
 
+                <HodSheetPanel
+                  kind="ia"
+                  status={status}
+                  verified={verification?.state === "verified"}
+                  importing={excelLoading}
+                  onDownload={downloadExcelTemplate}
+                  onUpload={() => fileInputRef.current?.click()}
+                  onPdf={openPdf}
+                />
+
               </div>
 
             </div>
 
-            <HodSheetPanel
-              kind="ia"
-              status={status}
-              verified={verification?.state === "verified"}
-              importing={excelLoading}
-              onDownload={downloadExcelTemplate}
-              onUpload={() => fileInputRef.current?.click()}
-              onPdf={openPdf}
-            />
 
             <BridgeLegend subjects={subjects} />
 

@@ -1734,19 +1734,20 @@ export default function AttendancePage() {
                   className="hidden"
                 />
 
+                <HodSheetPanel
+                  kind="attendance"
+                  status={status}
+                  verified={verification?.state === "verified"}
+                  importing={excelLoading}
+                  onDownload={downloadExcelTemplate}
+                  onUpload={() => fileInputRef.current?.click()}
+                  onPdf={openPdf}
+                />
+
               </div>
 
             </div>
 
-            <HodSheetPanel
-              kind="attendance"
-              status={status}
-              verified={verification?.state === "verified"}
-              importing={excelLoading}
-              onDownload={downloadExcelTemplate}
-              onUpload={() => fileInputRef.current?.click()}
-              onPdf={openPdf}
-            />
 
 
           </div>

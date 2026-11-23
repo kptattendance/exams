@@ -162,6 +162,7 @@ function Sheet() {
             <th className={`${th} w-[23mm]`}>Course code</th>
             <th className={`${th} text-left`}>Course name</th>
             {ia && <th className={`${th} w-[18mm]`}>Max / Min</th>}
+            <th className={`${th} w-[17mm]`}>Shortage</th>
           </tr>
         </thead>
         <tbody>
@@ -178,6 +179,7 @@ function Sheet() {
                   {s.iaMax ?? "–"} / {s.iaMin ?? "–"}
                 </td>
               )}
+              <td className={`${td} text-center font-semibold tabular-nums`}>{students.filter((st) => isLow(ia, s, st.values?.[s.subjectId])).length}</td>
             </tr>
           ))}
         </tbody>

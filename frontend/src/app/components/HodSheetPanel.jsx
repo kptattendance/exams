@@ -40,19 +40,16 @@ export default function HodSheetPanel({ kind, status, verified = false, importin
   const draft = status === "draft";
 
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-2">
+    <div className="flex flex-wrap items-center justify-end gap-2">
       {/* Excel: only while the sheet can still be changed */}
       {draft && (
         <>
           <button type="button" onClick={onDownload} className={`${btn} bg-white text-green-700 ring-1 ring-green-600 hover:bg-green-50`}>
             ↓ Excel template
           </button>
-          <button type="button" onClick={onUpload} disabled={importing} className={`${btn} bg-green-600 text-white hover:bg-green-700`}>
+          <button type="button" onClick={onUpload} disabled={importing} title={ia ? "Keep rows 1–2 and register numbers as they are" : "Type 0–100. Keep row 1 and register numbers as they are"} className={`${btn} bg-green-600 text-white hover:bg-green-700`}>
             {importing ? "Importing…" : "↑ Upload filled Excel"}
           </button>
-          <span className="text-[11px] text-gray-500">
-            {ia ? "Keep rows 1–2 and register numbers as they are." : "Type 0–100. Keep row 1 and register numbers as they are."} PDFs come after Submit.
-          </span>
         </>
       )}
 
@@ -79,7 +76,6 @@ export default function HodSheetPanel({ kind, status, verified = false, importin
           >
             ⎙ After verification copy
           </button>
-          {!verified && <span className="text-[11px] text-gray-500">After copy: once the COE gives the final freeze.</span>}
         </>
       )}
     </div>
