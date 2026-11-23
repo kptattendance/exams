@@ -18,6 +18,7 @@ import mongoose from "mongoose";
 import FinalIA from "../models/FinalIA.js";
 import FinalAttendance from "../models/FinalAttendance.js";
 import Subject from "../models/Subject.js";
+import Student from "../models/Student.js";
 import AuditLog from "../models/AuditLog.js";
 import { refreshAfterChange, refreshNote } from "../services/exams/autoRefresh.js";
 import { getAcademicYear } from "../services/academicYear.js";
@@ -149,6 +150,15 @@ export const getSheet = async (req, res) => {
     };
   });
 
+  // the student's photo, for cross-checking while correcting
+  const photoOf = new Map(
+    (
+      await Student.find({ _id: { $in: (doc.students || []).map((st) => st.studentId) } })
+        .select("imageUrl")
+        .lean()
+    ).map((st) => [String(st._id), st.imageUrl || ""])
+  );
+
   let low = 0;
   const students = (doc.students || []).map((st) => {
     const vals = type === "ia" ? st.marks : st.attendance;
@@ -172,7 +182,7 @@ export const getSheet = async (req, res) => {
       const corrected = (doc.verification?.corrections || []).some((c) => String(c.studentId) === String(st.studentId) && String(c.subjectId) === String(sub.subjectId));
       return { value, pct, flag, corrected };
     });
-    return { studentId: st.studentId, registerNumber: st.registerNumber, name: st.studentName, cells };
+    return { studentId: st.studentId, registerNumber: st.registerNumber, name: st.studentName, imageUrl: photoOf.get(String(st.studentId)) || "", cells };
   });
 
   res.json({

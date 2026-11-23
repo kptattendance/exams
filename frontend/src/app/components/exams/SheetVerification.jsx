@@ -7,6 +7,7 @@
 //   4. The HOD prints the AFTER verification copy
 
 import { Fragment, useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 import Icon from "../shell/Icon";
 import Modal, { btn } from "../ui/Modal";
@@ -189,6 +190,19 @@ function SheetModal({ type, id, canEdit, onClose, onChanged }) {
   const [edits, setEdits] = useState({}); // "studentId|subjectId" -> typed value
   const [busy, setBusy] = useState(false);
   const [q, setQ] = useState("");
+  const [photo, setPhoto] = useState(null); // the student whose photo is open full page
+
+  // Esc closes the photo only, not the sheet behind it
+  useEffect(() => {
+    if (!photo) return;
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      setPhoto(null);
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [photo]);
 
   const load = useCallback(async () => {
     try {
@@ -370,8 +384,21 @@ function SheetModal({ type, id, canEdit, onClose, onChanged }) {
                 {rows.map((st, n) => (
                   <tr key={st.studentId} className={n % 2 ? "bg-slate-50/60" : "bg-white"}>
                     <td className={`sticky left-0 px-3 py-1 ${n % 2 ? "bg-slate-50" : "bg-white"}`}>
-                      <span className="block font-semibold tabular-nums text-slate-900">{st.registerNumber}</span>
-                      <span className="block max-w-[11rem] truncate text-xs text-slate-500">{st.name}</span>
+                      <div className="flex items-center gap-2.5">
+                        {st.imageUrl ? (
+                          <button type="button" onClick={() => setPhoto(st)} title="Click to see the full photo" aria-label={`Full photo of ${st.name}`} className="group shrink-0 cursor-zoom-in rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                            <img src={st.imageUrl} alt="" loading="lazy" className="pointer-events-none h-10 w-10 rounded-full border border-slate-300 object-cover group-hover:border-indigo-500" />
+                          </button>
+                        ) : (
+                          <span title="No photo" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-bold text-slate-500">
+                            {String(st.name || "S").charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                        <div className="min-w-0">
+                          <span className="block font-semibold tabular-nums text-slate-900">{st.registerNumber}</span>
+                          <span className="block max-w-[11rem] truncate text-xs text-slate-500">{st.name}</span>
+                        </div>
+                      </div>
                     </td>
                     {sheet.subjects.map((sub, i) => {
                       const c = st.cells[i];
@@ -409,6 +436,19 @@ function SheetModal({ type, id, canEdit, onClose, onChanged }) {
           </div>
         </>
       )}
+      {photo &&
+        createPortal(
+          <div className="fixed inset-0 z-[90] flex flex-col items-center justify-center bg-slate-950/95 p-4" data-photo-view role="dialog" aria-modal="true" aria-label={`Photo of ${photo.name}`} onClick={() => setPhoto(null)}>
+            <button type="button" onClick={() => setPhoto(null)} aria-label="Close photo" className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/25">
+              <Icon name="close" className="h-5 w-5" />
+            </button>
+            <img src={photo.imageUrl} alt={photo.name} className="max-h-[calc(100vh-6rem)] max-w-full rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
+            <p className="mt-3 text-center text-base font-semibold text-white">
+              {photo.registerNumber} · {photo.name}
+            </p>
+          </div>,
+          document.body
+        )}
     </Modal>
   );
 }
