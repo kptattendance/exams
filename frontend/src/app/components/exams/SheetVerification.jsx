@@ -6,7 +6,7 @@
 //   3. The COE gives the FINAL freeze: nobody can change the sheet after that
 //   4. The HOD prints the AFTER verification copy
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 
 import Icon from "../shell/Icon";
 import Modal, { btn } from "../ui/Modal";
@@ -49,20 +49,17 @@ export default function SheetVerification() {
 
   const departments = [...new Set((list || []).map((x) => x.department))].sort();
   const semesters = [...new Set((list || []).map((x) => x.semester))].sort((a, b) => a - b);
-  const shown = (list || []).filter(
-    (x) => (!dept || x.department === dept) && (!sem || String(x.semester) === sem) && (!show || (show === "done" ? x.verified : !x.verified))
-  );
+  // department by department (day college first, then evening), semester by semester
+  const shown = (list || [])
+    .filter((x) => (!dept || x.department === dept) && (!sem || String(x.semester) === sem) && (!show || (show === "done" ? x.verified : !x.verified)))
+    .sort((a, b) => a.department.localeCompare(b.department) || (a.shift === "EVENING") - (b.shift === "EVENING") || a.semester - b.semester);
+  const groupOf = (x) => `${x.department}|${x.shift}`;
   const done = (list || []).filter((x) => x.verified).length;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-7">
-      <h2 className="text-2xl font-bold tracking-tight text-slate-950">IA &amp; attendance verification</h2>
-      <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">
-        Open a frozen sheet, type the changes the verifier marked on the before-verification copy, then give the <b>final freeze</b>. After the final freeze nobody can
-        change the sheet, and the HOD gets the after-verification copy.
-      </p>
-
-      <div className="mt-5 flex flex-wrap items-center gap-2">
+    <div className="mx-auto max-w-6xl px-3 py-3 sm:px-4">
+      <h2 className="text-lg font-bold tracking-tight text-slate-950">IA &amp; attendance verification</h2>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
         <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1">
           {Object.entries(TITLE).map(([k, label]) => (
             <button
@@ -105,7 +102,7 @@ export default function SheetVerification() {
         )}
       </div>
 
-      <div className={`mt-3 ${T.wrap}`}>
+      <div className={`mt-2 ${T.wrap}`}>
         {list === null && <div className="h-40 animate-pulse" />}
         {list && shown.length === 0 && <p className="px-4 py-10 text-center text-sm text-slate-500">No frozen sheets here.</p>}
         {shown.length > 0 && (
@@ -113,7 +110,6 @@ export default function SheetVerification() {
             <thead>
               <tr className={T.headRow}>
                 <th className={T.thNum}>Sl.</th>
-                <th className={T.th}>Department</th>
                 <th className={T.th}>Sem</th>
                 <th className={T.th}>Batch</th>
                 <th className={`${T.th} text-right`}>Students</th>
@@ -125,13 +121,22 @@ export default function SheetVerification() {
             <tbody className={T.body}>
               {shown.map((s, i) => {
                 const t = deptTint(s.department);
+                const newGroup = i === 0 || groupOf(shown[i - 1]) !== groupOf(s);
                 return (
-                  <tr key={s._id} className={`${T.row} border-l-4 ${t.edge} ${i % 2 ? t.row : "bg-white"}`}>
+                  <Fragment key={s._id}>
+                  {newGroup && (
+                    <tr className={`border-l-4 ${t.edge} ${t.chip}`}>
+                      <td colSpan={7} className="px-3 py-1 text-xs font-bold">
+                        {s.department.toUpperCase()} – {deptLabel(s.department)}
+                        {s.shift === "EVENING" && " · Evening"}
+                        <span className="ml-2 font-medium opacity-75">
+                          {shown.filter((x) => groupOf(x) === groupOf(s)).length} sheet(s)
+                        </span>
+                      </td>
+                    </tr>
+                  )}
+                  <tr className={`${T.row} border-l-4 ${t.edge} ${i % 2 ? t.row : "bg-white"}`}>
                     <td className={T.tdNum}>{i + 1}</td>
-                    <td className={T.td}>
-                      <span className={`rounded-md px-1.5 py-0.5 text-xs font-bold ${t.chip}`}>{s.department.toUpperCase()}</span>
-                      {s.shift === "EVENING" && <span className="ml-2 rounded-md bg-indigo-100 px-1.5 py-0.5 text-[11px] font-semibold text-indigo-800">Evening</span>}
-                    </td>
                     <td className={`${T.td} text-xs font-semibold`}>{s.semester}</td>
                     <td className={`${T.td} text-xs text-slate-600`}>{s.batch}</td>
                     <td className={`${T.td} text-right text-xs tabular-nums`}>{s.students}</td>
@@ -152,6 +157,7 @@ export default function SheetVerification() {
                       </button>
                     </td>
                   </tr>
+                  </Fragment>
                 );
               })}
             </tbody>
@@ -196,21 +202,26 @@ function SheetModal({ type, id, canEdit, onClose, onChanged }) {
     load();
   }, [load]);
 
+  // nothing below may run before the sheet has arrived
+  if (!sheet)
+    return (
+      <Modal open full onClose={onClose} title="Loading…">
+        <div className="h-64 animate-pulse rounded-xl bg-slate-50" />
+      </Modal>
+    );
+
   const verified = sheet?.verification?.state === "verified";
   const editable = canEdit && sheet && !verified && !sheet.resultsPublished;
-  const fixOf = useMemo(() => new Map((sheet?.verification?.corrections || []).map((c) => [`${c.studentId}|${c.subjectId}`, c])), [sheet]);
+  const fixOf = new Map((sheet ? sheet.verification?.corrections || [] : []).map((c) => [`${c.studentId}|${c.subjectId}`, c]));
 
-  const changes = useMemo(() => {
-    if (!sheet) return [];
-    const out = [];
+  const changes = [];
+  if (sheet)
     for (const st of sheet.students)
       sheet.subjects.forEach((sub, i) => {
         const k = `${st.studentId}|${sub.subjectId}`;
         if (edits[k] === undefined) return;
-        if (String(edits[k]).trim() !== String(shownOf(type, st.cells[i]))) out.push({ studentId: st.studentId, subjectId: sub.subjectId, value: String(edits[k]).trim() });
+        if (String(edits[k]).trim() !== String(shownOf(type, st.cells[i]))) changes.push({ studentId: st.studentId, subjectId: sub.subjectId, value: String(edits[k]).trim() });
       });
-    return out;
-  }, [edits, sheet, type]);
 
   const save = async () => {
     setBusy(true);
@@ -334,16 +345,12 @@ function SheetModal({ type, id, canEdit, onClose, onChanged }) {
           <div className="mb-2 flex flex-wrap items-center gap-3 text-xs text-slate-600">
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Register no. or name" className={`${T.field} w-56`} />
             <span className="flex items-center gap-1.5">
-              <span className="inline-block h-3 w-5 rounded-sm border border-red-300 bg-red-100" />
-              {type === "ia" ? "Below the IA minimum" : "Below 75%"}
-            </span>
-            <span className="flex items-center gap-1.5">
               <span className="inline-block h-3 w-5 rounded-sm border border-yellow-400 bg-yellow-200" />
               Corrected
             </span>
             <span className="ml-auto font-semibold">{sheet.verification.corrections.length} saved correction{sheet.verification.corrections.length === 1 ? "" : "s"}</span>
           </div>
-          <div className="max-h-[60vh] overflow-auto rounded-xl border border-slate-200">
+          <div className="max-h-[68vh] overflow-auto rounded-xl border border-slate-200">
             <table className="w-full min-w-max text-sm">
               <thead className="sticky top-0 z-10 bg-slate-100 text-xs">
                 <tr>

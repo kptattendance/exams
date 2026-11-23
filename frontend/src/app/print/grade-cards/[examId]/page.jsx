@@ -131,7 +131,7 @@ function Card({ g, exam }) {
             <tbody>
               {[
                 ["Register No.", <b key="r" className="text-[12.5px] tracking-wide">{g.registerNumber}</b>, "Semester", g.backPapersOnly ? "Back papers" : g.semester],
-                ["Name", <b key="n">{g.name}</b>, "Batch", g.batch || "—"],
+                ["Name", <b key="n">{g.name}</b>, "Academic year", exam.academicYear || "—"],
                 ["Father’s name", g.fatherName || "—", "Admission", ADMISSION[g.admissionType] || g.admissionType || "—"],
                 ["Programme", programmeName(g.department), "Declared on", fmtDate(exam.publishedAt)],
               ].map(([k, v, k2, v2]) => (

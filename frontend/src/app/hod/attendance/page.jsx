@@ -1456,7 +1456,7 @@ export default function AttendancePage() {
   // ============================================================
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden bg-white p-3 md:p-5">
+    <div className="min-h-screen w-full overflow-x-hidden bg-white p-2 md:p-3">
 
 
 
@@ -1481,16 +1481,13 @@ export default function AttendancePage() {
           HEADER
       ====================================================== */}
 
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
 
         <div>
-          <h1 className="text-xl font-bold text-gray-800 md:text-2xl">
+          <h1 className="text-lg font-bold text-gray-800">
             Attendance Entry
           </h1>
 
-          <p className="text-xs text-gray-500 md:text-sm">
-            Enter attendance percentage (0–100) or upload the Excel template. Below 75% is shortage of attendance.
-          </p>
         </div>
 
         {returnedReason && status === "draft" && (
@@ -1526,9 +1523,9 @@ export default function AttendancePage() {
           FILTERS
       ====================================================== */}
 
-      <div className="mb-4 rounded-xl border border-amber-200 bg-white p-3 shadow-sm">
+      <div className="mb-2 rounded-xl border border-amber-200 bg-white p-2 shadow-sm">
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
 
           {/* Academic Year (fixed – set by the Admin) */}
 
@@ -1683,7 +1680,7 @@ export default function AttendancePage() {
       {students.length > 0 &&
         subjects.length > 0 && (
 
-          <div className="mb-3 rounded-xl border border-amber-200 bg-white p-3 shadow-sm">
+          <div className="mb-2 rounded-xl border border-amber-200 bg-white p-2 shadow-sm">
 
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
 
@@ -1713,31 +1710,11 @@ export default function AttendancePage() {
 
                 <div className={`rounded-lg px-3 py-1.5 ${shortageCount ? "bg-red-50" : "bg-white"}`}>
                   <span className="text-[11px] text-gray-500">
-                    Shortage (&lt;{SHORTAGE_BELOW}%)
+                    Shortage
                   </span>
 
                   <span className={`ml-1.5 text-sm font-bold ${shortageCount ? "text-red-700" : "text-gray-800"}`}>
                     {shortageCount}
-                  </span>
-                </div>
-
-                <div className="rounded-lg bg-white px-3 py-1.5">
-                  <span className="text-[11px] text-gray-500">
-                    Sem
-                  </span>
-
-                  <span className="ml-1.5 text-sm font-bold text-gray-800">
-                    {semester}
-                  </span>
-                </div>
-
-                <div className="rounded-lg bg-white px-3 py-1.5">
-                  <span className="text-[11px] text-gray-500">
-                    Batch
-                  </span>
-
-                  <span className="ml-1.5 text-sm font-bold text-gray-800">
-                    {batch}
                   </span>
                 </div>
 
@@ -1784,35 +1761,15 @@ export default function AttendancePage() {
 
           <div className="w-full overflow-hidden rounded-xl border border-amber-200 bg-white shadow-sm">
 
-            {/* TABLE HEADER */}
-
-            <div className="flex items-center justify-between border-b bg-white px-3 py-2">
-
-              <div>
-                <h2 className="text-sm font-semibold text-gray-800">
-                  Attendance
-                </h2>
-
-                <p className="hidden text-[11px] text-gray-500 sm:block">
-                  Enter attendance % for each subject. Below 75% = shortage.
-                </p>
-              </div>
-
-              <span className="text-[11px] text-gray-400">
-                Scroll inside table →
-              </span>
-
-            </div>
-
             {/* ==================================================
                 TABLE SCROLL AREA
             ================================================== */}
 
-            <div className="max-h-[65vh] w-full overflow-auto">
+            <div className="max-h-[80vh] w-full overflow-auto">
 
               <table className="w-max min-w-full border-collapse text-xs">
 
-                <thead>
+                <thead className="sticky top-0 z-50">
 
                   {/* =================================================
                       SUBJECT HEADER
@@ -1822,13 +1779,13 @@ export default function AttendancePage() {
 
                     {/* SL */}
 
-                    <th className="sticky left-0 z-40 w-[45px] min-w-[45px] border-r border-amber-500 bg-amber-600 px-2 py-3 text-center">
+                    <th className="sticky left-0 z-40 w-[45px] min-w-[45px] border-r border-amber-500 bg-amber-600 px-2 py-1 text-center">
                       Sl.
                     </th>
 
                     {/* STUDENT DETAILS */}
 
-                    <th className="sticky left-[45px] z-40 w-[150px] min-w-[150px] sm:w-[245px] sm:min-w-[245px] border-r border-amber-500 bg-amber-600 px-3 py-2 text-left">
+                    <th className="sticky left-[45px] z-40 w-[150px] min-w-[150px] sm:w-[230px] sm:min-w-[230px] border-r border-amber-500 bg-amber-600 px-3 py-1 text-left">
                       Student Details
                     </th>
 
@@ -1838,7 +1795,7 @@ export default function AttendancePage() {
                       (column) => (
                         <th
                           key={column.key}
-                          className="w-[115px] min-w-[115px] max-w-[115px] border-r border-amber-500 px-2 py-2 text-center"
+                          className="w-[115px] min-w-[115px] max-w-[115px] border-r border-amber-500 px-2 py-1 text-center"
                         >
                           {column.group ? (
                             <ElectiveHeader column={column} dark={false} />
@@ -1848,7 +1805,7 @@ export default function AttendancePage() {
                             {column.subjects[0].code}
                           </div>
 
-                          <div className="mt-1 line-clamp-2 text-[10px] font-normal leading-tight text-amber-50">
+                          <div className="line-clamp-2 text-[10px] font-normal leading-tight text-amber-50">
                             {column.subjects[0].name}
                           </div>
                           </>
@@ -1895,7 +1852,7 @@ export default function AttendancePage() {
                             STUDENT DETAILS
                         ================================================= */}
 
-                        <td className="sticky left-[45px] z-20 w-[150px] min-w-[150px] sm:w-[245px] sm:min-w-[245px] border-r border-b border-amber-200 bg-inherit px-2 py-1.5">
+                        <td className="sticky left-[45px] z-20 w-[150px] min-w-[150px] sm:w-[230px] sm:min-w-[230px] border-r border-b border-amber-200 bg-inherit px-2 py-0.5">
 
                           <div className="flex items-center gap-2">
 
@@ -1907,10 +1864,10 @@ export default function AttendancePage() {
                                   student.imageUrl
                                 }
                                 alt=""
-                                className="hidden h-9 w-9 flex-shrink-0 rounded-full border border-amber-300 object-cover sm:block"
+                                className="hidden h-7 w-7 flex-shrink-0 rounded-full border border-amber-300 object-cover sm:block"
                               />
                             ) : (
-                              <div className="hidden h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-bold text-gray-500 sm:flex">
+                              <div className="hidden h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-bold text-gray-500 sm:flex">
                                 {student.studentName
                                   ?.charAt(
                                     0
@@ -1937,11 +1894,6 @@ export default function AttendancePage() {
                               </div>
 
                               <LateralTag student={student} />
-
-                              <div className="truncate text-[10px] text-gray-400">
-                                {student.phone ||
-                                  "No phone"}
-                              </div>
 
                             </div>
 
@@ -1987,7 +1939,7 @@ export default function AttendancePage() {
                             return (
                               <td
                                 key={column.key}
-                                className={`w-[115px] min-w-[115px] border-r border-b border-amber-200 px-1.5 py-1.5 ${percentage !== null &&
+                                className={`w-[115px] min-w-[115px] border-r border-b border-amber-200 px-1 py-0.5 ${percentage !== null &&
                                     percentage < SHORTAGE_BELOW
                                     ? "bg-red-50"
                                     : ""
@@ -2014,7 +1966,7 @@ export default function AttendancePage() {
                                     status !==
                                     "draft"
                                   }
-                                  className={`no-spinner h-8 w-full rounded-md border px-1 text-center text-sm outline-none ${invalid ||
+                                  className={`no-spinner h-7 w-full rounded-md border px-1 text-center text-sm outline-none ${invalid ||
                                       (percentage !== null &&
                                         percentage < SHORTAGE_BELOW)
                                       ? "border-red-500 bg-red-100 text-red-700 font-semibold focus:border-red-500"
@@ -2026,12 +1978,6 @@ export default function AttendancePage() {
                                 {/* PERCENTAGE */}
 
                              
-{percentage !== null && percentage < SHORTAGE_BELOW && (
-  <div className="mt-1 rounded bg-red-100 px-1 py-0.5 text-center text-[10px] font-semibold text-red-700">
-    Shortage
-  </div>
-)}
-
                               </td>
                             );
                           }

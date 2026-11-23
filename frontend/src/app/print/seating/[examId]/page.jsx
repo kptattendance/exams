@@ -76,7 +76,7 @@ function Seating() {
 
   return (
     <div className="mx-auto max-w-[210mm] bg-white px-6 py-6 text-[11.5px] text-slate-900 print:max-w-none print:p-0">
-      <style>{`@page{size:A4;margin:10mm 10mm 10mm 25mm} @media print{body{background:#fff}} *{-webkit-print-color-adjust:exact;print-color-adjust:exact}`}</style>
+      <style>{`@page{size:A4;margin:10mm 15mm 10mm 25mm} @media print{body{background:#fff}} *{-webkit-print-color-adjust:exact;print-color-adjust:exact}`}</style>
       <div className="mb-5 flex items-center gap-3 rounded-xl bg-slate-100 p-3 print:hidden">
         <p className="flex-1 text-sm text-slate-600">
           Notice-board list ({seated.length} candidates) and {rooms.length} door sheet{rooms.length === 1 ? "" : "s"} (bench by bench) · use Print → Save as PDF for a PDF.

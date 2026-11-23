@@ -51,7 +51,7 @@ function pageMargins(verifier) {
   const font = "font-size: 8.5pt; color: #1e293b; font-family: sans-serif;";
   const left = verifier ? '"Signature of the verifier: ______________________"' : blank;
   return `@page {
-    size: A4 portrait; margin: 10mm 10mm 14mm 25mm;
+    size: A4 portrait; margin: 10mm 15mm 14mm 25mm;
     @top-left { content: ${blank}; } @top-center { content: ${blank}; } @top-right { content: ${blank}; }
     @bottom-left { content: ${left}; ${font} }
     @bottom-center { content: ${blank}; }
@@ -139,13 +139,7 @@ function Sheet() {
           Department: <b>{dept || "—"}</b>
         </p>
         <p className="text-right">
-          Semester: <b>{sheet.semester}</b>
-        </p>
-        <p>
-          Batch: <b>{sheet.batch}</b>
-        </p>
-        <p className="text-right">
-          Academic year: <b>{sheet.academicYear}</b>
+          Semester: <b>{sheet.semester}</b> &nbsp;·&nbsp; Academic year: <b>{sheet.academicYear}</b>
         </p>
       </div>
 
@@ -160,20 +154,6 @@ function Sheet() {
         </>
       )}
 
-      {/* colour key */}
-      <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-[9.5px] text-slate-700">
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block h-2.5 w-5 border border-red-300 bg-red-100" />
-          {ia ? "Below the IA minimum" : `Below ${SHORTAGE_BELOW}%`}
-        </span>
-        {after && (
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block h-2.5 w-5 border border-yellow-400 bg-yellow-200" />
-            Corrected after verification
-          </span>
-        )}
-      </div>
-
       {/* the courses */}
       <table className="mt-3 w-full table-fixed border-collapse text-[9.5px] break-inside-avoid">
         <thead>
@@ -182,7 +162,6 @@ function Sheet() {
             <th className={`${th} w-[23mm]`}>Course code</th>
             <th className={`${th} text-left`}>Course name</th>
             {ia && <th className={`${th} w-[18mm]`}>Max / Min</th>}
-            <th className={`${th} w-[17mm]`}>{ia ? "Below min" : "Below 75%"}</th>
           </tr>
         </thead>
         <tbody>
@@ -199,7 +178,6 @@ function Sheet() {
                   {s.iaMax ?? "–"} / {s.iaMin ?? "–"}
                 </td>
               )}
-              <td className={`${td} text-center tabular-nums`}>{students.filter((st) => isLow(ia, s, st.values?.[s.subjectId])).length}</td>
             </tr>
           ))}
         </tbody>

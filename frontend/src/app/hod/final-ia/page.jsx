@@ -1280,7 +1280,7 @@ export default function FinalIAPage() {
   // ============================================================
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden bg-gray-50 p-3 md:p-5">
+    <div className="min-h-screen w-full overflow-x-hidden bg-gray-50 p-2 md:p-3">
 
 
 <style jsx>{`
@@ -1299,16 +1299,13 @@ export default function FinalIAPage() {
           HEADER
       ====================================================== */}
 
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
 
         <div>
-          <h1 className="text-xl font-bold text-gray-800 md:text-2xl">
+          <h1 className="text-lg font-bold text-gray-800">
             Final IA Entry
           </h1>
 
-          <p className="text-xs text-gray-500 md:text-sm">
-            Enter marks directly or upload the Excel template.
-          </p>
         </div>
 
         {returnedReason && status === "draft" && (
@@ -1344,9 +1341,9 @@ export default function FinalIAPage() {
           FILTERS
       ====================================================== */}
 
-      <div className="mb-4 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+      <div className="mb-2 rounded-xl border border-gray-200 bg-white p-2 shadow-sm">
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
 
           {/* Academic Year (fixed – set by the Admin) */}
 
@@ -1498,7 +1495,7 @@ export default function FinalIAPage() {
       {students.length > 0 &&
         subjects.length > 0 && (
 
-          <div className="mb-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+          <div className="mb-2 rounded-xl border border-gray-200 bg-white p-2 shadow-sm">
 
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
 
@@ -1523,26 +1520,6 @@ export default function FinalIAPage() {
 
                   <span className="ml-1.5 text-sm font-bold text-gray-800">
                     {subjectCount}
-                  </span>
-                </div>
-
-                <div className="rounded-lg bg-gray-50 px-3 py-1.5">
-                  <span className="text-[11px] text-gray-500">
-                    Sem
-                  </span>
-
-                  <span className="ml-1.5 text-sm font-bold text-gray-800">
-                    {semester}
-                  </span>
-                </div>
-
-                <div className="rounded-lg bg-gray-50 px-3 py-1.5">
-                  <span className="text-[11px] text-gray-500">
-                    Batch
-                  </span>
-
-                  <span className="ml-1.5 text-sm font-bold text-gray-800">
-                    {batch}
                   </span>
                 </div>
 
@@ -1591,35 +1568,15 @@ export default function FinalIAPage() {
 
           <div className="w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
 
-            {/* TABLE TITLE */}
-
-            <div className="flex items-center justify-between border-b bg-white px-3 py-2">
-
-              <div>
-                <h2 className="text-sm font-semibold text-gray-800">
-                  Final IA Marks
-                </h2>
-
-                <p className="hidden text-[11px] text-gray-500 sm:block">
-                  Student details remain visible while entering marks.
-                </p>
-              </div>
-
-              <span className="text-[11px] text-gray-400">
-                Scroll inside table →
-              </span>
-
-            </div>
-
             {/* ==================================================
                 ONLY TABLE SCROLLS
             ================================================== */}
 
-            <div className="max-h-[65vh] w-full overflow-auto">
+            <div className="max-h-[80vh] w-full overflow-auto">
 
               <table className="w-max min-w-full border-collapse text-xs">
 
-                <thead>
+                <thead className="sticky top-0 z-50">
 
                   {/* =================================================
                       SUBJECT HEADER
@@ -1630,7 +1587,7 @@ export default function FinalIAPage() {
                     {/* SL */}
 
                     <th
-                      className="sticky left-0 z-40 w-[45px] min-w-[45px] border-r border-slate-600 bg-slate-800 px-2 py-3 text-center"
+                      className="sticky left-0 z-40 w-[45px] min-w-[45px] border-r border-slate-600 bg-slate-800 px-2 py-1 text-center"
                     >
                       Sl.
                     </th>
@@ -1638,7 +1595,7 @@ export default function FinalIAPage() {
                     {/* STUDENT DETAILS */}
 
                     <th
-                      className="sticky left-[45px] z-40 w-[150px] min-w-[150px] sm:w-[245px] sm:min-w-[245px] border-r border-slate-600 bg-slate-800 px-3 py-2 text-left"
+                      className="sticky left-[45px] z-40 w-[150px] min-w-[150px] sm:w-[230px] sm:min-w-[230px] border-r border-slate-600 bg-slate-800 px-3 py-1 text-left"
                     >
                       Student Details
                     </th>
@@ -1649,7 +1606,7 @@ export default function FinalIAPage() {
                       (column, i, all, subject = column.subjects[0]) => (
                         <th
                           key={column.key}
-                          className="w-[115px] min-w-[115px] max-w-[115px] border-r border-slate-600 px-2 py-2 text-center"
+                          className="w-[115px] min-w-[115px] max-w-[115px] border-r border-slate-600 px-2 py-1 text-center"
                         >
                           {column.group ? (
                             <ElectiveHeader column={column} />
@@ -1659,7 +1616,7 @@ export default function FinalIAPage() {
                             {subject.code}
                           </div>
 
-                          <div className="mt-1 line-clamp-2 text-[10px] font-normal leading-tight text-slate-300">
+                          <div className="line-clamp-2 text-[10px] font-normal leading-tight text-slate-300">
                             {subject.name}
                           </div>
 
@@ -1684,23 +1641,20 @@ export default function FinalIAPage() {
                     />
 
                     <th
-                      className="sticky left-[45px] z-30 border-r border-amber-200 bg-amber-50 px-3 py-2 text-right text-xs font-bold text-gray-700"
+                      className="sticky left-[45px] z-30 border-r border-amber-200 bg-amber-50 px-3 py-0.5 text-right text-xs font-bold text-gray-700"
                     >
-                      IA Marks
+                      IA Min – Max
                     </th>
 
                     {sheetColumns(subjects).map(({ key, subjects: [subject] }) => (
                       <th
                         key={key}
-                        className="w-[115px] min-w-[115px] border-r border-amber-200 bg-amber-50 px-1.5 py-1.5 text-center"
+                        className="w-[115px] min-w-[115px] border-r border-amber-200 bg-amber-50 px-1 py-0.5 text-center"
                       >
                         <div className="text-xs font-bold text-gray-800">
                           {subject.iaMin ?? "-"} – {subject.iaMax ?? "-"}
                         </div>
 
-                        <div className="text-[9px] font-medium text-gray-500">
-                          Min – Max
-                        </div>
                       </th>
                     ))}
 
@@ -1744,7 +1698,7 @@ export default function FinalIAPage() {
                         ================================================= */}
 
                         <td
-                          className={`sticky left-[45px] z-20 w-[150px] min-w-[150px] sm:w-[245px] sm:min-w-[245px] border-r border-b border-gray-200 bg-inherit px-2 py-1.5`}
+                          className={`sticky left-[45px] z-20 w-[150px] min-w-[150px] sm:w-[230px] sm:min-w-[230px] border-r border-b border-gray-200 bg-inherit px-2 py-0.5`}
                         >
 
                           <div className="flex items-center gap-2">
@@ -1757,10 +1711,10 @@ export default function FinalIAPage() {
                                   student.imageUrl
                                 }
                                 alt=""
-                                className="hidden h-9 w-9 flex-shrink-0 rounded-full border border-gray-300 object-cover sm:block"
+                                className="hidden h-7 w-7 flex-shrink-0 rounded-full border border-gray-300 object-cover sm:block"
                               />
                             ) : (
-                              <div className="hidden h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-bold text-gray-500 sm:flex">
+                              <div className="hidden h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-bold text-gray-500 sm:flex">
                                 {student.studentName
                                   ?.charAt(
                                     0
@@ -1787,10 +1741,6 @@ export default function FinalIAPage() {
                               </div>
 
                               <LateralTag student={student} />
-
-                              <div className="truncate text-[10px] text-gray-400">
-                                {student.phone || "No phone"}
-                              </div>
 
                             </div>
 
@@ -1841,7 +1791,7 @@ export default function FinalIAPage() {
                             return (
                               <td
                                 key={column.key}
-                                className="w-[115px] min-w-[115px] border-r border-b border-gray-200 px-1.5 py-1.5"
+                                className="w-[115px] min-w-[115px] border-r border-b border-gray-200 px-1 py-0.5"
                               >
                                 {column.group && <div className="mb-0.5 text-center text-[9px] font-semibold text-sky-800">{subject.code}</div>}
 
@@ -1864,7 +1814,7 @@ export default function FinalIAPage() {
                                     status !== "draft"
                                   }
 
-                                  className={`no-spinner h-8 w-full rounded-md border px-1 text-center text-sm outline-none ${invalid
+                                  className={`no-spinner h-7 w-full rounded-md border px-1 text-center text-sm outline-none ${invalid
                                       ? "border-red-500 bg-red-100 text-red-700 font-bold focus:border-red-600"
                                       : "border-gray-200 bg-white text-gray-800 focus:border-amber-500"
                                     } disabled:bg-gray-100`}
