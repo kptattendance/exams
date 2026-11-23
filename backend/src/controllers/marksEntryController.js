@@ -19,7 +19,7 @@ import ValuationPacket from "../models/ValuationPacket.js";
 import ValuationPaper from "../models/ValuationPaper.js";
 import AnswerScript from "../models/AnswerScript.js";
 import AuditLog from "../models/AuditLog.js";
-import { parseMark, compareEntries } from "../services/exams/valuation.js";
+import { parseEntry, compareEntries } from "../services/exams/valuation.js";
 import { autoCodeExam, autoDecode } from "./valuationController.js";
 
 // "48271507" -> "07"; the packet's own serial <-> ATS
@@ -126,7 +126,7 @@ export const submitEntry = async (req, res) => {
   const values = {};
   const errors = [];
   for (const d of expect) {
-    const r = parseMark(input[serialOf(d)], p.rawMax);
+    const r = parseEntry(input[serialOf(d)], p.rawMax); // marks up to 50, or AB
     if (!r.ok) errors.push({ dummy: serialOf(d), error: r.error });
     else values[d] = r.value;
   }
@@ -166,19 +166,23 @@ export const submitEntry = async (req, res) => {
     p.verifiedAt = new Date();
     const final = plain(p.final);
     const scripts = await AnswerScript.find({ _id: { $in: p.scripts } }).select("dummy").lean();
+    // AB on the award list: the student is absent for this paper (no mark is stored)
     await AnswerScript.bulkWrite(
       scripts.flatMap((s) => [
         { updateOne: { filter: { _id: s._id }, update: { $pull: { valuations: { round: p.round } } } } },
-        {
-          updateOne: {
-            filter: { _id: s._id },
-            update: { $push: { valuations: { round: p.round, marks: final[s.dummy], packet: p._id, at: new Date() } } },
-          },
-        },
+        final[s.dummy] === "AB"
+          ? { updateOne: { filter: { _id: s._id }, update: { $set: { attendance: "ABSENT" } } } }
+          : {
+              updateOne: {
+                filter: { _id: s._id },
+                update: { $push: { valuations: { round: p.round, marks: final[s.dummy], packet: p._id, at: new Date() } } },
+              },
+            },
       ]),
       { ordered: true }
     );
-    message = `${p.number} is complete. ${scripts.length} marks saved.`;
+    const absent = scripts.filter((s) => final[s.dummy] === "AB").length;
+    message = `${p.number} is complete. ${scripts.length - absent} marks saved${absent ? `, ${absent} absent (AB)` : ""}.`;
   }
 
   p.markModified("first");

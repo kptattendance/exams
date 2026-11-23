@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { assignSerials, fmtAts, newAtsBase, planDiaries, parseMark, compareEntries, finalMarks, reduce, shuffle } from "../src/services/exams/valuation.js";
+import { ML_MAX, parseEntry, assignSerials, fmtAts, newAtsBase, planDiaries, parseMark, compareEntries, finalMarks, reduce, shuffle } from "../src/services/exams/valuation.js";
 
 test("ATS: random 6-digit room-diary number, never one already used", () => {
   const taken = new Set();
@@ -122,4 +122,18 @@ test("one ATS holds 25 students in every room, also the 60-seat Room 114, split 
   const again = planDiaries({ rooms: [{ name: "220 (CS class room)", students: r50, seats: seatsOf(r50) }], papers: papersOf(r50), old: a, nextNumber });
   assert.deepEqual(again.map((d) => [d.base, d.number, d.serials]), a.map((d) => [d.base, d.number, d.serials]));
   assert.ok(again.every((d) => !d.isNew && !d.changed));
+});
+
+test("theory award list: at most 50, and AB in any case", () => {
+  assert.equal(ML_MAX, 50);
+  for (const t of ["ab", "AB", "aB", "Ab", " ab "]) assert.deepEqual(parseEntry(t, 50), { ok: true, value: "AB" });
+  assert.deepEqual(parseEntry("50", 50), { ok: true, value: 50 });
+  assert.deepEqual(parseEntry("0", 50), { ok: true, value: 0 });
+  assert.deepEqual(parseEntry("32.5", 50), { ok: true, value: 32.5 });
+  assert.equal(parseEntry("50.5", 50).ok, false);
+  assert.equal(parseEntry("51", 50).ok, false);
+  assert.equal(parseEntry("51", 100).ok, false, "an old maximum of 100 still stops at 50");
+  assert.equal(parseEntry("A", 50).ok, false);
+  assert.equal(parseEntry("", 50).ok, false);
+  assert.equal(parseEntry("-1", 50).ok, false);
 });

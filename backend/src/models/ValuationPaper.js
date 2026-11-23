@@ -12,9 +12,9 @@ const valuationPaperSchema = new mongoose.Schema(
     code: { type: String, required: true },
     name: { type: String, default: "" },
 
-    // Paper is set and valued out of rawMax (100) and reduced to the
-    // subject's theory maximum (e.g. 50) when decoded
-    rawMax: { type: Number, default: 100, min: 1 },
+    // Paper is valued out of rawMax (50, never more) and reduced to the
+    // subject's theory maximum when decoded, if that is different
+    rawMax: { type: Number, default: 50, min: 1 },
     seeMax: { type: Number, default: 0 },
     seeMin: { type: Number, default: 0 },
 

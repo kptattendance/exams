@@ -12,7 +12,7 @@ const paperSchema = new mongoose.Schema(
     semester: { type: Number, default: null },
     condoned: { type: Boolean, default: false }, // ANS lifted because of the duty
     raw: { type: Number, default: null }, // marks of the special exam (out of rawMax)
-    rawMax: { type: Number, default: 100 },
+    rawMax: { type: Number, default: 50 },
     marks: { type: Number, default: null }, // out of the subject's theory maximum
     enteredBy: { type: String, default: "" },
     enteredAt: { type: Date, default: null },

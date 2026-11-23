@@ -124,7 +124,7 @@ export default function ValuationBoard({ basePath, canManage = false }) {
             )}
           </span>
           <span>
-            Papers valued out of <b className="text-slate-900">100</b>, reduced to the course’s maximum
+            Papers valued out of <b className="text-slate-900">50</b>
           </span>
         </div>
       )}

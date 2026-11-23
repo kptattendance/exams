@@ -137,8 +137,11 @@ function EntryScreen({ id, onClose }) {
   if (!p) return <div className="mx-auto mt-6 h-64 max-w-3xl animate-pulse rounded-2xl bg-white" />;
 
   const rows = p.need === "RESOLVE" ? p.mismatches.map((m) => m.dummy) : p.dummies;
+  // marks up to the paper maximum (50), or AB
   const check = (v) => {
     if (v === undefined || String(v).trim() === "") return "empty";
+    if (String(v).toUpperCase() === "AB") return "";
+    if (String(v).toUpperCase() === "A") return "type AB";
     const n = Number(v);
     if (!Number.isFinite(n)) return "not a number";
     if (n < 0 || n > p.rawMax) return `0–${p.rawMax}`;
@@ -146,6 +149,18 @@ function EntryScreen({ id, onClose }) {
     return "";
   };
   const filled = rows.filter((d) => !check(values[d])).length;
+  // what may be typed: AB in any case (shown in capitals), or a mark not above the maximum
+  const typing = (d, raw) => {
+    const v = raw.replace(/\s+/g, "").toUpperCase();
+    if (v === "" || v === "A" || v === "AB") return setValues((x) => ({ ...x, [d]: v }));
+    if (!/^\d{0,2}(\.\d?)?$/.test(v)) return;
+    if (Number(v) > p.rawMax) {
+      setErrors((x) => ({ ...x, [d]: `max ${p.rawMax}` }));
+      return;
+    }
+    setValues((x) => ({ ...x, [d]: v }));
+    if (errors[d]) setErrors((x) => ({ ...x, [d]: "" }));
+  };
 
   const save = async () => {
     const errs = {};
@@ -160,7 +175,7 @@ function EntryScreen({ id, onClose }) {
     }
     setBusy(true);
     try {
-      const r = await api("post", `/marks-entry/packets/${id}`, { marks: Object.fromEntries(rows.map((d) => [d, Number(values[d])])) });
+      const r = await api("post", `/marks-entry/packets/${id}`, { marks: Object.fromEntries(rows.map((d) => [d, values[d] === "AB" ? "AB" : Number(values[d])])) });
       const st = r.data.data.status;
       if (st === "MISMATCH") {
         toast.error(r.data.message, 8000);
@@ -188,7 +203,7 @@ function EntryScreen({ id, onClose }) {
         <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${NEED[p.need].chip}`}>{NEED[p.need].label}</span>
       </div>
       <p className="mt-1 text-sm text-slate-500">
-        {p.code} {p.paperName} · {p.count} scripts · marks out of {p.rawMax}
+        {p.code} {p.paperName} · {p.count} scripts · marks out of {p.rawMax}, or AB if absent
         {p.valuer && ` · valuer ${p.valuer}`}
       </p>
 
@@ -235,12 +250,12 @@ function EntryScreen({ id, onClose }) {
                     )}
                     <input
                       ref={(el) => (refs.current[i] = el)}
-                      inputMode="decimal"
+                      inputMode="text"
+                      autoCapitalize="characters"
+                      autoComplete="off"
+                      maxLength={4}
                       value={values[d] ?? ""}
-                      onChange={(e) => {
-                        setValues((v) => ({ ...v, [d]: e.target.value }));
-                        if (errors[d]) setErrors((x) => ({ ...x, [d]: "" }));
-                      }}
+                      onChange={(e) => typing(d, e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
                           e.preventDefault();

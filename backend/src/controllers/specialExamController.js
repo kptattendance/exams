@@ -126,7 +126,7 @@ export const specialMarks = async (req, res) => {
   const paper = await ValuationPaper.findOne({ exam: doc.exam, code }).select("rawMax seeMax decoded").lean();
   if (!paper?.decoded) return fail(res, 409, `Enter the special exam marks after ${code} is decoded in valuation (otherwise decoding would overwrite them).`);
   const raw = req.body?.raw === "" || req.body?.raw == null ? null : Number(req.body.raw);
-  const rawMax = paper.rawMax || 100;
+  const rawMax = paper.rawMax || 50;
   if (raw === null || !Number.isFinite(raw) || raw < 0 || raw > rawMax) return fail(res, 400, `Marks must be from 0 to ${rawMax}.`);
   const marks = reduce(raw, rawMax, paper.seeMax);
   await ExamRegistration.updateOne(

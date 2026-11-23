@@ -33,7 +33,7 @@ import AuditLog from "../models/AuditLog.js";
 import { effectiveOf, subjectFeePaid } from "../services/exams/rules.js";
 import { buildPapers } from "../services/exams/timetable.js";
 import RoomDiary from "../models/RoomDiary.js";
-import { finalMarks, fmtAts, reduce, valuationsOf } from "../services/exams/valuation.js";
+import { ML_MAX, finalMarks, fmtAts, reduce, valuationsOf } from "../services/exams/valuation.js";
 import { printWindow } from "../services/examDay.js";
 
 const isId = (id) => mongoose.Types.ObjectId.isValid(id);
@@ -399,7 +399,7 @@ export const updatePaper = async (req, res) => {
     return fail(res, 409, "Marks are already typed for this paper. The paper maximum can no longer be changed.");
   if (req.body?.rawMax !== undefined) {
     const v = Number(req.body.rawMax);
-    if (!(v >= 1 && v <= 500)) return fail(res, 400, "Paper maximum must be between 1 and 500.");
+    if (!(v >= 1 && v <= ML_MAX)) return fail(res, 400, `Paper maximum must be between 1 and ${ML_MAX}.`);
     paper.rawMax = v;
     await ValuationPacket.updateMany({ exam: exam._id, code: paper.code }, { $set: { rawMax: v } });
   }
@@ -496,8 +496,11 @@ export const packetSlips = async (req, res) => {
         const d = diaryOf.get(p.number);
         // TRIAL DATABASE ONLY: the award list shows the sample marks, for the decoding demo
         const shown = isTrial() ? p.final || {} : {};
-        const rows = p.dummies.map((a) => ({ ats: a, mark: shown[a] ?? "" }));
-        if (d) rows.push(...(notPresent.get(String(d._id)) || []));
+        // absent / malpractice: also a script marked AB on the award list after typing
+        const away = d ? notPresent.get(String(d._id)) || [] : [];
+        const awayMark = new Map(away.map((x) => [x.ats, x.mark]));
+        const rows = p.dummies.map((a) => ({ ats: a, mark: awayMark.get(a) ?? shown[a] ?? "" }));
+        rows.push(...away.filter((x) => !p.dummies.includes(x.ats)));
         rows.sort((a, b) => String(a.ats).localeCompare(String(b.ats)));
         return {
           _id: p._id,
@@ -506,7 +509,7 @@ export const packetSlips = async (req, res) => {
           valuer: p.valuer,
           date: d?.date || "",
           session: d?.session || "",
-          present: p.dummies.length,
+          present: p.dummies.filter((a) => !awayMark.has(a)).length,
           rows: rows.map((r) => ({ serial: String(r.ats).slice(6), mark: r.mark })),
         };
       }),
@@ -565,7 +568,7 @@ export const trialDecoding = async (req, res) => {
   if (!paper?.decoded) return fail(res, 409, "The paper is not decoded yet.");
   const [packets, scripts, regs] = await Promise.all([
     ValuationPacket.find({ exam: exam._id, code, round: 1 }).select("number dummies final").lean(),
-    AnswerScript.find({ exam: exam._id, code, attendance: "PRESENT" }).select("registerNumber name dummy registration").lean(),
+    AnswerScript.find({ exam: exam._id, code, dummy: { $type: "string" } }).select("registerNumber name dummy registration attendance").lean(),
     ExamRegistration.find({ exam: exam._id, "subjects.code": code }).select("subjects.code subjects.see").lean(),
   ]);
   const scriptOf = new Map(scripts.map((s) => [s.dummy, s]));
@@ -576,7 +579,7 @@ export const trialDecoding = async (req, res) => {
       const s = scriptOf.get(ats);
       const see = s ? seeOf.get(String(s.registration)) : null;
       const awarded = p.final?.[ats] ?? null;
-      rows.push({ packet: p.number, ats: fmtAts(ats), awarded, registerNumber: s?.registerNumber || "", name: s?.name || "", decoded: see?.raw ?? null, marks: see?.marks ?? null, ok: awarded !== null && awarded === see?.raw });
+      rows.push({ packet: p.number, ats: fmtAts(ats), awarded, registerNumber: s?.registerNumber || "", name: s?.name || "", decoded: awarded === "AB" && see?.attendance === "ABSENT" ? "AB" : see?.raw ?? null, marks: see?.marks ?? null, ok: awarded === "AB" ? see?.attendance === "ABSENT" : awarded !== null && awarded === see?.raw });
     }
   res.json({ data: { rawMax: paper.rawMax, seeMax: paper.seeMax, total: rows.length, matched: rows.filter((r) => r.ok).length, rows } });
 };
@@ -600,6 +603,9 @@ export const reopenPacket = async (req, res) => {
   const reason = String(req.body?.reason || "").trim();
   if (reason.length < 3) return fail(res, 400, "Write why the packet is reopened.");
   await AnswerScript.updateMany({ _id: { $in: p.scripts } }, { $pull: { valuations: { round: p.round } } });
+  // those marked AB on this award list are in the packet again until it is retyped
+  const typedAb = [...(p.final?.entries?.() || [])].filter(([, v]) => v === "AB").map(([ats]) => ats);
+  if (typedAb.length) await AnswerScript.updateMany({ _id: { $in: p.scripts }, dummy: { $in: typedAb }, attendance: "ABSENT" }, { $set: { attendance: "PRESENT" } });
   p.status = "PENDING";
   p.first = { by: "", at: null, marks: {} };
   p.second = { by: "", at: null, marks: {} };

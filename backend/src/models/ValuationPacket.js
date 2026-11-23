@@ -10,7 +10,7 @@ const entrySchema = new mongoose.Schema(
   {
     by: { type: String, default: "" },
     at: { type: Date, default: null },
-    marks: { type: Map, of: Number, default: {} }, // dummy -> marks out of rawMax
+    marks: { type: Map, of: mongoose.Schema.Types.Mixed, default: {} }, // dummy -> marks out of rawMax, or "AB"
   },
   { _id: false }
 );
@@ -23,14 +23,14 @@ const valuationPacketSchema = new mongoose.Schema(
     number: { type: String, required: true }, // "25CS31T0-P03" or "25CS31T0-P03-V2"
     scripts: [{ type: mongoose.Schema.Types.ObjectId, ref: "AnswerScript" }],
     dummies: { type: [String], default: [] },
-    rawMax: { type: Number, default: 100 },
+    rawMax: { type: Number, default: 50 },
     valuer: { type: String, default: "" },
 
     status: { type: String, enum: ["PENDING", "FIRST_DONE", "MISMATCH", "VERIFIED"], default: "PENDING", index: true },
     first: { type: entrySchema, default: () => ({}) },
     second: { type: entrySchema, default: () => ({}) },
     mismatches: { type: [String], default: [] }, // dummies
-    final: { type: Map, of: Number, default: {} },
+    final: { type: Map, of: mongoose.Schema.Types.Mixed, default: {} },
     verifiedAt: { type: Date, default: null },
   },
   { timestamps: true }

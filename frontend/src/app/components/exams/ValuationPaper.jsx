@@ -336,9 +336,9 @@ function PaperMax({ paper, busy, onSave }) {
     <div className="flex flex-wrap items-end gap-2">
       <label className="block">
         <span className="text-sm font-semibold text-slate-900">Question paper maximum</span>
-        <input type="number" value={rawMax} onChange={(e) => setRawMax(e.target.value)} className={`${field} mt-1 w-32`} />
+        <input type="number" min="1" max="50" value={rawMax} onChange={(e) => setRawMax(e.target.value)} className={`${field} mt-1 w-32`} />
       </label>
-      <button disabled={busy || Number(rawMax) === paper.rawMax} onClick={() => onSave({ rawMax: Number(rawMax) })} className={btn.secondary}>
+      <button disabled={busy || Number(rawMax) === paper.rawMax || !(Number(rawMax) >= 1 && Number(rawMax) <= 50)} onClick={() => onSave({ rawMax: Number(rawMax) })} className={btn.secondary}>
         Save
       </button>
       <span className="text-xs text-slate-500">Marks are reduced to the course&apos;s maximum ({paper.seeMax || paper.rawMax}) when decoded.</span>

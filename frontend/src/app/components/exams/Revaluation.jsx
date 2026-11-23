@@ -146,7 +146,7 @@ export default function Revaluation() {
             )}
           </div>
           <p className="mt-2 text-[11px] leading-4 text-slate-500">
-            Marks are the paper&apos;s marks as valued (e.g. out of 100). Revaluation: within 15 % the higher marks count; more than 15 % apart, a senior examiner
+            Marks are the paper&apos;s marks as valued (out of 50). Revaluation: within 15 % the higher marks count; more than 15 % apart, a senior examiner
             evaluates a third time and the average of the two highest counts (KPT 9.8.2). A changed mark updates the result, SGPA, CGPA and grade card at once.
           </p>
         </>

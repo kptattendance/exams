@@ -40,7 +40,7 @@ const revaluationSchema = new mongoose.Schema(
     // APPLIED -> ISSUED (copy / viewing given) | NEEDS_THIRD -> DONE (revaluation)
     status: { type: String, enum: ["APPLIED", "ISSUED", "NEEDS_THIRD", "DONE"], default: "APPLIED", index: true },
 
-    rawMax: { type: Number, default: 100 },
+    rawMax: { type: Number, default: 50 },
     seeMax: { type: Number, default: 0 },
     original: { type: Number, default: null }, // raw marks before revaluation
     reval: { type: evaluationSchema, default: null },

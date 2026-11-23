@@ -101,6 +101,14 @@ export function parseMark(value, max) {
   return { ok: true, value: n };
 }
 
+// The theory award list (ML): marks out of 50 at most, or AB (typed in any case)
+export const ML_MAX = 50;
+export function parseEntry(value, max = ML_MAX) {
+  const typed = String(value ?? "").trim().toUpperCase();
+  if (typed === "AB") return { ok: true, value: "AB" };
+  return parseMark(typed, Math.min(Number(max) || ML_MAX, ML_MAX));
+}
+
 // Compare first and second entry of a packet → list of ATS numbers that differ
 export function compareEntries(first = {}, second = {}) {
   const keys = new Set([...Object.keys(first), ...Object.keys(second)]);
@@ -127,7 +135,7 @@ export function finalMarks({ v1, v2, v3 }, { rawMax = 100, percent = 15 } = {}) 
   return { status: "DONE", raw: Math.ceil((v3 + near) / 2), rule: "third", gap };
 }
 
-// Raw marks (out of 100) → subject's theory maximum (e.g. 50), rounded up
+// Raw marks (out of the paper maximum, 50) → subject's theory maximum, rounded up
 export function reduce(raw, rawMax, seeMax) {
   if (raw === null || raw === undefined) return null;
   if (!seeMax || seeMax === rawMax) return Math.ceil(raw);

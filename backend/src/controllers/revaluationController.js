@@ -89,7 +89,7 @@ async function papersOf(exam, reg) {
       semester: s.semester,
       raw: s.see?.raw ?? null,
       marks: s.see?.marks ?? null,
-      rawMax: p.rawMax || 100,
+      rawMax: p.rawMax || 50,
       seeMax: p.seeMax || 0,
       dummy: sc?.dummy || "",
       blocked,
