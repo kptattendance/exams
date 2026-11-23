@@ -371,7 +371,10 @@ function SheetModal({ type, id, canEdit, onClose, onChanged }) {
             <table className="w-full min-w-max text-sm">
               <thead className="sticky top-0 z-10 bg-slate-100 text-xs">
                 <tr>
-                  <th className="sticky left-0 z-20 bg-slate-100 px-3 py-2 text-left font-semibold text-slate-600">Student</th>
+                  <th className="sticky left-0 z-20 bg-slate-100 px-3 py-2 text-left font-semibold text-slate-600">
+                    <span className="inline-block w-8 text-right">Sl.</span>
+                    <span className="ml-2.5">Student</span>
+                  </th>
                   {sheet.subjects.map((s) => (
                     <th key={s.subjectId} className="px-2 py-2 text-center font-semibold text-slate-600" title={s.name}>
                       {s.code}
@@ -385,6 +388,8 @@ function SheetModal({ type, id, canEdit, onClose, onChanged }) {
                   <tr key={st.studentId} className={n % 2 ? "bg-slate-50/60" : "bg-white"}>
                     <td className={`sticky left-0 px-3 py-1 ${n % 2 ? "bg-slate-50" : "bg-white"}`}>
                       <div className="flex items-center gap-2.5">
+                        {/* the student's number in the whole sheet, also while searching */}
+                        <span className="w-8 shrink-0 text-right text-xs font-semibold tabular-nums text-slate-500">{sheet.students.indexOf(st) + 1}</span>
                         {st.imageUrl ? (
                           <button type="button" onClick={() => setPhoto(st)} title="Click to see the full photo" aria-label={`Full photo of ${st.name}`} className="group shrink-0 cursor-zoom-in rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-400">
                             <img src={st.imageUrl} alt="" loading="lazy" className="pointer-events-none h-10 w-10 rounded-full border border-slate-300 object-cover group-hover:border-indigo-500" />
