@@ -11,6 +11,7 @@ import Icon from "../shell/Icon";
 import { btn } from "../ui/Modal";
 import { useToast } from "../ui/Feedback";
 import { T } from "../ui/table";
+import { deptTint, tintRow } from "../ui/deptTint";
 import { errMsg, useApi } from "./shared";
 import { ExamSelect, NoExam, deptShift, fmtDay, usePracticalExams } from "./practicalShared";
 
@@ -20,23 +21,8 @@ const DOCS = [
   ["attendance", "Attendance certificate"],
 ];
 
-// every department's rows in their own light colour
-const TINTS = [
-  { row: "bg-sky-50/60", edge: "border-sky-400", text: "text-sky-900" },
-  { row: "bg-emerald-50/60", edge: "border-emerald-400", text: "text-emerald-900" },
-  { row: "bg-violet-50/60", edge: "border-violet-400", text: "text-violet-900" },
-  { row: "bg-teal-50/60", edge: "border-teal-400", text: "text-teal-900" },
-  { row: "bg-indigo-50/60", edge: "border-indigo-400", text: "text-indigo-900" },
-  { row: "bg-fuchsia-50/60", edge: "border-fuchsia-400", text: "text-fuchsia-900" },
-  { row: "bg-cyan-50/60", edge: "border-cyan-400", text: "text-cyan-900" },
-  { row: "bg-lime-50/60", edge: "border-lime-500", text: "text-lime-900" },
-  { row: "bg-rose-50/60", edge: "border-rose-400", text: "text-rose-900" },
-];
-const tintIndex = new Map();
-const tintOf = (key) => {
-  if (!tintIndex.has(key)) tintIndex.set(key, tintIndex.size % TINTS.length);
-  return TINTS[tintIndex.get(key)];
-};
+// "25 Nov" (the exam and its year are in the page heading)
+const shortDay = (iso) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : "Not set");
 
 export default function ExaminerDocuments() {
   const api = useApi();
@@ -94,15 +80,11 @@ export default function ExaminerDocuments() {
   };
 
   return (
-    <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-7">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div className="mx-auto max-w-[1500px] px-3 py-3 sm:px-4">
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
-          <h2 className="text-2xl font-bold tracking-tight text-slate-950">Examiner certificates</h2>
+          <h2 className="text-lg font-bold tracking-tight text-slate-950">Examiner certificates</h2>
           <ExamSelect exams={exams} examId={examId} setExamId={setExamId} />
-          <p className="mt-1 max-w-3xl text-sm text-slate-500">
-            For every examiner set, from the HOD&apos;s practical time table: the intimation for setting &amp; conducting, the setting / conducting
-            certificate and the attendance certificate for the internal and the external examiner. Dates can be corrected on the print page.
-          </p>
         </div>
         {examId && shown.length > 0 && (
           <div className="flex flex-wrap gap-2">
@@ -120,7 +102,7 @@ export default function ExaminerDocuments() {
 
       {examId && (
         <>
-          <div className="mt-5 flex flex-wrap items-center gap-2">
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <select value={department} onChange={(e) => setDepartment(e.target.value)} className={T.field} aria-label="Department">
               <option value="">All departments</option>
               {departments.map((d) => (
@@ -144,7 +126,7 @@ export default function ExaminerDocuments() {
               })}
           </div>
 
-          <div className={`mt-4 ${T.wrap}`}>
+          <div className={`mt-2 ${T.wrap}`}>
             {data === null && <div className="h-48 animate-pulse" />}
             {data && shown.length === 0 && (
               <p className="px-4 py-10 text-center text-sm text-slate-500">No examiner set has batches in the time table yet.</p>
@@ -159,6 +141,7 @@ export default function ExaminerDocuments() {
                     <th className={T.th}>External examiner</th>
                     <th className={T.th}>Dates</th>
                     <th className={`${T.th} text-right`}>Batches</th>
+                    <th className={`${T.th} text-right`}>Conducted</th>
                     <th className={`${T.th} text-right`}>Print</th>
                   </tr>
                 </thead>
@@ -166,13 +149,14 @@ export default function ExaminerDocuments() {
                   {shown.map((d, i) => {
                     const batches = d.rows.reduce((n, r) => n + r.batches, 0);
                     const done = d.rows.reduce((n, r) => n + r.conducted, 0);
-                    const tint = tintOf(keyOf(d.panel));
+                    const tint = deptTint(d.panel.department);
                     return (
-                      <tr key={d.panel._id} className={`${tint.row} border-l-4 ${tint.edge}`}>
+                      <tr key={d.panel._id} className={tintRow(d.panel.department, i)}>
                         <td className={T.tdNum}>{i + 1}</td>
-                        <td className={T.td}>
-                          <b className={tint.text}>{deptShift(d.panel.department, d.panel.shift)}</b>
-                          <span className="block text-xs text-slate-500">Set {d.panel.number}</span>
+                        <td className={`${T.td} whitespace-nowrap`} title={deptShift(d.panel.department, d.panel.shift)}>
+                          <span className={`rounded-md px-1.5 py-0.5 text-xs font-bold ${tint.chip}`}>{String(d.panel.department).toUpperCase()}</span>
+                          {d.panel.shift === "EVENING" && <span className="ml-1 rounded-md bg-indigo-100 px-1.5 py-0.5 text-[11px] font-semibold text-indigo-800">Evening</span>}
+                          <span className="ml-1.5 text-xs text-slate-500">Set {d.panel.number}</span>
                         </td>
                         <td className={T.td}>
                           {d.internal.name || <span className="text-slate-400">Not allotted</span>}
@@ -182,16 +166,14 @@ export default function ExaminerDocuments() {
                           {d.external.name || <span className="text-slate-400">Not allotted</span>}
                           {d.external.college && <span className="block text-xs text-slate-500">{d.external.college}</span>}
                         </td>
-                        <td className={`${T.td} whitespace-nowrap text-xs`}>
-                          {fmtDay(d.from)}
-                          {d.to !== d.from && <span className="block text-slate-500">to {fmtDay(d.to)}</span>}
+                        <td className={`${T.td} whitespace-nowrap text-xs`} title={d.to !== d.from ? `${fmtDay(d.from)} to ${fmtDay(d.to)}` : fmtDay(d.from)}>
+                          {shortDay(d.from)}
+                          {d.to !== d.from && ` – ${shortDay(d.to)}`}
                         </td>
-                        <td className={`${T.td} text-right tabular-nums`}>
-                          {batches}
-                          <span className="block text-xs text-slate-500">{done} conducted</span>
-                        </td>
-                        <td className={`${T.td} text-right`}>
-                          <div className="flex flex-col items-end gap-1.5">
+                        <td className={`${T.td} text-right font-semibold tabular-nums`}>{batches}</td>
+                        <td className={`${T.td} text-right font-semibold tabular-nums ${done === batches ? "text-emerald-700" : "text-slate-700"}`}>{done}</td>
+                        <td className={`${T.td} min-w-[270px] text-right`}>
+                          <div className="flex flex-wrap items-center justify-end gap-1">
                             {DOCS.map(([doc, label]) => {
                               const p = d.panel.printed?.[doc];
                               return (
@@ -201,12 +183,12 @@ export default function ExaminerDocuments() {
                                     title={p ? `Printed ${new Date(p.at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}${p.by ? ` by ${p.by}` : ""}` : "Not printed yet"}
                                     className={
                                       p
-                                        ? "inline-flex h-8 items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
-                                        : btn.small
+                                        ? "inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
+                                        : `${btn.small} whitespace-nowrap`
                                     }
                                   >
                                     {p && "✓ "}
-                                    {label}
+                                    {label.replace(" certificate", "")}
                                     {p && <span className="font-normal text-emerald-700">· {new Date(p.at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span>}
                                   </button>
                                   {p && (
