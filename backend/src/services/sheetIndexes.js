@@ -12,6 +12,7 @@ import FinalIA from "../models/FinalIA.js";
 import FinalAttendance from "../models/FinalAttendance.js";
 import PracticalPanel from "../models/PracticalPanel.js";
 import PracticalBatch from "../models/PracticalBatch.js";
+import RoomDiary from "../models/RoomDiary.js";
 
 const OLD = [
   [FinalIA, "academicYear_1_department_1_semester_1_batch_1"],
@@ -20,6 +21,8 @@ const OLD = [
   [PracticalBatch, "exam_1_code_1_number_1"],
   // before the shift: an evening batch "number 1" clashed with the day batch 1
   [PracticalBatch, "exam_1_code_1_department_1_number_1"],
+  // one paper in one room can now have more than one ATS (25 students each)
+  [RoomDiary, "exam_1_date_1_session_1_room_1_code_1"],
 ];
 let done = false;
 

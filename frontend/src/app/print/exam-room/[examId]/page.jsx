@@ -66,7 +66,7 @@ function PrintRoomDiary() {
   const order = new Map(d.rooms.map((r, i) => [r.name, i])); // rooms in their own order, papers by code
   const diaries = d.diaries
     .filter((x) => !only || x.room === only)
-    .sort((a, b) => (order.get(a.room) ?? 999) - (order.get(b.room) ?? 999) || a.code.localeCompare(b.code));
+    .sort((a, b) => (order.get(a.room) ?? 999) - (order.get(b.room) ?? 999) || a.code.localeCompare(b.code) || (a.part || 1) - (b.part || 1));
 
   return (
     <div className="mx-auto max-w-[210mm] bg-white px-6 py-6 text-[11.5px] text-slate-900 print:max-w-none print:p-0">
@@ -115,6 +115,8 @@ function PrintRoomDiary() {
                     <td className={`${td} font-semibold`}>Paper</td>
                     <td className={`${td} font-semibold`} colSpan={3}>
                       {x.code} – {paperName.get(x.code) || ""}
+                      {d.diaries.filter((y) => y.room === x.room && y.code === x.code).length > 1 &&
+                        ` · ATS ${x.part || 1} of ${d.diaries.filter((y) => y.room === x.room && y.code === x.code).length}`}
                     </td>
                   </tr>
                 </tbody>

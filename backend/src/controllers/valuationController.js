@@ -19,6 +19,7 @@
 //   6. Decode      – AUTOMATIC when every packet of the paper is typed and checked:
 //                    the marks go to the register numbers, reduced to the theory maximum
 
+import crypto from "node:crypto";
 import mongoose from "mongoose";
 import XLSX from "xlsx";
 
@@ -39,6 +40,7 @@ const isId = (id) => mongoose.Types.ObjectId.isValid(id);
 const fail = (res, status, error, extra = {}) => res.status(status).json({ error, ...extra });
 const who = (req) => req.user?.email || req.user?.id || "unknown";
 const codeOf = (req) => String(req.params.code || "").toUpperCase();
+const isTrial = () => String(process.env.MONGO_DB_NAME || "").endsWith("_trial");
 
 const log = (req, action, examId, details = {}) =>
   AuditLog.create({
@@ -492,7 +494,9 @@ export const packetSlips = async (req, res) => {
       paper: { code, name: paper.name, rawMax: paper.rawMax },
       packets: packets.map((p) => {
         const d = diaryOf.get(p.number);
-        const rows = p.dummies.map((a) => ({ ats: a, mark: "" }));
+        // TRIAL DATABASE ONLY: the award list shows the sample marks, for the decoding demo
+        const shown = isTrial() ? p.final || {} : {};
+        const rows = p.dummies.map((a) => ({ ats: a, mark: shown[a] ?? "" }));
         if (d) rows.push(...(notPresent.get(String(d._id)) || []));
         rows.sort((a, b) => String(a.ats).localeCompare(String(b.ats)));
         return {
@@ -508,6 +512,73 @@ export const packetSlips = async (req, res) => {
       }),
     },
   });
+};
+
+// ---------------- TRIAL DATABASE ONLY: never available on the real website ----------------
+
+// POST /api/exams/:id/valuation/:code/trial-fill – sample marks in every packet not typed
+// yet (first and second entry equal), then the normal automatic decoding
+export const trialFillMarks = async (req, res) => {
+  if (!isTrial()) return fail(res, 404, "Not found.");
+  const exam = await loadExam(req, res);
+  if (!exam) return;
+  const paper = await getPaper(exam, codeOf(req));
+  if (!paper?.coded) return fail(res, 409, "End the session first, so that the packets are made.");
+  if (paper.decoded) return fail(res, 409, "This paper is already decoded.");
+  const packets = await ValuationPacket.find({ exam: exam._id, code: paper.code, status: { $ne: "VERIFIED" } });
+  const stamp = { by: "trial sample marks", at: new Date() };
+  for (const p of packets) {
+    const low = Math.round(paper.rawMax * 0.2);
+    const high = Math.round(paper.rawMax * 0.95);
+    const values = Object.fromEntries(p.dummies.map((d) => [d, crypto.randomInt(low, high + 1)]));
+    p.first = { ...stamp, marks: values };
+    p.second = { ...stamp, marks: values };
+    p.final = values;
+    p.mismatches = [];
+    p.status = "VERIFIED";
+    p.verifiedAt = new Date();
+    p.markModified("first");
+    p.markModified("second");
+    p.markModified("final");
+    await p.save();
+    const scripts = await AnswerScript.find({ _id: { $in: p.scripts } }).select("dummy").lean();
+    await AnswerScript.bulkWrite(
+      scripts.flatMap((s) => [
+        { updateOne: { filter: { _id: s._id }, update: { $pull: { valuations: { round: p.round } } } } },
+        { updateOne: { filter: { _id: s._id }, update: { $push: { valuations: { round: p.round, marks: values[s.dummy], packet: p._id, at: new Date() } } } } },
+      ]),
+      { ordered: true }
+    );
+  }
+  const decoded = await autoDecode(exam, await ValuationPaper.findOne({ exam: exam._id, code: paper.code }));
+  res.json({ message: decoded ? `Sample marks filled in ${packets.length} packets, and the paper is decoded.` : "Sample marks filled, but the paper could not be decoded yet." });
+};
+
+// GET /api/exams/:id/valuation/:code/trial-decoding – for each ATS: the mark awarded in
+// its packet beside the mark that reached the register number after decoding
+export const trialDecoding = async (req, res) => {
+  if (!isTrial()) return fail(res, 404, "Not found.");
+  const exam = await loadExam(req, res);
+  if (!exam) return;
+  const code = codeOf(req);
+  const paper = await ValuationPaper.findOne({ exam: exam._id, code }).lean();
+  if (!paper?.decoded) return fail(res, 409, "The paper is not decoded yet.");
+  const [packets, scripts, regs] = await Promise.all([
+    ValuationPacket.find({ exam: exam._id, code, round: 1 }).select("number dummies final").lean(),
+    AnswerScript.find({ exam: exam._id, code, attendance: "PRESENT" }).select("registerNumber name dummy registration").lean(),
+    ExamRegistration.find({ exam: exam._id, "subjects.code": code }).select("subjects.code subjects.see").lean(),
+  ]);
+  const scriptOf = new Map(scripts.map((s) => [s.dummy, s]));
+  const seeOf = new Map(regs.map((r) => [String(r._id), r.subjects.find((x) => x.code === code)?.see]));
+  const rows = [];
+  for (const p of [...packets].sort((a, b) => a.number.localeCompare(b.number)))
+    for (const ats of [...p.dummies].sort()) {
+      const s = scriptOf.get(ats);
+      const see = s ? seeOf.get(String(s.registration)) : null;
+      const awarded = p.final?.[ats] ?? null;
+      rows.push({ packet: p.number, ats: fmtAts(ats), awarded, registerNumber: s?.registerNumber || "", name: s?.name || "", decoded: see?.raw ?? null, marks: see?.marks ?? null, ok: awarded !== null && awarded === see?.raw });
+    }
+  res.json({ data: { rawMax: paper.rawMax, seeMax: paper.seeMax, total: rows.length, matched: rows.filter((r) => r.ok).length, rows } });
 };
 
 // PATCH /api/exams/:id/valuation/packets/:packetId  { valuer }

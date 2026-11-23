@@ -167,6 +167,19 @@ export default function ValuationPaper({ examId, code, backHref, canManage = fal
         />
       )}
 
+      {/* ---------------- TRIAL ONLY: sample marks and the decoding check ---------------- */}
+      {d.trial && canManage && paper.coded && !paper.decoded && (
+        <div className="mt-5 flex flex-wrap items-center gap-3 rounded-2xl border-2 border-dashed border-yellow-400 bg-yellow-50 p-4">
+          <p className="min-w-0 flex-1 text-sm text-yellow-950">
+            <b>Trial only:</b> fill sample marks in the packets not typed yet, then decode automatically.
+          </p>
+          <button disabled={busy} onClick={() => run("post", `/${enc}/trial-fill`)} className={btn.primary}>
+            Fill sample marks and decode
+          </button>
+        </div>
+      )}
+      {d.trial && canManage && paper.decoded && <TrialDecoding examId={examId} code={code} />}
+
       {/* ---------------- marks (after decoding) ---------------- */}
       {paper.decoded && canManage && <Marks examId={examId} code={code} />}
 
@@ -330,6 +343,63 @@ function PaperMax({ paper, busy, onSave }) {
       </button>
       <span className="text-xs text-slate-500">Marks are reduced to the course&apos;s maximum ({paper.seeMax || paper.rawMax}) when decoded.</span>
     </div>
+  );
+}
+
+// TRIAL ONLY (the server refuses it on the real website): proof for the officer that each
+// mark awarded against an ATS reached the right register number after decoding
+function TrialDecoding({ examId, code }) {
+  const api = useApi();
+  const toast = useToast();
+  const [t, setT] = useState(null);
+  useEffect(() => {
+    api("get", `/exams/${examId}/valuation/${encodeURIComponent(code)}/trial-decoding`)
+      .then((r) => setT(r.data.data))
+      .catch((e) => toast.error(errMsg(e, "Could not load the decoding check.")));
+  }, [api, examId, code, toast]);
+  if (!t) return null;
+  const allOk = t.total > 0 && t.matched === t.total;
+  return (
+    <section className="mt-5 rounded-2xl border-2 border-dashed border-yellow-400 bg-yellow-50 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="font-bold text-slate-950">Trial only: decoding check</p>
+        <span className={`rounded-full px-3 py-1 text-sm font-bold ${allOk ? "bg-emerald-600 text-white" : "bg-red-600 text-white"}`}>
+          {t.matched} of {t.total} marks decoded correctly
+        </span>
+      </div>
+      <div className="mt-3 max-h-[60vh] overflow-auto rounded-xl border border-slate-200 bg-white">
+        <table className="w-full text-sm">
+          <thead className="sticky top-0 bg-slate-100 text-left text-xs font-semibold text-slate-600">
+            <tr>
+              <th className="px-3 py-2 text-right">Sl.</th>
+              <th className="px-3 py-2">Packet</th>
+              <th className="px-3 py-2">ATS</th>
+              <th className="px-3 py-2 text-right">Awarded / {t.rawMax}</th>
+              <th className="px-3 py-2">Register no.</th>
+              <th className="px-3 py-2">Name</th>
+              <th className="px-3 py-2 text-right">Decoded / {t.rawMax}</th>
+              <th className="px-3 py-2 text-right">Final / {t.seeMax}</th>
+              <th className="px-3 py-2 text-center">Check</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {t.rows.map((r, i) => (
+              <tr key={r.ats} className={r.ok ? (i % 2 ? "bg-slate-50" : "bg-white") : "bg-red-100"}>
+                <td className="px-3 py-1 text-right text-xs tabular-nums text-slate-500">{i + 1}</td>
+                <td className="px-3 py-1 tabular-nums">{r.packet}</td>
+                <td className="px-3 py-1 font-semibold tabular-nums">{r.ats}</td>
+                <td className="px-3 py-1 text-right font-bold tabular-nums">{r.awarded ?? "–"}</td>
+                <td className="px-3 py-1 font-semibold tabular-nums">{r.registerNumber}</td>
+                <td className="px-3 py-1 text-slate-600">{r.name}</td>
+                <td className="px-3 py-1 text-right font-bold tabular-nums">{r.decoded ?? "–"}</td>
+                <td className="px-3 py-1 text-right tabular-nums">{r.marks ?? "–"}</td>
+                <td className={`px-3 py-1 text-center font-bold ${r.ok ? "text-emerald-700" : "text-red-700"}`}>{r.ok ? "✓" : "✗"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 

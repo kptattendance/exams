@@ -29,7 +29,7 @@ export const DEFAULT_ROOMS = [
   "EE1 (Electrical Block class room 1)",
   "EE2 (Electrical Block class room 2)",
   "Civil MT Lab",
-].map((name) => ({ name, capacity: name.startsWith("114") ? 60 : 50 })); // Room 114 alone: 3 rows of 10 benches, 30 to an ATS
+].map((name) => ({ name, capacity: name.startsWith("114") ? 60 : 50 })); // Room 114 alone: 3 rows of 10 benches
 
 const deptOf = (c) => String(c.department || String(c.registerNumber || "").slice(3, 5)).toLowerCase();
 

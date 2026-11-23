@@ -6,11 +6,15 @@ import crypto from "node:crypto";
 
 // ATS (answer-script code) = 6-digit number of the room diary + 2-digit serial
 // of the student in that diary, e.g. "48271507" (shown as 482715-07).
-// One room diary = one paper in one room = one packet. The 6 digits are random
-// (nobody can tell the room or class from them) and never used twice in an exam.
+// One room diary = one ATS number = one packet for one valuer: at most 25 students
+// of one paper in one room, in EVERY room (also the 60-seat Room 114, so that a
+// packet's size never points to a room); more students of the paper in the room
+// get a further diary. The 6 digits are random (nobody can tell the room
+// or class from them) and never used twice in an exam.
 export const ATS_RX = /^\d{8}$/;
 export const fmtAts = (a) => (ATS_RX.test(String(a || "")) ? `${String(a).slice(0, 6)}-${String(a).slice(6)}` : String(a || ""));
 export const MAX_PER_DIARY = 99;
+export const ATS_LIMIT = 25;
 
 export function newAtsBase(taken = new Set()) {
   for (let guard = 0; guard < 100000; guard++) {
@@ -48,14 +52,14 @@ export function assignSerials(old = {}, students = []) {
 }
 
 // The room diaries of one session after the rooms are saved.
-//   rooms:  [{ name, students: [reg] }]
+//   rooms:  [{ name, students: [reg], seats: { reg: desk } }]  (split in desk order)
 //   papers: Map reg -> [code]  (papers each student writes in this session)
-//   old:    [{ room, code, base, number, serials: { reg: "07" } }]
+//   old:    [{ room, code, part, base, number, serials: { reg: "07" } }]
 //   takenBases: Set of 6-digit numbers used anywhere in the exam
 //   nextNumber(): the next packet number ("P-0012")
-// -> [{ room, code, base, number, serials, isNew, changed }]  (diaries with students only)
+// -> [{ room, code, part, base, number, serials, isNew, changed }]  (diaries with students only)
 export function planDiaries({ rooms, papers, old = [], takenBases = new Set(), nextNumber }) {
-  const oldOf = new Map(old.map((d) => [`${d.room}|${d.code}`, d]));
+  const oldOf = new Map(old.map((d) => [`${d.room}|${d.code}|${d.part || 1}`, d]));
   const taken = new Set(takenBases);
   const out = [];
   for (const room of rooms) {
@@ -67,14 +71,21 @@ export function planDiaries({ rooms, papers, old = [], takenBases = new Set(), n
       }
     }
     for (const code of [...byCode.keys()].sort()) {
-      const students = byCode.get(code);
-      const prev = oldOf.get(`${room.name}|${code}`);
-      const serials = assignSerials(prev?.serials || {}, students);
-      let base = prev?.base;
-      if (!base) taken.add((base = newAtsBase(taken)));
-      const before = prev ? Object.entries(prev.serials || {}).sort().join(",") : "";
-      const after = Object.entries(serials).sort().join(",");
-      out.push({ room: room.name, code, base, number: prev?.number || nextNumber(), serials, isNew: !prev, changed: Boolean(prev) && before !== after });
+      // in desk order, so that one ATS is one block of desks
+      const desk = (reg) => Number(room.seats?.[reg]) || Infinity;
+      const inOrder = [...byCode.get(code)].sort((a, b) => desk(a) - desk(b) || a.localeCompare(b));
+      const limit = ATS_LIMIT;
+      for (let i = 0; i * limit < inOrder.length; i++) {
+        const part = i + 1;
+        const students = inOrder.slice(i * limit, (i + 1) * limit).sort();
+        const prev = oldOf.get(`${room.name}|${code}|${part}`);
+        const serials = assignSerials(prev?.serials || {}, students);
+        let base = prev?.base;
+        if (!base) taken.add((base = newAtsBase(taken)));
+        const before = prev ? Object.entries(prev.serials || {}).sort().join(",") : "";
+        const after = Object.entries(serials).sort().join(",");
+        out.push({ room: room.name, code, part, base, number: prev?.number || nextNumber(), serials, isNew: !prev, changed: Boolean(prev) && before !== after });
+      }
     }
   }
   return out;

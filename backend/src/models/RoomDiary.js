@@ -1,6 +1,7 @@
 // src/models/RoomDiary.js
 //
-// One room diary = one paper in one room of one session = one packet.
+// One room diary = one ATS number = one packet for one valuer: up to 25 students of
+// one paper in one room of one session; "part" is 1, 2 … in that room.
 // Made automatically when the Chief Examiner saves the rooms:
 //   base    – random 6-digit number, the first part of every ATS in this diary
 //   serials – each student's 2-digit serial (shuffled), so ATS = base + serial
@@ -17,6 +18,7 @@ const roomDiarySchema = new mongoose.Schema(
     session: { type: String, enum: ["FN", "AN"], required: true },
     room: { type: String, required: true },
     code: { type: String, required: true }, // subject code
+    part: { type: Number, default: 1 }, // 1st, 2nd … ATS of this paper in this room
     base: { type: String, required: true }, // "482715"
     number: { type: String, required: true }, // "P-0007"
     serials: { type: Map, of: String, default: {} }, // register number -> "07"
@@ -26,7 +28,7 @@ const roomDiarySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-roomDiarySchema.index({ exam: 1, date: 1, session: 1, room: 1, code: 1 }, { unique: true });
+roomDiarySchema.index({ exam: 1, date: 1, session: 1, room: 1, code: 1, part: 1 }, { unique: true });
 roomDiarySchema.index({ exam: 1, base: 1 }, { unique: true });
 roomDiarySchema.index({ exam: 1, number: 1 }, { unique: true });
 

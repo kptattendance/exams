@@ -44,7 +44,7 @@ import {
   packetLabels,
   packetTracker,
   atsLookup,
-  paperMarks,
+  paperMarks, trialDecoding, trialFillMarks,
   updateValuationSettings,
 } from "../controllers/valuationController.js";
 import { readiness, listResults, processResults, publishResults, listMalpractice, saveMalpractice, gradeCards } from "../controllers/resultController.js";
@@ -138,6 +138,8 @@ router.post("/:id/valuation/:code/attendance", VALUE, saveAttendance);
 router.get("/:id/valuation/:code/coding-sheet", SECRET, codingSheet);
 router.get("/:id/valuation/:code/slips", requireRole("coe", "acoe", "admin", "office", "exam_clerk"), packetSlips);
 router.get("/:id/valuation/:code/marks", SECRET, paperMarks);
+router.post("/:id/valuation/:code/trial-fill", SECRET, trialFillMarks); // trial database only
+router.get("/:id/valuation/:code/trial-decoding", SECRET, trialDecoding); // trial database only
 
 // Results: marks with names and moderation are for COE / Admin only
 router.get("/:id/results/readiness", SECRET, readiness);

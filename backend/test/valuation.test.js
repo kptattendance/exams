@@ -94,3 +94,32 @@ test("reduce 100 → 50, rounded up", () => {
   assert.equal(reduce(80, 100, 100), 80);
   assert.equal(reduce(null, 100, 50), null);
 });
+
+test("one ATS holds 25 students in every room, also the 60-seat Room 114, split by desk", () => {
+  let n = 0;
+  const nextNumber = () => `P-${++n}`;
+  const make = (count) => Array.from({ length: count }, (_, i) => `103CS26${String(i + 1).padStart(3, "0")}`);
+  const papersOf = (regs) => new Map(regs.map((r) => [r, ["MATH"]]));
+  const seatsOf = (regs) => Object.fromEntries(regs.map((r, i) => [r, regs.length - i])); // desks not in register order
+
+  const r50 = make(50);
+  const a = planDiaries({ rooms: [{ name: "220 (CS class room)", students: r50, seats: seatsOf(r50) }], papers: papersOf(r50), nextNumber });
+  assert.deepEqual(a.map((d) => Object.keys(d.serials).length), [25, 25]);
+  assert.deepEqual(a.map((d) => d.part), [1, 2]);
+  assert.equal(new Set(a.map((d) => d.base)).size, 2);
+  const s = seatsOf(r50);
+  assert.ok(Object.keys(a[0].serials).every((r) => s[r] <= 25), "the first ATS is desks 1-25");
+
+  const r60 = make(60);
+  const b = planDiaries({ rooms: [{ name: "114 (ME 2nd year class room)", students: r60, seats: seatsOf(r60) }], papers: papersOf(r60), nextNumber });
+  assert.deepEqual(b.map((d) => Object.keys(d.serials).length), [25, 25, 10]);
+
+  const r61 = make(61);
+  const c = planDiaries({ rooms: [{ name: "220", students: r61 }], papers: papersOf(r61), nextNumber });
+  assert.deepEqual(c.map((d) => Object.keys(d.serials).length), [25, 25, 11]);
+
+  // saved again: the same ATS numbers and serials, nothing to reprint
+  const again = planDiaries({ rooms: [{ name: "220 (CS class room)", students: r50, seats: seatsOf(r50) }], papers: papersOf(r50), old: a, nextNumber });
+  assert.deepEqual(again.map((d) => [d.base, d.number, d.serials]), a.map((d) => [d.base, d.number, d.serials]));
+  assert.ok(again.every((d) => !d.isNew && !d.changed));
+});

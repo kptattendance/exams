@@ -169,6 +169,7 @@ export const getSession = async (req, res) => {
       _id: d._id,
       room: d.room,
       code: d.code,
+      part: d.part || 1,
       // the packet number is the COE's (stuck over the ATS on the envelope later)
       number: ["coe", "acoe", "admin"].includes(req.user?.role) ? d.number : undefined,
       base: showAts ? d.base : undefined,
@@ -233,9 +234,9 @@ export const saveRooms = async (req, res) => {
   let plan;
   try {
     plan = planDiaries({
-      rooms: clean.map((r) => ({ name: r.name, students: r.students })),
+      rooms: clean.map((r) => ({ name: r.name, students: r.students, seats: r.seats })),
       papers: papersOf,
-      old: old.map((d) => ({ room: d.room, code: d.code, base: d.base, number: d.number, serials: d.serials || {} })),
+      old: old.map((d) => ({ room: d.room, code: d.code, part: d.part || 1, base: d.base, number: d.number, serials: d.serials || {} })),
       takenBases,
       nextNumber: () => `NEW-${fresh++}`,
     });
@@ -252,16 +253,17 @@ export const saveRooms = async (req, res) => {
   await ExamRoom.deleteMany({ exam: exam._id, date, session });
   if (clean.length) await ExamRoom.insertMany(clean);
 
-  const keep = new Set(plan.filter((d) => !d.isNew).map((d) => `${d.room}|${d.code}`));
-  const removed = old.filter((d) => !keep.has(`${d.room}|${d.code}`));
+  const diaryKey = (d) => `${d.room}|${d.code}|${d.part || 1}`;
+  const keep = new Set(plan.filter((d) => !d.isNew).map(diaryKey));
+  const removed = old.filter((d) => !keep.has(diaryKey(d)));
   if (removed.length) await RoomDiary.deleteMany({ _id: { $in: removed.map((d) => d._id) } });
-  const idOf = new Map(old.map((d) => [`${d.room}|${d.code}`, d._id]));
+  const idOf = new Map(old.map((d) => [diaryKey(d), d._id]));
   for (const d of plan.filter((x) => !x.isNew && x.changed))
-    await RoomDiary.updateOne({ _id: idOf.get(`${d.room}|${d.code}`) }, { $set: { serials: d.serials, reprint: true } });
+    await RoomDiary.updateOne({ _id: idOf.get(diaryKey(d)) }, { $set: { serials: d.serials, reprint: true } });
   const made = plan.filter((d) => d.isNew).length
-    ? await RoomDiary.insertMany(plan.filter((d) => d.isNew).map((d) => ({ exam: exam._id, date, session, room: d.room, code: d.code, base: d.base, number: d.number, serials: d.serials })))
+    ? await RoomDiary.insertMany(plan.filter((d) => d.isNew).map((d) => ({ exam: exam._id, date, session, room: d.room, code: d.code, part: d.part, base: d.base, number: d.number, serials: d.serials })))
     : [];
-  for (const m of made) idOf.set(`${m.room}|${m.code}`, m._id);
+  for (const m of made) idOf.set(diaryKey(m), m._id);
 
   // every answer script: its ATS and diary (none when not in a room)
   const want = new Map(); // script id -> { dummy, diary }
@@ -269,7 +271,7 @@ export const saveRooms = async (req, res) => {
   for (const d of plan)
     for (const [reg, serial] of Object.entries(d.serials)) {
       const x = scriptOf.get(`${reg}|${d.code}`);
-      if (x) want.set(String(x._id), { dummy: `${d.base}${serial}`, diary: idOf.get(`${d.room}|${d.code}`) });
+      if (x) want.set(String(x._id), { dummy: `${d.base}${serial}`, diary: idOf.get(diaryKey(d)) });
     }
   const changes = scripts.filter((x) => {
     const w = want.get(String(x._id));
