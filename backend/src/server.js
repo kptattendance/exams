@@ -9,6 +9,7 @@ import subjectRoutes from "./routes/subjectRoutes.js";
 import studentRoutes from "./routes/studentRoutes.js";
 import finalIARoutes from "./routes/finalIARoutes.js";
 import finalAttendanceRoutes from "./routes/finalAttendanceRoutes.js";
+import examComputerRoutes from "./routes/examComputerRoutes.js";
 import paperSettingRoutes from "./routes/paperSettingRoutes.js";
 import studentImportRoutes from "./routes/studentImportRoutes.js";
 import examRoutes from "./routes/examRoutes.js";
@@ -87,6 +88,8 @@ app.use(
       "X-Step-Up", // verification passes, see services/stepUp.js
       "X-Department", // Evening Principal's chosen department, see services/evening.js
       "X-Unlock-Reason", // Admin changing a locked examination, see services/examLock.js
+      "X-Exam-Computer", // the computer printing a question paper, see services/examComputers.js
+      "X-Exam-Proof",
     ],
 
     credentials: true,
@@ -136,6 +139,7 @@ app.use(
   finalAttendanceRoutes
 );
 app.use("/api/paper-setting", paperSettingRoutes);
+app.use("/api/exam-computers", examComputerRoutes);
 app.use("/api/student-import", studentImportRoutes);
 app.use("/api/exams", examRoutes);
 app.use("/api/electives", electiveRoutes);

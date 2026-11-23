@@ -109,7 +109,7 @@ const paperSettingSchema = new mongoose.Schema(
     frozenAt: { type: Date, default: null },
     frozenBy: { type: String, default: "" },
     prints: {
-      type: [new mongoose.Schema({ at: Date, by: String, ip: String, copy: Number }, { _id: false })],
+      type: [new mongoose.Schema({ at: Date, by: String, name: String, role: String, computer: String, ip: String, copy: Number }, { _id: false })],
       default: [],
     },
     // The set the COE chose for the examination (one per subject + session +

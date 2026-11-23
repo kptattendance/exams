@@ -87,6 +87,8 @@ export const MENUS = {
       {
         title: "Administration",
         items: [
+          { label: "Question papers today", href: "/admin/question-papers", icon: "lock" },
+          { label: "Exam computers", href: "/admin/exam-computers", icon: "lock" },
           { label: "Settings", href: "/admin/settings", icon: "settings" },
           { label: "Recycle bin", href: "/admin/recycle-bin", icon: "trash" },
         ],
@@ -127,6 +129,7 @@ export const MENUS = {
         title: "Theory exam",
         items: [
           { label: "Paper setting", href: "/coe/paper-setting", icon: "lock", pinned: true },
+          { label: "Exam computers", href: "/coe/exam-computers", icon: "lock" },
           { label: "Exam sessions (rooms & absentees)", href: "/coe/exam-sessions", icon: "list" },
           { label: "Valuation", href: "/coe/valuation", icon: "valuation" },
           { label: "Packet tracker & ATS lookup", href: "/coe/valuation/packets", icon: "list" },

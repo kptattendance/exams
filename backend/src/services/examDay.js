@@ -76,15 +76,26 @@ export async function stampPdf(buffer, footer, mark) {
   for (const page of pdf.getPages()) {
     const { width, height } = page.getSize();
     page.drawText(ascii(footer), { x: 24, y: 10, size: 7, font, color: rgb(0.35, 0.35, 0.35) });
-    page.drawText(ascii(mark), {
-      x: width * 0.18,
-      y: height * 0.3,
-      size: 30,
-      font,
-      color: rgb(0.6, 0.6, 0.6),
-      opacity: 0.12,
-      rotate: degrees(35),
-    });
+    // the name three times across the page, so that it cannot be cut off;
+    // light enough to read the questions through it
+    const text = ascii(mark);
+    const angle = 40;
+    const cos = Math.cos((angle * Math.PI) / 180);
+    const sin = Math.sin((angle * Math.PI) / 180);
+    const room = Math.min((0.85 * width) / cos, (0.38 * height) / sin);
+    const size = Math.max(10, Math.min(26, (26 * room) / font.widthOfTextAtSize(text, 26)));
+    const long = font.widthOfTextAtSize(text, size);
+    for (const at of [0.2, 0.5, 0.8]) {
+      page.drawText(text, {
+        x: width / 2 - (cos * long) / 2,
+        y: height * at - (sin * long) / 2,
+        size,
+        font,
+        color: rgb(0.45, 0.45, 0.45),
+        opacity: 0.16,
+        rotate: degrees(angle),
+      });
+    }
   }
   return Buffer.from(await pdf.save());
 }

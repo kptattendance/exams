@@ -21,6 +21,7 @@ import Exam from "../models/Exam.js";
 import { todayIST, sessionOfDate, printWindow, windowState, stampPdf } from "../services/examDay.js";
 import User, { HOME_COLLEGE, collegeOf } from "../models/User.js";
 import AuditLog, { audit } from "../models/AuditLog.js";
+import { markComputerUsed, useChallenge } from "./examComputerController.js";
 
 import { encryptPaper, decryptPaper } from "../services/paperCrypto.js";
 import { validateDocx, DocxError } from "../services/docxValidator.js";
@@ -1112,18 +1113,27 @@ export const examDayPrint = async (req, res) => {
     if (state === "BEFORE") return fail(res, 403, `This paper opens at ${time(w.opensAt)}.`);
     if (state === "CLOSED") return fail(res, 403, "The session is over; the paper is closed.");
 
+    // the computer's one-time answer is used up here
+    if (!(await useChallenge(req))) return fail(res, 409, "Please click Open & print again.");
+
     const copy = (paper.prints || []).length + 1;
     const when = new Date().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" });
+    // the watermark: the name and post of the person printing (no email on the paper)
+    const printer = await User.findOne({ clerkId: req.user.id }).select("name").lean();
+    const post = req.user.role === "admin" ? "Administrator" : "Chief Examiner";
+    const person = String(printer?.name || "").trim().replace(/\s+/g, " ");
+    const computer = req.examComputer.name;
     const plain = await getDecryptedFile(paper, paper.finalPdf);
     const stamped = await stampPdf(
       plain,
-      `KPT Mangaluru - ${paper.subject.code} Set ${paper.setNo} - opened by ${req.user.email} - ${when} IST - copy ${copy}`,
-      `KPT CONFIDENTIAL - ${req.user.email}`
+      `KPT Mangaluru - ${paper.subject.code} Set ${paper.setNo} - printed by ${person || post} (${post}) - ${computer} - ${when} IST - copy ${copy}`,
+      `${person ? `${person} - ` : ""}${post}`.toUpperCase()
     );
     plain.fill(0);
     const ip = (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.socket?.remoteAddress || "";
-    await PaperSetting.updateOne({ _id: paper._id }, { $push: { prints: { at: new Date(), by: req.user.email || req.user.id, ip, copy } } });
-    await audit(req, "QP_PRINTED", paper._id, { copy, subject: paper.subject.code, setNo: paper.setNo });
+    await PaperSetting.updateOne({ _id: paper._id }, { $push: { prints: { at: new Date(), by: req.user.email || req.user.id, name: person, role: post, computer, ip, copy } } });
+    await audit(req, "QP_PRINTED", paper._id, { copy, subject: paper.subject.code, setNo: paper.setNo, computer });
+    await markComputerUsed(req);
     res.set({
       "Content-Type": "application/pdf",
       "Content-Disposition": `inline; filename="${paper.subject.code}_SET${paper.setNo}.pdf"`,

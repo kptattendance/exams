@@ -1,9 +1,9 @@
 "use client";
 
-// Chief Examiner: today's frozen question papers. Each one opens for printing
-// from 1 hour before its session until the session ends. Every opening needs
-// a verification code, every copy is stamped with the name and time, and it
-// is logged. There is no editing.
+// Chief Examiner (and Admin): today's frozen question papers. Each one opens for
+// printing from 1 hour before its session until the session ends, only on a
+// computer approved by the COE / Admin. Every opening needs a verification code,
+// every copy carries a watermark of the person's name, and it is logged.
 
 import { useCallback, useEffect, useState } from "react";
 
@@ -11,6 +11,7 @@ import Icon from "../components/shell/Icon";
 import { useToast } from "../components/ui/Feedback";
 import { T } from "../components/ui/table";
 import { errMsg, useApi } from "../components/exams/shared";
+import { computerKey, signForPrint } from "../components/exams/examComputer";
 
 const time = (d) => new Date(d).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
 const STATE = {
@@ -34,6 +35,8 @@ export default function ChiefExaminerPage() {
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState("");
   const [ready, setReady] = useState({}); // paper id -> PDF address, opened only on click
+  const [computer, setComputer] = useState(null); // is this computer approved?
+  const [asking, setAsking] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -43,7 +46,27 @@ export default function ChiefExaminerPage() {
       setData({ data: [], today: "" });
       toast.error(errMsg(e, "Could not load today's papers."));
     }
+    try {
+      const key = await computerKey();
+      const r = await api("post", "/exam-computers/this", { publicKey: key.publicKey });
+      setComputer(r.data.data);
+    } catch {
+      setComputer({ failed: true, allowed: false });
+    }
   }, [api, toast]);
+
+  const askAccess = async () => {
+    setAsking(true);
+    try {
+      const key = await computerKey();
+      const r = await api("post", "/exam-computers/request", { publicKey: key.publicKey });
+      toast.success(r.data.message, 12000);
+      setComputer(r.data.data);
+    } catch (e) {
+      toast.error(e?.response ? errMsg(e, "Could not send the request.") : e.message);
+    }
+    setAsking(false);
+  };
 
   useEffect(() => {
     load();
@@ -57,7 +80,14 @@ export default function ChiefExaminerPage() {
   const open = async (p) => {
     setBusy(p._id);
     try {
-      const r = await api("get", `/paper-setting/${p._id}/exam-print`, undefined, { responseType: "blob" });
+      // this computer proves who it is, for this one print
+      const key = await computerKey();
+      const c = await api("post", "/exam-computers/challenge", { paperId: p._id });
+      const signature = await signForPrint(c.data.message);
+      const r = await api("get", `/paper-setting/${p._id}/exam-print`, undefined, {
+        responseType: "blob",
+        headers: { "X-Exam-Computer": key.keyId, "X-Exam-Proof": `${c.data.challengeId}.${signature}` },
+      });
       const url = URL.createObjectURL(new Blob([r.data], { type: "application/pdf" }));
       setReady((m) => ({ ...m, [p._id]: url }));
       setTimeout(() => {
@@ -71,7 +101,7 @@ export default function ChiefExaminerPage() {
       toast.success("Copy ready. Click “View / Print PDF”.");
       load();
     } catch (e) {
-      toast.error(await blobError(e, "Could not open the paper."));
+      toast.error(e?.response ? await blobError(e, "Could not open the paper.") : e.message || "Could not open the paper.", 8000);
     } finally {
       setBusy("");
     }
@@ -87,8 +117,32 @@ export default function ChiefExaminerPage() {
       <h2 className="text-2xl font-bold tracking-tight text-slate-950">Question papers today</h2>
       <p className="mt-1 text-sm text-slate-500">
         {today && <b className="text-slate-700">{today}. </b>}
-        Each paper opens 1 hour before its session and closes when the session ends. Every copy carries your name and the time.
+        Each paper opens 1 hour before its session and closes when the session ends. Every copy carries your name as a watermark.
       </p>
+
+      {computer && !computer.allowed && (
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-950">
+          <Icon name="lock" className="h-5 w-5 shrink-0" />
+          <p className="min-w-0 flex-1">
+            {computer.failed ? (
+              "This browser cannot be checked. Use Chrome, and not an Incognito window."
+            ) : (
+              <>
+                <b>This computer is not approved for printing question papers.</b> Use a registered exam-section computer.
+                {computer.status === "REQUESTED" ? " Request sent – tell the COE / Admin" : " In an emergency, ask the COE / Admin for access and tell them"} this code: <b className="font-mono">{computer.code}</b>
+              </>
+            )}
+          </p>
+          {!computer.failed && computer.status !== "REQUESTED" && (
+            <button onClick={askAccess} disabled={asking} className="h-8 rounded-lg bg-slate-950 px-3 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-40">
+              {asking ? "Sending…" : "Ask for emergency access"}
+            </button>
+          )}
+        </div>
+      )}
+      {computer?.allowed && computer.status !== "ACTIVE" && computer.unlockedUntil && (
+        <p className="mt-4 rounded-xl border border-yellow-300 bg-yellow-50 px-4 py-2.5 text-sm font-semibold text-yellow-950">Emergency access for this computer until {time(computer.unlockedUntil)}.</p>
+      )}
 
       {data?.noSet?.length > 0 && (
         <p className="mt-4 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-900">
@@ -158,7 +212,7 @@ export default function ChiefExaminerPage() {
                         </a>
                       ) : (
                       <button
-                        disabled={p.state !== "OPEN" || busy === p._id}
+                        disabled={p.state !== "OPEN" || busy === p._id || !computer?.allowed}
                         onClick={() => open(p)}
                         className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-slate-950 px-3 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-30"
                       >
