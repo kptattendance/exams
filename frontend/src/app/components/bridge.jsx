@@ -88,12 +88,14 @@ export function electiveOf(student, column) {
 }
 
 // header of a shared elective column
-export function ElectiveHeader({ column, dark = true }) {
+export function ElectiveHeader({ column, dark = true, students = [] }) {
+  const taken = column.subjects.filter((s) => students.some((st) => takesSubject(st, s)));
+  const shown = taken.length ? taken : column.subjects;
   return (
     <>
       <div className="text-xs font-bold">Elective {column.group}</div>
-      <div className={`mt-1 text-[10px] font-normal leading-tight ${dark ? "text-slate-300" : "text-amber-50"}`}>{column.subjects.map((s) => s.code).join(" / ")}</div>
-      <div className="mt-1 inline-block rounded bg-sky-200 px-1.5 py-0.5 text-[9px] font-bold text-sky-900">ONE PER STUDENT</div>
+      <div className={`mt-1 text-[10px] font-normal leading-tight ${dark ? "text-slate-300" : "text-amber-50"}`}>{shown.map((s) => s.code).join(" / ")}</div>
+      {shown.length > 1 && <div className="mt-1 inline-block rounded bg-sky-200 px-1.5 py-0.5 text-[9px] font-bold text-sky-900">ONE PER STUDENT</div>}
     </>
   );
 }

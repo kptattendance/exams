@@ -110,7 +110,9 @@ function Sheet() {
   // Older sheets without the flag: a course that fewer than half the students take.
   const takes = (st, s) => st.values?.[s.subjectId] !== "NA";
   const isBridge = (s) => (s.bridge !== undefined ? Boolean(s.bridge) : students.filter((st) => takes(st, s)).length < students.length / 2);
-  const regular = subjects.filter((s) => !isBridge(s));
+  // an elective option nobody in this class took is left out of the sheet
+  const printed = subjects.filter((s) => s.bridge !== false || students.some((st) => takes(st, s)));
+  const regular = printed.filter((s) => !isBridge(s));
   const bridge = subjects.filter(isBridge);
   const bridgeStudents = students.filter((st) => bridge.some((s) => takes(st, s)));
   const dept = DEPT[String(sheet.department || "").toLowerCase()] || String(sheet.department || "").toUpperCase();
@@ -166,7 +168,7 @@ function Sheet() {
           </tr>
         </thead>
         <tbody>
-          {subjects.map((s, i) => (
+          {printed.map((s, i) => (
             <tr key={s.subjectId} className={i % 2 ? "bg-slate-50" : "bg-white"}>
               <td className={`${td} text-center`}>{i + 1}</td>
               <td className={`${td} text-center font-semibold`}>{s.code}</td>

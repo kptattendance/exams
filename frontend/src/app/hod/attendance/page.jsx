@@ -1799,7 +1799,7 @@ export default function AttendancePage() {
                           className="w-[115px] min-w-[115px] max-w-[115px] border-r border-amber-500 px-2 py-1 text-center"
                         >
                           {column.group ? (
-                            <ElectiveHeader column={column} dark={false} />
+                            <ElectiveHeader column={column} dark={false} students={students} />
                           ) : (
                           <>
                           <div className="text-xs font-bold">

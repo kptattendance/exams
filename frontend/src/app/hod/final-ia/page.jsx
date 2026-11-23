@@ -1610,7 +1610,7 @@ export default function FinalIAPage() {
                           className="w-[115px] min-w-[115px] max-w-[115px] border-r border-slate-600 px-2 py-1 text-center"
                         >
                           {column.group ? (
-                            <ElectiveHeader column={column} />
+                            <ElectiveHeader column={column} students={students} />
                           ) : (
                           <>
                           <div className="text-xs font-bold">
