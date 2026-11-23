@@ -27,6 +27,7 @@ import {
   useApi,
 } from "./shared";
 import { useIsAdmin } from "../useRole";
+import { deptTint, tintRow } from "../ui/deptTint";
 
 const PAGE_SIZE = 40;
 
@@ -576,13 +577,13 @@ function ClassTable({ classes, onOpen, onDownload }) {
               {shown.map((c, i) => {
                 const pct = c.students ? Math.round((c.ALL_CLEAR / c.students) * 100) : 0;
                 return (
-                  <tr key={c.key} onClick={() => onOpen(c)} className="cursor-pointer transition hover:bg-blue-50/50">
+                  <tr key={c.key} onClick={() => onOpen(c)} className={`cursor-pointer transition hover:bg-blue-50/50 ${c.key === "backlog" ? "" : tintRow(c.department, i)}`}>
                     <td className="px-3 py-3 text-center text-xs tabular-nums text-slate-400">{i + 1}</td>
                     <td className="px-3 py-3">
                       {c.key === "backlog" ? (
                         <span className="rounded-lg bg-amber-50 px-2 py-1 text-xs font-bold text-amber-800">Back papers</span>
                       ) : (
-                        <span className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-bold text-slate-800">
+                        <span className={`rounded-lg px-2 py-1 text-xs font-bold ${deptTint(c.department).chip}`}>
                           {c.department.toUpperCase()} · Sem {c.semester}
                         </span>
                       )}
@@ -693,10 +694,10 @@ function SheetTable({ readiness, semesters }) {
                 </tr>
               )}
               {rows.map((r, i) => (
-                <tr key={`${r.department}-${r.semester}`} className="hover:bg-slate-50/60">
+                <tr key={`${r.department}-${r.semester}`} className={`hover:bg-slate-50/60 ${tintRow(r.department, i)}`}>
                   <td className="px-3 py-3 text-center text-xs tabular-nums text-slate-400">{i + 1}</td>
                   <td className="px-3 py-3">
-                    <span className="font-semibold text-slate-900">{r.department.toUpperCase()}</span>
+                    <span className={`rounded-md px-1.5 py-0.5 text-xs font-bold ${deptTint(r.department).chip}`}>{r.department.toUpperCase()}</span>
                     <span className="ml-2 text-xs text-slate-500">{deptLabel(r.department)}</span>
                   </td>
                   <td className="px-3 py-3 text-slate-700">Sem {r.semester}</td>

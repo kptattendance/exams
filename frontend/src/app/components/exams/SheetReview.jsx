@@ -5,7 +5,7 @@
 // batch. Open one, look at the highlighted problems, then Freeze it or send
 // it back to the HOD with a note.
 
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 
 import Icon from "../shell/Icon";
 import Modal, { btn, field } from "../ui/Modal";
@@ -14,6 +14,8 @@ import { deptLabel, errMsg, useApi } from "./shared";
 import { T } from "../ui/table";
 import { openSignatureSheet } from "../HodSheetPanel";
 import { useAcademicYear } from "../academicYear";
+import { deptTint, tintRow } from "../ui/deptTint";
+import { takenColumns } from "../bridge";
 
 const TITLE = { ia: "Final IA", attendance: "Final attendance" };
 const TABS = [
@@ -81,15 +83,16 @@ export default function SheetReview({ type, admin = false }) {
 
   const departments = [...new Set((list || []).map((x) => x.department))].sort();
   const semesters = [...new Set((list || []).map((x) => x.semester))].sort((a, b) => a - b);
-  const shown = (list || []).filter((x) => (!dept || x.department === dept) && (!sem || String(x.semester) === sem));
+  // the day college first, the evening college separately at the end;
+  // inside each: department by department, semester by semester
+  const shown = (list || [])
+    .filter((x) => (!dept || x.department === dept) && (!sem || String(x.semester) === sem))
+    .sort((a, b) => (a.shift === "EVENING") - (b.shift === "EVENING") || a.department.localeCompare(b.department) || a.semester - b.semester);
+  const dayCount = shown.filter((x) => x.shift !== "EVENING").length;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-7">
-      <h2 className="text-2xl font-bold tracking-tight text-slate-950">{TITLE[type]}</h2>
-      <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
-        Sheets submitted by HODs appear here by themselves. Open one, check it, then freeze it or send it back.
-        {admin ? "" : " A frozen sheet that needs a correction: open it and click “Send back to HOD” – the marks stay, the HOD corrects and submits again."}
-      </p>
+    <div className="mx-auto max-w-6xl px-3 py-3 sm:px-4">
+      <h2 className="text-lg font-bold tracking-tight text-slate-950">{TITLE[type]}</h2>
       {admin && (
         <p className="mt-2 max-w-3xl rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm leading-6 text-red-900">
           Admin: you can <b>delete</b> a sheet of the running year ({year}), even a frozen one – the HOD then enters it again from the start. For a small correction use
@@ -97,7 +100,7 @@ export default function SheetReview({ type, admin = false }) {
         </p>
       )}
 
-      <div className="no-scrollbar mt-5 flex gap-1 overflow-x-auto border-b border-slate-200">
+      <div className="no-scrollbar mt-2 flex gap-1 overflow-x-auto border-b border-slate-200">
         {TABS.map(([k, label]) => (
           <button
             key={k}
@@ -119,7 +122,7 @@ export default function SheetReview({ type, admin = false }) {
       </div>
 
       {/* filters */}
-      <div className="mt-4 flex flex-wrap items-center gap-2">
+      <div className="mt-2 flex flex-wrap items-center gap-2">
         <select value={dept} onChange={(e) => setDept(e.target.value)} className={T.field}>
           <option value="">All departments</option>
           {departments.map((d) => (
@@ -154,7 +157,7 @@ export default function SheetReview({ type, admin = false }) {
         )}
       </div>
 
-      <div className={`mt-3 ${T.wrap}`}>
+      <div className={`mt-2 ${T.wrap}`}>
         {list === null && <div className="h-40 animate-pulse" />}
         {list && shown.length === 0 && (
           <p className="px-4 py-10 text-center text-sm text-slate-500">
@@ -178,12 +181,19 @@ export default function SheetReview({ type, admin = false }) {
             </thead>
             <tbody className={T.body}>
               {shown.map((s, i) => (
-                <tr key={s._id} className={T.row}>
-                  <td className={T.tdNum}>{i + 1}</td>
+                <Fragment key={s._id}>
+                {s.shift === "EVENING" && i === dayCount && (
+                  <tr className="bg-indigo-100">
+                    <td colSpan={9} className="px-3 py-1 text-xs font-bold text-indigo-900">
+                      Evening college
+                    </td>
+                  </tr>
+                )}
+                <tr className={`${T.row} ${tintRow(s.department, i)}`}>
+                  <td className={T.tdNum}>{s.shift === "EVENING" ? i - dayCount + 1 : i + 1}</td>
                   <td className={T.td}>
-                    <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-700">{s.department.toUpperCase()}</span>
-                    <span className="ml-2 text-xs text-slate-500">{deptLabel(s.department)}</span>
-                    {s.shift === "EVENING" && <span className="ml-2 rounded-md bg-indigo-100 px-1.5 py-0.5 text-[11px] font-semibold text-indigo-800">Evening</span>}
+                    <span className={`rounded-md px-1.5 py-0.5 text-xs font-bold ${deptTint(s.department).chip}`}>{s.department.toUpperCase()}</span>
+                    <span className="ml-2 text-xs text-slate-600">{deptLabel(s.department)}</span>
                   </td>
                   <td className={`${T.td} text-xs font-semibold text-slate-700`}>{s.semester}</td>
                   <td className={`${T.td} text-xs text-slate-600`}>{s.batch}</td>
@@ -225,6 +235,7 @@ export default function SheetReview({ type, admin = false }) {
                     </div>
                   </td>
                 </tr>
+                </Fragment>
               ))}
             </tbody>
           </table>
@@ -326,6 +337,7 @@ function ReviewModal({ type, id, onClose, onFreeze, onChanged, canDelete = false
     }
   };
 
+  const columns = sheet ? takenColumns(sheet) : [];
   const rows = sheet ? (onlyProblems ? sheet.students.filter((st) => st.cells.some((c) => c.flag && c.flag !== "na")) : sheet.students) : [];
 
   return (
@@ -451,16 +463,17 @@ function ReviewModal({ type, id, onClose, onFreeze, onChanged, canDelete = false
             </label>
           </div>
 
-          <div className="mt-3 max-h-[62vh] overflow-auto rounded-xl border border-slate-200">
+          <div className="mt-3 max-h-[68vh] overflow-auto rounded-xl border border-slate-200">
             <table className="w-full min-w-max text-sm">
-              <thead className="sticky top-0 z-10 bg-slate-50 text-xs">
+              <thead className="sticky top-0 z-30 bg-slate-100 text-xs">
                 <tr>
-                  <th className="sticky left-0 bg-slate-50 px-3 py-2 text-left font-semibold text-slate-600">Student</th>
-                  {sheet.subjects.map((s) => (
+                  <th className="sticky left-0 z-20 w-12 min-w-12 bg-slate-100 px-2 py-2 text-right font-semibold text-slate-600">Sl.</th>
+                  <th className="sticky left-12 z-20 bg-slate-100 px-3 py-2 text-left font-semibold text-slate-600">Student</th>
+                  {columns.map((x) => sheet.subjects[x]).map((s) => (
                     <th key={s.subjectId} className="px-3 py-2 text-center font-semibold text-slate-600" title={s.name}>
                       {s.code}
                       <span className="block font-normal text-slate-400">
-                        {type === "ia" ? `of ${s.max ?? "?"}${s.iaMin ? ` · min ${s.iaMin}` : ""}` : `of ${s.max ?? "?"} classes`}
+                        {type === "ia" ? `of ${s.max ?? "?"}${s.iaMin ? ` · min ${s.iaMin}` : ""}` : "%"}
                       </span>
                     </th>
                   ))}
@@ -468,25 +481,25 @@ function ReviewModal({ type, id, onClose, onFreeze, onChanged, canDelete = false
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {rows.map((st, n) => (
-                  <tr key={st.studentId}>
-                    <td className="sticky left-0 bg-white px-3 py-1.5">
-                      <span className="block font-semibold tabular-nums text-slate-900">
-                        <span className="mr-1 font-normal tabular-nums text-slate-400">{n + 1}.</span>
-                        {st.registerNumber}
-                      </span>
+                  <tr key={st.studentId} className={n % 2 ? "bg-slate-50" : "bg-white"}>
+                    <td className={`sticky left-0 z-10 w-12 min-w-12 px-2 py-1 text-right text-xs font-semibold tabular-nums text-slate-500 ${n % 2 ? "bg-slate-50" : "bg-white"}`}>{sheet.students.indexOf(st) + 1}</td>
+                    <td className={`sticky left-12 z-10 px-3 py-1 ${n % 2 ? "bg-slate-50" : "bg-white"}`}>
+                      <span className="block font-semibold tabular-nums text-slate-900">{st.registerNumber}</span>
                       <span className="block max-w-[11rem] truncate text-xs text-slate-500">{st.name}</span>
                     </td>
-                    {st.cells.map((c, i) => (
-                      <td key={i} className={`px-3 py-1.5 text-center tabular-nums ${CELL[c.flag]}`}>
-                        {c.flag === "na" ? "NA" : c.value === null || c.value === undefined ? "—" : tidy(c.value)}
-                        {type === "attendance" && c.pct !== null && <span className="block text-[11px] font-normal opacity-80">{tidy(c.pct)}%</span>}
-                      </td>
-                    ))}
+                    {columns.map((x) => {
+                      const c = st.cells[x];
+                      return (
+                        <td key={x} className={`px-3 py-1 text-center font-medium tabular-nums ${CELL[c.flag]}`}>
+                          {c.flag === "na" ? "NA" : type === "attendance" ? (c.pct === null || c.pct === undefined ? "—" : Number(c.pct).toFixed(2)) : c.value === null || c.value === undefined ? "—" : tidy(c.value)}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={sheet.subjects.length + 1} className="px-3 py-8 text-center text-slate-500">
+                    <td colSpan={columns.length + 2} className="px-3 py-8 text-center text-slate-500">
                       No problems found.
                     </td>
                   </tr>

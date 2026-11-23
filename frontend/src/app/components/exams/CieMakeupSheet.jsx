@@ -16,6 +16,7 @@ import { EveningTag, matchesCollege } from "../ui/CollegeFilter";
 import StudentPhoto from "../ui/StudentPhoto";
 import { BranchShiftFields, useEveningBranch, useEveningMode } from "../evening/EveningSheetFilters";
 import { DEPARTMENTS, errMsg, useApi } from "./shared";
+import { deptOfReg, deptTint, tintRow } from "../ui/deptTint";
 
 export default function CieMakeupSheet() {
   const api = useApi();
@@ -154,6 +155,7 @@ export default function CieMakeupSheet() {
                 <thead className="text-left text-xs font-semibold text-slate-500">
                   <tr className="border-b border-slate-100">
                     <th className="w-10 px-3 py-2.5 text-right">Sl.</th>
+                    <th className="px-3 py-2.5">Dept</th>
                     <th className="px-3 py-2.5">Student</th>
                     <th className="px-3 py-2.5">Course</th>
                     <th className="px-3 py-2.5 text-right">CIE before</th>
@@ -200,8 +202,11 @@ function Row({ n, r, onSaved }) {
   };
 
   return (
-    <tr className="align-middle">
-      <td className="px-3 py-2.5 text-right text-xs tabular-nums text-slate-400">{n}</td>
+    <tr className={`align-middle ${tintRow(deptOfReg(r.registerNumber), n - 1)}`}>
+      <td className="px-3 py-1.5 text-right text-xs tabular-nums text-slate-500">{n}</td>
+      <td className="px-3 py-1.5">
+        <span className={`rounded-md px-1.5 py-0.5 text-xs font-bold ${deptTint(deptOfReg(r.registerNumber)).chip}`}>{deptOfReg(r.registerNumber).toUpperCase()}</span>
+      </td>
       <td className="px-3 py-2.5">
         <div className="flex items-center gap-2.5">
           <StudentPhoto url={r.imageUrl} name={r.name} />

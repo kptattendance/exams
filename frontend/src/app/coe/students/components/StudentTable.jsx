@@ -14,6 +14,7 @@ import { useIsAdmin } from "../../../components/useRole";
 import { usePopupMessage, confirmBox, popup } from "../../../components/ui/Feedback";
 import ChangePhotoButton from "../../../components/students/ChangePhoto";
 import CollegeSelect, { matchesCollege } from "../../../components/ui/CollegeFilter";
+import { deptTint, tintRow } from "../../../components/ui/deptTint";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const departments = [
@@ -1073,11 +1074,9 @@ const downloadStudentsExcel = () => {
                     return (
                       <tr
                         key={student._id}
-                        className={
-                          selected
-                            ? "bg-slate-50"
-                            : "hover:bg-slate-50"
-                        }
+                        className={`${tintRow(student.department, index)} ${
+                          selected ? "!bg-slate-100" : "hover:bg-slate-50"
+                        }`}
                       >
 
                         <td className="px-3 py-3 text-center">
@@ -1146,6 +1145,9 @@ const downloadStudentsExcel = () => {
                         </td>
 
                         <td className="px-3 py-3 text-sm text-slate-600">
+                          <span className={`mr-1.5 rounded-md px-1.5 py-0.5 text-xs font-bold ${deptTint(student.department).chip}`}>
+                            {String(student.department || "").toUpperCase()}
+                          </span>
                           {getDepartmentName(
                             student.department
                           )}

@@ -100,6 +100,11 @@ export function ElectiveHeader({ column, dark = true, students = [] }) {
   );
 }
 
+// Of a sheet from the server: the columns to show. An elective option that no
+// student of this class took is left out.
+export const takenColumns = (sheet) =>
+  sheet.subjects.map((_, i) => i).filter((i) => !isElective(sheet.subjects[i]) || sheet.students.some((st) => st.cells[i]?.flag !== "na"));
+
 // a student whose elective is not chosen yet
 export function ChooseElectiveCell({ href = "electives" }) {
   return (

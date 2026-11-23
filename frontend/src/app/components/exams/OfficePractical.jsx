@@ -15,6 +15,7 @@ import { useToast } from "../ui/Feedback";
 import { T } from "../ui/table";
 import { errMsg, useApi } from "./shared";
 import { ExamSelect, NoExam, batchState, dept, fmtDay, sessionLabel, usePracticalExams } from "./practicalShared";
+import { deptTint, tintRow } from "../ui/deptTint";
 
 const VIEWS = {
   // room diary and ML sheet of every batch on one page, with "printed or not"
@@ -432,12 +433,12 @@ function SheetsTable({ batches, rooms, onPdf, onMark }) {
           const d = b.printed?.diaryAt;
           const m = b.printed?.mlAt;
           return (
-            <tr key={b._id} className={T.row}>
+            <tr key={b._id} className={`${T.row} ${tintRow(b.department, i)}`}>
               <td className={T.tdNum}>{i + 1}</td>
               <td className={`${T.td} font-semibold`}>{b.label}</td>
               <td className={T.td}>
                 {b.name}
-                <span className="block text-xs text-slate-500">{dept(b.department)}</span>
+                <span className={`mt-0.5 inline-block rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${deptTint(b.department).chip}`}>{dept(b.department)}</span>
               </td>
               <td className={`${T.td} text-xs`}>
                 {fmtDay(b.date)} {sessionLabel(b.session)}
@@ -498,12 +499,12 @@ function BatchTable({ batches, onPdf }) {
         {batches.map((b, i) => {
           const st = batchState(b);
           return (
-            <tr key={b._id} className={T.row}>
+            <tr key={b._id} className={`${T.row} ${tintRow(b.department, i)}`}>
               <td className={T.tdNum}>{i + 1}</td>
               <td className={`${T.td} font-semibold`}>{b.label}</td>
               <td className={T.td}>
                 {b.name}
-                <span className="block text-xs text-slate-500">{dept(b.department)}</span>
+                <span className={`mt-0.5 inline-block rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${deptTint(b.department).chip}`}>{dept(b.department)}</span>
               </td>
               <td className={`${T.td} text-xs`}>
                 {fmtDay(b.date)} {sessionLabel(b.session)}

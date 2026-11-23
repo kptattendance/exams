@@ -17,3 +17,12 @@ const TINTS = {
 const OTHER = { row: "bg-slate-50", edge: "border-slate-300", chip: "bg-slate-100 text-slate-700" };
 
 export const deptTint = (d) => TINTS[String(d || "").toLowerCase()] || OTHER;
+
+// the department in a register number: 103CS26001 -> cs
+export const deptOfReg = (registerNumber) => String(registerNumber || "").slice(3, 5).toLowerCase();
+
+// a table row: the department's left bar, and its light shade on every other row
+export const tintRow = (department, index) => {
+  const t = deptTint(department);
+  return `border-l-4 ${t.edge} ${index % 2 ? t.row : "bg-white"}`;
+};

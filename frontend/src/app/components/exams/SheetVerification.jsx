@@ -17,6 +17,7 @@ import { deptLabel, errMsg, useApi } from "./shared";
 import { T } from "../ui/table";
 import { openSignatureSheet } from "../HodSheetPanel";
 import { useRole } from "../useRole";
+import { takenColumns } from "../bridge";
 
 const TITLE = { ia: "Final IA", attendance: "Final attendance" };
 const round2 = (n) => Math.round(Number(n) * 100) / 100;
@@ -300,6 +301,7 @@ function SheetModal({ type, id, canEdit, onClose, onChanged }) {
       })),
     });
 
+  const columns = takenColumns(sheet);
   const text = q.trim().toLowerCase();
   const rows = (sheet?.students || []).filter((st) => !text || `${st.registerNumber} ${st.name}`.toLowerCase().includes(text));
 
@@ -375,7 +377,7 @@ function SheetModal({ type, id, canEdit, onClose, onChanged }) {
                     <span className="inline-block w-8 text-right">Sl.</span>
                     <span className="ml-2.5">Student</span>
                   </th>
-                  {sheet.subjects.map((s) => (
+                  {columns.map((x) => sheet.subjects[x]).map((s) => (
                     <th key={s.subjectId} className="px-2 py-2 text-center font-semibold text-slate-600" title={s.name}>
                       {s.code}
                       <span className="block font-normal text-slate-500">{type === "ia" ? `of ${s.max ?? "?"}${s.iaMin ? ` · min ${s.iaMin}` : ""}` : "%"}</span>
@@ -405,7 +407,8 @@ function SheetModal({ type, id, canEdit, onClose, onChanged }) {
                         </div>
                       </div>
                     </td>
-                    {sheet.subjects.map((sub, i) => {
+                    {columns.map((i) => {
+                      const sub = sheet.subjects[i];
                       const c = st.cells[i];
                       const k = `${st.studentId}|${sub.subjectId}`;
                       const fix = fixOf.get(k);

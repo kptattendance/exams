@@ -14,6 +14,7 @@ import Modal, { btn, field } from "../ui/Modal";
 import { useConfirm, useToast } from "../ui/Feedback";
 import { useRole } from "../useRole";
 import { errMsg, useApi } from "./shared";
+import { deptOfReg, deptTint } from "../ui/deptTint";
 
 const TYPE = { REVALUATION: "Revaluation", COPY: "Script copy", VIEW: "Viewing" };
 const STATUS = {
@@ -221,9 +222,10 @@ Only for an application entered by mistake.`, confirmText: "Remove", tone: "dang
   };
 
   return (
-    <tr className="align-top">
+    <tr className={`align-top border-l-4 ${deptTint(deptOfReg(a.registerNumber)).edge}`}>
       <td className="px-3 py-2.5">
         <b className="tabular-nums text-slate-950">{a.registerNumber}</b>
+        <span className={`ml-1.5 rounded-md px-1.5 py-0.5 text-[10px] font-bold ${deptTint(deptOfReg(a.registerNumber)).chip}`}>{deptOfReg(a.registerNumber).toUpperCase()}</span>
         <span className="block text-xs text-slate-500">{a.name}</span>
       </td>
       <td className="px-3 py-2.5">

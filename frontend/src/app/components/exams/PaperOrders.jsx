@@ -9,6 +9,7 @@ import Icon from "../shell/Icon";
 import { useToast } from "../ui/Feedback";
 import { T } from "../ui/table";
 import { errMsg, useApi } from "./shared";
+import { deptTint, tintRow } from "../ui/deptTint";
 
 // Odd semesters are examined Nov/Dec, even semesters May/June
 const defaultSession = () => {
@@ -168,7 +169,7 @@ export default function PaperOrders() {
             </thead>
             <tbody className={T.body}>
               {shown.map((o, i) => (
-                <tr key={o._id} className={T.row}>
+                <tr key={o._id} className={`${T.row} ${tintRow(o.subject?.department, i)}`}>
                   <td className={T.tdNum}>{i + 1}</td>
                   <td className={T.td}>
                     <p className="font-semibold text-slate-950">{o.subject?.code}</p>
@@ -178,7 +179,7 @@ export default function PaperOrders() {
                     </p>
                   </td>
                   <td className={`${T.td} whitespace-nowrap text-xs text-slate-600`}>
-                    <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-semibold text-slate-700">{up(o.subject?.department)}</span>
+                    <span className={`rounded-md px-1.5 py-0.5 font-bold ${deptTint(o.subject?.department).chip}`}>{up(o.subject?.department)}</span>
                     <span className="ml-1.5">Sem {o.subject?.semester}</span>
                   </td>
                   <td className={`${T.td} text-xs font-semibold text-slate-700`}>{o.setNo}</td>

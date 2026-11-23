@@ -12,6 +12,7 @@ import Icon from "../shell/Icon";
 import { useToast } from "../ui/Feedback";
 import { errMsg, useApi } from "./shared";
 import { T } from "../ui/table";
+import { deptTint } from "../ui/deptTint";
 
 export const STAGE = {
   ATTENDANCE: { label: "Before / on exam day", chip: "bg-slate-100 text-slate-600" },
@@ -224,7 +225,17 @@ export default function ValuationBoard({ basePath, canManage = false }) {
                           <p className="max-w-[16rem] truncate text-xs text-slate-500">{p.name}</p>
                         </td>
                         <td className={`${T.td} text-xs text-slate-600`}>
-                          {p.departments.length ? p.departments.map((d) => d.toUpperCase()).join(", ") : "Back paper"}
+                          {p.departments.length ? (
+                            <span className="flex flex-wrap gap-1">
+                              {p.departments.map((d) => (
+                                <span key={d} className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold ${deptTint(d).chip}`}>
+                                  {d.toUpperCase()}
+                                </span>
+                              ))}
+                            </span>
+                          ) : (
+                            "Back paper"
+                          )}
                         </td>
                         <td className={`${T.td} text-right text-xs tabular-nums text-slate-700`}>{p.candidates ?? "–"}</td>
                         <td className={`${T.td} text-right text-xs tabular-nums ${p.absent > 0 ? "font-semibold text-red-600" : "text-slate-400"}`}>

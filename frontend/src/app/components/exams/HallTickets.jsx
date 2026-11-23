@@ -12,6 +12,7 @@ import { confirmBox, useToast } from "../ui/Feedback";
 import { ADMISSION_SHORT, errMsg, useApi } from "./shared";
 import CollegeSelect, { classesFor, keepClass } from "../ui/CollegeFilter";
 import { T } from "../ui/table";
+import { deptTint, tintRow } from "../ui/deptTint";
 
 
 export default function HallTickets({ timetableHref }) {
@@ -243,7 +244,7 @@ export default function HallTickets({ timetableHref }) {
                 </thead>
                 <tbody className={T.body}>
                   {data.data.map((t, i) => (
-                    <tr key={t._id} className={T.row}>
+                    <tr key={t._id} className={`${T.row} ${tintRow(t.department, i)}`}>
                       <td className={T.tdNum}>{(page - 1) * 40 + i + 1}</td>
                       <td className={`${T.td} font-semibold tabular-nums text-slate-950`}>{t.registerNumber}</td>
                       <td className={T.td}>
@@ -251,7 +252,13 @@ export default function HallTickets({ timetableHref }) {
                         <p className="text-[11px] text-slate-400">{ADMISSION_SHORT[t.admissionType] || t.admissionType}</p>
                       </td>
                       <td className={`${T.td} whitespace-nowrap text-xs text-slate-600`}>
-                        {t.backPapersOnly ? "Back papers only" : `${t.department.toUpperCase()} · Sem ${t.semester}`}
+                        {t.backPapersOnly ? (
+                          "Back papers only"
+                        ) : (
+                          <>
+                            <span className={`rounded-md px-1.5 py-0.5 text-xs font-bold ${deptTint(t.department).chip}`}>{t.department.toUpperCase()}</span> Sem {t.semester}
+                          </>
+                        )}
                       </td>
                       <td className={`${T.td} text-xs tabular-nums text-slate-600`}>
                         {t.permittedCount} / {t.subjects.filter((s) => !s.audit).length} permitted
