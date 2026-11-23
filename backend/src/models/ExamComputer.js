@@ -17,6 +17,8 @@ const examComputerSchema = new mongoose.Schema(
       required: true,
     },
     name: { type: String, required: true, trim: true, maxlength: 40 },
+    // private: only the Admin who registered it sees it; it is in nobody else's list or count
+    hidden: { type: Boolean, default: false },
     status: { type: String, enum: ["ACTIVE", "REQUESTED", "REMOVED"], default: "REQUESTED" },
     registeredBy: { type: String, default: "" },
     registeredAt: { type: Date, default: null },

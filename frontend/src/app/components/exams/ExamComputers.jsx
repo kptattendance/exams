@@ -161,6 +161,7 @@ export default function ExamComputers() {
                   <td className={`${T.td} font-semibold text-slate-900`}>
                     {c.name}
                     {mine?.code === c.code && <span className="ml-2 rounded-md bg-indigo-100 px-1.5 py-0.5 text-[11px] font-semibold text-indigo-800">This computer</span>}
+                    {c.hidden && <span className="ml-2 rounded-md bg-violet-100 px-1.5 py-0.5 text-[11px] font-semibold text-violet-800">Private – only you see it</span>}
                   </td>
                   <td className={`${T.td} whitespace-nowrap font-mono text-xs text-slate-600`}>{c.code}</td>
                   <td className={T.td} title={c.unlockReason ? `Reason: ${c.unlockReason} (${c.unlockedBy})` : undefined}>

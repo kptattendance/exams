@@ -1122,7 +1122,8 @@ export const examDayPrint = async (req, res) => {
     const printer = await User.findOne({ clerkId: req.user.id }).select("name").lean();
     const post = req.user.role === "admin" ? "Administrator" : "Chief Examiner";
     const person = String(printer?.name || "").trim().replace(/\s+/g, " ");
-    const computer = req.examComputer.name;
+    // a private computer's name is never on the paper or in the paper's history
+    const computer = req.examComputer.hidden ? "Exam computer" : req.examComputer.name;
     const plain = await getDecryptedFile(paper, paper.finalPdf);
     const stamped = await stampPdf(
       plain,

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import { PDFDocument } from "pdf-lib";
 
-import { cleanKey, computerAllowed, keyIdOf, proofMessage, shortCode, verifyProof } from "../src/services/examComputers.js";
+import { canSeeComputer, cleanKey, computerAllowed, keyIdOf, proofMessage, shortCode, verifyProof } from "../src/services/examComputers.js";
 import { stampPdf } from "../src/services/examDay.js";
 
 const makeKey = () => {
@@ -58,4 +58,13 @@ test("the watermark fits a long name on portrait and landscape pages", async () 
   doc.addPage([842, 595]);
   const out = await stampPdf(Buffer.from(await doc.save()), "Printed by someone", "A VERY LONG NAME OF THE PERSON WHO PRINTED THIS PAPER - CHIEF EXAMINER");
   assert.equal((await PDFDocument.load(out)).getPageCount(), 2);
+});
+
+test("a private computer is seen only by the Admin who registered it", () => {
+  const laptop = { hidden: true, registeredBy: "owner@test" };
+  assert.equal(canSeeComputer(laptop, { role: "admin", email: "owner@test" }), true);
+  assert.equal(canSeeComputer(laptop, { role: "admin", email: "other@test" }), false);
+  assert.equal(canSeeComputer(laptop, { role: "coe", email: "owner@test" }), false);
+  assert.equal(canSeeComputer(laptop, { role: "chief_examiner", email: "ce@test" }), false);
+  assert.equal(canSeeComputer({ hidden: false, registeredBy: "x@test" }, { role: "coe", email: "coe@test" }), true);
 });

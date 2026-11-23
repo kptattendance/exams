@@ -14,7 +14,7 @@ import mongoose from "mongoose";
 
 import ExamComputer, { ExamComputerChallenge } from "../models/ExamComputer.js";
 import AuditLog from "../models/AuditLog.js";
-import { CHALLENGE_MINUTES, UNLOCK_MINUTES, cleanKey, computerAllowed, keyIdOf, proofMessage, shortCode, verifyProof } from "../services/examComputers.js";
+import { CHALLENGE_MINUTES, UNLOCK_MINUTES, canSeeComputer, cleanKey, computerAllowed, keyIdOf, proofMessage, shortCode, verifyProof } from "../services/examComputers.js";
 
 const fail = (res, status, error, extra = {}) => res.status(status).json({ error, ...extra });
 const who = (req) => req.user?.email || req.user?.id || "unknown";
@@ -34,9 +34,17 @@ const log = (req, action, entityId, details) =>
     details,
   }).catch((e) => console.error("Audit log failed:", e.message));
 
-const view = (c) => ({
+// Someone else at a private computer learns only that it may print
+const view = (c, req) => {
+  if (!canSeeComputer(c, req.user))
+    return { name: "Registered computer", code: shortCode(c.keyId), status: c.status, allowed: computerAllowed(c), unlockedUntil: null };
+  return fullView(c);
+};
+
+const fullView = (c) => ({
   _id: c._id,
   name: c.name,
+  hidden: Boolean(c.hidden),
   code: shortCode(c.keyId),
   status: c.status,
   allowed: computerAllowed(c),
@@ -54,9 +62,9 @@ const view = (c) => ({
 const ORDER = { REQUESTED: 0, ACTIVE: 1, REMOVED: 2 };
 
 export const listComputers = async (req, res) => {
-  const list = await ExamComputer.find().lean();
+  const list = (await ExamComputer.find().lean()).filter((c) => canSeeComputer(c, req.user));
   list.sort((a, b) => ORDER[a.status] - ORDER[b.status] || a.name.localeCompare(b.name));
-  res.json({ data: list.map(view) });
+  res.json({ data: list.map(fullView) });
 };
 
 export const registerComputer = async (req, res) => {
@@ -65,8 +73,11 @@ export const registerComputer = async (req, res) => {
   const name = String(req.body?.name || "").trim().replace(/\s+/g, " ").slice(0, 40);
   if (name.length < 2) return fail(res, 400, "Give this computer a name, e.g. Exam Cell Desktop.");
   const keyId = keyIdOf(key);
+  const existing = await ExamComputer.findOne({ keyId }).lean();
+  if (existing && !canSeeComputer(existing, req.user)) return fail(res, 409, "This computer is already registered.");
   const clash = await ExamComputer.findOne({
     status: "ACTIVE",
+    hidden: { $ne: true },
     keyId: { $ne: keyId },
     name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
   })
@@ -81,11 +92,13 @@ export const registerComputer = async (req, res) => {
     { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
   ).lean();
   await log(req, "EXAM_COMPUTER_REGISTERED", c._id, { name, code: shortCode(keyId) });
-  res.json({ message: `"${name}" is registered. It can now print question papers on the exam day.`, data: view(c) });
+  res.json({ message: `"${name}" is registered. It can now print question papers on the exam day.`, data: view(c, req) });
 };
 
 export const removeComputer = async (req, res) => {
   if (!isId(req.params.id)) return fail(res, 400, "Invalid computer.");
+  const found = await ExamComputer.findById(req.params.id).lean();
+  if (!found || !canSeeComputer(found, req.user)) return fail(res, 404, "Computer not found.");
   const c = await ExamComputer.findByIdAndUpdate(req.params.id, { $set: { status: "REMOVED", unlockedUntil: null } }, { returnDocument: "after" }).lean();
   if (!c) return fail(res, 404, "Computer not found.");
   await log(req, "EXAM_COMPUTER_REMOVED", c._id, { name: c.name, code: shortCode(c.keyId) });
@@ -96,6 +109,8 @@ export const unlockComputer = async (req, res) => {
   if (!isId(req.params.id)) return fail(res, 400, "Invalid computer.");
   const reason = String(req.body?.reason || "").trim().slice(0, 200);
   if (reason.length < 5) return fail(res, 400, "Write the reason for the emergency access.");
+  const found = await ExamComputer.findById(req.params.id).lean();
+  if (!found || !canSeeComputer(found, req.user)) return fail(res, 404, "Computer not found.");
   const until = new Date(Date.now() + UNLOCK_MINUTES * 60 * 1000);
   const c = await ExamComputer.findByIdAndUpdate(
     req.params.id,
@@ -104,7 +119,7 @@ export const unlockComputer = async (req, res) => {
   ).lean();
   if (!c) return fail(res, 404, "Computer not found.");
   await log(req, "EXAM_COMPUTER_UNLOCKED", c._id, { name: c.name, code: shortCode(c.keyId), reason, until });
-  res.json({ message: `"${c.name}" can print for the next ${UNLOCK_MINUTES} minutes.`, data: view(c) });
+  res.json({ message: `"${c.name}" can print for the next ${UNLOCK_MINUTES} minutes.`, data: view(c, req) });
 };
 
 // Is the computer in use allowed? (Nothing is saved.)
@@ -113,7 +128,7 @@ export const thisComputer = async (req, res) => {
   if (!key) return fail(res, 400, "This browser could not make a security key. Use Chrome, and not an Incognito window.");
   const keyId = keyIdOf(key);
   const c = await ExamComputer.findOne({ keyId }).lean();
-  res.json({ data: c ? view(c) : { name: "", code: shortCode(keyId), status: "", allowed: false, unlockedUntil: null } });
+  res.json({ data: c ? view(c, req) : { name: "", code: shortCode(keyId), status: "", allowed: false, unlockedUntil: null } });
 };
 
 export const requestAccess = async (req, res) => {
@@ -121,7 +136,7 @@ export const requestAccess = async (req, res) => {
   if (!key) return fail(res, 400, "This browser could not make a security key. Use Chrome, and not an Incognito window.");
   const keyId = keyIdOf(key);
   const found = await ExamComputer.findOne({ keyId }).lean();
-  if (found?.status === "ACTIVE") return res.json({ message: "This computer is already registered.", data: view(found) });
+  if (found?.status === "ACTIVE") return res.json({ message: "This computer is already registered.", data: view(found, req) });
   const c = await ExamComputer.findOneAndUpdate(
     { keyId },
     {
@@ -131,7 +146,7 @@ export const requestAccess = async (req, res) => {
     { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
   ).lean();
   await log(req, "EXAM_COMPUTER_ACCESS_ASKED", c._id, { name: c.name, code: shortCode(keyId) });
-  res.json({ message: `Request sent. Tell the COE / Admin this computer's code: ${shortCode(keyId)}`, data: view(c) });
+  res.json({ message: `Request sent. Tell the COE / Admin this computer's code: ${shortCode(keyId)}`, data: view(c, req) });
 };
 
 export const newChallenge = async (req, res) => {

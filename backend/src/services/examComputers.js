@@ -39,6 +39,10 @@ export function verifyProof(publicKey, message, signature) {
   }
 }
 
+// A private computer is seen only by the Admin who registered it
+export const canSeeComputer = (computer, user) =>
+  !computer?.hidden || (user?.role === "admin" && Boolean(user.email) && computer.registeredBy === user.email);
+
 // Registered, or inside a short emergency unlock
 export const computerAllowed = (computer, now = new Date()) =>
   Boolean(computer) && (computer.status === "ACTIVE" || (Boolean(computer.unlockedUntil) && new Date(computer.unlockedUntil) > now));
