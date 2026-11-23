@@ -50,11 +50,12 @@ export default function SheetVerification() {
 
   const departments = [...new Set((list || []).map((x) => x.department))].sort();
   const semesters = [...new Set((list || []).map((x) => x.semester))].sort((a, b) => a - b);
-  // department by department (day college first, then evening), semester by semester
+  // the day college first, the evening college separately at the end;
+  // inside each: department by department, semester by semester
   const shown = (list || [])
     .filter((x) => (!dept || x.department === dept) && (!sem || String(x.semester) === sem) && (!show || (show === "done" ? x.verified : !x.verified)))
-    .sort((a, b) => a.department.localeCompare(b.department) || (a.shift === "EVENING") - (b.shift === "EVENING") || a.semester - b.semester);
-  const groupOf = (x) => `${x.department}|${x.shift}`;
+    .sort((a, b) => (a.shift === "EVENING") - (b.shift === "EVENING") || a.department.localeCompare(b.department) || a.semester - b.semester);
+  const dayCount = shown.filter((x) => x.shift !== "EVENING").length;
   const done = (list || []).filter((x) => x.verified).length;
 
   return (
@@ -111,6 +112,7 @@ export default function SheetVerification() {
             <thead>
               <tr className={T.headRow}>
                 <th className={T.thNum}>Sl.</th>
+                <th className={T.th}>Department</th>
                 <th className={T.th}>Sem</th>
                 <th className={T.th}>Batch</th>
                 <th className={`${T.th} text-right`}>Students</th>
@@ -122,22 +124,22 @@ export default function SheetVerification() {
             <tbody className={T.body}>
               {shown.map((s, i) => {
                 const t = deptTint(s.department);
-                const newGroup = i === 0 || groupOf(shown[i - 1]) !== groupOf(s);
+                const evening = s.shift === "EVENING";
                 return (
                   <Fragment key={s._id}>
-                  {newGroup && (
-                    <tr className={`border-l-4 ${t.edge} ${t.chip}`}>
-                      <td colSpan={7} className="px-3 py-1 text-xs font-bold">
-                        {s.department.toUpperCase()} – {deptLabel(s.department)}
-                        {s.shift === "EVENING" && " · Evening"}
-                        <span className="ml-2 font-medium opacity-75">
-                          {shown.filter((x) => groupOf(x) === groupOf(s)).length} sheet(s)
-                        </span>
+                  {evening && i === dayCount && (
+                    <tr className="bg-indigo-100">
+                      <td colSpan={8} className="px-3 py-1 text-xs font-bold text-indigo-900">
+                        Evening college
                       </td>
                     </tr>
                   )}
                   <tr className={`${T.row} border-l-4 ${t.edge} ${i % 2 ? t.row : "bg-white"}`}>
-                    <td className={T.tdNum}>{i + 1}</td>
+                    <td className={T.tdNum}>{evening ? i - dayCount + 1 : i + 1}</td>
+                    <td className={T.td}>
+                      <span className={`rounded-md px-1.5 py-0.5 text-xs font-bold ${t.chip}`}>{s.department.toUpperCase()}</span>
+                      <span className="ml-2 text-xs text-slate-600">{deptLabel(s.department)}</span>
+                    </td>
                     <td className={`${T.td} text-xs font-semibold`}>{s.semester}</td>
                     <td className={`${T.td} text-xs text-slate-600`}>{s.batch}</td>
                     <td className={`${T.td} text-right text-xs tabular-nums`}>{s.students}</td>
