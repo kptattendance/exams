@@ -1202,6 +1202,11 @@ export const getUsers = async (req, res) => {
       req.user?.role || ""
     ).toLowerCase();
 
+    // only the roles that manage staff see the list (phones and emails)
+    if (!rolePermissions[requesterRole]) {
+      return res.status(403).json({ success: false, message: "You do not have permission to see this list." });
+    }
+
     const requesterDepartment = String(
       req.user?.department || ""
     )
@@ -1275,7 +1280,7 @@ export const getUsers = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: err.message,
+      message: "Something went wrong. Please try again.",
     });
   }
 };
@@ -1316,6 +1321,14 @@ export const getUserById = async (
       });
     }
 
+    // one's own record, or a person this role manages (a HOD: staff of his department)
+    const viewerRole = String(req.user?.role || "").toLowerCase();
+    const own = user.clerkId && user.clerkId === req.user?.id;
+    const sameDept = viewerRole !== "hod" || String(user.department || "").toLowerCase() === String(req.user?.department || "").toLowerCase();
+    if (!own && !(canManage(viewerRole, user.role) && sameDept)) {
+      return res.status(403).json({ success: false, message: "You do not have permission to see this user." });
+    }
+
     return res.json({
       success: true,
       data: user,
@@ -1329,7 +1342,7 @@ export const getUserById = async (
 
     return res.status(500).json({
       success: false,
-      message: err.message,
+      message: "Something went wrong. Please try again.",
     });
   }
 };
@@ -1402,9 +1415,23 @@ export const updateUser = async (
       }
     }
 
-    const updateData = {
-      ...req.body,
-    };
+    // only these fields can be changed, and only as plain text
+    const updateData = {};
+    for (const field of ["name", "email", "phone", "role", "department", "designation", "collegeCode", "collegeName"]) {
+      const value = req.body?.[field];
+      if (typeof value === "string" || typeof value === "number") updateData[field] = String(value);
+    }
+
+    // Nobody can raise his own role or move himself to another department
+    if (targetUser.clerkId === requesterId && requesterRole !== "admin") {
+      const same = (a, b) => String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
+      if (updateData.role !== undefined && !same(updateData.role, targetUser.role)) {
+        return res.status(403).json({ success: false, message: "You cannot change your own role. Please ask the Admin." });
+      }
+      if (updateData.department !== undefined && !same(updateData.department, targetUser.department)) {
+        return res.status(403).json({ success: false, message: "You cannot change your own department. Please ask the Admin." });
+      }
+    }
 
     if (updateData.designation !== undefined) {
       updateData.designation = normalizeDesignation(updateData.designation);
@@ -1556,7 +1583,7 @@ export const updateUser = async (
 
     return res.status(500).json({
       success: false,
-      message: err.message,
+      message: "Something went wrong. Please try again.",
     });
   }
 };
@@ -1690,7 +1717,7 @@ export const deleteUser = async (
 
     return res.status(500).json({
       success: false,
-      message: err.message,
+      message: "Something went wrong. Please try again.",
     });
   }
 };
@@ -1789,7 +1816,7 @@ export const syncUser = async (
 
     return res.status(500).json({
       success: false,
-      message: err.message,
+      message: "Something went wrong. Please try again.",
     });
   }
 };

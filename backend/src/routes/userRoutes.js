@@ -46,8 +46,8 @@ router.delete(
 
 router.post(
   "/bulk-upload-faculty",
+  authenticateUser, // the file is read only after the sign-in check
   uploadExcel.single("file"),
-  authenticateUser,
   bulkUploadFaculty
 );
 

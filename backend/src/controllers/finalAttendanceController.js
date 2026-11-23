@@ -374,8 +374,6 @@ const subjects =
       success: false,
       message:
         "Failed to prepare attendance.",
-      error:
-        error.message,
     });
   }
 };
@@ -888,7 +886,6 @@ export const saveAttendance = async (
       success: false,
       message:
         "Failed to save attendance.",
-      error: error.message,
     });
   }
 };
@@ -1082,7 +1079,6 @@ export const getAttendance = async (
       success: false,
       message:
         "Failed to fetch attendance.",
-      error: error.message,
     });
   }
 };
@@ -1317,7 +1313,6 @@ export const submitAttendance = async (
       success: false,
       message:
         "Failed to submit attendance.",
-      error: error.message,
     });
   }
 };
@@ -1483,7 +1478,6 @@ export const confirmAttendance = async (
       success: false,
       message:
         "Failed to freeze attendance.",
-      error: error.message,
     });
   }
 };

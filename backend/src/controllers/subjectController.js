@@ -409,7 +409,6 @@ export const createSubject = async (req, res) => {
 
     return res.status(500).json({
       message: "Failed to create course.",
-      error: error.message,
     });
   }
 };
@@ -503,7 +502,6 @@ export const getSubjects = async (req, res) => {
 
     return res.status(500).json({
       message: "Failed to fetch courses.",
-      error: error.message,
     });
   }
 };
@@ -538,7 +536,6 @@ export const getSubjectById = async (
 
     return res.status(500).json({
       message: "Failed to fetch course.",
-      error: error.message,
     });
   }
 };
@@ -793,7 +790,6 @@ if (error.code === 11000) {
 
     return res.status(500).json({
       message: "Failed to update course.",
-      error: error.message,
     });
   }
 };
@@ -833,7 +829,6 @@ export const deleteSubject = async (
 
     return res.status(500).json({
       message: "Failed to delete course.",
-      error: error.message,
     });
   }
 };
@@ -1225,14 +1220,12 @@ uniqueSubjectKeys.add(subjectKey);
       return res.status(400).json({
         message:
           "Duplicate course or sequence detected.",
-        error: error.message,
       });
     }
 
     return res.status(500).json({
       message:
         "Failed to upload courses.",
-      error: error.message,
     });
   }
 };

@@ -1,5 +1,5 @@
 import Student from "../models/Student.js";
-import { decryptAadhaar } from "../services/studentCrypto.js";
+import { decryptAadhaar, encryptAadhaar } from "../services/studentCrypto.js";
 import ExamRegistration from "../models/ExamRegistration.js";
 import Exam from "../models/Exam.js";
 import CourseResult from "../models/CourseResult.js";
@@ -10,7 +10,7 @@ import XLSX from "xlsx";
 import axios from "axios";
 import { calendarDay, satsOf } from "../services/studentImport/rules.js";
 import { refreshAfterChange, refreshNote } from "../services/exams/autoRefresh.js";
-import { collegeFilter, isEvening, studentShift } from "../services/evening.js";
+import { EVENING_DEPARTMENTS, collegeFilter, isEvening, studentShift } from "../services/evening.js";
 import { bySyllabus } from "../services/exams/rules.js";
 import { audit } from "../models/AuditLog.js";
 import { binStudents } from "../services/recycleBin.js";
@@ -934,7 +934,7 @@ export const bulkUploadStudents = async (
 
             category,
 
-            aadhaarNumber,
+            ...encryptAadhaar(aadhaarNumber),
 
             satsNumber,
 
@@ -1440,8 +1440,7 @@ export const createStudent = async (req, res) => {
       category:
         String(category || "").trim(),
 
-      aadhaarNumber:
-        String(aadhaarNumber || "").trim(),
+      ...encryptAadhaar(String(aadhaarNumber || "").trim()),
 
       satsNumber:
         satsOf(satsNumber || ""), // leading zeros put back
@@ -1578,8 +1577,9 @@ export const getStudents = async (req, res) => {
     // -------------------------------------------------
 
     if (search?.trim()) {
+      // the typed text is searched as plain text, never as a pattern
       const regex = new RegExp(
-        search.trim(),
+        String(search).trim().slice(0, 80).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
         "i"
       );
 
@@ -1715,7 +1715,6 @@ export const getStudents = async (req, res) => {
       success: false,
       message:
         "Server error while fetching students.",
-      error: error.message,
     });
   }
 };
@@ -1739,6 +1738,17 @@ export const getStudentById = async (req, res) => {
       });
     }
 
+    // a HOD / Evening Principal: only his own students
+    if (String(req.user?.role || "").toLowerCase() === "hod") {
+      const dept = String(student.department || "").toLowerCase();
+      // the Evening Principal has all the evening departments
+      const sameDept = req.user?.evening ? EVENING_DEPARTMENTS.includes(dept) : dept === String(req.user?.department || "").toLowerCase();
+      const sameShift = isEvening(student.registerNumber) === Boolean(req.user?.evening);
+      if (!sameDept || !sameShift) {
+        return res.status(403).json({ success: false, message: "You can see only the students of your department." });
+      }
+    }
+
     return res.status(200).json({
       success: true,
       data: student,
@@ -1753,7 +1763,6 @@ export const getStudentById = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Server error while fetching student.",
-      error: error.message,
     });
   }
 };
@@ -1816,7 +1825,6 @@ export const updateStudent = async (req, res) => {
       "parentPhone",
       "caste",
       "category",
-      "aadhaarNumber",
       "satsNumber",
       "department",
       "admissionYear",
@@ -1830,6 +1838,20 @@ export const updateStudent = async (req, res) => {
     const ADMISSION_TYPES = ["regular", "lateral-puc", "lateral-iti", "lateral-iti-cross", "branch-change"];
     if (req.body.admissionType !== undefined && !ADMISSION_TYPES.includes(String(req.body.admissionType)))
       return res.status(400).json({ success: false, message: "Choose a valid admission type." });
+
+    // Aadhaar is never stored as plain text. The masked XXXXXXXX1234 shown on the
+    // form comes back unchanged and is ignored.
+    if (req.body.aadhaarNumber !== undefined) {
+      const typed = String(req.body.aadhaarNumber).replace(/\s+/g, "");
+      if (typed && !/^X+\d{4}$/i.test(typed)) {
+        if (!/^\d{12}$/.test(typed)) {
+          return res.status(400).json({ success: false, message: "Aadhaar number must contain exactly 12 digits." });
+        }
+        Object.assign(student, encryptAadhaar(typed));
+      } else if (!typed) {
+        Object.assign(student, encryptAadhaar(""));
+      }
+    }
 
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) {
@@ -1933,7 +1955,6 @@ export const updateStudent = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Server error while updating student.",
-      error: error.message,
     });
   }
 };
@@ -1989,7 +2010,6 @@ export const deleteStudent = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Server error while deleting student.",
-      error: error.message,
     });
   }
 };
@@ -2055,7 +2075,6 @@ export const updateStudentStatus = async (
     return res.status(500).json({
       success: false,
       message: "Server error while updating status.",
-      error: error.message,
     });
   }
 };
@@ -2126,7 +2145,6 @@ export const deleteMultipleStudents = async (
     return res.status(500).json({
       success: false,
       message: "Failed to delete selected students.",
-      error: error.message,
     });
   }
 };

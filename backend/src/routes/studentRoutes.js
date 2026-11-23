@@ -67,6 +67,8 @@ const uploadExcel = multer({
 
 // The same roles that may add students may edit them
 const STUDENT_EDITORS = requireRole("principal", "coe", "acoe", "office", "office_admission", "hod");
+// Students' personal details: only the roles that work with them (a HOD: his own students)
+const STUDENT_VIEWERS = requireRole("principal", "coe", "acoe", "office", "office_admission", "hod");
 
 // =====================================================
 // CREATE SINGLE STUDENT
@@ -75,6 +77,7 @@ const STUDENT_EDITORS = requireRole("principal", "coe", "acoe", "office", "offic
 router.post(
   "/addstudent",
   authenticateUser,
+  requireRole("principal", "coe", "acoe", "office", "hod"), // before any file is accepted
   uploadSingleImage,
   createStudent
 );
@@ -98,6 +101,7 @@ router.get(
   "/",
   authenticateUser,
   asHodScope, // Evening Principal: evening students of the chosen department
+  STUDENT_VIEWERS,
   getStudents
 );
 
@@ -116,6 +120,8 @@ router.get("/me/seats", authenticateUser, mySeats);
 router.get(
   "/:id",
   authenticateUser,
+  asHodScope,
+  STUDENT_VIEWERS,
   getStudentById
 );
 

@@ -350,7 +350,6 @@ const responseStudents = students.map(
       success: false,
       message:
         "Failed to prepare Final IA.",
-      error: error.message,
     });
   }
 };
@@ -850,7 +849,6 @@ export const saveFinalIA = async (
       success: false,
       message:
         "Failed to save Final IA.",
-      error: error.message,
     });
   }
 };
@@ -962,7 +960,6 @@ export const getFinalIA = async (
       success: false,
       message:
         "Failed to fetch Final IA.",
-      error: error.message,
     });
   }
 };
@@ -1183,7 +1180,6 @@ export const submitFinalIA = async (
       success: false,
       message:
         "Failed to submit Final IA.",
-      error: error.message,
     });
   }
 };
@@ -1351,7 +1347,6 @@ export const confirmFinalIA = async (
       success: false,
       message:
         "Failed to freeze Final IA.",
-      error: error.message,
     });
   }
 };

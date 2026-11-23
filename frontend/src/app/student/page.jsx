@@ -19,6 +19,9 @@ const cap = (s) => (s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) :
 
 const KIND = { BACKLOG: ["Back paper", "bg-amber-50 text-amber-800 ring-amber-200"], BRIDGE: ["Bridge course", "bg-violet-50 text-violet-700 ring-violet-200"] };
 
+// Not shown for now, by decision of the college officials (the server refuses it too).
+const SHOW_SEATS_TO_STUDENTS = false;
+
 // his room and seat for each written paper to come (as soon as the office allots them)
 function MySeats() {
   const api = useApi();
@@ -160,7 +163,7 @@ export default function StudentHome() {
 
       <ExamCourses exam={me.exam} />
 
-      <MySeats />
+      {SHOW_SEATS_TO_STUDENTS && <MySeats />}
 
       {/* every detail on record */}
       <div className="grid gap-4 sm:gap-5 md:grid-cols-2">
