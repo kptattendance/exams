@@ -2,7 +2,7 @@ import express from "express";
 
 import { authenticateUser } from "../middlewares/authMiddleware.js";
 import { adminOnly, requireRole } from "../middlewares/requireRole.js";
-import { listSheets, getSheet, freezeSheet, returnSheet, deleteSheet } from "../controllers/sheetReviewController.js";
+import { correctSheet, listSheets, getSheet, freezeSheet, returnSheet, deleteSheet, verifySheet } from "../controllers/sheetReviewController.js";
 import { requireStepUp } from "../services/stepUp.js";
 
 const router = express.Router();
@@ -11,11 +11,17 @@ const router = express.Router();
 const VIEW = requireRole("office", "coe", "acoe", "admin", "principal");
 const DECIDE = requireRole("office", "coe", "acoe");
 
+// Corrections after verification and the final freeze: the COE ONLY (not even the Admin)
+const COE_ONLY = (req, res, next) =>
+  req.user?.role === "coe" ? next() : res.status(403).json({ error: "Only the COE can correct a sheet after verification." });
+
 router.use(authenticateUser);
 router.get("/", VIEW, listSheets);
 router.get("/:type/:id", VIEW, getSheet);
 router.post("/:type/:id/freeze", DECIDE, requireStepUp("ia"), freezeSheet);
 router.post("/:type/:id/return", DECIDE, requireStepUp("ia"), returnSheet);
+router.post("/:type/:id/corrections", COE_ONLY, requireStepUp("ia"), correctSheet);
+router.post("/:type/:id/verify", COE_ONLY, requireStepUp("ia"), verifySheet);
 router.delete("/:type/:id", adminOnly, requireStepUp("delete"), deleteSheet); // running year only
 
 export default router;

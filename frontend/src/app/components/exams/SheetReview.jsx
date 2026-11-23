@@ -200,7 +200,7 @@ export default function SheetReview({ type, admin = false }) {
                     {s.status === "confirmed" && (
                       <span className={`${T.pill} bg-emerald-50 text-emerald-700`}>
                         <span className={`${T.dot} bg-emerald-500`} />
-                        Frozen · {fmt(s.confirmedAt)}
+                        {s.verified ? `Verified · final · ${fmt(s.verifiedAt)}` : `Frozen · ${fmt(s.confirmedAt)}`}
                       </span>
                     )}
                     {s.status === "draft" && (
@@ -268,6 +268,7 @@ function printCopy(type, sheet, copy) {
     batch: sheet.batch,
     status: sheet.status,
     department: sheet.department,
+    verification: sheet.verification,
     // bridge course: from its category when the sheet has it (else the print decides)
     subjects: sheet.subjects.map((s) => ({ subjectId: String(s.subjectId), code: s.code, name: s.name, iaMin: s.iaMin, iaMax: s.max ?? s.iaMax, bridge: s.subjectCategory ? String(s.subjectCategory).toUpperCase() === "BRIDGE" : undefined })),
     students: sheet.students.map((st) => ({
@@ -365,21 +366,27 @@ function ReviewModal({ type, id, onClose, onFreeze, onChanged, canDelete = false
           </>
         ) : (
           <>
-            {sheet.status !== "draft" && (
+            {sheet.status !== "draft" && !sheet.verified && !sheet.corrections && (
               <button onClick={() => setReturning(true)} className={`${btn.secondary} ${canDelete ? "" : "sm:mr-auto"}`}>
                 Send back to HOD
               </button>
             )}
-            {canDelete && sheet.academicYear === year && (
+            {canDelete && sheet.academicYear === year && !sheet.verified && !sheet.corrections && (
               <button onClick={() => setDeleting(true)} className={`${btn.secondary} !text-red-700 sm:mr-auto`}>
                 <Icon name="trash" className="h-4 w-4" />
                 Delete sheet
               </button>
             )}
             {sheet.status !== "draft" && (
-              <button onClick={() => printCopy(type, sheet, "verification")} className={btn.secondary} title="For the officer who visits to verify – with HOD, Academic Dean and Principal signatures">
+              <button onClick={() => printCopy(type, sheet, "verification")} className={btn.secondary} title="For the verifier to mark on – signed by the Class In-charge, HOD and Principal / Dean">
                 <Icon name="download" className="h-4 w-4" />
-                Verification copy
+                Before verification copy
+              </button>
+            )}
+            {sheet.verified && (
+              <button onClick={() => printCopy(type, sheet, "after")} className={btn.secondary} title="The final sheet – signed by the Verifier, HOD and Principal / Dean">
+                <Icon name="download" className="h-4 w-4" />
+                After verification copy
               </button>
             )}
             <button onClick={onClose} className={btn.secondary}>

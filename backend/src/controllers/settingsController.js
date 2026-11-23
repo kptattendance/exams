@@ -57,6 +57,7 @@ export const moveStraySheet = async (req, res) => {
   const year = await getAcademicYear();
   const doc = await Model.findById(id);
   if (!doc) return fail(res, 404, "Sheet not found.");
+  if (doc.verification?.state === "verified") return fail(res, 423, "This sheet is verified and finally frozen. It cannot be changed.");
   if (doc.academicYear === year) return fail(res, 409, `Already in ${year}.`);
   const clash = await Model.exists({ academicYear: year, department: doc.department, semester: doc.semester, batch: doc.batch });
   if (clash) {

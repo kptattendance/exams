@@ -86,10 +86,10 @@ export async function purgeStudents(ids, { keepLoginAndPhoto = false } = {}) {
   // Department side
   counts.electives = (await StudentElective.deleteMany({ student: { $in: found } })).deletedCount;
   counts.iaSheets = (
-    await FinalIA.updateMany({ "students.studentId": { $in: found } }, { $pull: { students: { studentId: { $in: found } } } })
+    await FinalIA.updateMany({ "students.studentId": { $in: found }, "verification.state": { $ne: "verified" } }, { $pull: { students: { studentId: { $in: found } } } })
   ).modifiedCount;
   counts.attendanceSheets = (
-    await FinalAttendance.updateMany({ "students.studentId": { $in: found } }, { $pull: { students: { studentId: { $in: found } } } })
+    await FinalAttendance.updateMany({ "students.studentId": { $in: found }, "verification.state": { $ne: "verified" } }, { $pull: { students: { studentId: { $in: found } } } })
   ).modifiedCount;
   await StudentImport.updateMany(
     { "rows.student": { $in: found } },

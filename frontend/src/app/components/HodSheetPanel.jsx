@@ -10,7 +10,7 @@
 const STORE = "kpt-hod-sheet";
 
 // Opens the sheet (print → Save as PDF) in a new tab.
-//   sheet: { kind, copy: "students" | "verification", academicYear, semester, batch, status, department,
+//   sheet: { kind, copy: "students" | "verification" (before) | "after", academicYear, semester, batch, status, department, verification,
 //            subjects: [{ subjectId, code, name, iaMin, iaMax }],
 //            students: [{ registerNumber, studentName, values: { [subjectId]: value } }] }
 export function openSignatureSheet(sheet) {
@@ -47,7 +47,7 @@ function Step({ n, title, children, done }) {
   );
 }
 
-export default function HodSheetPanel({ kind, status, importing, onDownload, onUpload, onPdf }) {
+export default function HodSheetPanel({ kind, status, verified = false, importing, onDownload, onUpload, onPdf }) {
   const ia = kind === "ia";
   const draft = status === "draft";
   const what = ia ? "IA marks" : "attendance %";
@@ -88,12 +88,22 @@ export default function HodSheetPanel({ kind, status, importing, onDownload, onU
             type="button"
             onClick={() => onPdf("verification")}
             disabled={draft}
-            title="For the officer who visits to verify – with HOD, Academic Dean and Principal signatures"
+            title="For the verifier to mark on – signed by the Class In-charge, HOD and Principal / Dean"
             className={`${btn} w-full bg-white text-blue-700 ring-1 ring-blue-600 hover:bg-blue-50`}
           >
-            ⎙ Verification copy
+            ⎙ Before verification copy
+          </button>
+          <button
+            type="button"
+            onClick={() => onPdf("after")}
+            disabled={!verified}
+            title={verified ? "The final sheet – signed by the Verifier, HOD and Principal / Dean" : "Available after the COE's final freeze"}
+            className={`${btn} w-full bg-emerald-700 text-white hover:bg-emerald-800`}
+          >
+            ⎙ After verification copy
           </button>
         </div>
+        {!draft && !verified && <p className="mt-1.5 text-[11px] text-gray-500">After verification copy: once the COE gives the final freeze.</p>}
         {draft && <p className="mt-1.5 text-[11px] text-gray-500">Available once the sheet is submitted.</p>}
       </div>
     </div>

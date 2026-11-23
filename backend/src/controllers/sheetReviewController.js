@@ -9,6 +9,9 @@
 //   POST /api/sheet-review/:type/:id/freeze
 //   POST /api/sheet-review/:type/:id/return     { reason }
 //   DELETE /api/sheet-review/:type/:id          { reason }  Admin only, running year only
+// Verification (COE only), after the freeze:
+//   POST /api/sheet-review/:type/:id/corrections { changes: [{ studentId, subjectId, value }] }
+//   POST /api/sheet-review/:type/:id/verify      the FINAL freeze: nobody can change it after this
 
 import mongoose from "mongoose";
 
@@ -19,6 +22,8 @@ import AuditLog from "../models/AuditLog.js";
 import { refreshAfterChange, refreshNote } from "../services/exams/autoRefresh.js";
 import { getAcademicYear } from "../services/academicYear.js";
 import { binSheet } from "../services/recycleBin.js";
+import Exam from "../models/Exam.js";
+import { applyCorrections, verificationView } from "../services/exams/sheetVerification.js";
 
 const MODELS = { ia: FinalIA, attendance: FinalAttendance };
 const LABEL = { ia: "Final IA", attendance: "Final attendance" };
@@ -76,8 +81,20 @@ function summary(doc, type) {
     confirmedAt: doc.confirmedAt,
     updatedAt: doc.updatedAt,
     returnedReason: doc.returnedReason || "",
+    verified: doc.verification?.state === "verified",
+    verifiedAt: doc.verification?.verifiedAt || null,
+    corrections: (doc.verification?.corrections || []).length,
   };
 }
+
+const isVerified = (doc) => doc.verification?.state === "verified";
+const FINAL = "This sheet is verified and finally frozen. It cannot be changed by anyone.";
+const IN_VERIFICATION = "The COE has already made corrections on this sheet after verification, so it can no longer be sent back or deleted.";
+const hasCorrections = (doc) => (doc.verification?.corrections || []).length > 0;
+
+// Corrections are possible until the results of the exam of this class are published
+const resultsOut = (doc) =>
+  Exam.exists({ academicYear: doc.academicYear, semesters: doc.semester, "results.publishedAt": { $type: "date" } });
 
 // GET /api/sheet-review?type=&status=
 export const listSheets = async (req, res) => {
@@ -114,7 +131,7 @@ export const getSheet = async (req, res) => {
   const subjectInfo = new Map(
     (
       await Subject.find({ _id: { $in: (doc.subjects || []).map((s) => s.subjectId) } })
-        .select("iaMax iaMin")
+        .select("iaMax iaMin subjectCategory")
         .lean()
     ).map((s) => [String(s._id), s])
   );
@@ -128,6 +145,7 @@ export const getSheet = async (req, res) => {
       max: type === "ia" ? s.maxMarks ?? info.iaMax ?? null : s.maxClasses ?? null,
       iaMax: info.iaMax ?? null,
       iaMin: info.iaMin ?? null,
+      subjectCategory: info.subjectCategory || "", // bridge courses print in their own table
     };
   });
 
@@ -142,8 +160,8 @@ export const getSheet = async (req, res) => {
       if (v?.notRequired) flag = "na"; // a bridge course this student does not take
       else if (value === null) flag = "empty";
       else if (type === "attendance" && sub.max > 0) {
-        pct = Math.round((value / sub.max) * 1000) / 10;
-        if (pct < MIN_ATTENDANCE) flag = "low";
+        pct = (value / sub.max) * 100; // shown to 2 decimals; the same check as exam eligibility
+        if (pct + 1e-9 < MIN_ATTENDANCE) flag = "low";
         if (value > sub.max) flag = "over";
       } else if (type === "ia") {
         const scaled = sub.max && sub.iaMax && sub.max !== sub.iaMax ? (value / sub.max) * sub.iaMax : value;
@@ -151,7 +169,8 @@ export const getSheet = async (req, res) => {
         if (sub.max && value > sub.max) flag = "over";
       }
       if (flag === "low") low++;
-      return { value, pct, flag };
+      const corrected = (doc.verification?.corrections || []).some((c) => String(c.studentId) === String(st.studentId) && String(c.subjectId) === String(sub.subjectId));
+      return { value, pct, flag, corrected };
     });
     return { studentId: st.studentId, registerNumber: st.registerNumber, name: st.studentName, cells };
   });
@@ -164,8 +183,71 @@ export const getSheet = async (req, res) => {
       lowCount: low,
       subjects,
       students,
+      verification: verificationView(doc),
+      resultsPublished: Boolean(await resultsOut(doc)),
     },
   });
+};
+
+// POST /api/sheet-review/:type/:id/corrections  (COE only)
+// The changes the verifier marked on the "before verification" copy
+export const correctSheet = async (req, res) => {
+  const Model = pickModel(req, res);
+  if (!Model) return;
+  const type = req.params.type;
+  const changes = Array.isArray(req.body?.changes) ? req.body.changes.slice(0, 5000) : [];
+  if (!changes.length) return fail(res, 400, "Nothing to save.");
+  const doc = await Model.findById(req.params.id);
+  if (!doc) return fail(res, 404, "Sheet not found.");
+  if (isVerified(doc)) return fail(res, 423, FINAL);
+  if (doc.status !== "confirmed") return fail(res, 409, "Only a frozen sheet can be corrected after verification.");
+  if (await resultsOut(doc)) return fail(res, 423, "The results of this class are published. Marks and attendance can no longer be corrected.");
+  const info = new Map(
+    (await Subject.find({ _id: { $in: (doc.subjects || []).map((s) => s.subjectId) } }).select("iaMax iaMin").lean()).map((s) => [String(s._id), s])
+  );
+  const r = applyCorrections(doc, type, changes, info, who(req));
+  if (r.error) return fail(res, 400, r.error);
+  if (!r.changed) return res.json({ message: "Nothing changed.", data: { changed: 0, crossed: [] } });
+  doc.markModified("students");
+  doc.markModified("verification");
+  await doc.save();
+  await log(req, `${type.toUpperCase()}_SHEET_CORRECTED`, doc._id, {
+    department: doc.department,
+    semester: doc.semester,
+    batch: doc.batch,
+    changed: r.changed,
+    changes: changes.slice(0, 200),
+  });
+  const auto = await refreshAfterChange([{ department: doc.department, semester: doc.semester }], `${LABEL[type]} corrected after verification`);
+  const crossing = r.crossed.length
+    ? ` Crossed the minimum: ${r.crossed.map((x) => `${x.registerNumber} (${x.code}: ${x.nowLow ? "now below" : "now above"})`).join(", ")} – check their eligibility and hall tickets.`
+    : "";
+  res.json({ message: `${r.changed} correction${r.changed === 1 ? "" : "s"} saved.${refreshNote(auto)}${crossing}`, data: { changed: r.changed, crossed: r.crossed } });
+};
+
+// POST /api/sheet-review/:type/:id/verify  (COE only) – the FINAL freeze
+export const verifySheet = async (req, res) => {
+  const Model = pickModel(req, res);
+  if (!Model) return;
+  const type = req.params.type;
+  const doc = await Model.findById(req.params.id);
+  if (!doc) return fail(res, 404, "Sheet not found.");
+  if (isVerified(doc)) return fail(res, 409, "Already verified and finally frozen.");
+  if (doc.status !== "confirmed") return fail(res, 409, "Only a frozen sheet can be finally frozen.");
+  const empty = emptyCount(doc, type);
+  if (empty) return fail(res, 409, `${empty} entr${empty === 1 ? "y is" : "ies are"} still empty. Fill them first – nothing can be changed after the final freeze.`);
+  doc.verification.state = "verified";
+  doc.verification.verifiedAt = new Date();
+  doc.verification.verifiedBy = who(req);
+  await doc.save();
+  await log(req, `${type.toUpperCase()}_SHEET_VERIFIED`, doc._id, {
+    academicYear: doc.academicYear,
+    department: doc.department,
+    semester: doc.semester,
+    batch: doc.batch,
+    corrections: doc.verification.corrections.length,
+  });
+  res.json({ message: `${LABEL[type]} of ${doc.department.toUpperCase()} semester ${doc.semester} is verified and finally frozen. The HOD can now print the after-verification copy.` });
 };
 
 // POST /api/sheet-review/:type/:id/freeze
@@ -202,6 +284,8 @@ export const returnSheet = async (req, res) => {
   if (reason.length < 3) return fail(res, 400, "Write what the HOD must correct.");
   const doc = await Model.findById(req.params.id);
   if (!doc) return fail(res, 404, "Sheet not found.");
+  if (isVerified(doc)) return fail(res, 423, FINAL);
+  if (hasCorrections(doc)) return fail(res, 423, IN_VERIFICATION);
   if (doc.status === "draft") return fail(res, 409, "This sheet is already with the HOD.");
   const wasFrozen = doc.status === "confirmed";
   doc.status = "draft";
@@ -237,6 +321,8 @@ export const deleteSheet = async (req, res) => {
   if (reason.length < 5) return fail(res, 400, "Write why the sheet is deleted.");
   const doc = await Model.findById(req.params.id).lean();
   if (!doc) return fail(res, 404, "Sheet not found. It may have been deleted already.");
+  if (isVerified(doc)) return fail(res, 423, FINAL);
+  if (hasCorrections(doc)) return fail(res, 423, IN_VERIFICATION);
   const year = await getAcademicYear();
   if (doc.academicYear !== year)
     return fail(res, 409, `Only sheets of the running academic year (${year}) can be deleted. This sheet is of ${doc.academicYear}.`);

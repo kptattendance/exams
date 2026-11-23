@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+import { lockVerified, verificationField } from "./sheetVerification.js";
+
 // =====================================================
 // SUBJECT ATTENDANCE
 // =====================================================
@@ -177,6 +179,9 @@ const finalAttendanceSchema =
     returnedReason: { type: String, default: "" },
     returnedAt: { type: Date, default: null },
     returnedBy: { type: String, default: "" },
+
+      // After the freeze: the verifier's corrections (COE) and the final freeze
+      verification: verificationField,
     },
     {
       timestamps: true,
@@ -187,6 +192,8 @@ const finalAttendanceSchema =
 // ONE ATTENDANCE RECORD PER:
 // Academic Year + Department + Semester + Batch
 // =====================================================
+
+lockVerified(finalAttendanceSchema);
 
 finalAttendanceSchema.index(
   {

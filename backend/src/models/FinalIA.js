@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+import { lockVerified, verificationField } from "./sheetVerification.js";
+
 // =====================================================
 // FINAL IA - SUBJECT
 // =====================================================
@@ -169,11 +171,16 @@ const finalIASchema = new mongoose.Schema(
     returnedReason: { type: String, default: "" },
     returnedAt: { type: Date, default: null },
     returnedBy: { type: String, default: "" },
+
+    // After the freeze: the verifier's corrections (COE) and the final freeze
+    verification: verificationField,
   },
   {
     timestamps: true,
   }
 );
+
+lockVerified(finalIASchema);
 
 // =====================================================
 // ONLY ONE RECORD FOR:

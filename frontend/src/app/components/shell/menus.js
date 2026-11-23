@@ -111,6 +111,10 @@ export const MENUS = {
         ],
       },
       {
+        title: "IA & attendance",
+        items: [{ label: "Verification", href: "/coe/verification", icon: "marks" }],
+      },
+      {
         title: "Examination",
         items: [
           { label: "Examinations", href: "/coe/exams", icon: "paper", pinned: true },

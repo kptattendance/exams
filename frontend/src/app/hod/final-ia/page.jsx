@@ -60,6 +60,8 @@ export default function FinalIAPage() {
 
   // Note from the Exam Officer when a sheet is sent back
   const [returnedReason, setReturnedReason] = useState("");
+  // the COE's corrections and final freeze (for the printed copies)
+  const [verification, setVerification] = useState(null);
 
   const [message, setMessage] =
     useState("");
@@ -152,6 +154,7 @@ export default function FinalIAPage() {
       setReturnedReason(
         data.returnedReason || ""
       );
+      setVerification(data.verification || null);
     } catch (err) {
       console.error(
         "Final IA Load Error:",
@@ -177,6 +180,7 @@ export default function FinalIAPage() {
 
   const clearTable = () => {
     setReturnedReason("");
+    setVerification(null);
     setSubjects([]);
     setStudents([]);
     setStatus("draft");
@@ -1247,6 +1251,7 @@ export default function FinalIAPage() {
     openSignatureSheet({
       kind: "ia",
       copy,
+      verification,
       academicYear,
       semester,
       batch,
@@ -1328,7 +1333,7 @@ export default function FinalIAPage() {
 
           {status === "confirmed" && (
             <span className="rounded-full bg-blue-100 px-3 py-1.5 text-xs font-semibold text-blue-700">
-              Confirmed
+              {verification?.state === "verified" ? "Verified · finally frozen" : "Confirmed"}
             </span>
           )}
         </div>
@@ -1564,6 +1569,7 @@ export default function FinalIAPage() {
             <HodSheetPanel
               kind="ia"
               status={status}
+              verified={verification?.state === "verified"}
               importing={excelLoading}
               onDownload={downloadExcelTemplate}
               onUpload={() => fileInputRef.current?.click()}

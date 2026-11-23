@@ -97,6 +97,8 @@ export default function AttendancePage() {
 
   // Note from the Exam Officer when a sheet is sent back
   const [returnedReason, setReturnedReason] = useState("");
+  // the COE's corrections and final freeze (for the printed copies)
+  const [verification, setVerification] = useState(null);
 
   const [message, setMessage] =
     useState("");
@@ -270,6 +272,7 @@ export default function AttendancePage() {
       setReturnedReason(
         data.returnedReason || ""
       );
+      setVerification(data.verification || null);
     } catch (err) {
       console.error(
         "Attendance Load Error:",
@@ -295,6 +298,7 @@ export default function AttendancePage() {
 
   const clearTable = () => {
     setReturnedReason("");
+    setVerification(null);
     setSubjects([]);
     setStudents([]);
     setStatus("draft");
@@ -1415,6 +1419,7 @@ export default function AttendancePage() {
     openSignatureSheet({
       kind: "attendance",
       copy,
+      verification,
       academicYear,
       semester,
       batch,
@@ -1510,7 +1515,7 @@ export default function AttendancePage() {
 
           {status === "confirmed" && (
             <span className="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-700">
-              Confirmed
+              {verification?.state === "verified" ? "Verified · finally frozen" : "Confirmed"}
             </span>
           )}
         </div>
@@ -1759,6 +1764,7 @@ export default function AttendancePage() {
             <HodSheetPanel
               kind="attendance"
               status={status}
+              verified={verification?.state === "verified"}
               importing={excelLoading}
               onDownload={downloadExcelTemplate}
               onUpload={() => fileInputRef.current?.click()}

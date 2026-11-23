@@ -13,6 +13,7 @@ async function electivesOf(studentIds, semester) {
 import Student from "../models/Student.js";
 import Subject from "../models/Subject.js";
 import { sheetShift, shiftQuery, studentShift } from "../services/evening.js";
+import { verificationView } from "../services/exams/sheetVerification.js";
 
 // =====================================================
 // HELPERS
@@ -358,6 +359,9 @@ const subjects =
           existing?.status === "draft"
             ? existing?.returnedReason || ""
             : "",
+
+        // the COE's corrections and final freeze (printed copies)
+        verification: verificationView(existing),
       },
     });
   } catch (error) {
