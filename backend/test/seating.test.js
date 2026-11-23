@@ -42,13 +42,13 @@ test("no other choice: same paper and branch side by side (flagged), a 3rd stude
   assert.equal(sameBenches(r.rooms[0], r.rooms[0].seats, info(cands)).length, 25);
 });
 
-test("more students than 550 desks: a 3rd student (another paper) on the benches of the first rooms", () => {
+test("more students than 560 desks: a 3rd student (another paper) on the benches of the first rooms", () => {
   const papers = ["AT1", "CH1", "CS1", "EE1", "ME1", "CE1"];
   const cands = papers.flatMap((p, i) => make(p.slice(0, 2), p, i * 100 + 1, 100)); // 600
   const r = arrangeSeats(DEFAULT_ROOMS, cands);
   assert.equal(r.notAllotted.length, 0);
   assert.equal(r.rooms.length, 11);
-  assert.equal(r.third, 50);
+  assert.equal(r.third, 40);
   const m = info(cands);
   for (const x of r.rooms) assert.deepEqual(sameBenches(x, x.seats, m), [], x.name);
   // a middle desk is 51–75, only in the first rooms
@@ -85,4 +85,21 @@ test("3 rows of benches: 9, 7, 9", () => {
   assert.deepEqual(benchRows(50), [9, 7, 9]);
   assert.equal(benchRows(40).reduce((a, b) => a + b, 0), 20);
   assert.equal(DEFAULT_ROOMS.length, 11);
+});
+
+test("Room 114 alone holds 60: 3 rows of 10 benches, 30 students of a paper on one side", () => {
+  const r114 = DEFAULT_ROOMS.find((r) => r.name.startsWith("114"));
+  assert.equal(r114.capacity, 60);
+  assert.deepEqual(benchRows(60), [10, 10, 10]);
+  assert.equal(DEFAULT_ROOMS.filter((r) => r.capacity !== 50).length, 1);
+  const cands = [
+    ...Array.from({ length: 30 }, (_, i) => ({ registerNumber: `103CS26${String(i + 1).padStart(3, "0")}`, code: "P1", department: "cs" })),
+    ...Array.from({ length: 30 }, (_, i) => ({ registerNumber: `103ME26${String(i + 1).padStart(3, "0")}`, code: "P2", department: "me" })),
+  ];
+  const out = arrangeSeats([r114], cands);
+  assert.equal(out.rooms[0].students.length, 60);
+  const code = new Map(cands.map((c) => [c.registerNumber, c.code]));
+  const left = Object.entries(out.rooms[0].seats).filter(([, d]) => d <= 30).map(([reg]) => code.get(reg));
+  assert.equal(left.length, 30);
+  assert.equal(new Set(left).size, 1);
 });

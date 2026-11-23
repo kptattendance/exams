@@ -23,16 +23,20 @@ const KIND = { BACKLOG: ["Back paper", "bg-amber-50 text-amber-800 ring-amber-20
 function MySeats() {
   const api = useApi();
   const [rows, setRows] = useState(null);
+  const [me, setMe] = useState(null);
   useEffect(() => {
     api("get", "/students/me/seats")
-      .then((r) => setRows(r.data.data || []))
+      .then((r) => {
+        setMe(r.data.student || null);
+        setRows(r.data.data || []);
+      })
       .catch(() => setRows([]));
   }, [api]);
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
       <h2 className="text-sm font-bold uppercase tracking-wide text-[#8E0D3C]">My exam room &amp; seat</h2>
       <p className="mt-1 text-xs leading-5 text-slate-500">Your room and seat (desk) number appear here as soon as the exam section allots them.</p>
-      <StudentSeats rows={rows} />
+      <StudentSeats rows={rows} student={me} />
     </section>
   );
 }

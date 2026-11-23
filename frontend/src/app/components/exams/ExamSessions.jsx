@@ -431,7 +431,7 @@ function Rooms({ d, path, tint, onSaved }) {
               <p className="font-bold">Seating – one button</p>
               <p className="mt-1">
                 Rooms are filled in order – 220, 117, 114, 113, 105, 101, AT Lab, Chemical Lab, EE1, EE2, Civil MT Lab – only as many as needed, 50 a room
-                (25 benches). One paper sits on the left desks (1–25), another paper on the right desks (26–50). For a common paper the bench partner is from
+                (25 benches; Room 114: 60, 30 benches). One paper sits on the left desks (1–25), another paper on the right desks (26–50). For a common paper the bench partner is from
                 another branch. If the rooms are not enough, a 3rd student (another paper) sits in the middle (desks 51–75).
               </p>
             </div>
@@ -681,7 +681,7 @@ function SeatLookup() {
           <p className="text-sm font-semibold text-slate-900">
             {found.student.registerNumber} {found.student.name}
           </p>
-          <StudentSeats rows={found.data} />
+          <StudentSeats rows={found.data} student={found.student} />
         </div>
       )}
     </div>

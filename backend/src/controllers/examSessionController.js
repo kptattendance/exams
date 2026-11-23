@@ -26,7 +26,7 @@ import RoomDiary from "../models/RoomDiary.js";
 import Counter from "../models/Counter.js";
 import { attendanceBlocked, autoCode, getPaper, syncCandidates, syncPackets } from "./valuationController.js";
 import { planDiaries } from "../services/exams/valuation.js";
-import { DEFAULT_ROOMS, arrangeSeats, roomSeats, sameBenches, seatsOf } from "../services/exams/seating.js";
+import { DEFAULT_ROOMS, arrangeSeats, roomSeats, sameBenches, seatsOf, benchRows } from "../services/exams/seating.js";
 import Student from "../models/Student.js";
 import ExamRegistration from "../models/ExamRegistration.js";
 import { ABSENT_AFTER_MINUTES, printWindow, todayIST, windowState } from "../services/examDay.js";
@@ -412,10 +412,14 @@ async function seatsForStudent(registerNumber) {
       const [date, session] = k.split("|");
       const rooms = await ExamRoom.find({ exam: e._id, date, session }).select("name order students capacity seats").lean();
       const seat = seatsOf(rooms).seatOf.get(registerNumber) || null;
+      // the shape of his room only – never who sits on the other seats
+      const room = seat ? rooms.find((x) => x.name === seat.room) : null;
+      const benches = room ? Math.floor((Number(room.capacity) || 50) / 2) : 0;
+      const layout = room ? { rows: benchRows(room.capacity || 50), benches, third: Object.values(roomSeats(room)).some((d) => d > 2 * benches) } : null;
       const all = (e.timetable?.entries || []).filter((x) => x.date === date && x.session === session);
       const t = timesOf(all, e.timetable.sessions);
       for (const x of list)
-        out.push({ exam: e.name, date, session, startsAt: t.startsAt, endsAt: t.endsAt, code: x.code, name: mine.get(x.code) || "", room: seat?.room || "", seat: seat?.seat || null });
+        out.push({ exam: e.name, date, session, startsAt: t.startsAt, endsAt: t.endsAt, code: x.code, name: mine.get(x.code) || "", room: seat?.room || "", seat: seat?.seat || null, layout });
     }
   }
   return out.sort((a, b) => a.date.localeCompare(b.date) || a.session.localeCompare(b.session) || a.code.localeCompare(b.code));
@@ -424,9 +428,9 @@ async function seatsForStudent(registerNumber) {
 // GET /api/students/me/seats – the signed-in student's room and seat for each paper to come
 export const mySeats = async (req, res) => {
   if (req.user?.role !== "student") return fail(res, 403, "Only for students.");
-  const s = await Student.findOne({ clerkId: req.user.id }).select("registerNumber").lean();
+  const s = await Student.findOne({ clerkId: req.user.id }).select("registerNumber name").lean();
   if (!s) return fail(res, 404, "Your student record was not found. Please contact the college office.");
-  res.json({ data: await seatsForStudent(s.registerNumber) });
+  res.json({ student: { registerNumber: s.registerNumber, name: s.name }, data: await seatsForStudent(s.registerNumber) });
 };
 
 // GET /api/exam-sessions/student/:registerNumber – the same, for the office / COE

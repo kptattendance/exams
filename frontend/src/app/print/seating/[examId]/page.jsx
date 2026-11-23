@@ -111,7 +111,7 @@ function Seating() {
                     <td className={td}>{c.name}</td>
                     <td className={td}>{c.code}</td>
                     <td className={`${td} font-semibold`}>{c.room}</td>
-                    <td className={`${td} text-center text-[13px] font-bold`}>{c.seat}</td>
+                    <td className={`${td} bg-yellow-100 text-center text-[17px] font-black leading-none`}>{c.seat}</td>
                   </tr>
                 ))}
               </tbody>
@@ -127,12 +127,13 @@ function Seating() {
             const desk = (c, n) =>
               c ? (
                 <div className="leading-tight">
-                  <span className="font-bold">{n}</span> <b className="tabular-nums">{c.registerNumber}</b>
+                  <span className="mr-1 inline-block min-w-[6.5mm] rounded-sm bg-[#1D1842] px-0.5 text-center text-[14px] font-black leading-[1.3] text-white">{n}</span>
+                  <b className="text-[9px] tabular-nums">{c.registerNumber}</b>
                   <span className="block truncate text-[8.5px]">{c.name}</span>
                   <span className="block text-[8.5px] font-semibold text-slate-600">{c.code}</span>
                 </div>
               ) : (
-                <span className="text-slate-400">{n} –</span>
+                <span className="text-[13px] font-bold text-slate-400">{n} –</span>
               );
             let first = 1;
             const columns = rows.map((count) => {

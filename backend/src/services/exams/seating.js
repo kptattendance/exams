@@ -2,7 +2,8 @@
 //
 // Seating of a written-exam session (unit-tested in test/seating.test.js).
 //
-// A room has 25 benches in 3 rows (9, 7, 9 benches). Desk numbers start at 1 in
+// A room has 25 benches in 3 rows (9, 7, 9 benches); Room 114 alone has 30 (10, 10,
+// 10), so its desks below run to 30 / 60 / 90. Desk numbers start at 1 in
 // every room:
 //   left desks    1–25 : row 1 = 1–9 (front to back), row 2 = 10–16, row 3 = 17–25
 //   right desks  26–50 : the bench partners – desk k + 25 sits beside desk k
@@ -28,7 +29,7 @@ export const DEFAULT_ROOMS = [
   "EE1 (Electrical Block class room 1)",
   "EE2 (Electrical Block class room 2)",
   "Civil MT Lab",
-].map((name) => ({ name, capacity: 50 }));
+].map((name) => ({ name, capacity: name.startsWith("114") ? 60 : 50 })); // Room 114 alone: 3 rows of 10 benches, 30 to an ATS
 
 const deptOf = (c) => String(c.department || String(c.registerNumber || "").slice(3, 5)).toLowerCase();
 
