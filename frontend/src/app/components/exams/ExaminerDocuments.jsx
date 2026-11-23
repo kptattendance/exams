@@ -132,7 +132,7 @@ export default function ExaminerDocuments() {
               <p className="px-4 py-10 text-center text-sm text-slate-500">No examiner set has batches in the time table yet.</p>
             )}
             {shown.length > 0 && (
-              <table className={T.table}>
+              <table className={T.table} style={{ fontFamily: '"Segoe UI", Arial, sans-serif' }}>
                 <thead>
                   <tr className={T.headRow}>
                     <th className={T.thNum}>Sl.</th>
@@ -159,12 +159,12 @@ export default function ExaminerDocuments() {
                           <span className="ml-1.5 text-xs text-slate-500">Set {d.panel.number}</span>
                         </td>
                         <td className={T.td}>
-                          {d.internal.name || <span className="text-slate-400">Not allotted</span>}
-                          {d.internal.designation && <span className="block text-xs text-slate-500">{d.internal.designation}</span>}
+                          {d.internal.name ? <span className="block text-[13px] font-semibold uppercase text-slate-900">{d.internal.name}</span> : <span className="text-slate-400">Not allotted</span>}
+                          {d.internal.designation && <span className="block text-xs text-slate-600">{d.internal.designation}</span>}
                         </td>
                         <td className={T.td}>
-                          {d.external.name || <span className="text-slate-400">Not allotted</span>}
-                          {d.external.college && <span className="block text-xs text-slate-500">{d.external.college}</span>}
+                          {d.external.name ? <span className="block text-[13px] font-semibold uppercase text-slate-900">{d.external.name}</span> : <span className="text-slate-400">Not allotted</span>}
+                          {d.external.college && <span className="block text-xs text-slate-600">{d.external.college}</span>}
                         </td>
                         <td className={`${T.td} whitespace-nowrap text-xs`} title={d.to !== d.from ? `${fmtDay(d.from)} to ${fmtDay(d.to)}` : fmtDay(d.from)}>
                           {shortDay(d.from)}
@@ -205,6 +205,16 @@ export default function ExaminerDocuments() {
                     );
                   })}
                 </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-slate-300 bg-slate-100 font-bold text-slate-900">
+                    <td className={T.td} colSpan={5}>
+                      Total ({shown.length} examiner set{shown.length === 1 ? "" : "s"})
+                    </td>
+                    <td className={`${T.td} text-right tabular-nums`}>{shown.reduce((n, d) => n + d.rows.reduce((a, r) => a + r.batches, 0), 0)}</td>
+                    <td className={`${T.td} text-right tabular-nums`}>{shown.reduce((n, d) => n + d.rows.reduce((a, r) => a + r.conducted, 0), 0)}</td>
+                    <td className={T.td} />
+                  </tr>
+                </tfoot>
               </table>
             )}
           </div>
