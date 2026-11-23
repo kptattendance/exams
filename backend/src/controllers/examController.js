@@ -229,6 +229,17 @@ export const listExams = async (req, res) => {
   res.json({ data: exams.map((e) => examView(e, { stats: byExam[String(e._id)] || { students: 0 } })) });
 };
 
+// GET /api/exams/sheet-exam?academicYear=2026-27&semester=3
+// The name of the examination an IA / attendance sheet belongs to (for its heading):
+// the first exam of that academic year written by that semester.
+export const sheetExam = async (req, res) => {
+  const academicYear = String(req.query.academicYear || "").trim();
+  const semester = Number(req.query.semester);
+  if (!/^\d{4}-\d{2}$/.test(academicYear) || !Number.isInteger(semester)) return res.json({ name: "" });
+  const exam = await Exam.findOne({ academicYear, semesters: semester }).sort({ createdAt: 1 }).select("name").lean();
+  res.json({ name: exam?.name || "" });
+};
+
 // POST /api/exams
 export const createExam = async (req, res) => {
   // Only the Admin may pick another academic year; everyone else uses the running one

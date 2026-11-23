@@ -10,11 +10,13 @@
 //                         and listed. Signed by the Verifier, HOD, Principal / Dean
 // Below the minimum is shown by colour only. &auto=1 opens the print dialog by itself.
 
-import { Suspense, useEffect, useMemo, useSyncExternalStore } from "react";
+import { Suspense, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useSearchParams } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
 
 import Letterhead from "../../components/print/Letterhead";
 import { readSignatureSheetRaw } from "../../components/HodSheetPanel";
+import { useApi } from "../../components/exams/shared";
 import { isEveningNo } from "../../components/ui/CollegeFilter";
 import usePrintTitle, { deptCode } from "../../components/print/usePrintTitle";
 
@@ -71,11 +73,34 @@ function Sheet() {
     }
   }, [raw]);
 
+  // the examination this sheet belongs to, e.g. "Nov/Dec 2026 Semester End Exam"
+  const api = useApi();
+  const { isLoaded, isSignedIn } = useAuth();
+  const [examName, setExamName] = useState(null); // null while it is being looked up
+  const academicYear = sheet?.academicYear;
+  const semester = sheet?.semester;
   useEffect(() => {
-    if (!auto || !sheet) return;
+    if (!isLoaded || !academicYear || !semester) return;
+    if (!isSignedIn) {
+      setExamName("");
+      return;
+    }
+    let alive = true;
+    api("get", "/exams/sheet-exam", undefined, { params: { academicYear, semester } })
+      .then((r) => alive && setExamName(r.data?.name || ""))
+      .catch(() => alive && setExamName(""));
+    return () => {
+      alive = false;
+    };
+  }, [api, isLoaded, isSignedIn, academicYear, semester]);
+
+  // printing waits for the examination name, so that it is on the paper
+  const ready = examName !== null;
+  useEffect(() => {
+    if (!auto || !sheet || !ready) return;
     const t = setTimeout(() => window.print(), 800);
     return () => clearTimeout(t);
-  }, [auto, sheet]);
+  }, [auto, sheet, ready]);
 
   // the PDF's file name, e.g. "EC Sem 1 IA before verification 2026-27"
   usePrintTitle(
@@ -133,6 +158,7 @@ function Sheet() {
 
       <Letterhead compact evening={students.length > 0 && students.every((st) => isEveningNo(st.registerNumber))} />
       <p className="mt-2 text-center text-[13px] font-bold tracking-[0.1em] text-[#1D1842]">{ia ? "FINAL INTERNAL ASSESSMENT (IA) MARKS" : "FINAL ATTENDANCE (%)"}</p>
+      {examName && <p className="mt-0.5 text-center text-[12px] font-semibold text-slate-800">{examName}</p>}
       {before && <p className="mx-auto mt-1 w-fit rounded bg-[#8E0D3C] px-3 py-0.5 text-[10px] font-semibold tracking-[0.18em] text-white">BEFORE VERIFICATION</p>}
       {after && <p className="mx-auto mt-1 w-fit rounded bg-emerald-700 px-3 py-0.5 text-[10px] font-semibold tracking-[0.18em] text-white">AFTER VERIFICATION</p>}
 
@@ -252,7 +278,7 @@ function MarksTable({ ia, remarks, after, subjects, students, fixOf, show }) {
               {ia && <span className="block text-[8px] font-normal opacity-90">Max {s.iaMax ?? "–"}</span>}
             </th>
           ))}
-          <th className={`${th} ${remarks ? "w-[18mm]" : "w-[26mm]"}`}>{remarks ? "Remarks" : "Student signature"}</th>
+          {!remarks && <th className={`${th} w-[26mm]`}>Student signature</th>}
         </tr>
       </thead>
       <tbody>
@@ -273,7 +299,7 @@ function MarksTable({ ia, remarks, after, subjects, students, fixOf, show }) {
                 </td>
               );
             })}
-            <td className={`${td} ${remarks ? "h-6" : "h-8"}`} />
+            {!remarks && <td className={`${td} h-8`} />}
           </tr>
         ))}
       </tbody>

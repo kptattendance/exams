@@ -18,8 +18,7 @@ import {
   removeManualSubject,
   exportRegistrations,
   listBridgeCourses,
-  saveBridgeCourses,
-} from "../controllers/examController.js";
+  saveBridgeCourses, sheetExam } from "../controllers/examController.js";
 import {
   listFees,
   recordFee,
@@ -83,6 +82,7 @@ router.put("/setup/bridge-courses", MANAGE, saveBridgeCourses);
 // HOD: his students' subjects and exam fee (Excel on his page)
 router.get("/hod/fee-list", asHodScope, requireRole("hod", "coe", "acoe", "admin"), hodFeeList);
 
+router.get("/sheet-exam", requireRole("hod", "evening_principal", "office", "coe", "acoe", "admin", "principal"), sheetExam); // the heading of an IA / attendance sheet
 router.get("/", VIEW, listExams);
 router.post("/", MANAGE, createExam);
 router.get("/:id", VIEW, getExam);
