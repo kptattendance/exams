@@ -11,7 +11,10 @@ import Icon from "../shell/Icon";
 import Modal, { btn, field } from "../ui/Modal";
 import { useConfirm, useToast } from "../ui/Feedback";
 import { errMsg, useApi } from "./shared";
-import { ExamSelect, NoExam, batchState, branches, dept, deptShift, examinersOf, usePracticalExams, when } from "./practicalShared";
+import { ExamSelect, NoExam, batchState, branches, dept, deptShift, examinersOf, fmtDay, sessionLabel, usePracticalExams, when } from "./practicalShared";
+import { T } from "../ui/table";
+import { deptTint } from "../ui/deptTint";
+import { DATE_TINTS } from "./ValuationBoard";
 
 export default function PracticalAllotment({ mode = "coe" }) {
   const api = useApi();
@@ -112,15 +115,21 @@ export default function PracticalAllotment({ mode = "coe" }) {
   };
 
   return (
-    <div className={`mx-auto ${admin ? "max-w-5xl" : "max-w-7xl"} px-4 py-6 sm:px-6 lg:px-7`}>
-      <h2 className="text-2xl font-bold tracking-tight text-slate-950">{admin ? "Practical marks – corrections" : "Practical Examiners"}</h2>
-      <ExamSelect exams={exams} examId={examId} setExamId={setExamId} />
-
-      <p className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-600">
-        {admin
-          ? "Marks submitted by the two examiners are final. Only you can correct a mark, and every correction is recorded with your reason."
-          : "Allot one or two examiner sets (internal + external) to each department. Both examiners and the HOD get an email, and the external examiner gets a secret code. The HOD then contacts them and makes the batches and the time table. The examiners enter the marks together; submitted marks are final."}
-      </p>
+    <div className={admin ? "mx-auto max-w-[1600px] px-3 py-3 sm:px-4" : "mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-7"}>
+      {admin ? (
+        <div className="flex flex-wrap items-center gap-x-4">
+          <h2 className="text-lg font-bold tracking-tight text-slate-950">Practical marks – corrections</h2>
+          <ExamSelect exams={exams} examId={examId} setExamId={setExamId} />
+        </div>
+      ) : (
+        <>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-950">Practical Examiners</h2>
+          <ExamSelect exams={exams} examId={examId} setExamId={setExamId} />
+          <p className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-600">
+            Allot one or two examiner sets (internal + external) to each department. Both examiners and the HOD get an email, and the external examiner gets a secret code. The HOD then contacts them and makes the batches and the time table. The examiners enter the marks together; submitted marks are final.
+          </p>
+        </>
+      )}
 
       {exams && exams.length === 0 && <NoExam />}
       {examId && batches === null && <div className="mt-6 h-64 animate-pulse rounded-2xl bg-white" />}
@@ -137,8 +146,11 @@ export default function PracticalAllotment({ mode = "coe" }) {
         />
       )}
 
+      {/* ------------------------------------------------ Admin: every batch, to correct marks */}
+      {admin && batches && <AdminBatches examId={examId} batches={batches} onOpen={setMarks} />}
+
       {/* ------------------------------------------------ time table and marks */}
-      {batches && (
+      {!admin && batches && (
         <>
           <h3 className="mt-8 text-lg font-bold tracking-tight text-slate-950">{admin ? "Batches" : "Time table made by the HODs"}</h3>
           <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -233,6 +245,225 @@ export default function PracticalAllotment({ mode = "coe" }) {
 
       {marks && <MarksModal id={marks} admin={admin} onClose={() => setMarks(null)} onChanged={load} />}
     </div>
+  );
+}
+
+// When the marks were submitted, in Indian time
+const enteredAt = (d) =>
+  d ? new Date(d).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" }) : "";
+
+// Admin: every batch date by date, with filters. Only what is shown changes here.
+function AdminBatches({ examId, batches, onOpen }) {
+  const [department, setDepartment] = useState("");
+  const [date, setDate] = useState("");
+  const [course, setCourse] = useState("");
+  const [status, setStatus] = useState("");
+  const [q, setQ] = useState("");
+
+  const deptKey = (b) => `${b.shift || "DAY"}|${b.department}`;
+  const dateKey = (b) => b.date || "none";
+  const departments = [...new Set(batches.map(deptKey))].sort();
+  const dates = [...new Set(batches.map(dateKey))].sort((a, c) => (a === "none" ? "9" : a).localeCompare(c === "none" ? "9" : c));
+  const tintOf = (k) => DATE_TINTS[dates.indexOf(k) % DATE_TINTS.length];
+  const inPlace = batches.filter((b) => (!department || deptKey(b) === department) && (!date || dateKey(b) === date));
+  const courses = [...new Map(inPlace.map((b) => [b.code, b.name])).entries()].sort((a, c) => a[0].localeCompare(c[0]));
+  const text = q.trim().toLowerCase();
+  const matches = (b) =>
+    !text ||
+    [b.code, b.name, b.label, `batch ${b.number}`, b.lab, b.department, deptShift(b.department, b.shift), b.internal?.name, b.external?.name, b.external?.college, ...(b.branches || [])]
+      .join(" ")
+      .toLowerCase()
+      .includes(text);
+  const beforeStatus = inPlace.filter((b) => (!course || b.code === course) && matches(b));
+  const isDone = (b) => b.status === "SUBMITTED";
+  const shown = beforeStatus.filter((b) => !status || (status === "DONE" ? isDone(b) : !isDone(b)));
+  const doneCount = beforeStatus.filter(isDone).length;
+  const perDay = new Map();
+  for (const b of shown) perDay.set(dateKey(b), (perDay.get(dateKey(b)) || 0) + 1);
+  const seen = new Map();
+
+  // a chosen course that is not in the new department / date is cleared
+  const keepCourse = (dep, day) => {
+    if (course && !batches.some((b) => b.code === course && (!dep || deptKey(b) === dep) && (!day || dateKey(b) === day))) setCourse("");
+  };
+  const filtered = department || date || course || status || q;
+  const [fShift, fDept] = department ? department.split("|") : ["", ""];
+
+  return (
+    <>
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        {[
+          ["", "All batches", beforeStatus.length, "bg-slate-200 text-slate-800"],
+          ["DONE", "Marks submitted", doneCount, "bg-emerald-100 text-emerald-800"],
+          ["WAIT", "Not submitted", beforeStatus.length - doneCount, "bg-yellow-100 text-yellow-900"],
+        ].map(([k, label, n, chip]) => (
+          <button key={label} onClick={() => setStatus(k)} aria-pressed={status === k} className={`rounded-full px-3 py-1 text-xs font-semibold transition ${chip} ${status === k ? "ring-2 ring-slate-900" : "hover:opacity-80"}`}>
+            {label} <b className="ml-1 tabular-nums">{n}</b>
+          </button>
+        ))}
+        <a href={`/print/practical/${examId}?sheet=timetable${department ? `&department=${fDept}&shift=${fShift}` : ""}`} target="_blank" rel="noreferrer" className={`${btn.small} ml-auto`}>
+          <Icon name="download" className="h-4 w-4" />
+          Print time table
+        </a>
+      </div>
+
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <select
+          value={department}
+          onChange={(e) => {
+            setDepartment(e.target.value);
+            keepCourse(e.target.value, date);
+          }}
+          className={T.field}
+          aria-label="Department"
+        >
+          <option value="">All departments</option>
+          {departments.map((k) => (
+            <option key={k} value={k}>
+              {deptShift(k.split("|")[1], k.split("|")[0])}
+            </option>
+          ))}
+        </select>
+        <select
+          value={date}
+          onChange={(e) => {
+            setDate(e.target.value);
+            keepCourse(department, e.target.value);
+          }}
+          className={T.field}
+          aria-label="Date of examination"
+        >
+          <option value="">All dates</option>
+          {dates.map((k) => (
+            <option key={k} value={k}>
+              {k === "none" ? "Date not fixed" : fmtDay(k)}
+            </option>
+          ))}
+        </select>
+        <select value={course} onChange={(e) => setCourse(e.target.value)} className={`${T.field} max-w-[20rem]`} aria-label="Course">
+          <option value="">All courses</option>
+          {courses.map(([c, n]) => (
+            <option key={c} value={c}>
+              {c} – {n}
+            </option>
+          ))}
+        </select>
+        <div className="relative">
+          <Icon name="search" className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Course, batch, lab, examiner…" aria-label="Search" className={`${T.field} w-56 pl-8`} />
+        </div>
+        {filtered && (
+          <button
+            onClick={() => {
+              setDepartment("");
+              setDate("");
+              setCourse("");
+              setStatus("");
+              setQ("");
+            }}
+            className="h-9 rounded-lg px-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+          >
+            Clear
+          </button>
+        )}
+        <span className="ml-auto text-xs text-slate-500">
+          {shown.length} of {batches.length} batches
+        </span>
+      </div>
+
+      <div className={`mt-2 ${T.wrap}`}>
+        {shown.length === 0 ? (
+          <p className="px-4 py-10 text-center text-sm text-slate-500">{batches.length ? "No batch matches these filters." : "No batches yet. The HODs make the batches after the examiners are allotted."}</p>
+        ) : (
+          <table className={`${T.table} min-w-[1180px]`}>
+            <thead>
+              <tr className={T.headRow}>
+                <th className={T.th}>Exam date</th>
+                <th className={T.thNum}>Sl.</th>
+                <th className={T.th}>Time &amp; lab</th>
+                <th className={T.th}>Course code</th>
+                <th className={T.th}>Course name</th>
+                <th className={T.th}>Batch</th>
+                <th className={T.th}>Dept</th>
+                <th className={`${T.th} text-right`}>Students</th>
+                <th className={T.th}>Examiners</th>
+                <th className={T.th}>Status</th>
+                <th className={T.th}>Marks entered on</th>
+                <th className={`${T.th} text-right`}>Action</th>
+              </tr>
+            </thead>
+            <tbody className={T.body}>
+              {shown.map((b, i) => {
+                const key = dateKey(b);
+                const t = tintOf(key);
+                const nth = seen.get(key) || 0;
+                seen.set(key, nth + 1);
+                const st = batchState(b);
+                const count = perDay.get(key);
+                return (
+                  <tr key={b._id} className={`${T.row} ${nth % 2 ? t.row : "bg-white"}`}>
+                    {nth === 0 && (
+                      <td rowSpan={count} className={`border-l-4 px-3 py-1 align-top text-xs font-bold whitespace-nowrap ${t.edge} ${t.cell}`}>
+                        {key === "none" ? "Date not fixed" : fmtDay(key).replace(/, \d{4}$/, "")}
+                        <span className="block text-[11px] font-medium opacity-75">
+                          {count} batch{count === 1 ? "" : "es"}
+                        </span>
+                      </td>
+                    )}
+                    <td className={T.tdNum}>{i + 1}</td>
+                    <td className={`${T.td} whitespace-nowrap text-xs text-slate-700`}>
+                      {sessionLabel(b.session) || "–"}
+                      {b.lab && <span className="block text-[11px] text-slate-500">{b.lab}</span>}
+                    </td>
+                    <td className={`${T.td} whitespace-nowrap font-semibold text-slate-950`}>{b.code}</td>
+                    <td className={`${T.td} max-w-[15rem] text-xs text-slate-700`}>{b.name}</td>
+                    <td className={`${T.td} whitespace-nowrap text-xs font-semibold text-slate-800`}>Batch {b.number}</td>
+                    <td className={T.td} title={deptShift(b.department, b.shift)}>
+                      <span className="flex max-w-[6.5rem] flex-wrap gap-0.5">
+                        {(b.branches?.length ? b.branches : [b.department]).map((d) => (
+                          <span key={d} className={`rounded px-1 py-0.5 text-[10px] font-bold ${deptTint(d).chip}`}>
+                            {String(d).toUpperCase()}
+                          </span>
+                        ))}
+                        {b.shift === "EVENING" && <span className="rounded bg-indigo-100 px-1 py-0.5 text-[10px] font-semibold text-indigo-800">Evening</span>}
+                      </span>
+                    </td>
+                    <td className={`${T.td} text-right text-xs font-semibold tabular-nums`}>{b.count}</td>
+                    <td className={`${T.td} text-xs`}>
+                      {b.allotted ? (
+                        <>
+                          <span className="block text-slate-800">
+                            <b className="text-[10px] text-indigo-700">INT</b> {b.internal?.name}
+                          </span>
+                          <span className="block text-slate-800">
+                            <b className="text-[10px] text-fuchsia-700">EXT</b> {b.external?.name}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-slate-400">Not chosen</span>
+                      )}
+                    </td>
+                    <td className={T.td}>
+                      <span className={`${T.pill} ${st.chip}`}>{st.label}</span>
+                    </td>
+                    <td className={`${T.td} whitespace-nowrap text-xs`} title={b.submitted?.by ? `Submitted by ${b.submitted.by}` : undefined}>
+                      {isDone(b) && b.submitted?.at ? <b className="text-emerald-800">{enteredAt(b.submitted.at)}</b> : <span className="text-slate-400">–</span>}
+                    </td>
+                    <td className={`${T.td} text-right`}>
+                      {isDone(b) && (
+                        <button onClick={() => onOpen(b._id)} className={`${btn.small} whitespace-nowrap`}>
+                          View / correct
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </>
   );
 }
 

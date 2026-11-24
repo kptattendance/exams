@@ -21,7 +21,7 @@ export const STAGE = {
 };
 
 // each exam date in its own colour
-const DATE_TINTS = [
+export const DATE_TINTS = [
   { cell: "bg-sky-100 text-sky-950", row: "bg-sky-50/60", edge: "border-sky-400" },
   { cell: "bg-emerald-100 text-emerald-950", row: "bg-emerald-50/60", edge: "border-emerald-400" },
   { cell: "bg-violet-100 text-violet-950", row: "bg-violet-50/60", edge: "border-violet-400" },
