@@ -129,7 +129,7 @@ async function practicalWork(exam, scope) {
 
 async function loadExam(req, res) {
   if (!isId(req.params.id)) return fail(res, 400, "Invalid exam id."), null;
-  const exam = await Exam.findById(req.params.id).select("name academicYear status timetable.entries timetable.sessions").lean();
+  const exam = await Exam.findById(req.params.id).select("name academicYear status results.publishedAt timetable.entries timetable.sessions").lean();
   if (!exam) return fail(res, 404, "Exam not found."), null;
   return exam;
 }
@@ -154,10 +154,12 @@ async function subjectInfo(codes) {
 const panelReady = (p) => Boolean(p?.internal?.clerkId && p?.external?.name);
 const isInternal = (req, p) => Boolean(p?.internal?.clerkId) && p.internal.clerkId === req.user?.id;
 const isUnlocked = (b) => Boolean(b.unlockedUntil) && new Date(b.unlockedUntil) > new Date();
-// The HOD, COE and ACOE only track whether and when the marks are entered – they
-// never see them here. The COE / ACOE still get who was present (room diaries).
-const seesMarks = (req) => !["hod", "coe", "acoe"].includes(req.user?.role);
-const seesAttendance = (req) => ["coe", "acoe"].includes(req.user?.role);
+// Submitted practical marks are seen here only by the Admin, and by the Principal
+// once the results of the exam are published. Everyone else only tracks whether and
+// when they were entered; the COE, ACOE, office and Principal also get who was present
+// (room diaries). The internal examiner sees marks only while entering them.
+const seesMarks = (req, exam) => req.user?.role === "admin" || (req.user?.role === "principal" && Boolean(exam?.results?.publishedAt));
+const seesAttendance = (req) => ["coe", "acoe", "office", "principal"].includes(req.user?.role);
 
 async function panelMap(batches) {
   const ids = [...new Set(batches.map((b) => String(b.panel || "")).filter(Boolean))];
@@ -835,7 +837,7 @@ export const getSubject = async (req, res) => {
       department: scope.department, // evening: the branch – its own set is chosen first
       candidates,
       panels: panels.map(panelView),
-      batches: batches.map((b) => batchView(b, pm.get(String(b.panel)), { marks: b.status === "SUBMITTED" && seesMarks(req), attendance: b.status === "SUBMITTED" && seesAttendance(req) })),
+      batches: batches.map((b) => batchView(b, pm.get(String(b.panel)), { marks: b.status === "SUBMITTED" && seesMarks(req, exam), attendance: b.status === "SUBMITTED" && seesAttendance(req) })),
     },
   });
 };
@@ -1398,7 +1400,7 @@ export const officeOverview = async (req, res) => {
 
   res.json({
     exam: examView(exam),
-    batches: batches.map((b) => batchView(b, pm.get(String(b.panel)), { marks: b.status === "SUBMITTED" && seesMarks(req), attendance: b.status === "SUBMITTED" && seesAttendance(req) })),
+    batches: batches.map((b) => batchView(b, pm.get(String(b.panel)), { marks: b.status === "SUBMITTED" && seesMarks(req, exam), attendance: b.status === "SUBMITTED" && seesAttendance(req) })),
     subjects: list,
   });
 };
@@ -1437,8 +1439,8 @@ export const getBatch = async (req, res) => {
   if (!allowed) return fail(res, 404, "Batch not found.");
   const exam = await Exam.findById(batch.exam).select("name academicYear").lean();
   const unlocked = mine && batch.status === "OPEN" && isUnlocked(batch);
-  // Marks are visible once submitted; before that only on the examiners' unlocked sheet
-  const view = batchView(batch, panel, { marks: unlocked || (batch.status === "SUBMITTED" && (seesMarks(req) || mine)), attendance: batch.status === "SUBMITTED" && seesAttendance(req) });
+  // Marks: on the examiners' unlocked sheet while entering; once submitted, the Admin only
+  const view = batchView(batch, panel, { marks: unlocked || (batch.status === "SUBMITTED" && seesMarks(req)), attendance: batch.status === "SUBMITTED" && seesAttendance(req) });
   res.json({ data: { ...view, examName: exam?.name || "", isInternal: mine, unlocked } });
 };
 

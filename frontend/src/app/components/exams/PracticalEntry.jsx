@@ -222,32 +222,20 @@ function Sheet({ id, onClose }) {
 
       {/* The mark lists (ML) and room diaries are printed by the exam section only */}
 
-      {/* ---------------------------------------------------- submitted */}
+      {/* ---------------------------------------------------- submitted: the marks are no longer shown */}
       {done && (
-        <>
-          <p className="mt-5 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-            <b>Submitted and final.</b> {b.summary.present} present, {b.summary.absent} absent, {b.summary.malpractice} malpractice. The exam section prints the mark list; sign it
-            there together with the external examiner. Any correction can be made only by the Admin.
+        <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-950">
+          <p className="flex items-center gap-2 text-base font-bold">
+            <Icon name="lock" className="h-5 w-5" />
+            Submitted and final
           </p>
-          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-            <ul className="divide-y divide-slate-100">
-              {b.students.map((s, i) => (
-                <li key={s.registerNumber} className="flex items-center gap-3 px-4 py-2 text-sm">
-                  <span className="w-7 text-xs tabular-nums text-slate-400">{i + 1}</span>
-                  <span className="w-28 font-semibold tabular-nums text-slate-900">{s.registerNumber}</span>
-                  <span className="min-w-0 flex-1 text-slate-700">{s.name}</span>
-                  <span className="font-bold tabular-nums text-slate-950">{s.attendance === "PRESENT" ? s.marks : s.attendance === "ABSENT" ? "Absent" : "Malpractice"}</span>
-                </li>
-              ))}
-              <li className="flex items-center justify-between gap-3 bg-emerald-50 px-4 py-2.5">
-                <span className="text-sm font-bold text-emerald-950">
-                  Total marks obtained <span className="font-normal">(AB and MP not counted)</span>
-                </span>
-                <span className="text-xl font-black tabular-nums text-emerald-900">{b.students.reduce((n, s) => (s.attendance === "PRESENT" ? n + (Number(s.marks) || 0) : n), 0)}</span>
-              </li>
-            </ul>
-          </div>
-        </>
+          <p className="mt-1">
+            {b.summary.present} present · {b.summary.absent} absent · {b.summary.malpractice} malpractice
+            {b.submitted?.at &&
+              ` · ${new Date(b.submitted.at).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" })}`}
+          </p>
+          <p className="mt-1 text-emerald-900">The marks are no longer shown. Any correction can be made only by the Admin.</p>
+        </div>
       )}
 
       {/* ---------------------------------------------------- locked */}
@@ -436,7 +424,7 @@ function Sheet({ id, onClose }) {
           <span className="text-2xl font-black tabular-nums">{total}</span>
         </p>
         <p className="rounded-xl bg-orange-50 px-4 py-3 text-sm leading-6 text-orange-900">
-          <b>This is final.</b> After submitting, neither examiner can change a mark. Only the Admin can make a correction.
+          <b>This is final.</b> After submitting, neither examiner can see or change the marks. Only the Admin can make a correction.
         </p>
         <label className="mt-4 block">
           <span className="text-sm font-medium text-slate-700">
