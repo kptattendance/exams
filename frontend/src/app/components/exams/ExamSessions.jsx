@@ -17,6 +17,7 @@ import { btn, field } from "../ui/Modal";
 import { useConfirm, useToast } from "../ui/Feedback";
 import { errMsg, useApi } from "./shared";
 import StudentSeats from "./StudentSeats";
+import { useRole } from "../useRole";
 
 const SESSION = { FN: "Morning (FN)", AN: "Afternoon (AN)" };
 const time = (d) => new Date(d).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
@@ -216,6 +217,8 @@ function Session({ id, qpHref, codingHref, onMoved }) {
         </table>
       </div>
 
+      <Officials examId={examId} officials={d.officials} onSaved={load} />
+
       <div className="mt-5 flex gap-1 border-b border-slate-200">
         {[
           ["rooms", "Rooms & room diary"],
@@ -233,6 +236,96 @@ function Session({ id, qpHref, codingHref, onMoved }) {
         <Absentees d={d} path={path} tint={tint} onSaved={load} />
       )}
     </>
+  );
+}
+
+// ------------------------------------------------------------------ room diary officials
+
+// Deputy Chief / Observer(s) and Chief Superintendent: typed once for the exam by the
+// COE / Admin, printed on every room diary. Others only see them.
+function Officials({ examId, officials, onSaved }) {
+  const api = useApi();
+  const toast = useToast();
+  const role = useRole();
+  const canEdit = role === "coe" || role === "admin";
+  const blank = { staffId: "", name: "" };
+  const start = () => ({
+    deputies: [0, 1, 2].map((i) => ({ ...blank, ...(officials?.deputies?.[i] || {}) })),
+    chief: { ...blank, ...(officials?.chief || {}) },
+  });
+  const [form, setForm] = useState(start);
+  const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const set = (who, i, k, v) =>
+    setForm((f) => (who === "chief" ? { ...f, chief: { ...f.chief, [k]: v } } : { ...f, deputies: f.deputies.map((x, j) => (j === i ? { ...x, [k]: v } : x)) }));
+  const save = async () => {
+    setBusy(true);
+    try {
+      const r = await api("put", `/exam-sessions/${examId}/officials`, form);
+      toast.success(r.data.message);
+      setEditing(false);
+      onSaved();
+    } catch (e) {
+      toast.error(errMsg(e, "Could not save."));
+    }
+    setBusy(false);
+  };
+  const deputies = (officials?.deputies || []).filter((x) => x.name || x.staffId);
+  const chief = officials?.chief || {};
+  const box = "h-9 rounded-lg border border-slate-300 bg-white px-2.5 text-sm outline-none focus:border-slate-500";
+  const line = (label, list) => (
+    <p className="text-xs text-slate-700">
+      <b className="text-slate-900">{label}:</b>{" "}
+      {list.length ? list.map((x) => [x.staffId, x.name].filter(Boolean).join(" – ")).join(" · ") : <span className="text-orange-700">not entered – written by hand</span>}
+    </p>
+  );
+
+  return (
+    <div className="mt-4 rounded-2xl border border-indigo-200 bg-indigo-50/60 p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-sm font-bold text-indigo-950">Printed on every room diary of this exam</p>
+        {canEdit && !editing && (
+          <button
+            onClick={() => {
+              setForm(start());
+              setEditing(true);
+            }}
+            className={`${btn.small} ml-auto`}
+          >
+            Edit
+          </button>
+        )}
+      </div>
+      {!editing ? (
+        <div className="mt-1 space-y-0.5">
+          {line("Deputy Chief / Observer", deputies)}
+          {line("Chief Superintendent", chief.name || chief.staffId ? [chief] : [])}
+        </div>
+      ) : (
+        <div className="mt-2 space-y-2">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="flex flex-wrap items-center gap-2">
+              <span className="w-44 text-xs font-semibold text-slate-700">Deputy Chief / Observer {i + 1}</span>
+              <input value={form.deputies[i].staffId} onChange={(e) => set("deputies", i, "staffId", e.target.value)} placeholder="Staff ID" aria-label={`Deputy ${i + 1} staff ID`} className={`${box} w-32`} />
+              <input value={form.deputies[i].name} onChange={(e) => set("deputies", i, "name", e.target.value)} placeholder="Name / designation (dept)" aria-label={`Deputy ${i + 1} name`} className={`${box} min-w-0 flex-1`} />
+            </div>
+          ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="w-44 text-xs font-semibold text-slate-700">Chief Superintendent</span>
+            <input value={form.chief.staffId} onChange={(e) => set("chief", 0, "staffId", e.target.value)} placeholder="Staff ID" aria-label="Chief Superintendent staff ID" className={`${box} w-32`} />
+            <input value={form.chief.name} onChange={(e) => set("chief", 0, "name", e.target.value)} placeholder="Name / designation" aria-label="Chief Superintendent name" className={`${box} min-w-0 flex-1`} />
+          </div>
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setEditing(false)} disabled={busy} className={btn.secondary}>
+              Cancel
+            </button>
+            <button onClick={save} disabled={busy} className={btn.primary}>
+              Save
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

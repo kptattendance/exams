@@ -177,10 +177,26 @@ export const getSession = async (req, res) => {
       reprint: Boolean(d.reprint),
     })),
     seesAts: showAts,
+    // Deputy Chief / Observer and Chief Superintendent printed on the room diaries
+    officials: { deputies: exam.roomOfficials?.deputies || [], chief: exam.roomOfficials?.chief || { staffId: "", name: "" } },
     trial: TRIAL_DB,
     // rooms (and ATS) can be changed until the session starts; after that only the Admin
     roomsOpen: isAdmin(req) || TRIAL_DB ? !papers.some((p) => p.coded) : Date.now() < new Date(times.startsAt).getTime(),
   });
+};
+
+// PUT /api/exam-sessions/:examId/officials  { deputies: [{ staffId, name }], chief: { staffId, name } }
+// COE / Admin: the Deputy Chief / Observer(s) and the Chief Superintendent, printed
+// on every room diary of the exam (name with designation, e.g. "DEVARAJA NAIK / LECTURER (ME Dept.)")
+export const saveOfficials = async (req, res) => {
+  if (!isId(req.params.examId)) return fail(res, 400, "Invalid exam.");
+  const clean = (o) => ({ staffId: String(o?.staffId || "").trim().slice(0, 20), name: String(o?.name || "").trim().replace(/\s+/g, " ").slice(0, 100) });
+  const deputies = (Array.isArray(req.body?.deputies) ? req.body.deputies : []).map(clean).filter((o) => o.staffId || o.name).slice(0, 3);
+  const chief = clean(req.body?.chief);
+  const exam = await Exam.findByIdAndUpdate(req.params.examId, { $set: { roomOfficials: { deputies, chief } } }, { returnDocument: "after" }).select("_id").lean();
+  if (!exam) return fail(res, 404, "Exam not found.");
+  await log(req, "ROOM_DIARY_OFFICIALS_SAVED", exam._id, { deputies: deputies.length, chief: Boolean(chief.name) });
+  res.json({ message: "Saved. They are printed on every room diary of this exam." });
 };
 
 // PUT /api/exam-sessions/:examId/:date/:session/rooms  { rooms: [{ name, invigilator, students: [registerNumber] }] }

@@ -3,7 +3,7 @@ import { lockedExamGuard } from "../services/examLock.js";
 
 import { authenticateUser } from "../middlewares/authMiddleware.js";
 import { requireRole } from "../middlewares/requireRole.js";
-import { arrangeRooms, getSession, listSessions, markPrinted, saveAbsentees, saveRooms, studentSeats, trialEndSession } from "../controllers/examSessionController.js";
+import { arrangeRooms, saveOfficials, getSession, listSessions, markPrinted, saveAbsentees, saveRooms, studentSeats, trialEndSession } from "../controllers/examSessionController.js";
 
 const router = express.Router();
 
@@ -17,6 +17,7 @@ router.use(authenticateUser);
 router.use("/:examId", lockedExamGuard((req) => req.params.examId));
 router.get("/", RUN, listSessions);
 router.get("/student/:registerNumber", RUN, studentSeats); // a student's rooms and seats
+router.put("/:examId/officials", requireRole("coe"), saveOfficials); // COE + Admin: printed on the room diaries
 router.get("/:examId/:date/:session", RUN, getSession);
 router.put("/:examId/:date/:session/rooms", RUN, saveRooms);
 router.post("/:examId/:date/:session/arrange", RUN, arrangeRooms); // automatic seating (not saved)

@@ -103,6 +103,18 @@ const examSchema = new mongoose.Schema(
       updatedBy: { type: String, default: "" },
     },
 
+    // Printed on every room diary (set by the COE / Admin once, not written by hand)
+    roomOfficials: {
+      deputies: {
+        type: [new mongoose.Schema({ staffId: { type: String, default: "" }, name: { type: String, default: "" } }, { _id: false })],
+        default: [],
+      },
+      chief: {
+        staffId: { type: String, default: "" },
+        name: { type: String, default: "" },
+      },
+    },
+
     // Valuation rules
     valuation: {
       doubleEntry: { type: Boolean, default: true }, // award lists typed twice

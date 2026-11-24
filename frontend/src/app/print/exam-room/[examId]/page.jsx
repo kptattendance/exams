@@ -22,6 +22,7 @@ import usePrintTitle, { deptCode, dmyOf } from "../../../components/print/usePri
 
 const th = "border border-slate-700 px-2 py-1 text-left";
 const td = "border border-slate-700 px-2 py-1";
+const tdr = "border border-slate-700 px-1.5 py-0 leading-tight";
 const SESSION = { FN: "Morning (FN)", AN: "Afternoon (AN)" };
 const day = (iso) => new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric", weekday: "long" });
 const time = (d) => new Date(d).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
@@ -64,6 +65,14 @@ function PrintRoomDiary() {
   const paperName = new Map(d.papers.map((p) => [p.code, p.name]));
   const roomOf = new Map(d.rooms.map((r) => [r.name, r]));
   const order = new Map(d.rooms.map((r, i) => [r.name, i])); // rooms in their own order, papers by code
+  const deputies = (d.officials?.deputies || []).filter((o) => o.staffId || o.name);
+  const chief = d.officials?.chief || { staffId: "", name: "" };
+  // "AT – Semester 1", or "AT, CE – Semester 1" for a common paper
+  const courseOf = (list) => {
+    const depts = [...new Set(list.map((c) => String(c.department || "").toUpperCase()).filter(Boolean))].sort();
+    const sems = [...new Set(list.map((c) => c.semester).filter(Boolean))].sort((m, n) => m - n);
+    return `${depts.join(", ") || "–"}${sems.length ? ` – Semester ${sems.join(", ")}` : ""}`;
+  };
   const diaries = d.diaries
     .filter((x) => !only || x.room === only)
     .sort((a, b) => (order.get(a.room) ?? 999) - (order.get(b.room) ?? 999) || a.code.localeCompare(b.code) || (a.part || 1) - (b.part || 1));
@@ -83,83 +92,125 @@ function PrintRoomDiary() {
 
       {diaries.map((x, i) => {
         const room = roomOf.get(x.room);
+        const parts = d.diaries.filter((y) => y.room === x.room && y.code === x.code).length;
         const students = d.candidates.filter((c) => c.code === x.code && c.room === x.room && c.ats?.startsWith(x.base)).sort((a, b) => a.registerNumber.localeCompare(b.registerNumber));
         return (
           <div key={x._id}>
-            {/* ---------------- room diary ---------------- */}
-            <section className={i ? "break-before-page pt-2" : ""}>
-              <Letterhead />
-              <div className="mt-2 text-center">
-                <p className="text-[12px] font-semibold">{d.exam.name}</p>
-                <p className="mt-1 text-[13px] font-bold tracking-[0.15em]">THEORY EXAMINATION – ROOM DIARY</p>
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-600">Confidential – goes to the COE in a sealed cover</p>
+            {/* ---------------- room diary (appearance tag sheet) ---------------- */}
+            <section className={i ? "break-before-page pt-1" : ""}>
+              <Letterhead compact />
+              <div className="mt-1 text-center">
+                <p className="text-[14px] font-extrabold tracking-wide">APPEARANCE TAG SHEET – DIPLOMA EXAMINATION</p>
+                <p className="text-[11px] font-semibold">({d.exam.name})</p>
               </div>
-              <table className="mt-3 w-full border-collapse">
-                <tbody>
-                  <tr>
-                    <td className={`${td} w-24 font-semibold`}>Date</td>
-                    <td className={td}>{day(d.date)}</td>
-                    <td className={`${td} w-24 font-semibold`}>Session</td>
-                    <td className={td}>
-                      {SESSION[d.session]} · {time(d.times.startsAt)} – {time(d.times.endsAt)}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className={`${td} font-semibold`}>Room</td>
-                    <td className={`${td} text-[13px] font-bold`}>{x.room}</td>
-                    <td className={`${td} font-semibold`}>Invigilator</td>
-                    <td className={td}>{room?.invigilator || ""}</td>
-                  </tr>
-                  {/* no packet number here – students see the diary; it is on the packet cover only */}
-                  <tr>
-                    <td className={`${td} font-semibold`}>Paper</td>
-                    <td className={`${td} font-semibold`} colSpan={3}>
-                      {x.code} – {paperName.get(x.code) || ""}
-                      {d.diaries.filter((y) => y.room === x.room && y.code === x.code).length > 1 &&
-                        ` · ATS ${x.part || 1} of ${d.diaries.filter((y) => y.room === x.room && y.code === x.code).length}`}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              <div className="mt-1.5 flex items-center justify-between border-y-2 border-slate-800 py-1">
+                <p className="text-[17px] font-black tracking-wide">
+                  ATS No: <span className="tabular-nums">{x.base}</span>
+                </p>
+                <p className="text-[10.5px]">
+                  [ Totals: Sl. Nos = <b>{students.length}</b>
+                  {parts > 1 && (
+                    <>
+                      {" "}
+                      · ATS <b>{x.part || 1}</b> of {parts}
+                    </>
+                  )}{" "}
+                  ]
+                </p>
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-600">Confidential</p>
+              </div>
+              <div className="mt-1 flex items-start gap-3">
+              <div className="grid flex-1 grid-cols-[auto_1fr] gap-x-3 text-[11.5px] leading-[1.45]">
+                <span>Course</span>
+                <b>
+                  {courseOf(students)}
+                </b>
+                <span>Exam paper</span>
+                <b>
+                  {x.code} – [ {paperName.get(x.code) || ""} ]
+                </b>
+                <span>Exam date &amp; time</span>
+                <b>
+                  {day(d.date)} · {time(d.times.startsAt)} – {time(d.times.endsAt)} ({SESSION[d.session]})
+                </b>
+                <span>Room / Hall No.</span>
+                <b className="text-[13px]">{x.room}</b>
+              </div>
+                <table className="w-[78mm] shrink-0 border-collapse text-[10px]">
+                  <thead>
+                    <tr>
+                      <th className={`${th} px-1 py-0.5`}>Booklets</th>
+                      <th className={`${th} px-1 py-0.5 text-center`}>Received</th>
+                      <th className={`${th} px-1 py-0.5 text-center`}>Issued</th>
+                      <th className={`${th} px-1 py-0.5 text-center`}>Returned</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {["Main", "Additional"].map((r) => (
+                      <tr key={r} className="h-[6.5mm]">
+                        <td className={`${tdr} font-semibold`}>{r}</td>
+                        <td className={tdr} />
+                        <td className={tdr} />
+                        <td className={tdr} />
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
-              <table className="mt-3 w-full border-collapse">
+              <table className="mt-1.5 w-full border-collapse text-[11px]">
                 <thead>
                   <tr className="bg-slate-100">
-                    <th className={`${th} w-8`}>#</th>
-                    <th className={`${th} w-28`}>Register No.</th>
-                    <th className={th}>Name</th>
-                    <th className={`${th} w-28`}>ATS No.</th>
-                    <th className={`${th} w-28`}>Answer script No.</th>
-                    <th className={`${th} w-24`}>Additional sheet No.</th>
-                    <th className={`${th} w-28`}>Signature of candidate</th>
+                    <th className={`${th} w-9 py-0.5 leading-tight`}>Sl. No.</th>
+                    <th className={`${th} w-24 py-0.5`}>Reg. No.</th>
+                    <th className={`${th} w-28 py-0.5`}>Full ATS No.</th>
+                    <th className={`${th} py-0.5`}>Student name</th>
+                    <th className={`${th} w-24 py-0.5 leading-tight`}>Main booklet No.</th>
+                    <th className={`${th} w-24 py-0.5`}>Sig. of student</th>
                   </tr>
                 </thead>
                 <tbody>
                   {students.map((s, k) => (
-                    <tr key={s.registerNumber} className="h-[7.5mm]">
-                      <td className={td}>{k + 1}</td>
-                      <td className={`${td} font-semibold`}>{s.registerNumber}</td>
-                      <td className={td}>{s.name}</td>
-                      <td className={`${td} text-[13px] font-bold tracking-wider`}>{fmt(s.ats)}</td>
-                      <td className={td} />
-                      <td className={td} />
-                      <td className={td} />
+                    <tr key={s.registerNumber} className="h-[5.5mm]">
+                      <td className={`${tdr}`}>{String(k + 1).padStart(2, "0")}</td>
+                      <td className={`${tdr} font-semibold`}>{s.registerNumber}</td>
+                      <td className={`${tdr} text-[12.5px] font-bold tracking-wider`}>{fmt(s.ats).replace("-", " - ")}</td>
+                      <td className={`${tdr} text-[10px] leading-[1.15]`}>{s.name}</td>
+                      <td className={`${tdr}`} />
+                      <td className={`${tdr}`} />
                     </tr>
                   ))}
                 </tbody>
               </table>
-              <p className="mt-3 text-[11px] leading-6">
-                Allotted: {students.length} &nbsp;·&nbsp; Present: ______ &nbsp;·&nbsp; Absent: ______
-                <br />
-                Answer booklets – received: ______ &nbsp;·&nbsp; used: ______ &nbsp;·&nbsp; returned unused: ______ &nbsp;·&nbsp; additional sheets used: ______
-                <br />
-                Candidate: copy <b>your ATS number</b> into the ATS boxes of the answer booklet, write the answer script number here and sign.
-                <br />
-                Invigilator: write <b>“Absent”</b> against every candidate who did not come. Put the answer scripts in the packet whose cover shows ATS number <b>{x.base}</b>.
+              <p className="mt-0.5 text-[9.5px] text-slate-600">
+                Invigilator: write <b>“ABSENT”</b> across the row of a student who did not come. Answer scripts go into the packet whose cover shows ATS No. <b>{x.base}</b>.
               </p>
-              <div className="mt-10 grid grid-cols-2 gap-10 text-center text-[11px] font-semibold">
-                <span className="border-t border-slate-700 pt-1">Invigilator (name &amp; signature)</span>
-                <span className="border-t border-slate-700 pt-1">Chief Superintendent</span>
+
+              <div className="mt-2 break-inside-avoid">
+                <table className="w-full border-collapse text-[11px]">
+                  <thead>
+                    <tr className="bg-slate-100">
+                      <th className={`${th} w-36 py-0.5`} />
+                      <th className={`${th} w-20 py-0.5`}>Staff ID</th>
+                      <th className={`${th} py-0.5`}>Name &amp; designation</th>
+                      <th className={`${th} w-36 py-0.5`}>Signature</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ["Invigilator", { staffId: "", name: room?.invigilator || "" }],
+                      ...(deputies.length ? deputies : [{ staffId: "", name: "" }]).map((o, k) => [k ? "" : "Deputy Chief / Observer", o]),
+                      ["Chief Superintendent", chief],
+                    ].map(([label, o], k) => (
+                      <tr key={k} className="h-[6.8mm]">
+                        <td className={`${tdr} font-semibold`}>{label}</td>
+                        <td className={`${tdr} tabular-nums`}>{o.staffId}</td>
+                        <td className={tdr}>{o.name}</td>
+                        <td className={tdr} />
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </section>
 
