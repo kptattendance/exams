@@ -25,7 +25,6 @@ export default function PracticalAllotment({ mode = "coe" }) {
 
   const [depts, setDepts] = useState(null); // departments with their examiner sets
   const [batches, setBatches] = useState(null);
-  const [department, setDepartment] = useState("");
   const [staff, setStaff] = useState([]);
   const [allot, setAllot] = useState(null); // { department, shift, panel? }
   const [secret, setSecret] = useState(null); // { title, name, code, emailed } shown once
@@ -55,12 +54,6 @@ export default function PracticalAllotment({ mode = "coe" }) {
       .then((r) => setStaff(r.data.data))
       .catch(() => {});
   }, [api, admin]);
-
-  // filter value "DAY|cs" or "EVENING|ee": the evening college's batches are listed apart
-  const shown = useMemo(() => (batches || []).filter((b) => !department || `${b.shift || "DAY"}|${b.department}` === department), [batches, department]);
-  const conducting = useMemo(() => [...new Set((batches || []).map((b) => `${b.shift || "DAY"}|${b.department}`))].sort(), [batches]);
-  const [fShift, fDept] = department ? department.split("|") : ["", ""];
-  const submitted = shown.filter((b) => b.status === "SUBMITTED").length;
 
   const title = (p) => `${deptShift(p.department, p.shift)} – Set ${p.number}`;
 
@@ -147,61 +140,10 @@ export default function PracticalAllotment({ mode = "coe" }) {
       )}
 
       {/* ------------------------------------------------ Admin: every batch, to correct marks */}
-      {admin && batches && <AdminBatches examId={examId} batches={batches} onOpen={setMarks} />}
-
-      {/* ------------------------------------------------ time table and marks */}
-      {!admin && batches && (
+      {batches && (
         <>
-          <h3 className="mt-8 text-lg font-bold tracking-tight text-slate-950">{admin ? "Batches" : "Time table made by the HODs"}</h3>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <select value={department} onChange={(e) => setDepartment(e.target.value)} className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm" aria-label="Conducting department">
-              <option value="">All departments</option>
-              {conducting.map((k) => (
-                <option key={k} value={k}>
-                  {deptShift(k.split("|")[1], k.split("|")[0])}
-                </option>
-              ))}
-            </select>
-            <p className="flex-1 text-sm text-slate-600">
-              {shown.length} batch{shown.length === 1 ? "" : "es"} · <b className="text-slate-900">{submitted}</b> submitted
-            </p>
-            {shown.length > 0 && (
-              <a href={`/print/practical/${examId}?sheet=timetable${department ? `&department=${fDept}&shift=${fShift}` : ""}`} target="_blank" rel="noreferrer" className={btn.secondary}>
-                <Icon name="download" className="h-4 w-4" />
-                Print time table
-              </a>
-            )}
-          </div>
-
-          <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-            {shown.length === 0 && <p className="px-4 py-10 text-center text-sm text-slate-500">No batches yet. The HODs make the batches after the examiners are allotted.</p>}
-            <ul className="divide-y divide-slate-100">
-              {shown.map((b) => {
-                const st = batchState(b);
-                return (
-                  <li key={b._id} className="flex flex-col gap-2 px-4 py-3 lg:flex-row lg:items-center">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-slate-950">
-                        {b.code} <span className="font-normal text-slate-600">{b.name}</span> · Batch {b.number}
-                      </p>
-                      <p className="mt-0.5 text-xs text-slate-500">
-                        {when(b)} · {b.count} students{b.branches.length > 0 && ` (${branches(b.branches)})`} · {deptShift(b.department, b.shift)}
-                      </p>
-                      <p className="mt-0.5 text-xs text-slate-600">
-                        {b.allotted ? `${b.set ? `Set ${b.set} · ` : ""}Internal: ${b.internal.name} · External: ${b.external.name}` : "Examiner set not chosen"}
-                      </p>
-                    </div>
-                    <span className={`self-start rounded-full px-2.5 py-1 text-xs font-semibold lg:self-center ${st.chip}`}>{st.label}</span>
-                    {b.status === "SUBMITTED" && (
-                      <button onClick={() => setMarks(b._id)} className={`${btn.small} self-start lg:self-center`}>
-                        {admin ? "View / correct marks" : "View marks"}
-                      </button>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+          {!admin && <h3 className="mt-5 text-lg font-bold tracking-tight text-slate-950">Time table made by the HODs</h3>}
+          <AdminBatches examId={examId} batches={batches} onOpen={admin ? setMarks : null} />
         </>
       )}
 
@@ -252,7 +194,8 @@ export default function PracticalAllotment({ mode = "coe" }) {
 const enteredAt = (d) =>
   d ? new Date(d).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" }) : "";
 
-// Admin: every batch date by date, with filters. Only what is shown changes here.
+// Every batch date by date, with filters. Admin: with the button to correct marks
+// (onOpen). COE: only when the marks were entered, never the marks.
 function AdminBatches({ examId, batches, onOpen }) {
   const [department, setDepartment] = useState("");
   const [date, setDate] = useState("");
@@ -375,7 +318,7 @@ function AdminBatches({ examId, batches, onOpen }) {
         {shown.length === 0 ? (
           <p className="px-4 py-10 text-center text-sm text-slate-500">{batches.length ? "No batch matches these filters." : "No batches yet. The HODs make the batches after the examiners are allotted."}</p>
         ) : (
-          <table className={`${T.table} min-w-[1180px]`}>
+          <table className={`${T.table} ${onOpen ? "min-w-[1180px]" : "min-w-[1060px]"}`}>
             <thead>
               <tr className={T.headRow}>
                 <th className={T.th}>Exam date</th>
@@ -389,7 +332,7 @@ function AdminBatches({ examId, batches, onOpen }) {
                 <th className={T.th}>Examiners</th>
                 <th className={T.th}>Status</th>
                 <th className={T.th}>Marks entered on</th>
-                <th className={`${T.th} text-right`}>Action</th>
+                {onOpen && <th className={`${T.th} text-right`}>Action</th>}
               </tr>
             </thead>
             <tbody className={T.body}>
@@ -449,13 +392,15 @@ function AdminBatches({ examId, batches, onOpen }) {
                     <td className={`${T.td} whitespace-nowrap text-xs`} title={b.submitted?.by ? `Submitted by ${b.submitted.by}` : undefined}>
                       {isDone(b) && b.submitted?.at ? <b className="text-emerald-800">{enteredAt(b.submitted.at)}</b> : <span className="text-slate-400">–</span>}
                     </td>
-                    <td className={`${T.td} text-right`}>
-                      {isDone(b) && (
-                        <button onClick={() => onOpen(b._id)} className={`${btn.small} whitespace-nowrap`}>
-                          View / correct
-                        </button>
-                      )}
-                    </td>
+                    {onOpen && (
+                      <td className={`${T.td} text-right`}>
+                        {isDone(b) && (
+                          <button onClick={() => onOpen(b._id)} className={`${btn.small} whitespace-nowrap`}>
+                            View / correct
+                          </button>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 );
               })}

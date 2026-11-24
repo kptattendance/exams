@@ -154,8 +154,10 @@ async function subjectInfo(codes) {
 const panelReady = (p) => Boolean(p?.internal?.clerkId && p?.external?.name);
 const isInternal = (req, p) => Boolean(p?.internal?.clerkId) && p.internal.clerkId === req.user?.id;
 const isUnlocked = (b) => Boolean(b.unlockedUntil) && new Date(b.unlockedUntil) > new Date();
-// The HOD only tracks whether the marks are entered – he never sees them
-const seesMarks = (req) => req.user?.role !== "hod";
+// The HOD, COE and ACOE only track whether and when the marks are entered – they
+// never see them here. The COE / ACOE still get who was present (room diaries).
+const seesMarks = (req) => !["hod", "coe", "acoe"].includes(req.user?.role);
+const seesAttendance = (req) => ["coe", "acoe"].includes(req.user?.role);
 
 async function panelMap(batches) {
   const ids = [...new Set(batches.map((b) => String(b.panel || "")).filter(Boolean))];
@@ -189,7 +191,7 @@ function panelView(p) {
 }
 
 // What the screens get; marks are shown only when `marks` is true.
-function batchView(b, panel, { students = true, marks = false } = {}) {
+function batchView(b, panel, { students = true, marks = false, attendance = false } = {}) {
   const done = b.status === "SUBMITTED";
   const pv = panel ? panelView(panel) : null;
   return {
@@ -236,7 +238,7 @@ function batchView(b, panel, { students = true, marks = false } = {}) {
           name: s.name,
           department: s.department,
           kind: s.kind,
-          attendance: marks ? s.attendance : null,
+          attendance: marks || attendance ? s.attendance : null,
           marks: marks ? s.marks : null,
         }))
       : undefined,
@@ -833,7 +835,7 @@ export const getSubject = async (req, res) => {
       department: scope.department, // evening: the branch – its own set is chosen first
       candidates,
       panels: panels.map(panelView),
-      batches: batches.map((b) => batchView(b, pm.get(String(b.panel)), { marks: b.status === "SUBMITTED" && seesMarks(req) })),
+      batches: batches.map((b) => batchView(b, pm.get(String(b.panel)), { marks: b.status === "SUBMITTED" && seesMarks(req), attendance: b.status === "SUBMITTED" && seesAttendance(req) })),
     },
   });
 };
@@ -1396,7 +1398,7 @@ export const officeOverview = async (req, res) => {
 
   res.json({
     exam: examView(exam),
-    batches: batches.map((b) => batchView(b, pm.get(String(b.panel)), { marks: b.status === "SUBMITTED" && seesMarks(req) })),
+    batches: batches.map((b) => batchView(b, pm.get(String(b.panel)), { marks: b.status === "SUBMITTED" && seesMarks(req), attendance: b.status === "SUBMITTED" && seesAttendance(req) })),
     subjects: list,
   });
 };
@@ -1436,7 +1438,7 @@ export const getBatch = async (req, res) => {
   const exam = await Exam.findById(batch.exam).select("name academicYear").lean();
   const unlocked = mine && batch.status === "OPEN" && isUnlocked(batch);
   // Marks are visible once submitted; before that only on the examiners' unlocked sheet
-  const view = batchView(batch, panel, { marks: unlocked || (batch.status === "SUBMITTED" && (seesMarks(req) || mine)) });
+  const view = batchView(batch, panel, { marks: unlocked || (batch.status === "SUBMITTED" && (seesMarks(req) || mine)), attendance: batch.status === "SUBMITTED" && seesAttendance(req) });
   res.json({ data: { ...view, examName: exam?.name || "", isInternal: mine, unlocked } });
 };
 
