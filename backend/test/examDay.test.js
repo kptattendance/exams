@@ -57,3 +57,19 @@ test("written paper times: 9–12 / 2–5, a drawing paper one hour more (9–1 
   // the exam's own session times are used when set
   assert.deepEqual(paperTimes({ session: "FN", drawing: true }, { FN: { start: "10:00", end: "13:00" } }), { start: "10:00", end: "14:00" });
 });
+
+test("a student sees his seat only from 10 minutes before his paper until it ends", async () => {
+  const { seatWindow } = await import("../src/services/examDay.js");
+  const sessions = { FN: { start: "09:00", end: "12:00" }, AN: { start: "14:00", end: "17:00" } };
+  const paper = [{ date: "2026-12-02", session: "AN" }];
+  const at = (t) => seatWindow(paper, sessions, new Date(`2026-12-02T${t}:00+05:30`)).state;
+  assert.equal(at("13:49"), "WAIT");
+  assert.equal(at("13:50"), "OPEN");
+  assert.equal(at("14:30"), "OPEN");
+  assert.equal(at("17:00"), "OPEN");
+  assert.equal(at("17:01"), "OVER");
+  // a drawing paper in the afternoon starts an hour earlier, so its seat shows earlier
+  const drawing = [{ date: "2026-12-02", session: "AN", drawing: true }];
+  assert.equal(seatWindow(drawing, sessions, new Date("2026-12-02T12:49:00+05:30")).state, "WAIT");
+  assert.equal(seatWindow(drawing, sessions, new Date("2026-12-02T12:50:00+05:30")).state, "OPEN");
+});

@@ -1,8 +1,8 @@
 "use client";
 
 // A student's written papers still to come, with room and seat once the exam
-// section has allotted them. Used on the student's own page and by the office
-// (to see what the student sees). The room is drawn with its real benches: only
+// section has allotted them. Used on the student's own page (from 10 minutes before
+// the paper starts) and by the office (always). The room is drawn with its real benches: only
 // this student's seat is filled in, every other seat is shown empty.
 
 import { useState } from "react";
@@ -135,6 +135,13 @@ export default function StudentSeats({ rows, student }) {
                   <span className="block text-sm font-bold tabular-nums">{r.seat}</span>
                 </span>
               </div>
+            ) : r.seatState === "WAIT" ? (
+              <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-900">
+                Room &amp; seat at {time(r.seatShowsAt)}
+                {new Date(r.seatShowsAt).toDateString() !== new Date().toDateString() && ` on ${day(r.date)}`}
+              </span>
+            ) : r.seatState === "OVER" ? (
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">Exam over</span>
             ) : (
               <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-800">Room not allotted yet</span>
             )}

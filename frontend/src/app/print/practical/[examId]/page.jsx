@@ -175,8 +175,25 @@ function PrintPractical() {
   );
 }
 
+// The last row of a mark list. The examiners add up the marks by hand and write the
+// total here; a submitted list prints it (blank for anyone who does not see the marks).
+function TotalRow({ span, total = "" }) {
+  return (
+    <tr className="h-[9mm] bg-slate-100 font-bold break-inside-avoid">
+      <td className={`${td} text-right text-[11px]`} colSpan={span}>
+        TOTAL MARKS OBTAINED <span className="font-normal">(AB and MP not counted)</span>
+      </td>
+      <td className={`${td} bg-white text-center text-[15px] font-black`}>{total}</td>
+      <td className={`${td} bg-white`} />
+    </tr>
+  );
+}
+
 function MarkList({ b }) {
   const done = b.status === "SUBMITTED";
+  const present = b.students.filter((s) => s.attendance === "PRESENT");
+  const marksShown = done && present.every((s) => s.marks !== null && s.marks !== undefined && s.marks !== "");
+  const total = marksShown ? present.reduce((n, s) => n + Number(s.marks), 0) : "";
   return (
     <div>
       <Head exam={b.examName} title={done ? "PRACTICAL EXAMINATION – MARK LIST" : "PRACTICAL EXAMINATION – BLANK MARK LIST"} sub={`${b.code} – ${b.name}`} evening={b.shift === "EVENING"} />
@@ -213,6 +230,7 @@ function MarkList({ b }) {
               <td className={td}>{done && s.attendance !== "PRESENT" ? (s.attendance === "ABSENT" ? "Absent" : "Malpractice") : ""}</td>
             </tr>
           ))}
+          <TotalRow span={4} total={total} />
         </tbody>
       </table>
       {done ? (
@@ -774,6 +792,7 @@ function BlankMarkList({ exam, b }) {
               <td className={td} />
             </tr>
           ))}
+          <TotalRow span={3} />
         </tbody>
       </table>
       <ExaminerSignatures b={b} />

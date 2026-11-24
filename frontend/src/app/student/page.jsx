@@ -4,7 +4,7 @@
 // examination that print on the hall ticket – read only. Anything wrong or
 // missing: tell the HOD / office, who check and correct it.
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { errMsg, useApi } from "../components/exams/shared";
 import { usePopupMessage } from "../components/ui/Feedback";
@@ -19,26 +19,38 @@ const cap = (s) => (s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) :
 
 const KIND = { BACKLOG: ["Back paper", "bg-amber-50 text-amber-800 ring-amber-200"], BRIDGE: ["Bridge course", "bg-violet-50 text-violet-700 ring-violet-200"] };
 
-// Not shown for now, by decision of the college officials (the server refuses it too).
-const SHOW_SEATS_TO_STUDENTS = false;
-
-// his room and seat for each written paper to come (as soon as the office allots them)
+// his room and seat for each written paper: only from 10 minutes before the paper
+// starts until it ends (the server sends them only then)
 function MySeats() {
   const api = useApi();
   const [rows, setRows] = useState(null);
   const [me, setMe] = useState(null);
-  useEffect(() => {
+  const load = useCallback(() => {
     api("get", "/students/me/seats")
       .then((r) => {
         setMe(r.data.student || null);
         setRows(r.data.data || []);
       })
-      .catch(() => setRows([]));
+      .catch(() => setRows((x) => x ?? []));
   }, [api]);
+  useEffect(() => {
+    load();
+  }, [load]);
+  // the page asks again when a seat is due to appear or an exam ends
+  useEffect(() => {
+    const moments = (rows || [])
+      .map((r) => (r.seatState === "WAIT" ? r.seatShowsAt : r.seatState === "OPEN" ? r.endsAt : null))
+      .filter(Boolean)
+      .map((d) => new Date(d).getTime());
+    if (!moments.length) return;
+    const wait = Math.min(...moments) - Date.now() + Math.floor(Math.random() * 15000);
+    const t = setTimeout(load, Math.max(30000, Math.min(wait, 3600000)));
+    return () => clearTimeout(t);
+  }, [rows, load]);
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
       <h2 className="text-sm font-bold uppercase tracking-wide text-[#8E0D3C]">My exam room &amp; seat</h2>
-      <p className="mt-1 text-xs leading-5 text-slate-500">Your room and seat (desk) number appear here as soon as the exam section allots them.</p>
+      <p className="mt-1 text-xs leading-5 text-slate-500">Your room and seat appear here 10 minutes before each exam starts.</p>
       <StudentSeats rows={rows} student={me} />
     </section>
   );
@@ -163,7 +175,7 @@ export default function StudentHome() {
 
       <ExamCourses exam={me.exam} />
 
-      {SHOW_SEATS_TO_STUDENTS && <MySeats />}
+      <MySeats />
 
       {/* every detail on record */}
       <div className="grid gap-4 sm:gap-5 md:grid-cols-2">

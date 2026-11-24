@@ -131,6 +131,12 @@ function Sheet({ id, onClose }) {
   };
   const entered = b.students.filter((s) => !check(rows[s.registerNumber])).length;
   const count = (a) => b.students.filter((s) => rows[s.registerNumber]?.attendance === a).length;
+  // the total appears once every student is entered, to compare with the total on the ML
+  const allEntered = b.students.length > 0 && entered === b.students.length;
+  const total = b.students.reduce((n, s) => {
+    const r = rows[s.registerNumber];
+    return r?.attendance === "PRESENT" ? n + (Number(r.marks) || 0) : n;
+  }, 0);
   const payload = () =>
     Object.fromEntries(b.students.map((s) => [s.registerNumber, { attendance: rows[s.registerNumber]?.attendance || null, marks: rows[s.registerNumber]?.marks ?? "" }]));
   const setRow = (reg, patch) => {
@@ -233,6 +239,12 @@ function Sheet({ id, onClose }) {
                   <span className="font-bold tabular-nums text-slate-950">{s.attendance === "PRESENT" ? s.marks : s.attendance === "ABSENT" ? "Absent" : "Malpractice"}</span>
                 </li>
               ))}
+              <li className="flex items-center justify-between gap-3 bg-emerald-50 px-4 py-2.5">
+                <span className="text-sm font-bold text-emerald-950">
+                  Total marks obtained <span className="font-normal">(AB and MP not counted)</span>
+                </span>
+                <span className="text-xl font-black tabular-nums text-emerald-900">{b.students.reduce((n, s) => (s.attendance === "PRESENT" ? n + (Number(s.marks) || 0) : n), 0)}</span>
+              </li>
             </ul>
           </div>
         </>
@@ -362,6 +374,19 @@ function Sheet({ id, onClose }) {
                   </li>
                 );
               })}
+              {/* the total, to compare with the total written on the ML */}
+              {allEntered ? (
+                <li className="flex flex-wrap items-center justify-between gap-2 bg-emerald-100 px-4 py-3" role="status">
+                  <span className="text-sm text-emerald-950">
+                    <b>Total marks obtained</b> ({count("PRESENT")} present; AB and MP not counted). <b>Check that it matches the total on the ML.</b>
+                  </span>
+                  <span className="text-2xl font-black tabular-nums text-emerald-900">{total}</span>
+                </li>
+              ) : (
+                <li className="bg-slate-50 px-4 py-2.5 text-sm text-slate-600">
+                  <b>Total marks obtained</b> will appear after the last student is entered ({b.students.length - entered} left).
+                </li>
+              )}
             </ul>
           </div>
 
@@ -369,6 +394,12 @@ function Sheet({ id, onClose }) {
             <div className="mx-auto flex max-w-xl items-center gap-3 rounded-2xl bg-slate-950 px-4 py-3 text-white shadow-2xl">
               <p className="flex-1 text-sm">
                 {entered} of {b.students.length} entered
+                {allEntered && (
+                  <>
+                    {" · "}
+                    <b className="text-base">Total {total}</b>
+                  </>
+                )}
               </p>
               <button onClick={saveDraft} disabled={busy} className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-300 hover:text-white disabled:opacity-50">
                 Save draft
@@ -398,6 +429,12 @@ function Sheet({ id, onClose }) {
           </>
         }
       >
+        <p className="mb-3 flex items-center justify-between gap-3 rounded-xl bg-emerald-100 px-4 py-3 text-sm text-emerald-950">
+          <span>
+            <b>Total marks obtained.</b> Check that it matches the total on the ML.
+          </span>
+          <span className="text-2xl font-black tabular-nums">{total}</span>
+        </p>
         <p className="rounded-xl bg-orange-50 px-4 py-3 text-sm leading-6 text-orange-900">
           <b>This is final.</b> After submitting, neither examiner can change a mark. Only the Admin can make a correction.
         </p>

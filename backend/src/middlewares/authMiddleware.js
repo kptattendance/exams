@@ -33,7 +33,7 @@ async function clerkUser(userId) {
 }
 
 // A student account may use only these (his own details); everything else is refused
-const STUDENT_PATHS = ["/api/students/me", "/api/users/me", "/api/settings/academic-year"];
+const STUDENT_PATHS = ["/api/students/me", "/api/students/me/seats", "/api/users/me", "/api/settings/academic-year"];
 
 // Clerk too busy (too many requests) or not reachable – not the person's fault
 export const clerkBusy = (e) => e?.status === 429 || e?.status >= 500 || ["ECONNRESET", "ETIMEDOUT", "ENOTFOUND", "EAI_AGAIN"].includes(e?.code);

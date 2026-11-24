@@ -60,6 +60,18 @@ export function absentWindow(entry, sessions) {
   return { opensAt: new Date(w.startsAt.getTime() + ABSENT_AFTER_MINUTES * 60 * 1000), startsAt: w.startsAt, closesAt: w.closesAt };
 }
 
+// A student sees his room and seat only from 10 minutes before his paper starts
+// until it ends (so that nobody goes to his seat early and writes on the bench).
+// entries: his papers of one session -> { startsAt, endsAt, showsAt, state: "WAIT" | "OPEN" | "OVER" }
+export const SEAT_SHOWN_BEFORE_MINUTES = 10;
+export function seatWindow(entries, sessions, now = new Date()) {
+  const ws = entries.map((e) => printWindow(e, sessions));
+  const startsAt = new Date(Math.min(...ws.map((w) => w.startsAt.getTime())));
+  const endsAt = new Date(Math.max(...ws.map((w) => w.closesAt.getTime())));
+  const showsAt = new Date(startsAt.getTime() - SEAT_SHOWN_BEFORE_MINUTES * 60 * 1000);
+  return { startsAt, endsAt, showsAt, state: now < showsAt ? "WAIT" : now > endsAt ? "OVER" : "OPEN" };
+}
+
 // "BEFORE" | "OPEN" | "CLOSED"
 export function windowState(w, now = new Date()) {
   if (now < w.opensAt) return "BEFORE";
