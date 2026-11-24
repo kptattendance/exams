@@ -423,6 +423,22 @@ async function orderDates(examId, panelId) {
   return { from: all[0] || "", to: all[all.length - 1] || "", start: mine[0] || "" };
 }
 
+// The external examiner's designation as it is NOW on his faculty record (found by
+// the link, else by his email); what was saved at allotment only if there is none.
+async function externalDesignations(panels) {
+  const ids = panels.map((p) => p.external?.user).filter(Boolean);
+  const emails = panels.map((p) => lower(p.external?.email)).filter(Boolean);
+  const users = await User.find({ $or: [{ _id: { $in: ids } }, { email: { $in: emails } }] }).select("designation email").lean();
+  const byId = new Map(users.map((u) => [String(u._id), u]));
+  const byEmail = new Map(users.map((u) => [lower(u.email), u]));
+  return new Map(
+    panels.map((p) => {
+      const u = byId.get(String(p.external?.user || "")) || byEmail.get(lower(p.external?.email));
+      return [String(p._id), u?.designation || p.external?.designation || ""];
+    })
+  );
+}
+
 // The office orders of these examiner sets as one PDF. The college code for the
 // copy to the Principal comes from the examiner's faculty record when he was
 // chosen from the list.
@@ -430,11 +446,13 @@ async function externalOrdersOf(exam, panels) {
   const ids = panels.map((p) => p.external?.user).filter(Boolean);
   const users = ids.length ? await User.find({ _id: { $in: ids } }).select("collegeCode collegeName").lean() : [];
   const byId = new Map(users.map((u) => [String(u._id), u]));
+  const designations = await externalDesignations(panels);
   const orders = [];
   for (const p of panels)
     orders.push({
       exam,
       panel: p,
+      externalDesignation: designations.get(String(p._id)),
       college: collegeParts(p.external, byId.get(String(p.external?.user || ""))),
       date: p.allottedAt || new Date(),
       evening: p.shift === "EVENING",
@@ -527,6 +545,7 @@ export const examinerDocuments = async (req, res) => {
     };
     return `${h(t.start)} – ${h(t.end)}`;
   };
+  const designations = await externalDesignations(panels);
   const data = [];
   for (const p of panels) {
     const mine = batches.filter((b) => String(b.panel) === String(p._id));
@@ -559,7 +578,7 @@ export const examinerDocuments = async (req, res) => {
         printed: Object.fromEntries(CERT_DOCS.map((k) => [k, p.printed?.[`${k}At`] ? { at: p.printed[`${k}At`], by: p.printed[`${k}By`] || "" } : null])),
       },
       internal: { name: p.internal?.name || "", designation: u?.designation || "", department: u?.department || p.department, college: HOME_COLLEGE.name },
-      external: { name: p.external?.name || "", designation: p.external?.designation || "", department: p.external?.department || "", college: p.external?.college || "" },
+      external: { name: p.external?.name || "", designation: designations.get(String(p._id)) || "", department: p.external?.department || "", college: p.external?.college || "" },
       from: list[0].date,
       to: list[list.length - 1].date,
       rows: list,

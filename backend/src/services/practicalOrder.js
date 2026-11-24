@@ -316,13 +316,13 @@ export function collegeParts(ext = {}, user = null) {
 //   role "INTERNAL" (with person: { name, designation, department }): the same
 //   order for the internal examiner of our college, copy to his HOD
 //   evening: the evening college's examiner set (copy also to its Principal)
-function drawOrder(doc, A, { exam, panel, college = {}, date = new Date(), from = "", to = "", start = "", role = "EXTERNAL", person = null, evening = false }) {
+function drawOrder(doc, A, { exam, panel, college = {}, date = new Date(), from = "", to = "", start = "", role = "EXTERNAL", externalDesignation = "", person = null, evening = false }) {
   const F = A.F;
   const W = new Writer(doc, F, footer);
   const internal = role === "INTERNAL";
   const ext = (internal ? person : panel.external) || {};
   const asKn = internal ? "ಆಂತರಿಕ ಪರೀಕ್ಷಕರಾಗಿ" : "ಬಾಹ್ಯ ಪರೀಕ್ಷಕರಾಗಿ";
-  const designation = ext.designation || "Lecturer";
+  const designation = (!internal && externalDesignation) || ext.designation || "Lecturer";
   const designationKn = DESIGNATION_KN[designation] || "ಉಪನ್ಯಾಸಕರು";
   // the conducting department – the department typed for the external examiner is often wrong
   const department = deptFull(panel.department);
